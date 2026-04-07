@@ -18,16 +18,16 @@ import pytest
 
 from src.types.artifact_types import ArtifactCategory, CodeLanguage
 from src.models.artifact import (
-    CodeForgeArtifact, GenerationMethod, ValidationResult,
-    ValidationType, ValidationStatus
+    CodeForgeArtifact,
+    GenerationMethod,
+    ValidationResult,
+    ValidationType,
+    ValidationStatus,
 )
 from src.models.pipeline_context import PipelineContext
 
 
-pytest_plugins = [
-    'tests.unit.conftest',
-    'tests.fixtures.d3_fixtures'
-]
+pytest_plugins = ["tests.unit.conftest", "tests.fixtures.d3_fixtures"]
 
 
 # ============================================================================
@@ -40,10 +40,7 @@ class TestD3ContainerGeneration:
 
     @pytest.mark.asyncio
     async def test_d3_container_artifact_structure(
-        self,
-        d3_build_ticket_with_container,
-        mock_d3_packager,
-        d3_pipeline_context
+        self, d3_build_ticket_with_container, mock_d3_packager, d3_pipeline_context
     ):
         """
         D3: Estrutura do artefato CONTAINER
@@ -66,24 +63,22 @@ class TestD3ContainerGeneration:
 
         # Verificar content_uri
         assert container.content_uri is not None
-        assert any(registry in container.content_uri for registry in [
-            'ghcr.io', 'docker.io', 'gcr.io', 'registry.example.com'
-        ]), f"Registry inválido: {container.content_uri}"
+        assert any(
+            registry in container.content_uri
+            for registry in ["ghcr.io", "docker.io", "gcr.io", "registry.example.com"]
+        ), f"Registry inválido: {container.content_uri}"
 
         # Verificar content_hash
         assert container.content_hash is not None
-        assert container.content_hash.startswith('sha256:')
+        assert container.content_hash.startswith("sha256:")
 
         # Verificar tag presente
-        assert ':' in container.content_uri or '@sha256:' in container.content_uri, \
-            f"URI sem tag ou digest: {container.content_uri}"
+        assert (
+            ":" in container.content_uri or "@sha256:" in container.content_uri
+        ), f"URI sem tag ou digest: {container.content_uri}"
 
     @pytest.mark.asyncio
-    async def test_d3_container_metadata(
-        self,
-        d3_pipeline_context,
-        mock_d3_packager
-    ):
+    async def test_d3_container_metadata(self, d3_pipeline_context, mock_d3_packager):
         """
         D3: Metadados do artefato CONTAINER
 
@@ -97,19 +92,16 @@ class TestD3ContainerGeneration:
         container = d3_pipeline_context.generated_artifacts[0]
 
         # Verificar metadados de container
-        assert 'image_size_bytes' in container.metadata or \
-               'size' in container.metadata, \
-            "Metadado de tamanho não encontrado"
+        assert (
+            "image_size_bytes" in container.metadata or "size" in container.metadata
+        ), "Metadado de tamanho não encontrado"
 
-        if 'image_size_bytes' in container.metadata:
-            size = int(container.metadata['image_size_bytes'])
+        if "image_size_bytes" in container.metadata:
+            size = int(container.metadata["image_size_bytes"])
             assert size > 0, "Tamanho da imagem deve ser > 0"
 
     @pytest.mark.asyncio
-    async def test_d3_container_with_multiple_platforms(
-        self,
-        d3_pipeline_context
-    ):
+    async def test_d3_container_with_multiple_platforms(self, d3_pipeline_context):
         """
         D3: Container multi-platform (multi-arch)
 
@@ -118,10 +110,7 @@ class TestD3ContainerGeneration:
         - linux/arm64
         """
         # Configurar ticket para multi-arch
-        d3_pipeline_context.ticket.parameters['platforms'] = [
-            'linux/amd64',
-            'linux/arm64'
-        ]
+        d3_pipeline_context.ticket.parameters["platforms"] = ["linux/amd64", "linux/arm64"]
 
         packager = MagicMock()
         packager.package = AsyncMock()
@@ -136,18 +125,15 @@ class TestD3ContainerGeneration:
                 trace_id=context.trace_id,
                 span_id=context.span_id,
                 artifact_type=ArtifactCategory.CONTAINER,
-                language='python',
+                language="python",
                 confidence_score=0.95,
                 generation_method=GenerationMethod.TEMPLATE,
-                content_uri='ghcr.io/neural-hive/myapp-api:multi',
-                content_hash='sha256:multi123',
-                sbom_uri='s3://sboms/multi.spdx.json',
-                signature='multi-signature',
-                metadata={
-                    'platforms': 'linux/amd64,linux/arm64',
-                    'manifest_type': 'manifest-list'
-                },
-                created_at=datetime.now()
+                content_uri="ghcr.io/neural-hive/myapp-api:multi",
+                content_hash="sha256:multi123",
+                sbom_uri="s3://sboms/multi.spdx.json",
+                signature="multi-signature",
+                metadata={"platforms": "linux/amd64,linux/arm64", "manifest_type": "manifest-list"},
+                created_at=datetime.now(),
             )
             context.add_artifact(artifact)
 
@@ -156,9 +142,9 @@ class TestD3ContainerGeneration:
         await packager.package(d3_pipeline_context)
 
         container = d3_pipeline_context.generated_artifacts[0]
-        assert 'platforms' in container.metadata
-        assert 'linux/amd64' in container.metadata['platforms']
-        assert 'linux/arm64' in container.metadata['platforms']
+        assert "platforms" in container.metadata
+        assert "linux/amd64" in container.metadata["platforms"]
+        assert "linux/arm64" in container.metadata["platforms"]
 
 
 # ============================================================================
@@ -170,11 +156,7 @@ class TestD3SBOMGeneration:
     """Testes de geração de SBOM."""
 
     @pytest.mark.asyncio
-    async def test_d3_sbom_format_spdx(
-        self,
-        d3_pipeline_context,
-        mock_d3_packager
-    ):
+    async def test_d3_sbom_format_spdx(self, d3_pipeline_context, mock_d3_packager):
         """
         D3: SBOM no formato SPDX 2.3
 
@@ -189,20 +171,15 @@ class TestD3SBOMGeneration:
 
         # Verificar SBOM
         assert container.sbom_uri is not None
-        assert '.spdx' in container.sbom_uri.lower(), \
-            f"SBOM não parece SPDX: {container.sbom_uri}"
+        assert ".spdx" in container.sbom_uri.lower(), f"SBOM não parece SPDX: {container.sbom_uri}"
 
         # Verificar se é JSON
-        assert '.json' in container.sbom_uri or \
-               container.sbom_uri.endswith('.spdx'), \
-            f"Extensão inválida: {container.sbom_uri}"
+        assert ".json" in container.sbom_uri or container.sbom_uri.endswith(
+            ".spdx"
+        ), f"Extensão inválida: {container.sbom_uri}"
 
     @pytest.mark.asyncio
-    async def test_d3_sbom_storage_location(
-        self,
-        d3_pipeline_context,
-        mock_d3_packager
-    ):
+    async def test_d3_sbom_storage_location(self, d3_pipeline_context, mock_d3_packager):
         """
         D3: Local de armazenamento do SBOM
 
@@ -215,16 +192,13 @@ class TestD3SBOMGeneration:
 
         container = d3_pipeline_context.generated_artifacts[0]
 
-        valid_prefixes = ['s3://', 'gs://', 'azure://', 'http']
-        assert any(container.sbom_uri.startswith(p) for p in valid_prefixes), \
-            f"URI inválida: {container.sbom_uri}"
+        valid_prefixes = ["s3://", "gs://", "azure://", "http"]
+        assert any(
+            container.sbom_uri.startswith(p) for p in valid_prefixes
+        ), f"URI inválida: {container.sbom_uri}"
 
     @pytest.mark.asyncio
-    async def test_d3_sbom_content_verification(
-        self,
-        d3_pipeline_context,
-        mock_d3_packager
-    ):
+    async def test_d3_sbom_content_verification(self, d3_pipeline_context, mock_d3_packager):
         """
         D3: Verificação de conteúdo do SBOM
 
@@ -237,6 +211,7 @@ class TestD3SBOMGeneration:
         - creationInfo
         - packages[] (lista de componentes)
         """
+
         # Simular SBOM completo
         async def _package_with_sbom(context):
             artifact = CodeForgeArtifact(
@@ -248,19 +223,19 @@ class TestD3SBOMGeneration:
                 trace_id=context.trace_id,
                 span_id=context.span_id,
                 artifact_type=ArtifactCategory.CONTAINER,
-                language='python',
+                language="python",
                 confidence_score=0.95,
                 generation_method=GenerationMethod.TEMPLATE,
-                content_uri='ghcr.io/neural-hive/myapp-api:latest',
-                content_hash='sha256:abc123',
-                sbom_uri='s3://sboms/test.spdx.json',
-                signature='test-signature',
+                content_uri="ghcr.io/neural-hive/myapp-api:latest",
+                content_hash="sha256:abc123",
+                sbom_uri="s3://sboms/test.spdx.json",
+                signature="test-signature",
                 metadata={
-                    'sbom_components_count': '42',
-                    'sbom_format': 'SPDX',
-                    'sbom_version': '2.3'
+                    "sbom_components_count": "42",
+                    "sbom_format": "SPDX",
+                    "sbom_version": "2.3",
                 },
-                created_at=datetime.now()
+                created_at=datetime.now(),
             )
             context.add_artifact(artifact)
 
@@ -270,15 +245,12 @@ class TestD3SBOMGeneration:
         container = d3_pipeline_context.generated_artifacts[0]
 
         # Verificar metadados do SBOM
-        assert 'sbom_components_count' in container.metadata
-        components = int(container.metadata['sbom_components_count'])
+        assert "sbom_components_count" in container.metadata
+        components = int(container.metadata["sbom_components_count"])
         assert components > 0, "SBOM deve ter componentes"
 
     @pytest.mark.asyncio
-    async def test_d3_sbom_vulnerability_scan(
-        self,
-        d3_pipeline_context
-    ):
+    async def test_d3_sbom_vulnerability_scan(self, d3_pipeline_context):
         """
         D3: Scan de vulnerabilidade no SBOM
 
@@ -290,8 +262,8 @@ class TestD3SBOMGeneration:
         # Adicionar resultado de validação com scan de vulnerabilidade
         validation = ValidationResult(
             validation_type=ValidationType.SECURITY_SCAN,
-            tool_name='Grype',
-            tool_version='0.70.0',
+            tool_name="Grype",
+            tool_version="0.70.0",
             status=ValidationStatus.PASSED,
             score=0.85,
             issues_count=2,
@@ -300,7 +272,7 @@ class TestD3SBOMGeneration:
             medium_issues=2,
             low_issues=0,
             executed_at=datetime.now(),
-            duration_ms=3000
+            duration_ms=3000,
         )
         d3_pipeline_context.add_validation(validation)
 
@@ -308,7 +280,8 @@ class TestD3SBOMGeneration:
         assert len(d3_pipeline_context.validation_results) > 0
 
         vuln_scan = [
-            v for v in d3_pipeline_context.validation_results
+            v
+            for v in d3_pipeline_context.validation_results
             if v.validation_type == ValidationType.SECURITY_SCAN
         ]
         assert len(vuln_scan) > 0
@@ -323,11 +296,7 @@ class TestD3ArtifactSigning:
     """Testes de assinatura de artefatos."""
 
     @pytest.mark.asyncio
-    async def test_d3_signature_present(
-        self,
-        d3_pipeline_context,
-        mock_d3_packager
-    ):
+    async def test_d3_signature_present(self, d3_pipeline_context, mock_d3_packager):
         """
         D3: Assinatura presente no artefato
 
@@ -344,6 +313,7 @@ class TestD3ArtifactSigning:
 
         # Verificar formato base64-like
         import base64
+
         try:
             # Tenta decodificar (pode falhar se não for base64 puro)
             decoded = base64.b64decode(container.signature)
@@ -354,11 +324,7 @@ class TestD3ArtifactSigning:
             assert len(container.signature) > 5
 
     @pytest.mark.asyncio
-    async def test_d3_signature_verification(
-        self,
-        d3_pipeline_context,
-        mock_sigstore_client
-    ):
+    async def test_d3_signature_verification(self, d3_pipeline_context, mock_sigstore_client):
         """
         D3: Verificação de assinatura
 
@@ -380,30 +346,26 @@ class TestD3ArtifactSigning:
             trace_id=d3_pipeline_context.trace_id,
             span_id=d3_pipeline_context.span_id,
             artifact_type=ArtifactCategory.CONTAINER,
-            language='python',
+            language="python",
             confidence_score=0.95,
             generation_method=GenerationMethod.TEMPLATE,
-            content_uri='ghcr.io/neural-hive/myapp-api:latest',
-            content_hash='sha256:abc123',
-            sbom_uri='s3://sboms/test.spdx.json',
-            signature='test-signature-abc123',
-            created_at=datetime.now()
+            content_uri="ghcr.io/neural-hive/myapp-api:latest",
+            content_hash="sha256:abc123",
+            sbom_uri="s3://sboms/test.spdx.json",
+            signature="test-signature-abc123",
+            created_at=datetime.now(),
         )
         d3_pipeline_context.add_artifact(artifact)
 
         # Verificar assinatura
         verified = await mock_sigstore_client.verify_signature(
-            artifact.content_uri,
-            artifact.signature
+            artifact.content_uri, artifact.signature
         )
 
         assert verified is True
 
     @pytest.mark.asyncio
-    async def test_d3_signature_algorithm(
-        self,
-        d3_pipeline_context
-    ):
+    async def test_d3_signature_algorithm(self, d3_pipeline_context):
         """
         D3: Algoritmo de assinatura
 
@@ -420,24 +382,23 @@ class TestD3ArtifactSigning:
             trace_id=d3_pipeline_context.trace_id,
             span_id=d3_pipeline_context.span_id,
             artifact_type=ArtifactCategory.CONTAINER,
-            language='python',
+            language="python",
             confidence_score=0.95,
             generation_method=GenerationMethod.TEMPLATE,
-            content_uri='ghcr.io/neural-hive/myapp-api:latest',
-            content_hash='sha256:abc123',
-            sbom_uri='s3://sboms/test.spdx.json',
-            signature='eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9...',  # ECDSA JWT
-            metadata={
-                'signature_algorithm': 'ECDSA_SHA256',
-                'key_id': 'key-123'
-            },
-            created_at=datetime.now()
+            content_uri="ghcr.io/neural-hive/myapp-api:latest",
+            content_hash="sha256:abc123",
+            sbom_uri="s3://sboms/test.spdx.json",
+            signature="eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9...",  # ECDSA JWT
+            metadata={"signature_algorithm": "ECDSA_SHA256", "key_id": "key-123"},
+            created_at=datetime.now(),
         )
         d3_pipeline_context.add_artifact(artifact)
 
-        assert 'signature_algorithm' in artifact.metadata
-        assert 'SHA256' in artifact.metadata['signature_algorithm'] or \
-               'SHA512' in artifact.metadata['signature_algorithm']
+        assert "signature_algorithm" in artifact.metadata
+        assert (
+            "SHA256" in artifact.metadata["signature_algorithm"]
+            or "SHA512" in artifact.metadata["signature_algorithm"]
+        )
 
 
 # ============================================================================
@@ -449,10 +410,7 @@ class TestD3KubernetesManifests:
     """Testes de geração de manifests Kubernetes."""
 
     @pytest.mark.asyncio
-    async def test_d3_kubernetes_deployment_manifest(
-        self,
-        d3_pipeline_context
-    ):
+    async def test_d3_kubernetes_deployment_manifest(self, d3_pipeline_context):
         """
         D3: Manifesto Kubernetes Deployment
 
@@ -470,32 +428,29 @@ class TestD3KubernetesManifests:
             trace_id=d3_pipeline_context.trace_id,
             span_id=d3_pipeline_context.span_id,
             artifact_type=ArtifactCategory.IAC,
-            language='yaml',
-            template_id='kubernetes-deployment-v1',
+            language="yaml",
+            template_id="kubernetes-deployment-v1",
             confidence_score=0.90,
             generation_method=GenerationMethod.TEMPLATE,
-            content_uri='s3://manifests/myapp-api-deployment.yaml',
-            content_hash='sha256:manifest123',
+            content_uri="s3://manifests/myapp-api-deployment.yaml",
+            content_hash="sha256:manifest123",
             metadata={
-                'k8s_version': '1.28',
-                'namespace': 'production',
-                'replicas': '3',
-                'kind': 'Deployment'
+                "k8s_version": "1.28",
+                "namespace": "production",
+                "replicas": "3",
+                "kind": "Deployment",
             },
-            created_at=datetime.now()
+            created_at=datetime.now(),
         )
         d3_pipeline_context.add_artifact(manifest)
 
         assert manifest.artifact_type == ArtifactCategory.IAC
-        assert manifest.language == 'yaml'
-        assert '.yaml' in manifest.content_uri or '.yml' in manifest.content_uri
-        assert 'kind' in manifest.metadata
+        assert manifest.language == "yaml"
+        assert ".yaml" in manifest.content_uri or ".yml" in manifest.content_uri
+        assert "kind" in manifest.metadata
 
     @pytest.mark.asyncio
-    async def test_d3_kubernetes_helm_chart(
-        self,
-        d3_pipeline_context
-    ):
+    async def test_d3_kubernetes_helm_chart(self, d3_pipeline_context):
         """
         D3: Chart Helm
 
@@ -514,25 +469,25 @@ class TestD3KubernetesManifests:
             trace_id=d3_pipeline_context.trace_id,
             span_id=d3_pipeline_context.span_id,
             artifact_type=ArtifactCategory.CHART,
-            language='yaml',
-            template_id='helm-chart-v1',
+            language="yaml",
+            template_id="helm-chart-v1",
             confidence_score=0.90,
             generation_method=GenerationMethod.TEMPLATE,
-            content_uri='s3://charts/myapp-api-1.0.0.tgz',
-            content_hash='sha256:chart123',
+            content_uri="s3://charts/myapp-api-1.0.0.tgz",
+            content_hash="sha256:chart123",
             metadata={
-                'chart_name': 'myapp-api',
-                'chart_version': '1.0.0',
-                'app_version': '1.0.0',
-                'description': 'MyApp API Helm Chart'
+                "chart_name": "myapp-api",
+                "chart_version": "1.0.0",
+                "app_version": "1.0.0",
+                "description": "MyApp API Helm Chart",
             },
-            created_at=datetime.now()
+            created_at=datetime.now(),
         )
         d3_pipeline_context.add_artifact(chart)
 
         assert chart.artifact_type == ArtifactCategory.CHART
-        assert 'chart_name' in chart.metadata
-        assert 'chart_version' in chart.metadata
+        assert "chart_name" in chart.metadata
+        assert "chart_version" in chart.metadata
 
 
 # ============================================================================
@@ -544,11 +499,7 @@ class TestD3ArtifactValidation:
     """Testes de validação de artefatos gerados."""
 
     @pytest.mark.asyncio
-    async def test_d3_container_image_scan(
-        self,
-        d3_pipeline_context,
-        mock_trivy_client
-    ):
+    async def test_d3_container_image_scan(self, d3_pipeline_context, mock_trivy_client):
         """
         D3: Scan de imagem de container
 
@@ -562,8 +513,8 @@ class TestD3ArtifactValidation:
         mock_trivy_client.scan_container = AsyncMock(
             return_value=ValidationResult(
                 validation_type=ValidationType.SECURITY_SCAN,
-                tool_name='Trivy',
-                tool_version='0.50.0',
+                tool_name="Trivy",
+                tool_version="0.50.0",
                 status=ValidationStatus.PASSED,
                 score=0.95,
                 issues_count=0,
@@ -572,22 +523,17 @@ class TestD3ArtifactValidation:
                 medium_issues=0,
                 low_issues=0,
                 executed_at=datetime.now(),
-                duration_ms=2000
+                duration_ms=2000,
             )
         )
 
-        result = await mock_trivy_client.scan_container(
-            'ghcr.io/neural-hive/myapp-api:latest'
-        )
+        result = await mock_trivy_client.scan_container("ghcr.io/neural-hive/myapp-api:latest")
 
         assert result.status == ValidationStatus.PASSED
         assert result.critical_issues == 0
 
     @pytest.mark.asyncio
-    async def test_d3_sbom_compliance_check(
-        self,
-        d3_pipeline_context
-    ):
+    async def test_d3_sbom_compliance_check(self, d3_pipeline_context):
         """
         D3: Verificação de compliance do SBOM
 
@@ -598,8 +544,8 @@ class TestD3ArtifactValidation:
         """
         validation = ValidationResult(
             validation_type=ValidationType.COMPLIANCE_CHECK,
-            tool_name='SBOM-Compliance',
-            tool_version='1.0.0',
+            tool_name="SBOM-Compliance",
+            tool_version="1.0.0",
             status=ValidationStatus.PASSED,
             score=1.0,
             issues_count=0,
@@ -609,7 +555,7 @@ class TestD3ArtifactValidation:
             low_issues=0,
             executed_at=datetime.now(),
             duration_ms=1000,
-            report_uri='s3://reports/compliance-report.json'
+            report_uri="s3://reports/compliance-report.json",
         )
         d3_pipeline_context.add_validation(validation)
 
@@ -617,10 +563,7 @@ class TestD3ArtifactValidation:
         assert validation.status == ValidationStatus.PASSED
 
     @pytest.mark.asyncio
-    async def test_d3_artifact_integrity_verification(
-        self,
-        d3_pipeline_context
-    ):
+    async def test_d3_artifact_integrity_verification(self, d3_pipeline_context):
         """
         D3: Verificação de integridade do artefato
 
@@ -639,23 +582,23 @@ class TestD3ArtifactValidation:
             trace_id=d3_pipeline_context.trace_id,
             span_id=d3_pipeline_context.span_id,
             artifact_type=ArtifactCategory.CONTAINER,
-            language='python',
+            language="python",
             confidence_score=0.95,
             generation_method=GenerationMethod.TEMPLATE,
-            content_uri='ghcr.io/neural-hive/myapp-api:latest',
-            content_hash='sha256:a1b2c3d4e5f67890abcdef1234567890abcdef1234567890abcdef1234567890',  # 64 caracteres hex
-            sbom_uri='s3://sboms/test.spdx.json',
-            signature='test-signature',
-            metadata={'verified': 'true'},
-            created_at=datetime.now()
+            content_uri="ghcr.io/neural-hive/myapp-api:latest",
+            content_hash="sha256:a1b2c3d4e5f67890abcdef1234567890abcdef1234567890abcdef1234567890",  # 64 caracteres hex
+            sbom_uri="s3://sboms/test.spdx.json",
+            signature="test-signature",
+            metadata={"verified": "true"},
+            created_at=datetime.now(),
         )
         d3_pipeline_context.add_artifact(artifact)
 
         # Verificar formato do hash
-        assert artifact.content_hash.startswith('sha256:')
-        hash_part = artifact.content_hash.split(':', 1)[1]
+        assert artifact.content_hash.startswith("sha256:")
+        hash_part = artifact.content_hash.split(":", 1)[1]
         assert len(hash_part) == 64, f"Hash inválido: {hash_part}"
-        assert all(c in '0123456789abcdef' for c in hash_part.lower())
+        assert all(c in "0123456789abcdef" for c in hash_part.lower())
 
 
 # ============================================================================
@@ -668,9 +611,7 @@ class TestD3MultipleArtifacts:
 
     @pytest.mark.asyncio
     async def test_d3_container_plus_manifest_generation(
-        self,
-        d3_pipeline_context,
-        mock_d3_packager
+        self, d3_pipeline_context, mock_d3_packager
     ):
         """
         D3: Geração de CONTAINER + MANIFEST
@@ -692,15 +633,13 @@ class TestD3MultipleArtifacts:
             trace_id=d3_pipeline_context.trace_id,
             span_id=d3_pipeline_context.span_id,
             artifact_type=ArtifactCategory.IAC,
-            language='yaml',
+            language="yaml",
             confidence_score=0.90,
             generation_method=GenerationMethod.TEMPLATE,
-            content_uri='s3://manifests/deployment.yaml',
-            content_hash='sha256:manifest123',
-            metadata={
-                'container_image': d3_pipeline_context.generated_artifacts[0].content_uri
-            },
-            created_at=datetime.now()
+            content_uri="s3://manifests/deployment.yaml",
+            content_hash="sha256:manifest123",
+            metadata={"container_image": d3_pipeline_context.generated_artifacts[0].content_uri},
+            created_at=datetime.now(),
         )
         d3_pipeline_context.add_artifact(manifest)
 
@@ -711,18 +650,15 @@ class TestD3MultipleArtifacts:
         manifest_artifact = d3_pipeline_context.generated_artifacts[1]
 
         # Verificar referência cruzada
-        assert 'container_image' in manifest_artifact.metadata
-        assert manifest_artifact.metadata['container_image'] == container.content_uri
+        assert "container_image" in manifest_artifact.metadata
+        assert manifest_artifact.metadata["container_image"] == container.content_uri
 
         # Verificar IDs de tracing
         assert container.trace_id == manifest_artifact.trace_id
         assert container.span_id == manifest_artifact.span_id
 
     @pytest.mark.asyncio
-    async def test_d3_artifact_relationships(
-        self,
-        d3_pipeline_context
-    ):
+    async def test_d3_artifact_relationships(self, d3_pipeline_context):
         """
         D3: Relacionamentos entre artefatos
 
@@ -733,11 +669,9 @@ class TestD3MultipleArtifacts:
         """
         artifacts = []
 
-        for i, artifact_type in enumerate([
-            ArtifactCategory.CODE,
-            ArtifactCategory.CONTAINER,
-            ArtifactCategory.IAC
-        ]):
+        for i, artifact_type in enumerate(
+            [ArtifactCategory.CODE, ArtifactCategory.CONTAINER, ArtifactCategory.IAC]
+        ):
             artifact = CodeForgeArtifact(
                 artifact_id=str(uuid.uuid4()),
                 ticket_id=d3_pipeline_context.ticket.ticket_id,
@@ -747,12 +681,12 @@ class TestD3MultipleArtifacts:
                 trace_id=d3_pipeline_context.trace_id,
                 span_id=d3_pipeline_context.span_id,
                 artifact_type=artifact_type,
-                language='python' if i == 0 else 'yaml',
+                language="python" if i == 0 else "yaml",
                 confidence_score=0.90,
                 generation_method=GenerationMethod.TEMPLATE,
-                content_uri=f's3://artifacts/artifact-{i}',
-                content_hash=f'sha256:hash{i}',
-                created_at=datetime.now()
+                content_uri=f"s3://artifacts/artifact-{i}",
+                content_hash=f"sha256:hash{i}",
+                created_at=datetime.now(),
             )
             artifacts.append(artifact)
             d3_pipeline_context.add_artifact(artifact)

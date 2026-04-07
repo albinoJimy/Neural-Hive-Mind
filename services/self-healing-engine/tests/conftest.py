@@ -64,7 +64,9 @@ def mock_execution_ticket_client():
     """Mock do Execution Ticket Service Client."""
     client = AsyncMock()
     client.reallocate_ticket = AsyncMock(return_value={"success": True, "ticket_id": "test-123"})
-    client.reallocate_multiple_tickets = AsyncMock(return_value={"success": True, "tickets": ["test-123"]})
+    client.reallocate_multiple_tickets = AsyncMock(
+        return_value={"success": True, "tickets": ["test-123"]}
+    )
     client.update_ticket_status = AsyncMock(return_value={"success": True})
     client.get_ticket = AsyncMock(return_value={"ticket_id": "test-123", "status": "pending"})
     client.initialize = AsyncMock(return_value=None)
@@ -81,11 +83,7 @@ def mock_orchestrator_client():
     client.pause_workflow = AsyncMock(return_value={"success": True, "workflow_id": "wf-123"})
     client.resume_workflow = AsyncMock(return_value={"success": True, "workflow_id": "wf-123"})
     client.get_workflow_status = AsyncMock(
-        return_value={
-            "workflow_id": "wf-123",
-            "status": "RUNNING",
-            "tickets": []
-        }
+        return_value={"workflow_id": "wf-123", "status": "RUNNING", "tickets": []}
     )
     client.trigger_replanning = AsyncMock(return_value={"success": True, "plan_id": "plan-123"})
     client.initialize = AsyncMock(return_value=None)
@@ -97,12 +95,7 @@ def mock_orchestrator_client():
 def mock_opa_client():
     """Mock do OPA Client."""
     client = AsyncMock()
-    client.validate_action = AsyncMock(
-        return_value={
-            "allowed": True,
-            "reason": "Action permitted"
-        }
-    )
+    client.validate_action = AsyncMock(return_value={"allowed": True, "reason": "Action permitted"})
     client.check_policy = AsyncMock(return_value={"result": True})
     client.initialize = AsyncMock(return_value=None)
     client.close = AsyncMock(return_value=None)
@@ -165,18 +158,12 @@ def sample_playbook_path(tmp_path):
         "description": "Test playbook for unit tests",
         "timeout_seconds": 60,
         "actions": [
-            {
-                "type": "check_worker_health",
-                "parameters": {"worker_id": "worker-1"}
-            },
+            {"type": "check_worker_health", "parameters": {"worker_id": "worker-1"}},
             {
                 "type": "reallocate_ticket",
-                "parameters": {
-                    "ticket_id": "ticket-123",
-                    "reason": "test_recovery"
-                }
-            }
-        ]
+                "parameters": {"ticket_id": "ticket-123", "reason": "test_recovery"},
+            },
+        ],
     }
     playbook_path.write_text(yaml.safe_dump(playbook_content))
     return str(playbook_path)
@@ -192,38 +179,22 @@ def sample_incident():
         "service": "worker-agents",
         "description": "Ticket execution timeout",
         "detected_at": "2026-03-18T10:00:00Z",
-        "metadata": {
-            "ticket_id": "ticket-123",
-            "worker_id": "worker-1",
-            "timeout_seconds": 300
-        }
+        "metadata": {"ticket_id": "ticket-123", "worker_id": "worker-1", "timeout_seconds": 300},
     }
 
 
 @pytest.fixture
 def sample_chaos_experiment():
     """Fixture que fornece um experimento de chaos de teste."""
-    from src.chaos.chaos_models import (
-        ChaosExperiment,
-        FaultInjection,
-        FaultType,
-        TargetSelector
-    )
+    from src.chaos.chaos_models import ChaosExperiment, FaultInjection, FaultType, TargetSelector
 
-    target = TargetSelector(
-        namespace="neural-hive-orchestration",
-        service_name="worker-agents"
-    )
-    injection = FaultInjection(
-        fault_type=FaultType.POD_KILL,
-        target=target,
-        duration_seconds=60
-    )
+    target = TargetSelector(namespace="neural-hive-orchestration", service_name="worker-agents")
+    injection = FaultInjection(fault_type=FaultType.POD_KILL, target=target, duration_seconds=60)
     experiment = ChaosExperiment(
         name="Test Pod Kill",
         description="Test experiment",
         environment="staging",
-        fault_injections=[injection]
+        fault_injections=[injection],
     )
     return experiment
 
@@ -233,5 +204,10 @@ def sample_chaos_experiment():
 def event_loop_policy():
     """Configura a policy de event loop para testes."""
     import asyncio
-    policy = asyncio.WindowsSelectorEventLoopPolicy() if sys.platform == "win32" else asyncio.DefaultEventLoopPolicy()
+
+    policy = (
+        asyncio.WindowsSelectorEventLoopPolicy()
+        if sys.platform == "win32"
+        else asyncio.DefaultEventLoopPolicy()
+    )
     return policy

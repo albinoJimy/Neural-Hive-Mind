@@ -55,9 +55,7 @@ class LIMEExplainer:
 
             # Executar com timeout
             with ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(
-                    self._compute_lime, model, features, feature_names
-                )
+                future = executor.submit(self._compute_lime, model, features, feature_names)
                 try:
                     result = future.result(timeout=self.timeout_seconds)
                     return result

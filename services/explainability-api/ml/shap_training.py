@@ -29,8 +29,7 @@ logger = structlog.get_logger(__name__)
 
 
 async def collect_historical_decisions(
-    mongo_client: MongoDBClient,
-    limit: int = 1000
+    mongo_client: MongoDBClient, limit: int = 1000
 ) -> List[Dict[str, Any]]:
     """
     Coleta decisões históricas do MongoDB.
@@ -48,11 +47,7 @@ async def collect_historical_decisions(
         # Buscar decisões da coleção de aprovações
         decisions = await mongo_client.get_recent_decisions(limit=limit)
 
-        logger.info(
-            "decisions_collected",
-            count=len(decisions),
-            source="mongodb"
-        )
+        logger.info("decisions_collected", count=len(decisions), source="mongodb")
 
         return decisions
 
@@ -66,7 +61,7 @@ async def train_shap_model(
     decisions: List[Dict[str, Any]],
     model_type: str = "random_forest",
     target_accuracy: float = 0.7,
-    output_path: str = "models/shap_model_v1.joblib"
+    output_path: str = "models/shap_model_v1.joblib",
 ) -> Dict[str, Any]:
     """
     Treina modelo SHAP com decisões históricas.
@@ -84,7 +79,7 @@ async def train_shap_model(
         "starting_shap_model_training",
         samples=len(decisions),
         model_type=model_type,
-        target_accuracy=target_accuracy
+        target_accuracy=target_accuracy,
     )
 
     # Criar diretório de saída se não existir
@@ -92,11 +87,7 @@ async def train_shap_model(
     output_file.parent.mkdir(parents=True, exist_ok=True)
 
     # Inicializar treinador
-    trainer = ModelTrainer(
-        model_type=model_type,
-        min_samples=10,
-        target_accuracy=target_accuracy
-    )
+    trainer = ModelTrainer(model_type=model_type, min_samples=10, target_accuracy=target_accuracy)
 
     # Treinar modelo
     result = trainer.train_from_decisions(decisions)
@@ -109,15 +100,12 @@ async def train_shap_model(
             "shap_model_trained_successfully",
             output_path=output_path,
             metrics=result.get("metrics"),
-            feature_importance=result.get("feature_importance")
+            feature_importance=result.get("feature_importance"),
         )
 
         result["model_path"] = output_path
     else:
-        logger.error(
-            "shap_model_training_failed",
-            error=result.get("error", "Unknown error")
-        )
+        logger.error("shap_model_training_failed", error=result.get("error", "Unknown error"))
 
     return result
 
@@ -157,22 +145,22 @@ def generate_synthetic_decisions(n_samples: int = 100) -> List[Dict[str, Any]]:
                     "confidence_score": confidence + random.uniform(-0.1, 0.1),
                     "risk_score": risk + random.uniform(-0.1, 0.1),
                     "processing_time_ms": random.randint(100, 5000),
-                    "seniority_multiplier": random.choice([0.5, 0.75, 1.0, 1.5, 2.0])
+                    "seniority_multiplier": random.choice([0.5, 0.75, 1.0, 1.5, 2.0]),
                 },
                 {
                     "specialist_type": "technical",
                     "confidence_score": confidence + random.uniform(-0.1, 0.1),
                     "risk_score": risk + random.uniform(-0.1, 0.1),
                     "processing_time_ms": random.randint(100, 5000),
-                    "seniority_multiplier": random.choice([0.5, 0.75, 1.0, 1.5, 2.0])
-                }
+                    "seniority_multiplier": random.choice([0.5, 0.75, 1.0, 1.5, 2.0]),
+                },
             ],
             "consensus_metrics": {
                 "divergence_score": divergence,
                 "unanimous": random.random() > 0.5,
                 "bayesian_confidence": confidence,
-                "voting_confidence": confidence
-            }
+                "voting_confidence": confidence,
+            },
         }
         decisions.append(decision)
 
@@ -181,50 +169,36 @@ def generate_synthetic_decisions(n_samples: int = 100) -> List[Dict[str, Any]]:
 
 async def main():
     """Função principal do script de treinamento."""
-    parser = argparse.ArgumentParser(
-        description="Treina modelo SHAP para Explainability API"
+    parser = argparse.ArgumentParser(description="Treina modelo SHAP para Explainability API")
+    parser.add_argument(
+        "--min-samples", type=int, default=50, help="Número mínimo de amostras para treinamento"
     )
     parser.add_argument(
-        "--min-samples",
-        type=int,
-        default=50,
-        help="Número mínimo de amostras para treinamento"
-    )
-    parser.add_argument(
-        "--max-samples",
-        type=int,
-        default=1000,
-        help="Número máximo de amostras para coletar"
+        "--max-samples", type=int, default=1000, help="Número máximo de amostras para coletar"
     )
     parser.add_argument(
         "--model-type",
         type=str,
         default="random_forest",
         choices=["random_forest", "gradient_boosting"],
-        help="Tipo de modelo a treinar"
+        help="Tipo de modelo a treinar",
     )
     parser.add_argument(
-        "--target-accuracy",
-        type=float,
-        default=0.7,
-        help="Acurácia alvo para validação"
+        "--target-accuracy", type=float, default=0.7, help="Acurácia alvo para validação"
     )
     parser.add_argument(
         "--output",
         type=str,
         default="models/shap_model_v1.joblib",
-        help="Caminho para salvar o modelo"
+        help="Caminho para salvar o modelo",
     )
     parser.add_argument(
         "--use-synthetic",
         action="store_true",
-        help="Usar dados sintéticos em vez de buscar do MongoDB"
+        help="Usar dados sintéticos em vez de buscar do MongoDB",
     )
     parser.add_argument(
-        "--synthetic-samples",
-        type=int,
-        default=100,
-        help="Número de amostras sintéticas a gerar"
+        "--synthetic-samples", type=int, default=100, help="Número de amostras sintéticas a gerar"
     )
 
     args = parser.parse_args()
@@ -236,7 +210,7 @@ async def main():
         model_type=args.model_type,
         target_accuracy=args.target_accuracy,
         output=args.output,
-        use_synthetic=args.use_synthetic
+        use_synthetic=args.use_synthetic,
     )
 
     # Coletar decisões
@@ -246,10 +220,7 @@ async def main():
     else:
         mongo_client = MongoDBClient()
         await mongo_client.connect()
-        decisions = await collect_historical_decisions(
-            mongo_client,
-            limit=args.max_samples
-        )
+        decisions = await collect_historical_decisions(mongo_client, limit=args.max_samples)
         await mongo_client.close()
 
     # Validar quantidade mínima
@@ -258,12 +229,10 @@ async def main():
             "insufficient_samples",
             collected=len(decisions),
             required=args.min_samples,
-            msg="using_synthetic_fallback"
+            msg="using_synthetic_fallback",
         )
         # Complementar com sintéticos se necessário
-        synthetic = generate_synthetic_decisions(
-            args.min_samples - len(decisions)
-        )
+        synthetic = generate_synthetic_decisions(args.min_samples - len(decisions))
         decisions.extend(synthetic)
 
     # Treinar modelo
@@ -271,7 +240,7 @@ async def main():
         decisions=decisions,
         model_type=args.model_type,
         target_accuracy=args.target_accuracy,
-        output_path=args.output
+        output_path=args.output,
     )
 
     # Exibir resultado
@@ -288,9 +257,7 @@ async def main():
 
         print("\nFeature Importance:")
         for feat, imp in sorted(
-            result['feature_importance'].items(),
-            key=lambda x: x[1],
-            reverse=True
+            result["feature_importance"].items(), key=lambda x: x[1], reverse=True
         ):
             print(f"   - {feat}: {imp:.4f}")
 

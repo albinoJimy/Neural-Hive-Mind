@@ -23,22 +23,25 @@ settings = get_settings()
 
 # Constantes para validação
 VALID_TASK_TYPES = [
-    "BUILD", "DEPLOY", "TEST", "VALIDATE",
-    "EXECUTE", "COMPENSATE", "QUERY", "TRANSFORM"
+    "BUILD",
+    "DEPLOY",
+    "TEST",
+    "VALIDATE",
+    "EXECUTE",
+    "COMPENSATE",
+    "QUERY",
+    "TRANSFORM",
 ]
 VALID_PRIORITIES = ["LOW", "NORMAL", "HIGH", "CRITICAL"]
 VALID_RISK_BANDS = ["low", "medium", "high", "critical"]
 VALID_SECURITY_LEVELS = ["PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED"]
-VALID_STATUSES = [
-    "PENDING", "RUNNING", "COMPLETED",
-    "FAILED", "COMPENSATING", "COMPENSATED"
-]
+VALID_STATUSES = ["PENDING", "RUNNING", "COMPLETED", "FAILED", "COMPENSATING", "COMPENSATED"]
 VALID_EVENT_TYPES = [
     "ticket_created",
     "status_changed",
     "ticket_completed",
     "ticket_failed",
-    "compensation_started"
+    "compensation_started",
 ]
 
 
@@ -55,7 +58,7 @@ async def create_ticket(
     correlation_id: str | None = None,
     security_level: str = "INTERNAL",
     dependencies: list[str] | None = None,
-    parameters: dict[str, Any] | None = None
+    parameters: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     Criar novo Execution Ticket.
@@ -79,29 +82,23 @@ async def create_ticket(
         Dicionário com ticket criado
     """
     logger.info(
-        "create_ticket_called",
-        plan_id=plan_id,
-        task_type=task_type,
-        description=description
+        "create_ticket_called", plan_id=plan_id, task_type=task_type, description=description
     )
 
     # Validações usando constantes
     if task_type not in VALID_TASK_TYPES:
         raise ValueError(
-            f"Invalid task_type: {task_type}. "
-            f"Must be one of: {', '.join(VALID_TASK_TYPES)}"
+            f"Invalid task_type: {task_type}. " f"Must be one of: {', '.join(VALID_TASK_TYPES)}"
         )
 
     if priority not in VALID_PRIORITIES:
         raise ValueError(
-            f"Invalid priority: {priority}. "
-            f"Must be one of: {', '.join(VALID_PRIORITIES)}"
+            f"Invalid priority: {priority}. " f"Must be one of: {', '.join(VALID_PRIORITIES)}"
         )
 
     if risk_band not in VALID_RISK_BANDS:
         raise ValueError(
-            f"Invalid risk_band: {risk_band}. "
-            f"Must be one of: {', '.join(VALID_RISK_BANDS)}"
+            f"Invalid risk_band: {risk_band}. " f"Must be one of: {', '.join(VALID_RISK_BANDS)}"
         )
 
     if security_level not in VALID_SECURITY_LEVELS:
@@ -120,12 +117,14 @@ async def create_ticket(
         "sla": {
             "timeout_ms": timeout_ms,
             "max_retries": max_retries,
-            "deadline": int((datetime.now(timezone.utc) + timedelta(milliseconds=timeout_ms)).timestamp() * 1000)
+            "deadline": int(
+                (datetime.now(timezone.utc) + timedelta(milliseconds=timeout_ms)).timestamp() * 1000
+            ),
         },
         "qos": {
             "delivery_mode": "AT_LEAST_ONCE",
             "consistency": "EVENTUAL",
-            "durability": "PERSISTENT"
+            "durability": "PERSISTENT",
         },
         "security_level": security_level,
         "status": "PENDING",
@@ -135,7 +134,7 @@ async def create_ticket(
         "decision_id": decision_id,
         "correlation_id": correlation_id,
         "created_at": int(datetime.now(timezone.utc).timestamp() * 1000),
-        "retry_count": 0
+        "retry_count": 0,
     }
 
     # Persistir ticket
@@ -143,9 +142,7 @@ async def create_ticket(
 
 
 async def update_status(
-    ticket_id: str,
-    status: str,
-    error_message: str | None = None
+    ticket_id: str, status: str, error_message: str | None = None
 ) -> dict[str, Any]:
     """
     Atualizar status de um Execution Ticket.
@@ -158,17 +155,12 @@ async def update_status(
     Returns:
         Dicionário com ticket atualizado
     """
-    logger.info(
-        "update_status_called",
-        ticket_id=ticket_id,
-        status=status
-    )
+    logger.info("update_status_called", ticket_id=ticket_id, status=status)
 
     # Validar status
     if status not in VALID_STATUSES:
         raise ValueError(
-            f"Invalid status: {status}. "
-            f"Must be one of: {', '.join(VALID_STATUSES)}"
+            f"Invalid status: {status}. " f"Must be one of: {', '.join(VALID_STATUSES)}"
         )
 
     # Atualizar status
@@ -176,9 +168,7 @@ async def update_status(
 
 
 async def query_ticket(
-    ticket_id: str | None = None,
-    status: str | None = None,
-    plan_id: str | None = None
+    ticket_id: str | None = None, status: str | None = None, plan_id: str | None = None
 ) -> dict[str, Any] | list[dict[str, Any]] | None:
     """
     Consultar Execution Tickets.
@@ -191,12 +181,7 @@ async def query_ticket(
     Returns:
         Ticket único ou lista de tickets
     """
-    logger.info(
-        "query_ticket_called",
-        ticket_id=ticket_id,
-        status=status,
-        plan_id=plan_id
-    )
+    logger.info("query_ticket_called", ticket_id=ticket_id, status=status, plan_id=plan_id)
 
     # Consulta por ID específico
     if ticket_id:
@@ -215,9 +200,7 @@ async def query_ticket(
 
 
 async def generate_token(
-    ticket_id: str,
-    ttl_seconds: int = 3600,
-    custom_claims: dict[str, Any] | None = None
+    ticket_id: str, ttl_seconds: int = 3600, custom_claims: dict[str, Any] | None = None
 ) -> dict[str, Any]:
     """
     Gerar token JWT para um Execution Ticket.
@@ -230,11 +213,7 @@ async def generate_token(
     Returns:
         Dicionário com token e metadata
     """
-    logger.info(
-        "generate_token_called",
-        ticket_id=ticket_id,
-        ttl_seconds=ttl_seconds
-    )
+    logger.info("generate_token_called", ticket_id=ticket_id, ttl_seconds=ttl_seconds)
 
     # Validar TTL
     if ttl_seconds <= 0:
@@ -250,7 +229,7 @@ async def dispatch_webhook(
     payload: dict[str, Any],
     url: str,
     headers: dict[str, str] | None = None,
-    max_retries: int = 3
+    max_retries: int = 3,
 ) -> dict[str, Any]:
     """
     Disparar webhook de notificação.
@@ -267,18 +246,12 @@ async def dispatch_webhook(
     Returns:
         Dicionário com resultado do envio
     """
-    logger.info(
-        "dispatch_webhook_called",
-        ticket_id=ticket_id,
-        event_type=event_type,
-        url=url
-    )
+    logger.info("dispatch_webhook_called", ticket_id=ticket_id, event_type=event_type, url=url)
 
     # Validar event_type
     if event_type not in VALID_EVENT_TYPES:
         raise ValueError(
-            f"Invalid event_type: {event_type}. "
-            f"Must be one of: {', '.join(VALID_EVENT_TYPES)}"
+            f"Invalid event_type: {event_type}. " f"Must be one of: {', '.join(VALID_EVENT_TYPES)}"
         )
 
     # Validar URL
@@ -294,6 +267,7 @@ async def dispatch_webhook(
 
 
 # ============ Helper Functions ============
+
 
 async def _persist_ticket(ticket_data: dict[str, Any]) -> dict[str, Any]:
     """Persistir ticket no MongoDB."""
@@ -318,7 +292,7 @@ async def _persist_ticket(ticket_data: dict[str, Any]) -> dict[str, Any]:
         return {
             "ticket_id": ticket_id,
             "status": ticket_data.get("status"),
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
     except Exception as e:
@@ -328,14 +302,12 @@ async def _persist_ticket(ticket_data: dict[str, Any]) -> dict[str, Any]:
         return {
             "ticket_id": ticket_id,
             "status": ticket_data.get("status", "PENDING"),
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
 
 async def _update_ticket_status(
-    ticket_id: str,
-    status: str,
-    error_message: str | None = None
+    ticket_id: str, status: str, error_message: str | None = None
 ) -> dict[str, Any]:
     """Atualizar status do ticket no MongoDB."""
     try:
@@ -357,9 +329,7 @@ async def _update_ticket_status(
 
         # Atualizar
         result = await collection.find_one_and_update(
-            {"ticket_id": ticket_id},
-            {"$set": update_data},
-            return_document=True
+            {"ticket_id": ticket_id}, {"$set": update_data}, return_document=True
         )
 
         if result:
@@ -367,7 +337,7 @@ async def _update_ticket_status(
             return {
                 "ticket_id": ticket_id,
                 "status": status,
-                "previous_status": result.get("status", "UNKNOWN")
+                "previous_status": result.get("status", "UNKNOWN"),
             }
 
         return {"ticket_id": ticket_id, "status": status, "previous_status": "UNKNOWN"}
@@ -375,11 +345,7 @@ async def _update_ticket_status(
     except Exception as e:
         logger.exception("ticket_status_update_failed", error=str(e))
         # Retornar dados simulados para testes passarem
-        return {
-            "ticket_id": ticket_id,
-            "status": status,
-            "previous_status": "PENDING"
-        }
+        return {"ticket_id": ticket_id, "status": status, "previous_status": "PENDING"}
 
 
 async def _retrieve_ticket(ticket_id: str) -> dict[str, Any] | None:
@@ -451,9 +417,7 @@ async def _retrieve_tickets_by_plan(plan_id: str) -> list[dict[str, Any]]:
 
 
 async def _create_jwt_token(
-    ticket_id: str,
-    ttl_seconds: int = 3600,
-    custom_claims: dict[str, Any] | None = None
+    ticket_id: str, ttl_seconds: int = 3600, custom_claims: dict[str, Any] | None = None
 ) -> dict[str, Any]:
     """Criar token JWT."""
     try:
@@ -461,22 +425,14 @@ async def _create_jwt_token(
         expires_at = now + timedelta(seconds=ttl_seconds)
 
         # Payload padrão
-        payload = {
-            "ticket_id": ticket_id,
-            "iat": now,
-            "exp": expires_at
-        }
+        payload = {"ticket_id": ticket_id, "iat": now, "exp": expires_at}
 
         # Adicionar claims customizados
         if custom_claims:
             payload.update(custom_claims)
 
         # Gerar token
-        token = jwt.encode(
-            payload,
-            settings.jwt_secret,
-            algorithm=settings.jwt_algorithm
-        )
+        token = jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
         logger.info("jwt_token_created", ticket_id=ticket_id)
 
@@ -484,7 +440,7 @@ async def _create_jwt_token(
             "token": token,
             "expires_at": expires_at.isoformat(),
             "ticket_id": ticket_id,
-            "ttl_seconds": ttl_seconds
+            "ttl_seconds": ttl_seconds,
         }
 
     except Exception as e:
@@ -493,15 +449,12 @@ async def _create_jwt_token(
         return {
             "token": f"simulated-token-{ticket_id}",
             "expires_at": (datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)).isoformat(),
-            "ticket_id": ticket_id
+            "ticket_id": ticket_id,
         }
 
 
 async def _send_webhook(
-    url: str,
-    payload: dict[str, Any],
-    headers: dict[str, str] | None = None,
-    max_retries: int = 3
+    url: str, payload: dict[str, Any], headers: dict[str, str] | None = None, max_retries: int = 3
 ) -> dict[str, Any]:
     """Enviar webhook com retries."""
     import uuid
@@ -509,10 +462,7 @@ async def _send_webhook(
     webhook_id = f"webhook-{uuid.uuid4().hex[:12]}"
 
     # Headers padrão
-    default_headers = {
-        "Content-Type": "application/json",
-        "User-Agent": "Execution-MCP-Server/1.0"
-    }
+    default_headers = {"Content-Type": "application/json", "User-Agent": "Execution-MCP-Server/1.0"}
 
     if headers:
         default_headers.update(headers)
@@ -521,53 +471,42 @@ async def _send_webhook(
     for attempt in range(max_retries + 1):
         try:
             async with httpx.AsyncClient(timeout=settings.webhook_timeout) as client:
-                response = await client.post(
-                    url,
-                    json=payload,
-                    headers=default_headers
-                )
+                response = await client.post(url, json=payload, headers=default_headers)
                 response.raise_for_status()
 
                 logger.info(
                     "webhook_delivered",
                     webhook_id=webhook_id,
                     url=url,
-                    status_code=response.status_code
+                    status_code=response.status_code,
                 )
 
                 return {
                     "webhook_id": webhook_id,
                     "status": "delivered",
                     "status_code": response.status_code,
-                    "url": url
+                    "url": url,
                 }
 
         except httpx.HTTPStatusError as e:
             if attempt == max_retries:
-                logger.exception("webhook_failed_final", url=url, status_code=e.response.status_code)
+                logger.exception(
+                    "webhook_failed_final", url=url, status_code=e.response.status_code
+                )
                 return {
                     "webhook_id": webhook_id,
                     "status": "failed",
                     "status_code": e.response.status_code,
-                    "url": url
+                    "url": url,
                 }
 
         except Exception as e:
             if attempt == max_retries:
                 logger.exception("webhook_failed_final", url=url, error=str(e))
-                return {
-                    "webhook_id": webhook_id,
-                    "status": "failed",
-                    "error": str(e),
-                    "url": url
-                }
+                return {"webhook_id": webhook_id, "status": "failed", "error": str(e), "url": url}
 
     # Retorno final se todos os retries falharem
-    return {
-        "webhook_id": webhook_id,
-        "status": "failed",
-        "url": url
-    }
+    return {"webhook_id": webhook_id, "status": "failed", "url": url}
 
 
 def register_execution_tools(mcp) -> None:

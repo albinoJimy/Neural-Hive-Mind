@@ -525,7 +525,9 @@ class TestStdioTransport:
         mock_process.stderr.readline = AsyncMock(return_value=b"")
         mock_process.wait = AsyncMock(return_value=0)
 
-        with patch("asyncio.create_subprocess_exec", new_callable=AsyncMock, return_value=mock_process):
+        with patch(
+            "asyncio.create_subprocess_exec", new_callable=AsyncMock, return_value=mock_process
+        ):
             client = MCPServerClient(
                 server_url="stdio:///usr/bin/test-server",
                 transport="stdio",
@@ -554,19 +556,24 @@ class TestStdioTransport:
         mock_stdin.wait_closed = AsyncMock()
 
         # Mock stdout com resposta JSON-RPC válida
-        response_json = json.dumps({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "result": {
-                "tools": [
-                    {
-                        "name": "test_tool",
-                        "description": "Test tool",
-                        "inputSchema": {"type": "object"},
-                    }
-                ]
-            },
-        }) + "\n"
+        response_json = (
+            json.dumps(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "result": {
+                        "tools": [
+                            {
+                                "name": "test_tool",
+                                "description": "Test tool",
+                                "inputSchema": {"type": "object"},
+                            }
+                        ]
+                    },
+                }
+            )
+            + "\n"
+        )
         mock_stdout = MagicMock()
         mock_stdout.readline = AsyncMock(return_value=response_json.encode("utf-8"))
 
@@ -579,7 +586,9 @@ class TestStdioTransport:
         mock_process.stderr = mock_stderr
         mock_process.wait = AsyncMock(return_value=0)
 
-        with patch("asyncio.create_subprocess_exec", new_callable=AsyncMock, return_value=mock_process):
+        with patch(
+            "asyncio.create_subprocess_exec", new_callable=AsyncMock, return_value=mock_process
+        ):
             client = MCPServerClient(
                 server_url="stdio:///usr/bin/test-server",
                 transport="stdio",
@@ -604,14 +613,19 @@ class TestStdioTransport:
         mock_stdin.close = MagicMock()
         mock_stdin.wait_closed = AsyncMock()
 
-        response_json = json.dumps({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "result": {
-                "content": [{"type": "text", "text": "Execution result"}],
-                "isError": False,
-            },
-        }) + "\n"
+        response_json = (
+            json.dumps(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "result": {
+                        "content": [{"type": "text", "text": "Execution result"}],
+                        "isError": False,
+                    },
+                }
+            )
+            + "\n"
+        )
         mock_stdout = MagicMock()
         mock_stdout.readline = AsyncMock(return_value=response_json.encode("utf-8"))
 
@@ -623,7 +637,9 @@ class TestStdioTransport:
         mock_process.stderr = mock_stderr
         mock_process.wait = AsyncMock(return_value=0)
 
-        with patch("asyncio.create_subprocess_exec", new_callable=AsyncMock, return_value=mock_process):
+        with patch(
+            "asyncio.create_subprocess_exec", new_callable=AsyncMock, return_value=mock_process
+        ):
             client = MCPServerClient(
                 server_url="stdio:///usr/bin/test-server",
                 transport="stdio",
@@ -660,7 +676,9 @@ class TestStdioTransport:
         mock_process.stderr = mock_stderr
         mock_process.wait = AsyncMock(return_value=1)
 
-        with patch("asyncio.create_subprocess_exec", new_callable=AsyncMock, return_value=mock_process):
+        with patch(
+            "asyncio.create_subprocess_exec", new_callable=AsyncMock, return_value=mock_process
+        ):
             client = MCPServerClient(
                 server_url="stdio:///usr/bin/test-server",
                 transport="stdio",
@@ -698,7 +716,9 @@ class TestStdioTransport:
         mock_process.stderr = mock_stderr
         mock_process.wait = AsyncMock(return_value=0)
 
-        with patch("asyncio.create_subprocess_exec", new_callable=AsyncMock, return_value=mock_process):
+        with patch(
+            "asyncio.create_subprocess_exec", new_callable=AsyncMock, return_value=mock_process
+        ):
             # Patch asyncio.wait_for para simular timeout
             original_wait_for = asyncio.wait_for
 
@@ -744,7 +764,9 @@ class TestStdioTransport:
         mock_process.stderr = mock_stderr
         mock_process.wait = AsyncMock(return_value=0)
 
-        with patch("asyncio.create_subprocess_exec", new_callable=AsyncMock, return_value=mock_process):
+        with patch(
+            "asyncio.create_subprocess_exec", new_callable=AsyncMock, return_value=mock_process
+        ):
             client = MCPServerClient(
                 server_url="stdio:///usr/bin/test-server",
                 transport="stdio",
@@ -780,7 +802,9 @@ class TestStdioTransport:
         mock_process.stderr = mock_stderr
         mock_process.wait = AsyncMock(return_value=0)
 
-        with patch("asyncio.create_subprocess_exec", new_callable=AsyncMock, return_value=mock_process):
+        with patch(
+            "asyncio.create_subprocess_exec", new_callable=AsyncMock, return_value=mock_process
+        ):
             client = MCPServerClient(
                 server_url="stdio:///usr/bin/test-server",
                 transport="stdio",

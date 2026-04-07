@@ -19,18 +19,19 @@ sys.path.insert(0, str(script_dir))
 
 
 class Colors:
-    HEADER = '\033[95m'
-    BLUE = '\033[94m'
-    CYAN = '\033[96m'
-    GREEN = '\033[92m'
-    YELLOW = '\033[93m'
-    RED = '\033[91m'
-    END = '\033[0m'
-    BOLD = '\033[1m'
+    HEADER = "\033[95m"
+    BLUE = "\033[94m"
+    CYAN = "\033[96m"
+    GREEN = "\033[92m"
+    YELLOW = "\033[93m"
+    RED = "\033[91m"
+    END = "\033[0m"
+    BOLD = "\033[1m"
 
 
 class TestResult:
     """Resultado de um teste."""
+
     def __init__(self, tc_id: str, name: str):
         self.tc_id = tc_id
         self.name = name
@@ -48,7 +49,7 @@ class TestResult:
             "skipped": self.skipped,
             "error": self.error,
             "duration": self.duration,
-            "details": self.details
+            "details": self.details,
         }
 
 
@@ -88,7 +89,8 @@ class TestSuite:
         project_dir = self.test_dir / "python-fastapi"
         project_dir.mkdir(exist_ok=True)
 
-        (project_dir / "main.py").write_text('''from fastapi import FastAPI
+        (project_dir / "main.py").write_text(
+            """from fastapi import FastAPI
 app = FastAPI()
 
 @app.get("/")
@@ -98,11 +100,14 @@ def read_root():
 @app.get("/health")
 def health():
     return {"status": "healthy"}
-''')
+"""
+        )
 
-        (project_dir / "requirements.txt").write_text('''fastapi==0.104.1
+        (project_dir / "requirements.txt").write_text(
+            """fastapi==0.104.1
 uvicorn==0.24.0
-''')
+"""
+        )
 
         return project_dir
 
@@ -111,7 +116,8 @@ uvicorn==0.24.0
         project_dir = self.test_dir / "nodejs-express"
         project_dir.mkdir(exist_ok=True)
 
-        (project_dir / "package.json").write_text('''{
+        (project_dir / "package.json").write_text(
+            """{
   "name": "test-express",
   "version": "1.0.0",
   "main": "index.js",
@@ -119,13 +125,16 @@ uvicorn==0.24.0
     "express": "^4.18.2"
   }
 }
-''')
+"""
+        )
 
-        (project_dir / "index.js").write_text('''const express = require('express');
+        (project_dir / "index.js").write_text(
+            """const express = require('express');
 const app = express();
 app.get('/', (req, res) => res.json({message: 'Hello World'}));
 app.listen(3000);
-''')
+"""
+        )
 
         return project_dir
 
@@ -134,7 +143,8 @@ app.listen(3000);
         project_dir = self.test_dir / "go-gin"
         project_dir.mkdir(exist_ok=True)
 
-        (project_dir / "main.go").write_text('''package main
+        (project_dir / "main.go").write_text(
+            """package main
 
 import "github.com/gin-gonic/gin"
 
@@ -145,14 +155,17 @@ func main() {
     })
     r.Run(":8080")
 }
-''')
+"""
+        )
 
-        (project_dir / "go.mod").write_text('''module test-gin
+        (project_dir / "go.mod").write_text(
+            """module test-gin
 
 go 1.21
 
 require github.com/gin-gonic/gin v1.9.1
-''')
+"""
+        )
 
         return project_dir
 
@@ -182,8 +195,7 @@ require github.com/gin-gonic/gin v1.9.1
 
         # kubectl
         try:
-            subprocess.run(["kubectl", "version", "--client"],
-                          capture_output=True, check=True)
+            subprocess.run(["kubectl", "version", "--client"], capture_output=True, check=True)
             prereqs["kubectl"] = True
             self.print_success("kubectl disponível")
         except:
@@ -192,8 +204,7 @@ require github.com/gin-gonic/gin v1.9.1
 
         # Cluster
         try:
-            subprocess.run(["kubectl", "cluster-info"],
-                          capture_output=True, check=True, timeout=5)
+            subprocess.run(["kubectl", "cluster-info"], capture_output=True, check=True, timeout=5)
             prereqs["cluster"] = True
             self.print_success("Cluster Kubernetes conectado")
         except:
@@ -210,7 +221,7 @@ require github.com/gin-gonic/gin v1.9.1
             from src.services.dockerfile_generator import (
                 DockerfileGenerator,
                 ArtifactType,
-                SupportedLanguage
+                SupportedLanguage,
             )
 
             self.print_step("Gerando Dockerfile Python FastAPI...")
@@ -219,7 +230,7 @@ require github.com/gin-gonic/gin v1.9.1
             dockerfile = generator.generate_dockerfile(
                 language=SupportedLanguage.PYTHON,
                 framework="fastapi",
-                artifact_type=ArtifactType.MICROSERVICE
+                artifact_type=ArtifactType.MICROSERVICE,
             )
 
             # Validações
@@ -259,7 +270,7 @@ require github.com/gin-gonic/gin v1.9.1
             from src.services.dockerfile_generator import (
                 DockerfileGenerator,
                 ArtifactType,
-                SupportedLanguage
+                SupportedLanguage,
             )
 
             self.print_step("Gerando Dockerfile Node.js Express...")
@@ -268,7 +279,7 @@ require github.com/gin-gonic/gin v1.9.1
             dockerfile = generator.generate_dockerfile(
                 language=SupportedLanguage.NODEJS,
                 framework="express",
-                artifact_type=ArtifactType.MICROSERVICE
+                artifact_type=ArtifactType.MICROSERVICE,
             )
 
             checks = [
@@ -306,7 +317,7 @@ require github.com/gin-gonic/gin v1.9.1
             from src.services.dockerfile_generator import (
                 DockerfileGenerator,
                 ArtifactType,
-                SupportedLanguage
+                SupportedLanguage,
             )
 
             self.print_step("Gerando Dockerfile Go Gin...")
@@ -315,7 +326,7 @@ require github.com/gin-gonic/gin v1.9.1
             dockerfile = generator.generate_dockerfile(
                 language=SupportedLanguage.GOLANG,
                 framework="gin",
-                artifact_type=ArtifactType.MICROSERVICE
+                artifact_type=ArtifactType.MICROSERVICE,
             )
 
             checks = [
@@ -355,7 +366,7 @@ require github.com/gin-gonic/gin v1.9.1
             from src.services.dockerfile_generator import (
                 DockerfileGenerator,
                 ArtifactType,
-                SupportedLanguage
+                SupportedLanguage,
             )
 
             self.print_step("Criando projeto Python...")
@@ -366,23 +377,20 @@ require github.com/gin-gonic/gin v1.9.1
             dockerfile = generator.generate_dockerfile(
                 language=SupportedLanguage.PYTHON,
                 framework="fastapi",
-                artifact_type=ArtifactType.MICROSERVICE
+                artifact_type=ArtifactType.MICROSERVICE,
             )
             (project_dir / "Dockerfile").write_text(dockerfile)
 
             self.print_step("Executando build com Docker CLI...")
 
             async def build():
-                builder = ContainerBuilder(
-                    builder_type=BuilderType.DOCKER,
-                    enable_metrics=True
-                )
+                builder = ContainerBuilder(builder_type=BuilderType.DOCKER, enable_metrics=True)
 
                 return await builder.build_container(
                     dockerfile_path=str(project_dir / "Dockerfile"),
                     build_context=str(project_dir),
                     image_tag="test-python:latest",
-                    platforms=["linux/amd64"]
+                    platforms=["linux/amd64"],
                 )
 
             build_result = asyncio.run(build())
@@ -399,8 +407,9 @@ require github.com/gin-gonic/gin v1.9.1
 
                 # Limpar imagem
                 try:
-                    subprocess.run(["docker", "rmi", "-f", "test-python:latest"],
-                                  capture_output=True)
+                    subprocess.run(
+                        ["docker", "rmi", "-f", "test-python:latest"], capture_output=True
+                    )
                 except:
                     pass
             else:
@@ -411,6 +420,7 @@ require github.com/gin-gonic/gin v1.9.1
             result.error = str(e)
             self.print_error(f"TC-004 ERROR: {e}")
             import traceback
+
             traceback.print_exc()
 
         return result
@@ -428,22 +438,24 @@ require github.com/gin-gonic/gin v1.9.1
             self.print_step("Gerando relatório...")
             report = collector.get_performance_report()
 
-            total_builds = report['summary']['total_builds']
-            success_rate = report['summary']['success_rate']
+            total_builds = report["summary"]["total_builds"]
+            success_rate = report["summary"]["success_rate"]
 
             result.details.append(f"Total builds: {total_builds}")
             result.details.append(f"Success rate: {success_rate:.1%}")
 
-            if report['duration_by_language']:
+            if report["duration_by_language"]:
                 result.details.append("Languages:")
-                for lang, stats in report['duration_by_language'].items():
-                    result.details.append(f"  {lang}: {stats['count']} builds, avg {stats['mean']:.2f}s")
+                for lang, stats in report["duration_by_language"].items():
+                    result.details.append(
+                        f"  {lang}: {stats['count']} builds, avg {stats['mean']:.2f}s"
+                    )
 
             # Verificar arquivo
             metrics_file = Path("metrics/build_metrics.jsonl")
             if metrics_file.exists():
                 content = metrics_file.read_text()
-                line_count = len([l for l in content.split('\n') if l.strip()])
+                line_count = len([l for l in content.split("\n") if l.strip()])
                 result.details.append(f"Metrics file: {metrics_file} ({line_count} records)")
 
             result.passed = True
@@ -453,6 +465,7 @@ require github.com/gin-gonic/gin v1.9.1
             result.error = str(e)
             self.print_error(f"TC-009 ERROR: {e}")
             import traceback
+
             traceback.print_exc()
 
         return result
@@ -524,7 +537,13 @@ require github.com/gin-gonic/gin v1.9.1
         print(f"\n{Colors.BOLD}Detalhamento:{Colors.END}\n")
 
         for result in self.results:
-            status_color = Colors.GREEN if result.passed else Colors.RED if not result.skipped else Colors.YELLOW
+            status_color = (
+                Colors.GREEN
+                if result.passed
+                else Colors.RED
+                if not result.skipped
+                else Colors.YELLOW
+            )
             status = "PASS" if result.passed else "SKIP" if result.skipped else "FAIL"
             print(f"{status_color}{status}{Colors.END} | {result.tc_id} | {result.name}")
 
@@ -568,8 +587,7 @@ require github.com/gin-gonic/gin v1.9.1
 
         # Remover imagens de teste
         try:
-            subprocess.run(["docker", "rmi", "-f", "test-python:latest"],
-                          capture_output=True)
+            subprocess.run(["docker", "rmi", "-f", "test-python:latest"], capture_output=True)
         except:
             pass
 

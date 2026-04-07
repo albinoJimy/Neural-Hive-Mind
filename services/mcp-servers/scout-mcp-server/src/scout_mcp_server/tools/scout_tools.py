@@ -20,11 +20,7 @@ logger = structlog.get_logger(__name__)
 settings = get_settings()
 
 
-def list_files(
-    path: str,
-    pattern: str = "*",
-    recursive: bool = True
-) -> dict[str, Any]:
+def list_files(path: str, pattern: str = "*", recursive: bool = True) -> dict[str, Any]:
     """
     Lista arquivos de um diretório.
 
@@ -89,7 +85,7 @@ def list_files(
                     file_info = {
                         "path": str(rel_path),
                         "size": item.stat().st_size if is_file else 0,
-                        "type": "directory" if is_dir else "file"
+                        "type": "directory" if is_dir else "file",
                     }
 
                     # Adicionar metadata adicional
@@ -117,18 +113,11 @@ def list_files(
 
     logger.info("list_files_completed", count=count, path=path)
 
-    return {
-        "files": files,
-        "count": count,
-        "base_path": str(base_path)
-    }
+    return {"files": files, "count": count, "base_path": str(base_path)}
 
 
 def search_code(
-    query: str,
-    path: str = ".",
-    file_pattern: str = "*",
-    max_results: int = 100
+    query: str, path: str = ".", file_pattern: str = "*", max_results: int = 100
 ) -> dict[str, Any]:
     """
     Busca padrões no código.
@@ -201,7 +190,7 @@ def search_code(
                         "file": str(item.relative_to(base_path)),
                         "line": line_num,
                         "content": line.strip(),
-                        "context": context_lines
+                        "context": context_lines,
                     }
 
                     matches.append(match_info)
@@ -211,17 +200,10 @@ def search_code(
 
     logger.info("search_code_completed", matches=len(matches), files_scanned=files_scanned)
 
-    return {
-        "matches": matches,
-        "total_matches": len(matches),
-        "files_scanned": files_scanned
-    }
+    return {"matches": matches, "total_matches": len(matches), "files_scanned": files_scanned}
 
 
-def analyze_structure(
-    path: str,
-    depth: int = 10
-) -> dict[str, Any]:
+def analyze_structure(path: str, depth: int = 10) -> dict[str, Any]:
     """
     Analisa estrutura de diretórios.
 
@@ -275,8 +257,10 @@ def analyze_structure(
     def count_levels(d: dict, level: int = 0) -> int:
         if not d:
             return level
-        return max((count_levels(v, level + 1) if isinstance(v, dict) else level
-                   for v in d.values()), default=level)
+        return max(
+            (count_levels(v, level + 1) if isinstance(v, dict) else level for v in d.values()),
+            default=level,
+        )
 
     max_levels = count_levels(structure)
 
@@ -284,10 +268,7 @@ def analyze_structure(
     complexity = (max_levels * 10) + (file_count / max(dir_count, 1))
 
     logger.info(
-        "analyze_structure_completed",
-        files=file_count,
-        dirs=dir_count,
-        complexity=complexity
+        "analyze_structure_completed", files=file_count, dirs=dir_count, complexity=complexity
     )
 
     return {
@@ -296,8 +277,8 @@ def analyze_structure(
             "files": file_count,
             "dirs": dir_count,
             "max_depth": max_levels,
-            "complexity": round(complexity, 2)
-        }
+            "complexity": round(complexity, 2),
+        },
     }
 
 

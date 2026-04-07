@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from src.clients.llm_client import LLMClient, LLMProvider
 
@@ -35,7 +35,7 @@ def mock_anthropic_response():
 @pytest.mark.asyncio
 async def test_openai_sdk_call_success(mock_openai_response):
     """Testar chamada OpenAI SDK com sucesso."""
-    with patch('src.clients.llm_client.AsyncOpenAI') as MockOpenAI:
+    with patch("src.clients.llm_client.AsyncOpenAI") as MockOpenAI:
         # Setup mock
         mock_client = AsyncMock()
         mock_client.chat.completions.create = AsyncMock(return_value=mock_openai_response)
@@ -43,16 +43,13 @@ async def test_openai_sdk_call_success(mock_openai_response):
 
         # Criar LLMClient
         llm_client = LLMClient(
-            provider=LLMProvider.OPENAI,
-            api_key="sk-test-key",
-            model_name="gpt-4"
+            provider=LLMProvider.OPENAI, api_key="sk-test-key", model_name="gpt-4"
         )
         await llm_client.start()
 
         # Executar
         result = await llm_client.generate_code(
-            prompt="Create a hello world function",
-            constraints={"language": "python"}
+            prompt="Create a hello world function", constraints={"language": "python"}
         )
 
         # Validações
@@ -68,7 +65,7 @@ async def test_openai_sdk_call_success(mock_openai_response):
 @pytest.mark.asyncio
 async def test_anthropic_sdk_call_success(mock_anthropic_response):
     """Testar chamada Anthropic SDK com sucesso."""
-    with patch('src.clients.llm_client.AsyncAnthropic') as MockAnthropic:
+    with patch("src.clients.llm_client.AsyncAnthropic") as MockAnthropic:
         # Setup mock
         mock_client = AsyncMock()
         mock_client.messages.create = AsyncMock(return_value=mock_anthropic_response)
@@ -78,14 +75,13 @@ async def test_anthropic_sdk_call_success(mock_anthropic_response):
         llm_client = LLMClient(
             provider=LLMProvider.ANTHROPIC,
             api_key="sk-ant-test-key",
-            model_name="claude-3-opus-20240229"
+            model_name="claude-3-opus-20240229",
         )
         await llm_client.start()
 
         # Executar
         result = await llm_client.generate_code(
-            prompt="Create a hello world function",
-            constraints={"language": "python"}
+            prompt="Create a hello world function", constraints={"language": "python"}
         )
 
         # Validações
@@ -101,7 +97,7 @@ async def test_anthropic_sdk_call_success(mock_anthropic_response):
 @pytest.mark.asyncio
 async def test_openai_rate_limit_retry():
     """Testar retry em rate limit OpenAI."""
-    with patch('src.clients.llm_client.AsyncOpenAI') as MockOpenAI:
+    with patch("src.clients.llm_client.AsyncOpenAI") as MockOpenAI:
         from openai import RateLimitError
 
         # Setup mock: falha 2x, sucesso na 3ª
@@ -112,24 +108,19 @@ async def test_openai_rate_limit_retry():
                 RateLimitError("Rate limit exceeded"),
                 MagicMock(
                     choices=[MagicMock(message=MagicMock(content="Success"))],
-                    usage=MagicMock(prompt_tokens=10, completion_tokens=5)
-                )
+                    usage=MagicMock(prompt_tokens=10, completion_tokens=5),
+                ),
             ]
         )
         MockOpenAI.return_value = mock_client
 
         llm_client = LLMClient(
-            provider=LLMProvider.OPENAI,
-            api_key="sk-test-key",
-            model_name="gpt-4"
+            provider=LLMProvider.OPENAI, api_key="sk-test-key", model_name="gpt-4"
         )
         await llm_client.start()
 
         # Executar (deve ter sucesso após retries)
-        result = await llm_client.generate_code(
-            prompt="Test",
-            constraints={"language": "python"}
-        )
+        result = await llm_client.generate_code(prompt="Test", constraints={"language": "python"})
 
         assert result is not None
         assert result["code"] == "Success"
@@ -144,16 +135,11 @@ async def test_openai_rate_limit_retry():
 async def test_missing_api_key():
     """Testar comportamento sem API key."""
     llm_client = LLMClient(
-        provider=LLMProvider.OPENAI,
-        api_key=None,  # Sem API key
-        model_name="gpt-4"
+        provider=LLMProvider.OPENAI, api_key=None, model_name="gpt-4"  # Sem API key
     )
     await llm_client.start()
 
-    result = await llm_client.generate_code(
-        prompt="Test",
-        constraints={"language": "python"}
-    )
+    result = await llm_client.generate_code(prompt="Test", constraints={"language": "python"})
 
     # Deve retornar None
     assert result is None
@@ -164,13 +150,13 @@ async def test_missing_api_key():
 @pytest.mark.asyncio
 async def test_streaming_mode():
     """Testar modo streaming (OpenAI)."""
-    with patch('src.clients.llm_client.AsyncOpenAI') as MockOpenAI:
+    with patch("src.clients.llm_client.AsyncOpenAI") as MockOpenAI:
         # Setup mock streaming
         async def mock_stream():
             chunks = [
                 MagicMock(choices=[MagicMock(delta=MagicMock(content="def "))]),
                 MagicMock(choices=[MagicMock(delta=MagicMock(content="hello():"))]),
-                MagicMock(choices=[MagicMock(delta=MagicMock(content="\n    pass"))])
+                MagicMock(choices=[MagicMock(delta=MagicMock(content="\n    pass"))]),
             ]
             for chunk in chunks:
                 yield chunk
@@ -180,16 +166,12 @@ async def test_streaming_mode():
         MockOpenAI.return_value = mock_client
 
         llm_client = LLMClient(
-            provider=LLMProvider.OPENAI,
-            api_key="sk-test-key",
-            model_name="gpt-4"
+            provider=LLMProvider.OPENAI, api_key="sk-test-key", model_name="gpt-4"
         )
         await llm_client.start()
 
         result = await llm_client.generate_code(
-            prompt="Test",
-            constraints={"language": "python"},
-            stream=True
+            prompt="Test", constraints={"language": "python"}, stream=True
         )
 
         assert result is not None

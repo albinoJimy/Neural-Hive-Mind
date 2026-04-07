@@ -121,9 +121,7 @@ class TestMCPExecutionRepository:
                 {"server": "scout", "tool_name": "search_code", "status": "success"},
             ]
         )
-        repository.collection.find.return_value.sort.return_value.limit.return_value = (
-            mock_cursor
-        )
+        repository.collection.find.return_value.sort.return_value.limit.return_value = mock_cursor
 
         results = await repository.get_executions_by_server(server="scout", limit=10)
 
@@ -162,9 +160,7 @@ class TestMCPExecutionRepository:
         )
         repository.collection.aggregate.return_value = mock_cursor
 
-        metrics = await repository.get_metrics_by_tool(
-            server="scout", tool_name="list_files"
-        )
+        metrics = await repository.get_metrics_by_tool(server="scout", tool_name="list_files")
 
         assert metrics["avg_duration_ms"] == 150
         assert metrics["success_rate"] == 0.98
@@ -187,9 +183,7 @@ class TestMCPExecutionRepository:
                 },
             ]
         )
-        repository.collection.find.return_value.sort.return_value.limit.return_value = (
-            mock_cursor
-        )
+        repository.collection.find.return_value.sort.return_value.limit.return_value = mock_cursor
 
         results = await repository.get_recent_executions(limit=10)
 
@@ -198,9 +192,7 @@ class TestMCPExecutionRepository:
     @pytest.mark.asyncio
     async def test_delete_old_executions(self, repository):
         """Testa deleção de execuções antigas."""
-        repository.collection.delete_many = AsyncMock(
-            return_value=MagicMock(deleted_count=50)
-        )
+        repository.collection.delete_many = AsyncMock(return_value=MagicMock(deleted_count=50))
 
         deleted = await repository.delete_old_executions(days_old=30)
 
@@ -313,9 +305,7 @@ class TestMCPCleanupTask:
 
         repo = MCPExecutionRepository(mock_mongo)
         # Mock delete_many como async
-        repo.collection.delete_many = AsyncMock(
-            return_value=MagicMock(deleted_count=5)
-        )
+        repo.collection.delete_many = AsyncMock(return_value=MagicMock(deleted_count=5))
         task = MCPCleanupTask(repo, retention_days=7)
 
         # Executar uma vez

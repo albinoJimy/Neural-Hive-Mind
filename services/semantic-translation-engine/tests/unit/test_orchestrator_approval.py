@@ -22,22 +22,22 @@ class TestOrchestratorApprovalDecision:
         settings.destructive_detection_strict_mode = False
         settings.risk_threshold_high = 0.7
         settings.risk_threshold_critical = 0.9
-        settings.kafka_approval_topic = 'cognitive-plans-approval-requests'
+        settings.kafka_approval_topic = "cognitive-plans-approval-requests"
         return settings
 
     @pytest.fixture
     def mock_dependencies(self, mock_settings):
         """Cria dependências mockadas para o orchestrator"""
         return {
-            'semantic_parser': MagicMock(),
-            'dag_generator': MagicMock(),
-            'risk_scorer': MagicMock(),
-            'explainability_generator': MagicMock(),
-            'mongodb_client': MagicMock(),
-            'neo4j_client': MagicMock(),
-            'plan_producer': MagicMock(),
-            'approval_producer': MagicMock(),
-            'metrics': MagicMock()
+            "semantic_parser": MagicMock(),
+            "dag_generator": MagicMock(),
+            "risk_scorer": MagicMock(),
+            "explainability_generator": MagicMock(),
+            "mongodb_client": MagicMock(),
+            "neo4j_client": MagicMock(),
+            "plan_producer": MagicMock(),
+            "approval_producer": MagicMock(),
+            "metrics": MagicMock(),
         }
 
     def test_approval_required_for_high_risk_score(self):
@@ -47,9 +47,7 @@ class TestOrchestratorApprovalDecision:
         risk_band = RiskBand.MEDIUM
 
         requires_approval = (
-            risk_score >= 0.7 or
-            is_destructive or
-            risk_band in [RiskBand.HIGH, RiskBand.CRITICAL]
+            risk_score >= 0.7 or is_destructive or risk_band in [RiskBand.HIGH, RiskBand.CRITICAL]
         )
 
         assert requires_approval is True
@@ -61,9 +59,7 @@ class TestOrchestratorApprovalDecision:
         risk_band = RiskBand.LOW
 
         requires_approval = (
-            risk_score >= 0.7 or
-            is_destructive or
-            risk_band in [RiskBand.HIGH, RiskBand.CRITICAL]
+            risk_score >= 0.7 or is_destructive or risk_band in [RiskBand.HIGH, RiskBand.CRITICAL]
         )
 
         assert requires_approval is True
@@ -75,9 +71,7 @@ class TestOrchestratorApprovalDecision:
         risk_band = RiskBand.HIGH
 
         requires_approval = (
-            risk_score >= 0.7 or
-            is_destructive or
-            risk_band in [RiskBand.HIGH, RiskBand.CRITICAL]
+            risk_score >= 0.7 or is_destructive or risk_band in [RiskBand.HIGH, RiskBand.CRITICAL]
         )
 
         assert requires_approval is True
@@ -89,9 +83,7 @@ class TestOrchestratorApprovalDecision:
         risk_band = RiskBand.CRITICAL
 
         requires_approval = (
-            risk_score >= 0.7 or
-            is_destructive or
-            risk_band in [RiskBand.HIGH, RiskBand.CRITICAL]
+            risk_score >= 0.7 or is_destructive or risk_band in [RiskBand.HIGH, RiskBand.CRITICAL]
         )
 
         assert requires_approval is True
@@ -103,9 +95,7 @@ class TestOrchestratorApprovalDecision:
         risk_band = RiskBand.LOW
 
         requires_approval = (
-            risk_score >= 0.7 or
-            is_destructive or
-            risk_band in [RiskBand.HIGH, RiskBand.CRITICAL]
+            risk_score >= 0.7 or is_destructive or risk_band in [RiskBand.HIGH, RiskBand.CRITICAL]
         )
 
         assert requires_approval is False
@@ -117,9 +107,7 @@ class TestOrchestratorApprovalDecision:
         risk_band = RiskBand.MEDIUM
 
         requires_approval = (
-            risk_score >= 0.7 or
-            is_destructive or
-            risk_band in [RiskBand.HIGH, RiskBand.CRITICAL]
+            risk_score >= 0.7 or is_destructive or risk_band in [RiskBand.HIGH, RiskBand.CRITICAL]
         )
 
         assert requires_approval is False
@@ -131,9 +119,7 @@ class TestOrchestratorApprovalDecision:
         risk_band = RiskBand.CRITICAL
 
         requires_approval = (
-            risk_score >= 0.7 or
-            is_destructive or
-            risk_band in [RiskBand.HIGH, RiskBand.CRITICAL]
+            risk_score >= 0.7 or is_destructive or risk_band in [RiskBand.HIGH, RiskBand.CRITICAL]
         )
 
         assert requires_approval is True
@@ -145,9 +131,7 @@ class TestOrchestratorApprovalDecision:
         risk_band = RiskBand.MEDIUM
 
         requires_approval = (
-            risk_score >= 0.7 or
-            is_destructive or
-            risk_band in [RiskBand.HIGH, RiskBand.CRITICAL]
+            risk_score >= 0.7 or is_destructive or risk_band in [RiskBand.HIGH, RiskBand.CRITICAL]
         )
 
         assert requires_approval is True
@@ -159,9 +143,7 @@ class TestOrchestratorApprovalDecision:
         risk_band = RiskBand.MEDIUM
 
         requires_approval = (
-            risk_score >= 0.7 or
-            is_destructive or
-            risk_band in [RiskBand.HIGH, RiskBand.CRITICAL]
+            risk_score >= 0.7 or is_destructive or risk_band in [RiskBand.HIGH, RiskBand.CRITICAL]
         )
 
         assert requires_approval is False
@@ -183,28 +165,28 @@ class TestOrchestratorConditionalPublishing:
         producer = MagicMock()
         producer.send_approval_request = AsyncMock()
         producer.settings = MagicMock()
-        producer.settings.kafka_approval_topic = 'cognitive-plans-approval-requests'
+        producer.settings.kafka_approval_topic = "cognitive-plans-approval-requests"
         return producer
 
     @pytest.fixture
     def mock_cognitive_plan_blocked(self):
         """CognitivePlan mockado que requer aprovação"""
         plan = MagicMock()
-        plan.plan_id = 'plan-123'
-        plan.intent_id = 'intent-456'
+        plan.plan_id = "plan-123"
+        plan.intent_id = "intent-456"
         plan.requires_approval = True
         plan.approval_status = ApprovalStatus.PENDING
         plan.risk_band = RiskBand.HIGH
         plan.is_destructive = True
-        plan.risk_matrix = {'destructive_severity': 'high'}
+        plan.risk_matrix = {"destructive_severity": "high"}
         return plan
 
     @pytest.fixture
     def mock_cognitive_plan_approved(self):
         """CognitivePlan mockado que não requer aprovação"""
         plan = MagicMock()
-        plan.plan_id = 'plan-789'
-        plan.intent_id = 'intent-012'
+        plan.plan_id = "plan-789"
+        plan.intent_id = "intent-012"
         plan.requires_approval = False
         plan.approval_status = None
         plan.risk_band = RiskBand.LOW
@@ -213,10 +195,7 @@ class TestOrchestratorConditionalPublishing:
 
     @pytest.mark.asyncio
     async def test_publish_to_approval_topic_when_blocked(
-        self,
-        mock_approval_producer,
-        mock_plan_producer,
-        mock_cognitive_plan_blocked
+        self, mock_approval_producer, mock_plan_producer, mock_cognitive_plan_blocked
     ):
         """Planos bloqueados devem ser publicados no tópico de aprovação"""
         cognitive_plan = mock_cognitive_plan_blocked
@@ -231,10 +210,7 @@ class TestOrchestratorConditionalPublishing:
 
     @pytest.mark.asyncio
     async def test_publish_to_execution_topic_when_approved(
-        self,
-        mock_approval_producer,
-        mock_plan_producer,
-        mock_cognitive_plan_approved
+        self, mock_approval_producer, mock_plan_producer, mock_cognitive_plan_approved
     ):
         """Planos não bloqueados devem ser publicados no tópico de execução"""
         cognitive_plan = mock_cognitive_plan_approved
@@ -249,9 +225,7 @@ class TestOrchestratorConditionalPublishing:
 
     @pytest.mark.asyncio
     async def test_approval_producer_called_with_correct_plan(
-        self,
-        mock_approval_producer,
-        mock_cognitive_plan_blocked
+        self, mock_approval_producer, mock_cognitive_plan_blocked
     ):
         """Verificar que send_approval_request recebe o plano correto"""
         cognitive_plan = mock_cognitive_plan_blocked
@@ -260,15 +234,12 @@ class TestOrchestratorConditionalPublishing:
 
         call_args = mock_approval_producer.send_approval_request.call_args
         assert call_args[0][0] == cognitive_plan
-        assert call_args[0][0].plan_id == 'plan-123'
+        assert call_args[0][0].plan_id == "plan-123"
         assert call_args[0][0].requires_approval is True
 
     @pytest.mark.asyncio
     async def test_plan_producer_not_called_when_blocked(
-        self,
-        mock_approval_producer,
-        mock_plan_producer,
-        mock_cognitive_plan_blocked
+        self, mock_approval_producer, mock_plan_producer, mock_cognitive_plan_blocked
     ):
         """Garantir que tópico de execução não é usado para planos bloqueados"""
         cognitive_plan = mock_cognitive_plan_blocked
@@ -286,19 +257,19 @@ class TestOrchestratorApprovalMetadata:
         """Verificar que requires_approval=True é definido corretamente"""
         requires_approval = True
         is_destructive = True
-        destructive_tasks = ['task-1', 'task-2']
-        risk_matrix = {'is_destructive': True, 'destructive_severity': 'high'}
+        destructive_tasks = ["task-1", "task-2"]
+        risk_matrix = {"is_destructive": True, "destructive_severity": "high"}
 
         # Simular criação de plano
         plan_data = {
-            'requires_approval': requires_approval,
-            'approval_status': ApprovalStatus.PENDING if requires_approval else None,
-            'is_destructive': is_destructive,
-            'destructive_tasks': destructive_tasks,
-            'risk_matrix': risk_matrix
+            "requires_approval": requires_approval,
+            "approval_status": ApprovalStatus.PENDING if requires_approval else None,
+            "is_destructive": is_destructive,
+            "destructive_tasks": destructive_tasks,
+            "risk_matrix": risk_matrix,
         }
 
-        assert plan_data['requires_approval'] is True
+        assert plan_data["requires_approval"] is True
 
     def test_cognitive_plan_has_approval_status_pending(self):
         """Verificar que approval_status=PENDING quando requires_approval=True"""
@@ -319,34 +290,31 @@ class TestOrchestratorApprovalMetadata:
     def test_cognitive_plan_has_destructive_fields(self):
         """Verificar que is_destructive e destructive_tasks são populados"""
         is_destructive = True
-        destructive_tasks = ['task-delete-1', 'task-drop-2']
+        destructive_tasks = ["task-delete-1", "task-drop-2"]
 
-        plan_data = {
-            'is_destructive': is_destructive,
-            'destructive_tasks': destructive_tasks
-        }
+        plan_data = {"is_destructive": is_destructive, "destructive_tasks": destructive_tasks}
 
-        assert plan_data['is_destructive'] is True
-        assert len(plan_data['destructive_tasks']) == 2
-        assert 'task-delete-1' in plan_data['destructive_tasks']
+        assert plan_data["is_destructive"] is True
+        assert len(plan_data["destructive_tasks"]) == 2
+        assert "task-delete-1" in plan_data["destructive_tasks"]
 
     def test_cognitive_plan_has_risk_matrix(self):
         """Verificar que risk_matrix é incluído corretamente"""
         risk_matrix = {
-            'overall_score': 0.85,
-            'overall_band': 'HIGH',
-            'is_destructive': True,
-            'destructive_tasks': ['task-1'],
-            'destructive_severity': 'critical',
-            'destructive_count': 1
+            "overall_score": 0.85,
+            "overall_band": "HIGH",
+            "is_destructive": True,
+            "destructive_tasks": ["task-1"],
+            "destructive_severity": "critical",
+            "destructive_count": 1,
         }
 
-        plan_data = {'risk_matrix': risk_matrix}
+        plan_data = {"risk_matrix": risk_matrix}
 
-        assert plan_data['risk_matrix'] is not None
-        assert plan_data['risk_matrix']['overall_score'] == 0.85
-        assert plan_data['risk_matrix']['is_destructive'] is True
-        assert plan_data['risk_matrix']['destructive_severity'] == 'critical'
+        assert plan_data["risk_matrix"] is not None
+        assert plan_data["risk_matrix"]["overall_score"] == 0.85
+        assert plan_data["risk_matrix"]["is_destructive"] is True
+        assert plan_data["risk_matrix"]["destructive_severity"] == "critical"
 
 
 class TestOrchestratorApprovalLogging:
@@ -355,83 +323,83 @@ class TestOrchestratorApprovalLogging:
     @pytest.fixture
     def mock_logger(self):
         """Mock do logger estruturado"""
-        with patch('src.services.orchestrator.logger') as mock:
+        with patch("src.services.orchestrator.logger") as mock:
             yield mock
 
     def test_warning_logged_for_blocked_plan(self, mock_logger):
         """Verificar que warning é emitido para planos bloqueados"""
-        intent_id = 'intent-123'
-        plan_id = 'plan-456'
+        intent_id = "intent-123"
+        plan_id = "plan-456"
         risk_score = 0.85
         risk_band = RiskBand.HIGH
         is_destructive = True
-        destructive_severity = 'critical'
-        destructive_tasks = ['task-1', 'task-2']
+        destructive_severity = "critical"
+        destructive_tasks = ["task-1", "task-2"]
 
         # Simular log de bloqueio
         mock_logger.warning(
-            'Plano bloqueado aguardando aprovacao humana',
+            "Plano bloqueado aguardando aprovacao humana",
             plan_id=plan_id,
             intent_id=intent_id,
             risk_score=risk_score,
             risk_band=risk_band.value,
             is_destructive=is_destructive,
             destructive_severity=destructive_severity,
-            destructive_task_count=len(destructive_tasks)
+            destructive_task_count=len(destructive_tasks),
         )
 
         mock_logger.warning.assert_called_once()
         call_kwargs = mock_logger.warning.call_args[1]
-        assert call_kwargs['plan_id'] == plan_id
-        assert call_kwargs['is_destructive'] is True
-        assert call_kwargs['destructive_task_count'] == 2
+        assert call_kwargs["plan_id"] == plan_id
+        assert call_kwargs["is_destructive"] is True
+        assert call_kwargs["destructive_task_count"] == 2
 
     def test_log_includes_approval_criteria(self, mock_logger):
         """Verificar que critérios de aprovação são incluídos no log"""
-        intent_id = 'intent-123'
+        intent_id = "intent-123"
         risk_score = 0.75
         is_destructive = False
         risk_band = RiskBand.MEDIUM
 
         approval_criteria = {
-            'risk_score_threshold': risk_score >= 0.7,
-            'is_destructive': is_destructive,
-            'risk_band_critical': risk_band in [RiskBand.HIGH, RiskBand.CRITICAL]
+            "risk_score_threshold": risk_score >= 0.7,
+            "is_destructive": is_destructive,
+            "risk_band_critical": risk_band in [RiskBand.HIGH, RiskBand.CRITICAL],
         }
 
         mock_logger.warning(
-            'Plano requer aprovacao - criterios atingidos',
+            "Plano requer aprovacao - criterios atingidos",
             intent_id=intent_id,
             approval_criteria=approval_criteria,
             risk_score=risk_score,
-            risk_band=risk_band.value
+            risk_band=risk_band.value,
         )
 
         mock_logger.warning.assert_called_once()
         call_kwargs = mock_logger.warning.call_args[1]
-        assert 'approval_criteria' in call_kwargs
-        assert call_kwargs['approval_criteria']['risk_score_threshold'] is True
+        assert "approval_criteria" in call_kwargs
+        assert call_kwargs["approval_criteria"]["risk_score_threshold"] is True
 
     def test_log_includes_destructive_analysis(self, mock_logger):
         """Verificar que análise destrutiva é incluída no log"""
-        intent_id = 'intent-123'
+        intent_id = "intent-123"
         is_destructive = True
-        destructive_severity = 'high'
-        destructive_tasks = ['task-delete-users', 'task-drop-table']
+        destructive_severity = "high"
+        destructive_tasks = ["task-delete-users", "task-drop-table"]
 
         mock_logger.warning(
-            'Plano requer aprovacao - criterios atingidos',
+            "Plano requer aprovacao - criterios atingidos",
             intent_id=intent_id,
             is_destructive=is_destructive,
             destructive_severity=destructive_severity,
-            destructive_tasks=destructive_tasks
+            destructive_tasks=destructive_tasks,
         )
 
         mock_logger.warning.assert_called_once()
         call_kwargs = mock_logger.warning.call_args[1]
-        assert call_kwargs['is_destructive'] is True
-        assert call_kwargs['destructive_severity'] == 'high'
-        assert len(call_kwargs['destructive_tasks']) == 2
+        assert call_kwargs["is_destructive"] is True
+        assert call_kwargs["destructive_severity"] == "high"
+        assert len(call_kwargs["destructive_tasks"]) == 2
 
 
 class TestOrchestratorMetricsRecording:
@@ -448,25 +416,21 @@ class TestOrchestratorMetricsRecording:
     def test_metrics_status_blocked_for_approval(self, mock_metrics):
         """Verificar que status='blocked_for_approval' é registrado para planos bloqueados"""
         requires_approval = True
-        domain = 'business'
+        domain = "business"
 
-        plan_status = 'blocked_for_approval' if requires_approval else 'success'
+        plan_status = "blocked_for_approval" if requires_approval else "success"
         mock_metrics.increment_plans(channel=domain, status=plan_status)
 
         mock_metrics.increment_plans.assert_called_once_with(
-            channel='business',
-            status='blocked_for_approval'
+            channel="business", status="blocked_for_approval"
         )
 
     def test_metrics_status_success_for_approved(self, mock_metrics):
         """Verificar que status='success' é registrado para planos não bloqueados"""
         requires_approval = False
-        domain = 'technical'
+        domain = "technical"
 
-        plan_status = 'blocked_for_approval' if requires_approval else 'success'
+        plan_status = "blocked_for_approval" if requires_approval else "success"
         mock_metrics.increment_plans(channel=domain, status=plan_status)
 
-        mock_metrics.increment_plans.assert_called_once_with(
-            channel='technical',
-            status='success'
-        )
+        mock_metrics.increment_plans.assert_called_once_with(channel="technical", status="success")

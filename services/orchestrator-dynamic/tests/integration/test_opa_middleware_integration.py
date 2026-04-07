@@ -55,7 +55,7 @@ class TestOPAMiddlewareIntegration:
             headers = {
                 config.opa_user_id_header: "user-123",
                 config.opa_tenant_id_header: "tenant-abc",
-                config.opa_role_header: "developer"
+                config.opa_role_header: "developer",
             }
             response = await client.get("/api/v1/workflows", headers=headers)
             # Com auth válida não deve retornar 403
@@ -74,7 +74,7 @@ class TestOPAMiddlewareIntegration:
             headers = {
                 config.opa_user_id_header: "admin-1",
                 config.opa_tenant_id_header: "system",
-                config.opa_role_header: "admin"
+                config.opa_role_header: "admin",
             }
             # Tentar acessar endpoint que normalmente seria restrito
             response = await client.post("/api/v1/workflows/start", json={}, headers=headers)
@@ -92,7 +92,7 @@ class TestOPAMiddlewareIntegration:
             headers_a = {
                 config.opa_user_id_header: "user-a",
                 config.opa_tenant_id_header: "tenant-a",
-                config.opa_role_header: "developer"
+                config.opa_role_header: "developer",
             }
             # Request para recurso do tenant-b com headers do tenant-a
             response = await client.get("/api/v1/tenant-b/workflows", headers=headers_a)
@@ -110,7 +110,7 @@ class TestOPAMiddlewareIntegration:
             headers = {
                 config.opa_user_id_header: "dev-1",
                 config.opa_tenant_id_header: "tenant-dev",
-                config.opa_role_header: "developer"
+                config.opa_role_header: "developer",
             }
             # GET deve funcionar
             response_get = await client.get("/api/v1/workflows", headers=headers)
@@ -131,7 +131,7 @@ class TestOPAMiddlewareIntegration:
             headers = {
                 config.opa_user_id_header: "worker-1",
                 config.opa_tenant_id_header: "system",
-                config.opa_role_header: "worker"
+                config.opa_role_header: "worker",
             }
             # Worker pode acessar /api/v1/workers/register
             response = await client.post("/api/v1/workers/register", json={}, headers=headers)
@@ -181,7 +181,7 @@ class TestOPAMiddlewareFailClosed:
             headers = {
                 config.opa_user_id_header: "user-123",
                 config.opa_tenant_id_header: "tenant-abc",
-                config.opa_role_header: "developer"
+                config.opa_role_header: "developer",
             }
             response = await client.get("/api/v1/workflows", headers=headers)
             # OPA indisponível com fail-closed deve retornar 503
@@ -192,12 +192,14 @@ class TestOPAMiddlewareFailClosed:
 # Fixtures
 # =============================================================================
 
+
 @pytest.fixture
 def test_app():
     """
     Fixture que cria uma aplicação FastAPI de teste com o middleware OPA.
     """
     from src.main import app
+
     return app
 
 
@@ -221,7 +223,9 @@ def test_app_with_opa_down():
         return {"workflows": []}
 
     # Adicionar middleware com mock que falha
-    with patch("neural_hive_opa.middleware.OPAAuthorizationMiddleware._build_opa_input") as mock_input:
+    with patch(
+        "neural_hive_opa.middleware.OPAAuthorizationMiddleware._build_opa_input"
+    ) as mock_input:
         with patch("neural_hive_opa.middleware.OPAAuthorizationMiddleware._call_opa") as mock_call:
             # Mock que simula OPA indisponível
             import httpx
@@ -239,7 +243,7 @@ def test_app_with_opa_down():
                     policy_path=config.opa_authorization_policy_path,
                     timeout_seconds=1,  # Timeout rápido para teste
                     fail_open=False,  # Fail-closed
-                )
+                ),
             )
 
     return app

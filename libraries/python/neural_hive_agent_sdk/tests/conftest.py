@@ -17,18 +17,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 def pytest_configure(config):
     """Configuração adicional do pytest."""
+    config.addinivalue_line("markers", "unit: Testes unitários (sem dependências externas)")
     config.addinivalue_line(
-        "markers",
-        "unit: Testes unitários (sem dependências externas)"
+        "markers", "integration: Testes de integração (requer serviços externos)"
     )
-    config.addinivalue_line(
-        "markers",
-        "integration: Testes de integração (requer serviços externos)"
-    )
-    config.addinivalue_line(
-        "markers",
-        "asyncio: Testes assíncronos"
-    )
+    config.addinivalue_line("markers", "asyncio: Testes assíncronos")
 
 
 @pytest.fixture(autouse=True)

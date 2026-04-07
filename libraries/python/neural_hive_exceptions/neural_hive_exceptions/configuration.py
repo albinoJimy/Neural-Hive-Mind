@@ -42,7 +42,7 @@ class ConfigurationError(NeuralHiveError):
         config_key: Optional[str] = None,
         reason: Optional[str] = None,
         code: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None
+        details: Optional[Dict[str, Any]] = None,
     ):
         code = code or ConfigErrorCode.MISSING_REQUIRED_CONFIG
 
@@ -53,12 +53,7 @@ class ConfigurationError(NeuralHiveError):
         if reason:
             error_details["reason"] = reason
 
-        super().__init__(
-            message=message,
-            code=code,
-            details=error_details,
-            http_status=500
-        )
+        super().__init__(message=message, code=code, details=error_details, http_status=500)
 
     @classmethod
     def missing_required(cls, config_key: str) -> "ConfigurationError":
@@ -66,22 +61,17 @@ class ConfigurationError(NeuralHiveError):
         return cls(
             message=f"Required configuration '{config_key}' is missing",
             config_key=config_key,
-            code=ConfigErrorCode.MISSING_REQUIRED_CONFIG
+            code=ConfigErrorCode.MISSING_REQUIRED_CONFIG,
         )
 
     @classmethod
-    def invalid_value(
-        cls,
-        config_key: str,
-        value: Any,
-        expected: str
-    ) -> "ConfigurationError":
+    def invalid_value(cls, config_key: str, value: Any, expected: str) -> "ConfigurationError":
         """Erro para valor de configuração inválido."""
         return cls(
             message=f"Configuration '{config_key}' has invalid value",
             config_key=config_key,
             reason=f"Expected: {expected}, got: {value}",
-            code=ConfigErrorCode.INVALID_VALUE
+            code=ConfigErrorCode.INVALID_VALUE,
         )
 
     @classmethod
@@ -90,5 +80,5 @@ class ConfigurationError(NeuralHiveError):
         return cls(
             message=f"Required environment variable '{env_var}' is not set",
             config_key=env_var,
-            code=ConfigErrorCode.MISSING_ENV_VAR
+            code=ConfigErrorCode.MISSING_ENV_VAR,
         )

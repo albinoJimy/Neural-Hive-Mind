@@ -19,11 +19,11 @@ def config():
     config.enable_optimizer_integration = True
     config.ml_local_load_prediction_enabled = True
     config.ml_allocation_outcomes_enabled = True
-    config.ml_allocation_outcomes_topic = 'ml.allocation_outcomes'
+    config.ml_allocation_outcomes_topic = "ml.allocation_outcomes"
     config.ml_optimization_timeout_seconds = 2
     config.ml_local_load_window_minutes = 60
     config.ml_local_load_cache_ttl_seconds = 30
-    config.mongodb_collection_tickets = 'execution_tickets'
+    config.mongodb_collection_tickets = "execution_tickets"
     config.service_registry_max_results = 5
     return config
 
@@ -35,9 +35,9 @@ def mongodb_client_with_data():
 
     # Dados de completions
     completions = [
-        {'actual_duration_ms': 2000.0, 'completed_at': datetime.now(timezone.utc)},
-        {'actual_duration_ms': 2500.0, 'completed_at': datetime.now(timezone.utc)},
-        {'actual_duration_ms': 3000.0, 'completed_at': datetime.now(timezone.utc)},
+        {"actual_duration_ms": 2000.0, "completed_at": datetime.now(timezone.utc)},
+        {"actual_duration_ms": 2500.0, "completed_at": datetime.now(timezone.utc)},
+        {"actual_duration_ms": 3000.0, "completed_at": datetime.now(timezone.utc)},
     ]
 
     # Collection mockada
@@ -47,7 +47,7 @@ def mongodb_client_with_data():
     )
     mock_collection.count_documents = AsyncMock(return_value=3)  # Queue depth
 
-    mock.db = {'execution_tickets': mock_collection}
+    mock.db = {"execution_tickets": mock_collection}
     return mock
 
 
@@ -64,16 +64,17 @@ def redis_client():
 def optimizer_client():
     """Optimizer gRPC client mockado."""
     mock = AsyncMock()
-    mock.get_load_forecast = AsyncMock(return_value={
-        'forecast': [
-            {'timestamp': 1234567890, 'value': 40.0},
-            {'timestamp': 1234567920, 'value': 45.0}
-        ]
-    })
-    mock.get_scheduling_recommendation = AsyncMock(return_value={
-        'action': 'SCALE_UP',
-        'confidence': 0.85
-    })
+    mock.get_load_forecast = AsyncMock(
+        return_value={
+            "forecast": [
+                {"timestamp": 1234567890, "value": 40.0},
+                {"timestamp": 1234567920, "value": 45.0},
+            ]
+        }
+    )
+    mock.get_scheduling_recommendation = AsyncMock(
+        return_value={"action": "SCALE_UP", "confidence": 0.85}
+    )
     return mock
 
 
@@ -81,7 +82,7 @@ def optimizer_client():
 def kafka_producer():
     """Kafka producer mockado."""
     mock = AsyncMock()
-    mock.send = AsyncMock(return_value={'published': True, 'offset': 123})
+    mock.send = AsyncMock(return_value={"published": True, "offset": 123})
     return mock
 
 
@@ -89,28 +90,30 @@ def kafka_producer():
 def service_registry_client():
     """Service Registry client mockado."""
     mock = AsyncMock()
-    mock.discover_agents = AsyncMock(return_value=[
-        {
-            'agent_id': 'worker-1',
-            'agent_type': 'deployment-agent',
-            'status': 'HEALTHY',
-            'telemetry': {
-                'success_rate': 0.95,
-                'avg_duration_ms': 2000,
-                'total_executions': 100
-            }
-        },
-        {
-            'agent_id': 'worker-2',
-            'agent_type': 'deployment-agent',
-            'status': 'HEALTHY',
-            'telemetry': {
-                'success_rate': 0.90,
-                'avg_duration_ms': 2500,
-                'total_executions': 80
-            }
-        }
-    ])
+    mock.discover_agents = AsyncMock(
+        return_value=[
+            {
+                "agent_id": "worker-1",
+                "agent_type": "deployment-agent",
+                "status": "HEALTHY",
+                "telemetry": {
+                    "success_rate": 0.95,
+                    "avg_duration_ms": 2000,
+                    "total_executions": 100,
+                },
+            },
+            {
+                "agent_id": "worker-2",
+                "agent_type": "deployment-agent",
+                "status": "HEALTHY",
+                "telemetry": {
+                    "success_rate": 0.90,
+                    "avg_duration_ms": 2500,
+                    "total_executions": 80,
+                },
+            },
+        ]
+    )
     return mock
 
 
@@ -128,7 +131,7 @@ async def integrated_components(
     optimizer_client,
     kafka_producer,
     service_registry_client,
-    metrics
+    metrics,
 ):
     """Stack completo de componentes integrados."""
     # LoadPredictor
@@ -136,7 +139,7 @@ async def integrated_components(
         config=config,
         mongodb_client=mongodb_client_with_data,
         redis_client=redis_client,
-        metrics=metrics
+        metrics=metrics,
     )
 
     # SchedulingOptimizer
@@ -145,7 +148,7 @@ async def integrated_components(
         optimizer_client=optimizer_client,
         local_predictor=load_predictor,
         kafka_producer=kafka_producer,
-        metrics=metrics
+        metrics=metrics,
     )
 
     # ResourceAllocator
@@ -153,13 +156,13 @@ async def integrated_components(
         registry_client=service_registry_client,
         config=config,
         metrics=metrics,
-        scheduling_optimizer=scheduling_optimizer
+        scheduling_optimizer=scheduling_optimizer,
     )
 
     return {
-        'load_predictor': load_predictor,
-        'scheduling_optimizer': scheduling_optimizer,
-        'resource_allocator': resource_allocator
+        "load_predictor": load_predictor,
+        "scheduling_optimizer": scheduling_optimizer,
+        "resource_allocator": resource_allocator,
     }
 
 
@@ -168,19 +171,17 @@ class TestMLSchedulingIntegration:
 
     @pytest.mark.asyncio
     async def test_full_scheduling_flow_with_ml_optimization(
-        self,
-        integrated_components,
-        service_registry_client
+        self, integrated_components, service_registry_client
     ):
         """Testa fluxo completo de scheduling com otimização ML."""
-        allocator = integrated_components['resource_allocator']
+        allocator = integrated_components["resource_allocator"]
 
         ticket = {
-            'ticket_id': 'ticket-integration-1',
-            'task_type': 'deployment',
-            'required_capabilities': ['deployment'],
-            'namespace': 'default',
-            'security_level': 'standard'
+            "ticket_id": "ticket-integration-1",
+            "task_type": "deployment",
+            "required_capabilities": ["deployment"],
+            "namespace": "default",
+            "security_level": "standard",
         }
 
         # Descobrir workers
@@ -189,60 +190,58 @@ class TestMLSchedulingIntegration:
 
         # Selecionar melhor worker (com ML optimization)
         best_worker = await allocator.select_best_worker(
-            workers=workers,
-            priority_score=0.7,
-            ticket=ticket
+            workers=workers, priority_score=0.7, ticket=ticket
         )
 
         assert best_worker is not None
-        assert 'agent_id' in best_worker
-        assert best_worker['ml_enriched'] is True
-        assert 'predicted_queue_ms' in best_worker
-        assert 'predicted_load_pct' in best_worker
-        assert 'rl_boost' in best_worker
+        assert "agent_id" in best_worker
+        assert best_worker["ml_enriched"] is True
+        assert "predicted_queue_ms" in best_worker
+        assert "predicted_load_pct" in best_worker
+        assert "rl_boost" in best_worker
 
     @pytest.mark.asyncio
-    async def test_ml_predictions_enrich_worker_scoring(
-        self,
-        integrated_components
-    ):
+    async def test_ml_predictions_enrich_worker_scoring(self, integrated_components):
         """Testa que predições ML influenciam scoring de workers."""
-        optimizer = integrated_components['scheduling_optimizer']
-        allocator = integrated_components['resource_allocator']
+        optimizer = integrated_components["scheduling_optimizer"]
+        allocator = integrated_components["resource_allocator"]
 
         # Workers com diferentes cargas preditas
         workers = [
             {
-                'agent_id': 'worker-low-load',
-                'status': 'HEALTHY',
-                'telemetry': {'success_rate': 0.95, 'avg_duration_ms': 2000, 'total_executions': 100}
+                "agent_id": "worker-low-load",
+                "status": "HEALTHY",
+                "telemetry": {
+                    "success_rate": 0.95,
+                    "avg_duration_ms": 2000,
+                    "total_executions": 100,
+                },
             },
             {
-                'agent_id': 'worker-high-load',
-                'status': 'HEALTHY',
-                'telemetry': {'success_rate': 0.95, 'avg_duration_ms': 2000, 'total_executions': 100}
-            }
+                "agent_id": "worker-high-load",
+                "status": "HEALTHY",
+                "telemetry": {
+                    "success_rate": 0.95,
+                    "avg_duration_ms": 2000,
+                    "total_executions": 100,
+                },
+            },
         ]
 
-        ticket = {'ticket_id': 'ticket-1', 'task_type': 'deployment'}
+        ticket = {"ticket_id": "ticket-1", "task_type": "deployment"}
 
         # Enriquecer com ML
-        enriched = await optimizer.optimize_allocation(
-            ticket=ticket,
-            workers=workers
-        )
+        enriched = await optimizer.optimize_allocation(ticket=ticket, workers=workers)
 
         # Selecionar melhor worker
         best_worker = await allocator.select_best_worker(
-            workers=enriched,
-            priority_score=0.7,
-            ticket=ticket
+            workers=enriched, priority_score=0.7, ticket=ticket
         )
 
         # Verificar que RL boost foi aplicado (SCALE_UP prefere baixa carga)
         assert best_worker is not None
         # Worker com RL boost deve ter score mais alto
-        assert best_worker.get('rl_boost', 1.0) >= 1.0
+        assert best_worker.get("rl_boost", 1.0) >= 1.0
 
     @pytest.mark.asyncio
     async def test_fallback_to_local_when_optimizer_unavailable(
@@ -252,7 +251,7 @@ class TestMLSchedulingIntegration:
         redis_client,
         kafka_producer,
         service_registry_client,
-        metrics
+        metrics,
     ):
         """Testa fallback para predições locais quando optimizer remoto falha."""
         # Optimizer que falha
@@ -264,7 +263,7 @@ class TestMLSchedulingIntegration:
             config=config,
             mongodb_client=mongodb_client_with_data,
             redis_client=redis_client,
-            metrics=metrics
+            metrics=metrics,
         )
 
         scheduling_optimizer = SchedulingOptimizer(
@@ -272,28 +271,26 @@ class TestMLSchedulingIntegration:
             optimizer_client=failing_optimizer,
             local_predictor=load_predictor,
             kafka_producer=kafka_producer,
-            metrics=metrics
+            metrics=metrics,
         )
 
         resource_allocator = ResourceAllocator(
             registry_client=service_registry_client,
             config=config,
             metrics=metrics,
-            scheduling_optimizer=scheduling_optimizer
+            scheduling_optimizer=scheduling_optimizer,
         )
 
-        ticket = {'ticket_id': 'ticket-2', 'task_type': 'testing'}
+        ticket = {"ticket_id": "ticket-2", "task_type": "testing"}
         workers = await resource_allocator.discover_workers(ticket)
 
         # Deve funcionar mesmo com optimizer falh ando (usa predições locais)
         best_worker = await resource_allocator.select_best_worker(
-            workers=workers,
-            priority_score=0.6,
-            ticket=ticket
+            workers=workers, priority_score=0.6, ticket=ticket
         )
 
         assert best_worker is not None
-        assert best_worker['ml_enriched'] is True  # Ainda tem enrichment local
+        assert best_worker["ml_enriched"] is True  # Ainda tem enrichment local
 
     @pytest.mark.asyncio
     async def test_degraded_mode_without_mongodb(
@@ -303,7 +300,7 @@ class TestMLSchedulingIntegration:
         optimizer_client,
         kafka_producer,
         service_registry_client,
-        metrics
+        metrics,
     ):
         """Testa modo degradado sem MongoDB (usa defaults)."""
         # Stack sem MongoDB
@@ -311,7 +308,7 @@ class TestMLSchedulingIntegration:
             config=config,
             mongodb_client=None,  # MongoDB indisponível
             redis_client=redis_client,
-            metrics=metrics
+            metrics=metrics,
         )
 
         scheduling_optimizer = SchedulingOptimizer(
@@ -319,86 +316,72 @@ class TestMLSchedulingIntegration:
             optimizer_client=optimizer_client,
             local_predictor=load_predictor,
             kafka_producer=kafka_producer,
-            metrics=metrics
+            metrics=metrics,
         )
 
         resource_allocator = ResourceAllocator(
             registry_client=service_registry_client,
             config=config,
             metrics=metrics,
-            scheduling_optimizer=scheduling_optimizer
+            scheduling_optimizer=scheduling_optimizer,
         )
 
-        ticket = {'ticket_id': 'ticket-3', 'task_type': 'validation'}
+        ticket = {"ticket_id": "ticket-3", "task_type": "validation"}
         workers = await resource_allocator.discover_workers(ticket)
 
         # Deve funcionar em modo degradado
         best_worker = await resource_allocator.select_best_worker(
-            workers=workers,
-            priority_score=0.8,
-            ticket=ticket
+            workers=workers, priority_score=0.8, ticket=ticket
         )
 
         assert best_worker is not None
         # Predições devem usar defaults
-        assert best_worker.get('predicted_queue_ms') in [1000.0, 2000.0]  # Defaults
-        assert best_worker.get('predicted_load_pct') == 0.5  # Default
+        assert best_worker.get("predicted_queue_ms") in [1000.0, 2000.0]  # Defaults
+        assert best_worker.get("predicted_load_pct") == 0.5  # Default
 
     @pytest.mark.asyncio
-    async def test_allocation_outcome_feedback_loop(
-        self,
-        integrated_components,
-        kafka_producer
-    ):
+    async def test_allocation_outcome_feedback_loop(self, integrated_components, kafka_producer):
         """Testa feedback loop de allocation outcomes para RL training."""
-        optimizer = integrated_components['scheduling_optimizer']
+        optimizer = integrated_components["scheduling_optimizer"]
 
         ticket = {
-            'ticket_id': 'ticket-feedback',
-            'status': 'COMPLETED',
-            'risk_band': 'high',
-            'priority_score': 0.9
+            "ticket_id": "ticket-feedback",
+            "status": "COMPLETED",
+            "risk_band": "high",
+            "priority_score": 0.9,
         }
 
         worker = {
-            'agent_id': 'worker-selected',
-            'predicted_queue_ms': 2000.0,
-            'predicted_load_pct': 0.45,
-            'ml_enriched': True
+            "agent_id": "worker-selected",
+            "predicted_queue_ms": 2000.0,
+            "predicted_load_pct": 0.45,
+            "ml_enriched": True,
         }
 
         await optimizer.record_allocation_outcome(
-            ticket=ticket,
-            worker=worker,
-            actual_duration_ms=2200.0
+            ticket=ticket, worker=worker, actual_duration_ms=2200.0
         )
 
         # Verificar que outcome foi publicado no Kafka
         kafka_producer.send.assert_called_once()
         call_args = kafka_producer.send.call_args
 
-        outcome = call_args[1]['value']
-        assert outcome['ticket_id'] == 'ticket-feedback'
-        assert outcome['worker_id'] == 'worker-selected'
-        assert outcome['predicted_queue_ms'] == 2000.0
-        assert outcome['actual_duration_ms'] == 2200.0
-        assert outcome['success'] is True
+        outcome = call_args[1]["value"]
+        assert outcome["ticket_id"] == "ticket-feedback"
+        assert outcome["worker_id"] == "worker-selected"
+        assert outcome["predicted_queue_ms"] == 2000.0
+        assert outcome["actual_duration_ms"] == 2200.0
+        assert outcome["success"] is True
 
     @pytest.mark.asyncio
-    async def test_metrics_recorded_throughout_pipeline(
-        self,
-        integrated_components,
-        metrics
-    ):
+    async def test_metrics_recorded_throughout_pipeline(self, integrated_components, metrics):
         """Testa que métricas são registradas em todos os estágios."""
-        allocator = integrated_components['resource_allocator']
+        allocator = integrated_components["resource_allocator"]
 
-        ticket = {'ticket_id': 'ticket-metrics', 'task_type': 'deployment'}
+        ticket = {"ticket_id": "ticket-metrics", "task_type": "deployment"}
         workers = await allocator.discover_workers(ticket)
         best_worker = await allocator.select_best_worker(
-            workers=workers,
-            priority_score=0.75,
-            ticket=ticket
+            workers=workers, priority_score=0.75, ticket=ticket
         )
 
         # Verificar chamadas de métricas ao longo do pipeline
@@ -413,15 +396,12 @@ class TestRedisIntegration:
 
     @pytest.mark.asyncio
     async def test_redis_integration_with_load_predictor(
-        self,
-        config,
-        mongodb_client_with_data,
-        metrics
+        self, config, mongodb_client_with_data, metrics
     ):
         """Testa integração Redis com LoadPredictor (cache hit)."""
         # Redis mock que retorna cache hit
         redis_client = AsyncMock()
-        redis_client.get = AsyncMock(return_value='2500.0')
+        redis_client.get = AsyncMock(return_value="2500.0")
         redis_client.setex = AsyncMock()
         redis_client.ping = AsyncMock()
 
@@ -429,20 +409,17 @@ class TestRedisIntegration:
             config=config,
             mongodb_client=mongodb_client_with_data,
             redis_client=redis_client,
-            metrics=metrics
+            metrics=metrics,
         )
 
         # Primeira chamada deve usar cache
-        queue_time = await load_predictor.predict_queue_time('worker-1')
+        queue_time = await load_predictor.predict_queue_time("worker-1")
         assert queue_time == 2500.0
         redis_client.get.assert_called()
 
     @pytest.mark.asyncio
     async def test_redis_cache_miss_falls_through_to_mongodb(
-        self,
-        config,
-        mongodb_client_with_data,
-        metrics
+        self, config, mongodb_client_with_data, metrics
     ):
         """Testa que cache miss faz query ao MongoDB."""
         redis_client = AsyncMock()
@@ -454,10 +431,10 @@ class TestRedisIntegration:
             config=config,
             mongodb_client=mongodb_client_with_data,
             redis_client=redis_client,
-            metrics=metrics
+            metrics=metrics,
         )
 
-        queue_time = await load_predictor.predict_queue_time('worker-1')
+        queue_time = await load_predictor.predict_queue_time("worker-1")
 
         # Deve ter tentado Redis primeiro
         redis_client.get.assert_called()
@@ -468,44 +445,38 @@ class TestRedisIntegration:
 
     @pytest.mark.asyncio
     async def test_fail_open_when_redis_unavailable(
-        self,
-        config,
-        mongodb_client_with_data,
-        metrics
+        self, config, mongodb_client_with_data, metrics
     ):
         """Testa que LoadPredictor funciona sem Redis (fail-open)."""
         load_predictor = LoadPredictor(
             config=config,
             mongodb_client=mongodb_client_with_data,
             redis_client=None,  # Redis indisponível
-            metrics=metrics
+            metrics=metrics,
         )
 
         # Deve funcionar em modo degradado sem cache
-        queue_time = await load_predictor.predict_queue_time('worker-1')
+        queue_time = await load_predictor.predict_queue_time("worker-1")
         assert queue_time > 0
 
     @pytest.mark.asyncio
     async def test_redis_error_does_not_break_prediction(
-        self,
-        config,
-        mongodb_client_with_data,
-        metrics
+        self, config, mongodb_client_with_data, metrics
     ):
         """Testa que erro no Redis não quebra a predição."""
         # Redis que sempre falha
         failing_redis = AsyncMock()
-        failing_redis.get = AsyncMock(side_effect=ConnectionError('Connection refused'))
-        failing_redis.setex = AsyncMock(side_effect=ConnectionError('Connection refused'))
-        failing_redis.ping = AsyncMock(side_effect=ConnectionError('Connection refused'))
+        failing_redis.get = AsyncMock(side_effect=ConnectionError("Connection refused"))
+        failing_redis.setex = AsyncMock(side_effect=ConnectionError("Connection refused"))
+        failing_redis.ping = AsyncMock(side_effect=ConnectionError("Connection refused"))
 
         load_predictor = LoadPredictor(
             config=config,
             mongodb_client=mongodb_client_with_data,
             redis_client=failing_redis,
-            metrics=metrics
+            metrics=metrics,
         )
 
         # Deve funcionar mesmo com Redis falhando
-        queue_time = await load_predictor.predict_queue_time('worker-1')
+        queue_time = await load_predictor.predict_queue_time("worker-1")
         assert queue_time > 0

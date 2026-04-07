@@ -8,6 +8,7 @@ from src.models.optimization_event import Adjustment, CausalAnalysis, Optimizati
 # Alias para compatibilidade com testes
 ProposedAdjustment = Adjustment
 
+
 # Callable para UTC now compatível com Pydantic V2
 def utcnow() -> datetime:
     """Retorna datetime UTC atual. Substituto para datetime.utcnow (deprecated)."""

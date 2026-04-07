@@ -33,10 +33,7 @@ class SonarQubeClient:
             if self.settings.sonarqube_token:
                 headers["Authorization"] = f"Bearer {self.settings.sonarqube_token}"
 
-            self._session = aiohttp.ClientSession(
-                timeout=timeout,
-                headers=headers
-            )
+            self._session = aiohttp.ClientSession(timeout=timeout, headers=headers)
         return self._session
 
     async def close(self) -> None:
@@ -50,7 +47,7 @@ class SonarQubeClient:
         endpoint: str,
         params: Optional[dict] = None,
         data: Optional[dict] = None,
-        retries: int = 3
+        retries: int = 3,
     ) -> dict[str, Any]:
         """
         Executa requisição HTTP com retry.
@@ -70,58 +67,36 @@ class SonarQubeClient:
 
         for attempt in range(retries):
             try:
-                async with session.request(
-                    method,
-                    url,
-                    params=params,
-                    json=data
-                ) as response:
+                async with session.request(method, url, params=params, json=data) as response:
                     if response.status == 401:
                         return {
                             "error": "Authentication failed",
-                            "message": "Token SonarQube inválido ou expirado"
+                            "message": "Token SonarQube inválido ou expirado",
                         }
 
                     if response.status == 404:
                         return {
                             "error": "Not found",
-                            "message": f"Recurso não encontrado: {endpoint}"
+                            "message": f"Recurso não encontrado: {endpoint}",
                         }
 
                     if response.status >= 400:
                         text = await response.text()
-                        return {
-                            "error": f"HTTP {response.status}",
-                            "message": text[:500]
-                        }
+                        return {"error": f"HTTP {response.status}", "message": text[:500]}
 
                     return await response.json()
 
             except asyncio.TimeoutError:
-                logger.warning(
-                    "sonarqube_request_timeout",
-                    attempt=attempt + 1,
-                    endpoint=endpoint
-                )
+                logger.warning("sonarqube_request_timeout", attempt=attempt + 1, endpoint=endpoint)
                 if attempt == retries - 1:
-                    return {
-                        "error": "Timeout",
-                        "message": f"Timeout após {retries} tentativas"
-                    }
-                await asyncio.sleep(2 ** attempt)
+                    return {"error": "Timeout", "message": f"Timeout após {retries} tentativas"}
+                await asyncio.sleep(2**attempt)
 
             except aiohttp.ClientError as e:
-                logger.warning(
-                    "sonarqube_request_error",
-                    attempt=attempt + 1,
-                    error=str(e)
-                )
+                logger.warning("sonarqube_request_error", attempt=attempt + 1, error=str(e))
                 if attempt == retries - 1:
-                    return {
-                        "error": "Connection error",
-                        "message": str(e)
-                    }
-                await asyncio.sleep(2 ** attempt)
+                    return {"error": "Connection error", "message": str(e)}
+                await asyncio.sleep(2**attempt)
 
         return {"error": "Unknown error"}
 
@@ -136,9 +111,7 @@ class SonarQubeClient:
             Status do Quality Gate
         """
         return await self._request(
-            "GET",
-            "/api/qualitygates/project_status",
-            params={"projectKey": project_key}
+            "GET", "/api/qualitygates/project_status", params={"projectKey": project_key}
         )
 
     async def search_issues(
@@ -146,7 +119,7 @@ class SonarQubeClient:
         project_key: str,
         severities: str = "MAJOR,CRITICAL,BLOCKER",
         types: str = "BUG,VULNERABILITY,CODE_SMELL",
-        page_size: int = 100
+        page_size: int = 100,
     ) -> dict[str, Any]:
         """
         Busca issues de um projeto.
@@ -167,14 +140,14 @@ class SonarQubeClient:
                 "componentKeys": project_key,
                 "severities": severities,
                 "types": types,
-                "ps": page_size
-            }
+                "ps": page_size,
+            },
         )
 
     async def get_component_measures(
         self,
         project_key: str,
-        metrics: str = "bugs,vulnerabilities,code_smells,coverage,duplicated_lines_density"
+        metrics: str = "bugs,vulnerabilities,code_smells,coverage,duplicated_lines_density",
     ) -> dict[str, Any]:
         """
         Obtém métricas de um componente.
@@ -189,10 +162,7 @@ class SonarQubeClient:
         return await self._request(
             "GET",
             "/api/measures/component",
-            params={
-                "component": project_key,
-                "metricKeys": metrics
-            }
+            params={"component": project_key, "metricKeys": metrics},
         )
 
     async def get_task_status(self, task_id: str) -> dict[str, Any]:
@@ -205,17 +175,10 @@ class SonarQubeClient:
         Returns:
             Status da task
         """
-        return await self._request(
-            "GET",
-            "/api/ce/task",
-            params={"id": task_id}
-        )
+        return await self._request("GET", "/api/ce/task", params={"id": task_id})
 
     async def wait_for_analysis(
-        self,
-        task_id: str,
-        poll_interval: Optional[int] = None,
-        max_attempts: Optional[int] = None
+        self, task_id: str, poll_interval: Optional[int] = None, max_attempts: Optional[int] = None
     ) -> dict[str, Any]:
         """
         Aguarda conclusão de uma análise.
@@ -240,26 +203,16 @@ class SonarQubeClient:
             status = result.get("task", {}).get("status")
 
             if status == "SUCCESS":
-                return {
-                    "success": True,
-                    "status": status,
-                    "task": result.get("task")
-                }
+                return {"success": True, "status": status, "task": result.get("task")}
             elif status in ("FAILED", "CANCELED"):
-                return {
-                    "error": f"Analysis {status.lower()}",
-                    "task": result.get("task")
-                }
+                return {"error": f"Analysis {status.lower()}", "task": result.get("task")}
 
             logger.debug(
-                "waiting_for_analysis",
-                task_id=task_id,
-                status=status,
-                attempt=attempt + 1
+                "waiting_for_analysis", task_id=task_id, status=status, attempt=attempt + 1
             )
             await asyncio.sleep(poll_interval)
 
         return {
             "error": "Timeout",
-            "message": f"Análise não concluída após {max_attempts * poll_interval}s"
+            "message": f"Análise não concluída após {max_attempts * poll_interval}s",
         }

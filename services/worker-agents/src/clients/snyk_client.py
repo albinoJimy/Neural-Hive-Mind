@@ -23,6 +23,7 @@ logger = structlog.get_logger()
 
 class SnykSeverity(str, Enum):
     """Vulnerability severity levels."""
+
     CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
@@ -159,7 +160,9 @@ class SnykClient:
             # Read manifest file
             try:
                 with open(manifest_path, "rb") as f:
-                    files = {"file": (os.path.basename(manifest_path), f, "application/octet-stream")}
+                    files = {
+                        "file": (os.path.basename(manifest_path), f, "application/octet-stream")
+                    }
             except FileNotFoundError:
                 return SnykReport(
                     passed=False,

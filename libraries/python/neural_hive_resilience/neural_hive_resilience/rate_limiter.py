@@ -193,9 +193,7 @@ class TokenBucketRateLimiter:
                         retry_after=(tokens - self.tokens) / self.refill_rate,
                     )
 
-    async def reserve(
-        self, tokens: int = 1
-    ) -> float:
+    async def reserve(self, tokens: int = 1) -> float:
         """Reserva tokens e retorna o tempo de espera.
 
         Similar ao acquire mas retorna apenas o tempo de espera.
@@ -294,9 +292,7 @@ class SlidingWindowLogRateLimiter:
                 reset_time=now + max(0.0, retry_after),
             )
 
-    async def acquire(
-        self, block: bool = True, timeout: Optional[float] = None
-    ) -> RateLimitResult:
+    async def acquire(self, block: bool = True, timeout: Optional[float] = None) -> RateLimitResult:
         """Tenta adquirir permissão para requisição.
 
         Args:

@@ -108,13 +108,16 @@ class TestGetSeniorityDescription:
 class TestParseSeniorityLevel:
     """Testes da função parse_seniority_level."""
 
-    @pytest.mark.parametrize("input_str,expected", [
-        ("trainee", SeniorityLevel.TRAINEE),
-        ("TRAINEE", SeniorityLevel.TRAINEE),
-        ("Trainee", SeniorityLevel.TRAINEE),
-        ("senior", SeniorityLevel.SENIOR),
-        ("expert", SeniorityLevel.EXPERT),
-    ])
+    @pytest.mark.parametrize(
+        "input_str,expected",
+        [
+            ("trainee", SeniorityLevel.TRAINEE),
+            ("TRAINEE", SeniorityLevel.TRAINEE),
+            ("Trainee", SeniorityLevel.TRAINEE),
+            ("senior", SeniorityLevel.SENIOR),
+            ("expert", SeniorityLevel.EXPERT),
+        ],
+    )
     def test_parse_valid_strings(self, input_str, expected):
         """Deve fazer parse de strings válidas (case-insensitive)."""
         assert parse_seniority_level(input_str) == expected

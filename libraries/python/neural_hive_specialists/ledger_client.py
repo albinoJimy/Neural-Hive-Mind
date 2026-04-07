@@ -86,9 +86,7 @@ class LedgerClient:
 
         if config.enable_audit_logging:
             try:
-                self.audit_logger = AuditLogger(
-                    config=config, specialist_type="ledger_client"
-                )
+                self.audit_logger = AuditLogger(config=config, specialist_type="ledger_client")
                 logger.info("AuditLogger initialized in LedgerClient")
             except Exception as e:
                 logger.error("Failed to initialize AuditLogger", error=str(e))
@@ -229,9 +227,7 @@ class LedgerClient:
             self.collection.create_index([("plan_id", ASCENDING)], name="idx_plan_id")
 
             # Índice no intent_id para rastreamento
-            self.collection.create_index(
-                [("intent_id", ASCENDING)], name="idx_intent_id"
-            )
+            self.collection.create_index([("intent_id", ASCENDING)], name="idx_intent_id")
 
             # Índice composto specialist_type + evaluated_at (v2)
             self.collection.create_index(
@@ -240,9 +236,7 @@ class LedgerClient:
             )
 
             # Índice no correlation_id para correlação (mantido para backward compatibility)
-            self.collection.create_index(
-                [("correlation_id", ASCENDING)], name="idx_correlation_id"
-            )
+            self.collection.create_index([("correlation_id", ASCENDING)], name="idx_correlation_id")
 
             # Índice no correlation_id_hash para buscas eficientes com hash
             self.collection.create_index(
@@ -285,9 +279,7 @@ class LedgerClient:
             )
 
             # Índice na versão do schema (v2)
-            self.collection.create_index(
-                [("schema_version", ASCENDING)], name="idx_schema_version"
-            )
+            self.collection.create_index([("schema_version", ASCENDING)], name="idx_schema_version")
 
             # Índice na assinatura digital (sparse, v2)
             self.collection.create_index(
@@ -304,9 +296,7 @@ class LedgerClient:
         """Callback para mudanças de estado do circuit breaker."""
         if self._metrics:
             self._metrics.set_circuit_breaker_state("ledger", new_state)
-            self._metrics.increment_circuit_breaker_transition(
-                "ledger", old_state, new_state
-            )
+            self._metrics.increment_circuit_breaker_transition("ledger", old_state, new_state)
 
         logger.info(
             "Circuit breaker state changed",
@@ -430,9 +420,7 @@ class LedgerClient:
                 "confidence_score": opinion.get("confidence_score", 0.0),
                 "risk_score": opinion.get("risk_score", 0.0),
                 "recommendation": opinion.get("recommendation", "review_required"),
-                "reasoning_summary": opinion.get(
-                    "reasoning_summary", "No summary provided"
-                ),
+                "reasoning_summary": opinion.get("reasoning_summary", "No summary provided"),
                 "reasoning_factors": [],
                 "explainability_token": opinion.get("explainability_token", ""),
                 "explainability": opinion.get("explainability", {}),
@@ -462,9 +450,7 @@ class LedgerClient:
                 if isinstance(m, dict):
                     opinion_data["mitigations"].append(m)
                 else:
-                    opinion_data["mitigations"].append(
-                        m.dict() if hasattr(m, "dict") else m
-                    )
+                    opinion_data["mitigations"].append(m.dict() if hasattr(m, "dict") else m)
 
             # Validar e construir Opinion usando Pydantic
             try:
@@ -510,9 +496,7 @@ class LedgerClient:
 
             # Calcular correlation_id_hash para permitir buscas (antes de qualquer criptografia)
             if self.config.enable_correlation_hash and correlation_id:
-                correlation_id_hash = hashlib.sha256(
-                    correlation_id.encode("utf-8")
-                ).hexdigest()
+                correlation_id_hash = hashlib.sha256(correlation_id.encode("utf-8")).hexdigest()
                 document["correlation_id_hash"] = correlation_id_hash
                 logger.debug(
                     "correlation_id_hash calculated",
@@ -601,9 +585,7 @@ class LedgerClient:
                         },
                     )
                 except Exception as e:
-                    logger.error(
-                        "Failed to audit log opinion persistence", error=str(e)
-                    )
+                    logger.error("Failed to audit log opinion persistence", error=str(e))
 
             # Mark as not buffered
             self._last_save_was_buffered = False
@@ -611,16 +593,12 @@ class LedgerClient:
             # Check if recovering from open state
             if self._was_open:
                 if self._metrics:
-                    self._metrics.increment_circuit_breaker_success_after_halfopen(
-                        "ledger"
-                    )
+                    self._metrics.increment_circuit_breaker_success_after_halfopen("ledger")
                 self._circuit_breaker_state = "closed"
                 if self._metrics:
                     self._metrics.set_circuit_breaker_state("ledger", "closed")
                 self._was_open = False
-                logger.info(
-                    "Circuit breaker recovered to closed state", client="ledger"
-                )
+                logger.info("Circuit breaker recovered to closed state", client="ledger")
 
             logger.info(
                 "Opinion saved to ledger",
@@ -635,9 +613,7 @@ class LedgerClient:
 
         except PyMongoError as e:
             if self._metrics:
-                self._metrics.increment_circuit_breaker_failure(
-                    "ledger", type(e).__name__
-                )
+                self._metrics.increment_circuit_breaker_failure("ledger", type(e).__name__)
 
             logger.error(
                 "Failed to save opinion to ledger",
@@ -719,9 +695,7 @@ class LedgerClient:
         try:
             document = self.get_opinion(opinion_id)
             if not document:
-                logger.warning(
-                    "Opinion not found for integrity check", opinion_id=opinion_id
-                )
+                logger.warning("Opinion not found for integrity check", opinion_id=opinion_id)
                 return None
 
             # Prioridade 1: Verificar assinatura digital se disponível
@@ -779,16 +753,12 @@ class LedgerClient:
                 return False
 
             if not self.digital_signer:
-                logger.warning(
-                    "Digital signer not initialized, cannot verify signature"
-                )
+                logger.warning("Digital signer not initialized, cannot verify signature")
                 return False
 
             # Check if document has digital signature
             if "digital_signature" not in document or not document["digital_signature"]:
-                logger.warning(
-                    "Opinion has no digital signature", opinion_id=opinion_id
-                )
+                logger.warning("Opinion has no digital signature", opinion_id=opinion_id)
                 return False
 
             # Verify signature
@@ -803,9 +773,7 @@ class LedgerClient:
             return is_valid
 
         except Exception as e:
-            logger.error(
-                "Failed to verify signature", opinion_id=opinion_id, error=str(e)
-            )
+            logger.error("Failed to verify signature", opinion_id=opinion_id, error=str(e))
             return False
 
     def detect_tampering(self, opinion_id: str) -> bool:
@@ -821,15 +789,11 @@ class LedgerClient:
         try:
             document = self.get_opinion(opinion_id)
             if not document:
-                logger.warning(
-                    "Opinion not found for tampering detection", opinion_id=opinion_id
-                )
+                logger.warning("Opinion not found for tampering detection", opinion_id=opinion_id)
                 return False
 
             if not self.digital_signer:
-                logger.warning(
-                    "Digital signer not initialized, cannot detect tampering"
-                )
+                logger.warning("Digital signer not initialized, cannot detect tampering")
                 return False
 
             # Detect tampering
@@ -843,9 +807,7 @@ class LedgerClient:
             return is_tampered
 
         except Exception as e:
-            logger.error(
-                "Failed to detect tampering", opinion_id=opinion_id, error=str(e)
-            )
+            logger.error("Failed to detect tampering", opinion_id=opinion_id, error=str(e))
             return False
 
     def save_opinion_with_fallback(
@@ -897,9 +859,7 @@ class LedgerClient:
             self._circuit_breaker_state = "open"
             if self._metrics:
                 self._metrics.set_circuit_breaker_state("ledger", "open")
-                self._metrics.increment_circuit_breaker_failure(
-                    "ledger", "CircuitBreakerError"
-                )
+                self._metrics.increment_circuit_breaker_failure("ledger", "CircuitBreakerError")
             self._was_open = True
 
             logger.warning(
@@ -939,9 +899,7 @@ class LedgerClient:
             self._last_save_was_buffered = True
 
             if self._metrics:
-                self._metrics.increment_fallback_invocation(
-                    "ledger", "in_memory_buffer"
-                )
+                self._metrics.increment_fallback_invocation("ledger", "in_memory_buffer")
 
             logger.info(
                 "Opinion buffered in memory",
@@ -1109,9 +1067,7 @@ class LedgerClient:
             return document
 
         except PyMongoError as e:
-            logger.error(
-                "Failed to get opinion from ledger", opinion_id=opinion_id, error=str(e)
-            )
+            logger.error("Failed to get opinion from ledger", opinion_id=opinion_id, error=str(e))
             return None
 
     def get_opinions_by_plan(
@@ -1161,9 +1117,7 @@ class LedgerClient:
                 document.pop("_id", None)
                 opinions.append(document)
 
-            logger.debug(
-                "Retrieved opinions for plan", plan_id=plan_id, count=len(opinions)
-            )
+            logger.debug("Retrieved opinions for plan", plan_id=plan_id, count=len(opinions))
 
             # Audit log operação de leitura
             if self.audit_logger:
@@ -1182,9 +1136,7 @@ class LedgerClient:
             return opinions
 
         except PyMongoError as e:
-            logger.error(
-                "Failed to get opinions for plan", plan_id=plan_id, error=str(e)
-            )
+            logger.error("Failed to get opinions for plan", plan_id=plan_id, error=str(e))
             return []
 
     def get_opinions_by_intent(
@@ -1250,9 +1202,7 @@ class LedgerClient:
             return opinions
 
         except PyMongoError as e:
-            logger.error(
-                "Failed to get opinions for intent", intent_id=intent_id, error=str(e)
-            )
+            logger.error("Failed to get opinions for intent", intent_id=intent_id, error=str(e))
             return []
 
     def get_opinions_by_plan_id(
@@ -1278,9 +1228,7 @@ class LedgerClient:
             True se integridade válida, False caso contrário
         """
         if self.config.enable_circuit_breaker and self._verify_integrity_breaker:
-            return self._verify_integrity_breaker.call(
-                self.verify_integrity_impl, opinion_id
-            )
+            return self._verify_integrity_breaker.call(self.verify_integrity_impl, opinion_id)
         else:
             return self.verify_integrity_impl(opinion_id)
 
@@ -1302,9 +1250,7 @@ class LedgerClient:
             document = self.collection.find_one({"opinion_id": opinion_id})
 
             if not document:
-                logger.warning(
-                    "Opinion not found for integrity check", opinion_id=opinion_id
-                )
+                logger.warning("Opinion not found for integrity check", opinion_id=opinion_id)
                 return False
 
             # Obter hash armazenado

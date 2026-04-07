@@ -1,1 +1,1 @@
-'''Tests for Consensus Engine'''
+"""Tests for Consensus Engine"""

@@ -93,19 +93,13 @@ class TestCreateSanitizedHeaders:
 
     def test_sanitize_normal_headers(self):
         """Testa sanitização de headers normais."""
-        headers = {
-            "X-Service-Name": "my-service",
-            "X-Component": "gateway"
-        }
+        headers = {"X-Service-Name": "my-service", "X-Component": "gateway"}
         result = create_sanitized_headers(headers)
         assert result == headers
 
     def test_sanitize_problematic_headers(self):
         """Testa sanitização de headers problemáticos."""
-        headers = {
-            "X-Service-Name": "my%service",
-            "X-Component": "gateway{test}"
-        }
+        headers = {"X-Service-Name": "my%service", "X-Component": "gateway{test}"}
         result = create_sanitized_headers(headers)
         assert result["X-Service-Name"] == "myservice"
         assert result["X-Component"] == "gatewaytest"
@@ -114,7 +108,7 @@ class TestCreateSanitizedHeaders:
 class TestResilientOTLPSpanExporter:
     """Testes para ResilientOTLPSpanExporter."""
 
-    @patch('neural_hive_observability.exporters.OTLPSpanExporter')
+    @patch("neural_hive_observability.exporters.OTLPSpanExporter")
     def test_initialization(self, mock_otlp_class):
         """Testa inicialização do exporter resiliente."""
         mock_inner = Mock()
@@ -123,7 +117,7 @@ class TestResilientOTLPSpanExporter:
         exporter = ResilientOTLPSpanExporter(
             endpoint="http://localhost:4317",
             service_name="test-service",
-            headers={"X-Test": "value"}
+            headers={"X-Test": "value"},
         )
 
         assert exporter._service_name == "test-service"
@@ -132,7 +126,7 @@ class TestResilientOTLPSpanExporter:
         assert exporter._success_count == 0
         mock_otlp_class.assert_called_once()
 
-    @patch('neural_hive_observability.exporters.OTLPSpanExporter')
+    @patch("neural_hive_observability.exporters.OTLPSpanExporter")
     def test_export_success(self, mock_otlp_class):
         """Testa export bem-sucedido."""
         from opentelemetry.sdk.trace.export import SpanExportResult
@@ -142,8 +136,7 @@ class TestResilientOTLPSpanExporter:
         mock_otlp_class.return_value = mock_inner
 
         exporter = ResilientOTLPSpanExporter(
-            endpoint="http://localhost:4317",
-            service_name="test-service"
+            endpoint="http://localhost:4317", service_name="test-service"
         )
 
         mock_spans = [Mock(), Mock()]
@@ -154,18 +147,19 @@ class TestResilientOTLPSpanExporter:
         assert exporter.failure_count == 0
         mock_inner.export.assert_called_once_with(mock_spans)
 
-    @patch('neural_hive_observability.exporters.OTLPSpanExporter')
+    @patch("neural_hive_observability.exporters.OTLPSpanExporter")
     def test_export_catches_typeerror(self, mock_otlp_class):
         """Testa que TypeError é capturado e não propagado."""
         from opentelemetry.sdk.trace.export import SpanExportResult
 
         mock_inner = Mock()
-        mock_inner.export.side_effect = TypeError("not all arguments converted during string formatting")
+        mock_inner.export.side_effect = TypeError(
+            "not all arguments converted during string formatting"
+        )
         mock_otlp_class.return_value = mock_inner
 
         exporter = ResilientOTLPSpanExporter(
-            endpoint="http://localhost:4317",
-            service_name="test-service"
+            endpoint="http://localhost:4317", service_name="test-service"
         )
 
         mock_spans = [Mock()]
@@ -176,7 +170,7 @@ class TestResilientOTLPSpanExporter:
         assert exporter.failure_count == 1
         assert exporter.success_count == 0
 
-    @patch('neural_hive_observability.exporters.OTLPSpanExporter')
+    @patch("neural_hive_observability.exporters.OTLPSpanExporter")
     def test_export_catches_generic_exception(self, mock_otlp_class):
         """Testa que exceções genéricas são capturadas."""
         from opentelemetry.sdk.trace.export import SpanExportResult
@@ -186,8 +180,7 @@ class TestResilientOTLPSpanExporter:
         mock_otlp_class.return_value = mock_inner
 
         exporter = ResilientOTLPSpanExporter(
-            endpoint="http://localhost:4317",
-            service_name="test-service"
+            endpoint="http://localhost:4317", service_name="test-service"
         )
 
         mock_spans = [Mock()]
@@ -196,7 +189,7 @@ class TestResilientOTLPSpanExporter:
         assert result == SpanExportResult.FAILURE
         assert exporter.failure_count == 1
 
-    @patch('neural_hive_observability.exporters.OTLPSpanExporter')
+    @patch("neural_hive_observability.exporters.OTLPSpanExporter")
     def test_export_empty_spans(self, mock_otlp_class):
         """Testa export com lista vazia de spans."""
         from opentelemetry.sdk.trace.export import SpanExportResult
@@ -205,8 +198,7 @@ class TestResilientOTLPSpanExporter:
         mock_otlp_class.return_value = mock_inner
 
         exporter = ResilientOTLPSpanExporter(
-            endpoint="http://localhost:4317",
-            service_name="test-service"
+            endpoint="http://localhost:4317", service_name="test-service"
         )
 
         result = exporter.export([])
@@ -215,7 +207,7 @@ class TestResilientOTLPSpanExporter:
         assert result == SpanExportResult.SUCCESS
         mock_inner.export.assert_not_called()
 
-    @patch('neural_hive_observability.exporters.OTLPSpanExporter')
+    @patch("neural_hive_observability.exporters.OTLPSpanExporter")
     def test_export_without_inner_exporter(self, mock_otlp_class):
         """Testa export quando inner exporter não está disponível."""
         from opentelemetry.sdk.trace.export import SpanExportResult
@@ -223,8 +215,7 @@ class TestResilientOTLPSpanExporter:
         mock_otlp_class.side_effect = RuntimeError("Failed to create exporter")
 
         exporter = ResilientOTLPSpanExporter(
-            endpoint="http://localhost:4317",
-            service_name="test-service"
+            endpoint="http://localhost:4317", service_name="test-service"
         )
 
         mock_spans = [Mock()]
@@ -232,22 +223,21 @@ class TestResilientOTLPSpanExporter:
 
         assert result == SpanExportResult.FAILURE
 
-    @patch('neural_hive_observability.exporters.OTLPSpanExporter')
+    @patch("neural_hive_observability.exporters.OTLPSpanExporter")
     def test_shutdown(self, mock_otlp_class):
         """Testa shutdown do exporter."""
         mock_inner = Mock()
         mock_otlp_class.return_value = mock_inner
 
         exporter = ResilientOTLPSpanExporter(
-            endpoint="http://localhost:4317",
-            service_name="test-service"
+            endpoint="http://localhost:4317", service_name="test-service"
         )
 
         exporter.shutdown()
 
         mock_inner.shutdown.assert_called_once()
 
-    @patch('neural_hive_observability.exporters.OTLPSpanExporter')
+    @patch("neural_hive_observability.exporters.OTLPSpanExporter")
     def test_shutdown_handles_exception(self, mock_otlp_class):
         """Testa que shutdown trata exceções graciosamente."""
         mock_inner = Mock()
@@ -255,14 +245,13 @@ class TestResilientOTLPSpanExporter:
         mock_otlp_class.return_value = mock_inner
 
         exporter = ResilientOTLPSpanExporter(
-            endpoint="http://localhost:4317",
-            service_name="test-service"
+            endpoint="http://localhost:4317", service_name="test-service"
         )
 
         # Não deve propagar exceção
         exporter.shutdown()
 
-    @patch('neural_hive_observability.exporters.OTLPSpanExporter')
+    @patch("neural_hive_observability.exporters.OTLPSpanExporter")
     def test_force_flush(self, mock_otlp_class):
         """Testa force_flush do exporter."""
         mock_inner = Mock()
@@ -270,8 +259,7 @@ class TestResilientOTLPSpanExporter:
         mock_otlp_class.return_value = mock_inner
 
         exporter = ResilientOTLPSpanExporter(
-            endpoint="http://localhost:4317",
-            service_name="test-service"
+            endpoint="http://localhost:4317", service_name="test-service"
         )
 
         result = exporter.force_flush(timeout_millis=5000)
@@ -279,7 +267,7 @@ class TestResilientOTLPSpanExporter:
         assert result is True
         mock_inner.force_flush.assert_called_once_with(5000)
 
-    @patch('neural_hive_observability.exporters.OTLPSpanExporter')
+    @patch("neural_hive_observability.exporters.OTLPSpanExporter")
     def test_force_flush_handles_exception(self, mock_otlp_class):
         """Testa que force_flush trata exceções."""
         mock_inner = Mock()
@@ -287,37 +275,33 @@ class TestResilientOTLPSpanExporter:
         mock_otlp_class.return_value = mock_inner
 
         exporter = ResilientOTLPSpanExporter(
-            endpoint="http://localhost:4317",
-            service_name="test-service"
+            endpoint="http://localhost:4317", service_name="test-service"
         )
 
         result = exporter.force_flush()
 
         assert result is False
 
-    @patch('neural_hive_observability.exporters.OTLPSpanExporter')
+    @patch("neural_hive_observability.exporters.OTLPSpanExporter")
     def test_header_sanitization_on_init(self, mock_otlp_class):
         """Testa que headers são sanitizados durante inicialização."""
         mock_inner = Mock()
         mock_otlp_class.return_value = mock_inner
 
-        headers_with_problems = {
-            "X-Service": "my%service",
-            "X-Component": "test{component}"
-        }
+        headers_with_problems = {"X-Service": "my%service", "X-Component": "test{component}"}
 
         ResilientOTLPSpanExporter(
             endpoint="http://localhost:4317",
             service_name="test-service",
-            headers=headers_with_problems
+            headers=headers_with_problems,
         )
 
         # Verificar que OTLP foi criado com headers sanitizados
         call_kwargs = mock_otlp_class.call_args[1]
-        assert call_kwargs['headers']['X-Service'] == "myservice"
-        assert call_kwargs['headers']['X-Component'] == "testcomponent"
+        assert call_kwargs["headers"]["X-Service"] == "myservice"
+        assert call_kwargs["headers"]["X-Component"] == "testcomponent"
 
-    @patch('neural_hive_observability.exporters.OTLPSpanExporter')
+    @patch("neural_hive_observability.exporters.OTLPSpanExporter")
     def test_multiple_export_failures_counted(self, mock_otlp_class):
         """Testa que múltiplas falhas são contabilizadas."""
         from opentelemetry.sdk.trace.export import SpanExportResult
@@ -327,8 +311,7 @@ class TestResilientOTLPSpanExporter:
         mock_otlp_class.return_value = mock_inner
 
         exporter = ResilientOTLPSpanExporter(
-            endpoint="http://localhost:4317",
-            service_name="test-service"
+            endpoint="http://localhost:4317", service_name="test-service"
         )
 
         mock_spans = [Mock()]
@@ -340,7 +323,7 @@ class TestResilientOTLPSpanExporter:
         assert exporter.failure_count == 3
         assert exporter.success_count == 0
 
-    @patch('neural_hive_observability.exporters.OTLPSpanExporter')
+    @patch("neural_hive_observability.exporters.OTLPSpanExporter")
     def test_mixed_success_and_failure(self, mock_otlp_class):
         """Testa contagem mista de sucesso e falha."""
         from opentelemetry.sdk.trace.export import SpanExportResult
@@ -350,13 +333,12 @@ class TestResilientOTLPSpanExporter:
         mock_inner.export.side_effect = [
             SpanExportResult.SUCCESS,
             TypeError("Error"),
-            SpanExportResult.SUCCESS
+            SpanExportResult.SUCCESS,
         ]
         mock_otlp_class.return_value = mock_inner
 
         exporter = ResilientOTLPSpanExporter(
-            endpoint="http://localhost:4317",
-            service_name="test-service"
+            endpoint="http://localhost:4317", service_name="test-service"
         )
 
         mock_spans = [Mock()]
@@ -372,8 +354,8 @@ class TestResilientOTLPSpanExporter:
 class TestExporterMetrics:
     """Testes para métricas do exporter."""
 
-    @patch('neural_hive_observability.exporters.OTLPSpanExporter')
-    @patch('neural_hive_observability.exporters._get_neural_hive_metrics')
+    @patch("neural_hive_observability.exporters.OTLPSpanExporter")
+    @patch("neural_hive_observability.exporters._get_neural_hive_metrics")
     def test_metrics_recorded_on_failure(self, mock_get_metrics, mock_otlp_class):
         """Testa que métricas são registradas em caso de falha."""
         from opentelemetry.sdk.trace.export import SpanExportResult
@@ -387,8 +369,7 @@ class TestExporterMetrics:
         mock_get_metrics.return_value = mock_metrics
 
         exporter = ResilientOTLPSpanExporter(
-            endpoint="http://localhost:4317",
-            service_name="test-service"
+            endpoint="http://localhost:4317", service_name="test-service"
         )
 
         mock_spans = [Mock()]
@@ -396,7 +377,7 @@ class TestExporterMetrics:
 
         # Verificar que export retornou FAILURE
         assert result == SpanExportResult.FAILURE
-        
+
         # Verificar que failure_count foi incrementado
         assert exporter.failure_count == 1
 
@@ -404,23 +385,22 @@ class TestExporterMetrics:
 class TestTLSConfiguration:
     """Testes para configuração TLS do ResilientOTLPSpanExporter."""
 
-    @patch('neural_hive_observability.exporters.OTLPSpanExporter')
+    @patch("neural_hive_observability.exporters.OTLPSpanExporter")
     def test_tls_disabled_by_default(self, mock_otlp_class):
         """Testa que TLS está desabilitado por padrão."""
         mock_inner = Mock()
         mock_otlp_class.return_value = mock_inner
 
         exporter = ResilientOTLPSpanExporter(
-            endpoint="http://localhost:4317",
-            service_name="test-service"
+            endpoint="http://localhost:4317", service_name="test-service"
         )
 
         # Verificar que insecure=True foi passado
         call_kwargs = mock_otlp_class.call_args[1]
-        assert call_kwargs.get('insecure') is True
-        assert 'credentials' not in call_kwargs
+        assert call_kwargs.get("insecure") is True
+        assert "credentials" not in call_kwargs
 
-    @patch('neural_hive_observability.exporters.OTLPSpanExporter')
+    @patch("neural_hive_observability.exporters.OTLPSpanExporter")
     def test_tls_enabled_without_certs_does_not_fallback_to_insecure(self, mock_otlp_class):
         """Testa que TLS sem certificado CA NÃO faz fallback para insecure."""
         mock_inner = Mock()
@@ -432,18 +412,20 @@ class TestTLSConfiguration:
             endpoint="http://localhost:4317",
             service_name="test-service",
             tls_enabled=True,
-            tls_ca_cert_path="/nonexistent/ca.crt"  # CA cert is required for TLS
+            tls_ca_cert_path="/nonexistent/ca.crt",  # CA cert is required for TLS
         )
 
         # Exporter should NOT be initialized (no silent fallback to insecure)
         assert exporter._inner_exporter is None
         assert exporter._tls_enabled is False
 
-    @patch('neural_hive_observability.exporters.OTLPSpanExporter')
-    @patch('neural_hive_observability.exporters.grpc.ssl_channel_credentials')
-    @patch('builtins.open', create=True)
-    @patch('os.path.exists')
-    def test_tls_enabled_with_valid_certs(self, mock_exists, mock_open, mock_ssl_creds, mock_otlp_class):
+    @patch("neural_hive_observability.exporters.OTLPSpanExporter")
+    @patch("neural_hive_observability.exporters.grpc.ssl_channel_credentials")
+    @patch("builtins.open", create=True)
+    @patch("os.path.exists")
+    def test_tls_enabled_with_valid_certs(
+        self, mock_exists, mock_open, mock_ssl_creds, mock_otlp_class
+    ):
         """Testa TLS com certificados válidos."""
         import io
 
@@ -456,11 +438,11 @@ class TestTLSConfiguration:
         ca_content = b"-----BEGIN CERTIFICATE-----\nca\n-----END CERTIFICATE-----"
 
         def open_side_effect(path, *args, **kwargs):
-            if 'cert' in path and 'ca' not in path:
+            if "cert" in path and "ca" not in path:
                 return io.BytesIO(cert_content)
-            elif 'key' in path:
+            elif "key" in path:
                 return io.BytesIO(key_content)
-            elif 'ca' in path:
+            elif "ca" in path:
                 return io.BytesIO(ca_content)
             return io.BytesIO(b"")
 
@@ -478,15 +460,19 @@ class TestTLSConfiguration:
             tls_enabled=True,
             tls_cert_path="/etc/tls/cert.pem",
             tls_key_path="/etc/tls/key.pem",
-            tls_ca_cert_path="/etc/tls/ca.crt"
+            tls_ca_cert_path="/etc/tls/ca.crt",
         )
 
         # Verificar que credentials foi passado
         call_kwargs = mock_otlp_class.call_args[1]
-        assert 'credentials' in call_kwargs or 'insecure' not in call_kwargs or call_kwargs.get('insecure') is False
+        assert (
+            "credentials" in call_kwargs
+            or "insecure" not in call_kwargs
+            or call_kwargs.get("insecure") is False
+        )
 
-    @patch('neural_hive_observability.exporters.OTLPSpanExporter')
-    @patch('neural_hive_observability.exporters.grpc.ssl_channel_credentials')
+    @patch("neural_hive_observability.exporters.OTLPSpanExporter")
+    @patch("neural_hive_observability.exporters.grpc.ssl_channel_credentials")
     def test_tls_insecure_skip_verify(self, mock_ssl_creds, mock_otlp_class):
         """Testa parâmetro insecure_skip_verify."""
         mock_inner = Mock()
@@ -499,7 +485,7 @@ class TestTLSConfiguration:
             endpoint="http://localhost:4317",
             service_name="test-service",
             tls_enabled=True,
-            tls_insecure_skip_verify=True
+            tls_insecure_skip_verify=True,
         )
 
         # Exporter should be created with TLS credentials (even without CA)
@@ -507,8 +493,8 @@ class TestTLSConfiguration:
         # ssl_channel_credentials should be called (with None root_certificates when skipping verify)
         mock_ssl_creds.assert_called_once()
 
-    @patch('neural_hive_observability.exporters.OTLPSpanExporter')
-    @patch('neural_hive_observability.exporters.grpc.ssl_channel_credentials')
+    @patch("neural_hive_observability.exporters.OTLPSpanExporter")
+    @patch("neural_hive_observability.exporters.grpc.ssl_channel_credentials")
     def test_tls_status_logged(self, mock_ssl_creds, mock_otlp_class):
         """Testa que status TLS é logado corretamente."""
         mock_inner = Mock()
@@ -517,28 +503,26 @@ class TestTLSConfiguration:
 
         # Com TLS desabilitado
         exporter_insecure = ResilientOTLPSpanExporter(
-            endpoint="http://localhost:4317",
-            service_name="test-service",
-            tls_enabled=False
+            endpoint="http://localhost:4317", service_name="test-service", tls_enabled=False
         )
         assert exporter_insecure._tls_enabled is False
         assert exporter_insecure._inner_exporter is not None
 
         # Reset mocks for next test
         mock_otlp_class.reset_mock()
-        
+
         # Com TLS habilitado sem certificados CA - exporter não deve ser inicializado
         exporter_tls = ResilientOTLPSpanExporter(
             endpoint="http://localhost:4317",
             service_name="test-service-2",
             tls_enabled=True,
-            tls_ca_cert_path="/nonexistent/ca.crt"  # Nonexistent CA cert
+            tls_ca_cert_path="/nonexistent/ca.crt",  # Nonexistent CA cert
         )
         # Sem certificado CA válido, exporter não é inicializado (não faz fallback silencioso)
         assert exporter_tls._tls_enabled is False
         assert exporter_tls._inner_exporter is None
 
-    @patch('neural_hive_observability.exporters.OTLPSpanExporter')
+    @patch("neural_hive_observability.exporters.OTLPSpanExporter")
     def test_tls_enabled_without_certs_logs_error(self, mock_otlp_class):
         """Testa que TLS sem certificados loga erro e não inicializa exporter."""
         mock_inner = Mock()
@@ -548,7 +532,7 @@ class TestTLSConfiguration:
             endpoint="http://localhost:4317",
             service_name="test-service",
             tls_enabled=True,
-            tls_ca_cert_path="/nonexistent/ca.crt"
+            tls_ca_cert_path="/nonexistent/ca.crt",
         )
 
         # Exporter não deve ser inicializado

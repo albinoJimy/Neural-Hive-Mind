@@ -322,9 +322,7 @@ class TaskSchema(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     task_id: str = Field(..., description="Identificador único da tarefa")
-    task_type: str = Field(
-        ..., description="Tipo da tarefa (ex: 'analysis', 'transformation')"
-    )
+    task_type: str = Field(..., description="Tipo da tarefa (ex: 'analysis', 'transformation')")
     name: Optional[str] = Field(None, description="Nome legível da tarefa")
     description: str = Field(..., description="Descrição da tarefa")
     dependencies: List[str] = Field(
@@ -380,9 +378,7 @@ class CognitivePlanSchema(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     plan_id: str = Field(..., description="Identificador único do plano")
-    version: str = Field(
-        ..., description="Versão do plano em formato semver (ex: '1.0.0')"
-    )
+    version: str = Field(..., description="Versão do plano em formato semver (ex: '1.0.0')")
     intent_id: str = Field(..., description="Identificador da intenção original")
     correlation_id: Optional[str] = Field(
         None, description="ID de correlação para rastreamento distribuído"
@@ -403,9 +399,7 @@ class CognitivePlanSchema(BaseModel):
     risk_score: Optional[float] = Field(
         None, description="Pontuação de avaliação de risco (0.0-1.0)"
     )
-    risk_band: Optional[str] = Field(
-        None, description="Classificação de faixa de risco"
-    )
+    risk_band: Optional[str] = Field(None, description="Classificação de faixa de risco")
     complexity_score: Optional[float] = Field(
         None, description="Pontuação de avaliação de complexidade"
     )
@@ -427,9 +421,7 @@ class CognitivePlanSchema(BaseModel):
         """Valida que a versão segue formato semver (major.minor.patch)."""
         semver_pattern = r"^\d+\.\d+\.\d+$"
         if not re.match(semver_pattern, v):
-            raise ValueError(
-                f"version deve estar em formato semver (ex: '1.0.0'), recebido: {v}"
-            )
+            raise ValueError(f"version deve estar em formato semver (ex: '1.0.0'), recebido: {v}")
         return v
 
     @field_validator("tasks")
@@ -446,9 +438,7 @@ class CognitivePlanSchema(BaseModel):
         """Garante que prioridade é um dos valores válidos."""
         valid_priorities = {"low", "normal", "high", "critical"}
         if v.lower() not in valid_priorities:
-            raise ValueError(
-                f"original_priority deve ser um de {valid_priorities}, recebido: {v}"
-            )
+            raise ValueError(f"original_priority deve ser um de {valid_priorities}, recebido: {v}")
         return v.lower()
 
     @field_validator("risk_score")
@@ -485,9 +475,7 @@ class CognitivePlanSchema(BaseModel):
         # Valida unicidade de task_id
         all_task_ids = [task.task_id for task in self.tasks]
         duplicates = [
-            task_id
-            for task_id, count in collections.Counter(all_task_ids).items()
-            if count > 1
+            task_id for task_id, count in collections.Counter(all_task_ids).items() if count > 1
         ]
         if duplicates:
             raise TaskDependencyError(f"IDs de tarefa duplicados: {duplicates}")
@@ -496,9 +484,7 @@ class CognitivePlanSchema(BaseModel):
         for task in self.tasks:
             # Verifica auto-referência
             if task.task_id in task.dependencies:
-                raise TaskDependencyError(
-                    f"Tarefa '{task.task_id}' não pode depender de si mesma"
-                )
+                raise TaskDependencyError(f"Tarefa '{task.task_id}' não pode depender de si mesma")
 
             # Verifica que todas as dependências existem
             for dep_id in task.dependencies:
@@ -551,9 +537,7 @@ class CognitivePlanSchema(BaseModel):
 
         except ImportError:
             # Fallback para detecção de ciclos baseada em DFS
-            logger.debug(
-                "NetworkX não disponível, usando detecção de ciclos alternativa"
-            )
+            logger.debug("NetworkX não disponível, usando detecção de ciclos alternativa")
             self._detect_cycles_dfs()
 
     def _detect_cycles_dfs(self) -> None:
@@ -580,9 +564,7 @@ class CognitivePlanSchema(BaseModel):
                 # Encontrou aresta de retorno - ciclo detectado
                 cycle_start = path.index(node)
                 cycle = path[cycle_start:] + [node]
-                raise TaskDependencyError(
-                    f"Dependência circular detectada: {' -> '.join(cycle)}"
-                )
+                raise TaskDependencyError(f"Dependência circular detectada: {' -> '.join(cycle)}")
 
             if color[node] == BLACK:
                 # Já processado
@@ -602,9 +584,7 @@ class CognitivePlanSchema(BaseModel):
             if color[task_id] == WHITE:
                 dfs(task_id, [])
 
-        logger.debug(
-            "Grafo de dependências de tarefas validado (DFS)", num_tasks=len(self.tasks)
-        )
+        logger.debug("Grafo de dependências de tarefas validado (DFS)", num_tasks=len(self.tasks))
 
     @model_validator(mode="after")
     def validate_execution_order(self) -> "CognitivePlanSchema":
@@ -632,9 +612,7 @@ class CognitivePlanSchema(BaseModel):
         # Verifica que todas as tarefas estão na ordem de execução
         missing_from_order = task_ids - execution_ids
         if missing_from_order:
-            raise ValueError(
-                f"execution_order está faltando IDs de tarefas: {missing_from_order}"
-            )
+            raise ValueError(f"execution_order está faltando IDs de tarefas: {missing_from_order}")
 
         # Verifica que todos os IDs na ordem de execução existem
         extra_in_order = execution_ids - task_ids
@@ -687,9 +665,7 @@ def validate_plan_version(plan_version: str, supported_versions: List[str]) -> b
     return plan_version in supported_versions
 
 
-def is_version_compatible(
-    plan_version: str, supported_versions: List[str]
-) -> Tuple[bool, str]:
+def is_version_compatible(plan_version: str, supported_versions: List[str]) -> Tuple[bool, str]:
     """
     Verifica se a versão do plano é compatível com as versões suportadas pelo especialista.
 
@@ -722,9 +698,7 @@ def is_version_compatible(
         try:
             parse_semver(sv)
         except ValueError as e:
-            logger.warning(
-                "Formato de versão suportada inválido", version=sv, error=str(e)
-            )
+            logger.warning("Formato de versão suportada inválido", version=sv, error=str(e))
             return (False, f"Formato de versão suportada inválido '{sv}': {e}")
 
     # Verifica correspondência exata

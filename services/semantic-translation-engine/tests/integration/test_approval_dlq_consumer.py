@@ -21,11 +21,11 @@ class TestDLQConsumerBackoffCalculation:
     def mock_settings(self):
         """Settings mockado para testes de backoff"""
         settings = MagicMock()
-        settings.kafka_bootstrap_servers = 'localhost:9092'
-        settings.kafka_consumer_group_id = 'semantic-translation-engine'
+        settings.kafka_bootstrap_servers = "localhost:9092"
+        settings.kafka_consumer_group_id = "semantic-translation-engine"
         settings.kafka_session_timeout_ms = 30000
-        settings.kafka_security_protocol = 'PLAINTEXT'
-        settings.kafka_approval_dlq_topic = 'cognitive-plans-approval-dlq'
+        settings.kafka_security_protocol = "PLAINTEXT"
+        settings.kafka_approval_dlq_topic = "cognitive-plans-approval-dlq"
         settings.dlq_polling_interval_seconds = 300
         settings.dlq_max_retry_count = 10
         settings.dlq_backoff_base_minutes = 2
@@ -67,11 +67,11 @@ class TestDLQConsumerMessageDeserialization:
     def mock_settings(self):
         """Settings mockado"""
         settings = MagicMock()
-        settings.kafka_bootstrap_servers = 'localhost:9092'
-        settings.kafka_consumer_group_id = 'semantic-translation-engine'
+        settings.kafka_bootstrap_servers = "localhost:9092"
+        settings.kafka_consumer_group_id = "semantic-translation-engine"
         settings.kafka_session_timeout_ms = 30000
-        settings.kafka_security_protocol = 'PLAINTEXT'
-        settings.kafka_approval_dlq_topic = 'cognitive-plans-approval-dlq'
+        settings.kafka_security_protocol = "PLAINTEXT"
+        settings.kafka_approval_dlq_topic = "cognitive-plans-approval-dlq"
         settings.dlq_polling_interval_seconds = 300
         settings.dlq_max_retry_count = 10
         settings.dlq_backoff_base_minutes = 2
@@ -81,23 +81,23 @@ class TestDLQConsumerMessageDeserialization:
     def valid_dlq_message_data(self):
         """Dados válidos de mensagem DLQ"""
         return {
-            'plan_id': 'plan-dlq-001',
-            'intent_id': 'intent-dlq-001',
-            'failure_reason': 'Kafka producer timeout',
-            'retry_count': 2,
-            'original_approval_response': {
-                'plan_id': 'plan-dlq-001',
-                'intent_id': 'intent-dlq-001',
-                'decision': 'approved',
-                'approved_by': 'admin@company.com',
-                'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000)
+            "plan_id": "plan-dlq-001",
+            "intent_id": "intent-dlq-001",
+            "failure_reason": "Kafka producer timeout",
+            "retry_count": 2,
+            "original_approval_response": {
+                "plan_id": "plan-dlq-001",
+                "intent_id": "intent-dlq-001",
+                "decision": "approved",
+                "approved_by": "admin@company.com",
+                "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
             },
-            'failed_at': int(datetime.now(timezone.utc).timestamp() * 1000),
-            'correlation_id': 'corr-dlq-001',
-            'trace_id': 'trace-dlq-001',
-            'span_id': 'span-dlq-001',
-            'risk_band': 'high',
-            'is_destructive': True
+            "failed_at": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "correlation_id": "corr-dlq-001",
+            "trace_id": "trace-dlq-001",
+            "span_id": "span-dlq-001",
+            "risk_band": "high",
+            "is_destructive": True,
         }
 
     def test_deserialize_valid_dlq_message(self, mock_settings, valid_dlq_message_data):
@@ -105,15 +105,15 @@ class TestDLQConsumerMessageDeserialization:
         consumer = ApprovalDLQConsumer(mock_settings)
 
         mock_msg = MagicMock()
-        mock_msg.value.return_value = json.dumps(valid_dlq_message_data).encode('utf-8')
+        mock_msg.value.return_value = json.dumps(valid_dlq_message_data).encode("utf-8")
 
         entry = consumer._deserialize_dlq_message(mock_msg)
 
-        assert entry.plan_id == 'plan-dlq-001'
-        assert entry.intent_id == 'intent-dlq-001'
+        assert entry.plan_id == "plan-dlq-001"
+        assert entry.intent_id == "intent-dlq-001"
         assert entry.retry_count == 2
-        assert entry.correlation_id == 'corr-dlq-001'
-        assert entry.risk_band == 'high'
+        assert entry.correlation_id == "corr-dlq-001"
+        assert entry.risk_band == "high"
         assert entry.is_destructive is True
 
     def test_deserialize_message_missing_required_field(self, mock_settings):
@@ -121,28 +121,26 @@ class TestDLQConsumerMessageDeserialization:
         consumer = ApprovalDLQConsumer(mock_settings)
 
         invalid_data = {
-            'plan_id': 'plan-dlq-001',
+            "plan_id": "plan-dlq-001",
             # Missing: intent_id, original_approval_response, retry_count
         }
 
         mock_msg = MagicMock()
-        mock_msg.value.return_value = json.dumps(invalid_data).encode('utf-8')
+        mock_msg.value.return_value = json.dumps(invalid_data).encode("utf-8")
 
         with pytest.raises(ValueError) as exc_info:
             consumer._deserialize_dlq_message(mock_msg)
 
-        assert 'Campo obrigatório ausente' in str(exc_info.value)
+        assert "Campo obrigatório ausente" in str(exc_info.value)
 
     def test_deserialize_message_converts_failed_at_timestamp(
-        self,
-        mock_settings,
-        valid_dlq_message_data
+        self, mock_settings, valid_dlq_message_data
     ):
         """Deve converter failed_at de millis para datetime"""
         consumer = ApprovalDLQConsumer(mock_settings)
 
         mock_msg = MagicMock()
-        mock_msg.value.return_value = json.dumps(valid_dlq_message_data).encode('utf-8')
+        mock_msg.value.return_value = json.dumps(valid_dlq_message_data).encode("utf-8")
 
         entry = consumer._deserialize_dlq_message(mock_msg)
 
@@ -156,11 +154,11 @@ class TestDLQConsumerHealthCheck:
     def mock_settings(self):
         """Settings mockado"""
         settings = MagicMock()
-        settings.kafka_bootstrap_servers = 'localhost:9092'
-        settings.kafka_consumer_group_id = 'semantic-translation-engine'
+        settings.kafka_bootstrap_servers = "localhost:9092"
+        settings.kafka_consumer_group_id = "semantic-translation-engine"
         settings.kafka_session_timeout_ms = 30000
-        settings.kafka_security_protocol = 'PLAINTEXT'
-        settings.kafka_approval_dlq_topic = 'cognitive-plans-approval-dlq'
+        settings.kafka_security_protocol = "PLAINTEXT"
+        settings.kafka_approval_dlq_topic = "cognitive-plans-approval-dlq"
         settings.dlq_polling_interval_seconds = 300
         settings.dlq_max_retry_count = 10
         settings.dlq_backoff_base_minutes = 2
@@ -173,7 +171,7 @@ class TestDLQConsumerHealthCheck:
         is_healthy, reason = consumer.is_healthy()
 
         assert is_healthy is False
-        assert 'não está em estado running' in reason
+        assert "não está em estado running" in reason
 
     def test_health_check_no_consumer(self, mock_settings):
         """Consumer sem Kafka client deve retornar unhealthy"""
@@ -184,7 +182,7 @@ class TestDLQConsumerHealthCheck:
         is_healthy, reason = consumer.is_healthy()
 
         assert is_healthy is False
-        assert 'não inicializado' in reason
+        assert "não inicializado" in reason
 
     def test_health_check_no_poll_time(self, mock_settings):
         """Consumer sem poll time deve retornar unhealthy"""
@@ -196,7 +194,7 @@ class TestDLQConsumerHealthCheck:
         is_healthy, reason = consumer.is_healthy()
 
         assert is_healthy is False
-        assert 'não iniciou polling' in reason
+        assert "não iniciou polling" in reason
 
     def test_health_check_poll_too_old(self, mock_settings):
         """Consumer com poll muito antigo deve retornar unhealthy"""
@@ -210,7 +208,7 @@ class TestDLQConsumerHealthCheck:
         is_healthy, reason = consumer.is_healthy(max_poll_age_seconds=600.0)
 
         assert is_healthy is False
-        assert 'Último poll há' in reason
+        assert "Último poll há" in reason
 
     def test_health_check_healthy(self, mock_settings):
         """Consumer saudável deve retornar healthy"""
@@ -226,9 +224,9 @@ class TestDLQConsumerHealthCheck:
         is_healthy, reason = consumer.is_healthy(max_poll_age_seconds=600.0)
 
         assert is_healthy is True
-        assert 'DLQ Consumer ativo' in reason
-        assert '5 reprocessadas' in reason
-        assert '3 skipped' in reason
+        assert "DLQ Consumer ativo" in reason
+        assert "5 reprocessadas" in reason
+        assert "3 skipped" in reason
 
 
 class TestDLQReprocessorIntegration:
@@ -238,9 +236,9 @@ class TestDLQReprocessorIntegration:
     def mock_settings(self):
         """Settings mockado"""
         settings = MagicMock()
-        settings.kafka_bootstrap_servers = 'localhost:9092'
-        settings.kafka_security_protocol = 'PLAINTEXT'
-        settings.kafka_approval_responses_topic = 'cognitive-plans-approval-responses'
+        settings.kafka_bootstrap_servers = "localhost:9092"
+        settings.kafka_security_protocol = "PLAINTEXT"
+        settings.kafka_approval_responses_topic = "cognitive-plans-approval-responses"
         settings.dlq_max_retry_count = 10
         return settings
 
@@ -264,50 +262,48 @@ class TestDLQReprocessorIntegration:
     def sample_dlq_entry(self):
         """Entrada DLQ de exemplo"""
         return ApprovalDLQEntry(
-            plan_id='plan-reprocess-001',
-            intent_id='intent-reprocess-001',
-            failure_reason='Kafka timeout',
+            plan_id="plan-reprocess-001",
+            intent_id="intent-reprocess-001",
+            failure_reason="Kafka timeout",
             retry_count=2,
             original_approval_response={
-                'plan_id': 'plan-reprocess-001',
-                'intent_id': 'intent-reprocess-001',
-                'decision': 'approved',
-                'approved_by': 'admin@company.com',
-                'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000)
+                "plan_id": "plan-reprocess-001",
+                "intent_id": "intent-reprocess-001",
+                "decision": "approved",
+                "approved_by": "admin@company.com",
+                "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
             },
             failed_at=datetime.now(timezone.utc) - timedelta(minutes=30),
-            correlation_id='corr-reprocess-001',
-            trace_id='trace-reprocess-001',
-            span_id='span-reprocess-001',
-            risk_band='high',
-            is_destructive=True
+            correlation_id="corr-reprocess-001",
+            trace_id="trace-reprocess-001",
+            span_id="span-reprocess-001",
+            risk_band="high",
+            is_destructive=True,
         )
 
     @pytest.mark.asyncio
-    @patch('src.services.dlq_reprocessor.Producer')
+    @patch("src.services.dlq_reprocessor.Producer")
     async def test_reprocess_dlq_entry_success(
         self,
         mock_producer_class,
         mock_settings,
         mock_mongodb_client,
         mock_metrics,
-        sample_dlq_entry
+        sample_dlq_entry,
     ):
         """Deve reprocessar entrada DLQ com sucesso"""
         mock_producer = MagicMock()
         mock_producer_class.return_value = mock_producer
 
         reprocessor = DLQReprocessor(
-            mongodb_client=mock_mongodb_client,
-            metrics=mock_metrics,
-            settings=mock_settings
+            mongodb_client=mock_mongodb_client, metrics=mock_metrics, settings=mock_settings
         )
         reprocessor._producer = mock_producer
 
         trace_context = {
-            'correlation_id': 'corr-reprocess-001',
-            'trace_id': 'trace-reprocess-001',
-            'span_id': 'span-reprocess-001'
+            "correlation_id": "corr-reprocess-001",
+            "trace_id": "trace-reprocess-001",
+            "span_id": "span-reprocess-001",
         }
 
         result = await reprocessor.reprocess_dlq_entry(sample_dlq_entry, trace_context)
@@ -315,17 +311,17 @@ class TestDLQReprocessorIntegration:
         assert result is True
         mock_producer.produce.assert_called_once()
         mock_producer.flush.assert_called_once()
-        mock_metrics.increment_dlq_reprocessed.assert_called_once_with('success', 'high')
+        mock_metrics.increment_dlq_reprocessed.assert_called_once_with("success", "high")
 
     @pytest.mark.asyncio
-    @patch('src.services.dlq_reprocessor.Producer')
+    @patch("src.services.dlq_reprocessor.Producer")
     async def test_reprocess_dlq_entry_exceeds_max_retries(
         self,
         mock_producer_class,
         mock_settings,
         mock_mongodb_client,
         mock_metrics,
-        sample_dlq_entry
+        sample_dlq_entry,
     ):
         """Deve tratar falha permanente quando retry_count excede limite"""
         mock_producer = MagicMock()
@@ -335,44 +331,40 @@ class TestDLQReprocessorIntegration:
         sample_dlq_entry.retry_count = 15  # > dlq_max_retry_count (10)
 
         reprocessor = DLQReprocessor(
-            mongodb_client=mock_mongodb_client,
-            metrics=mock_metrics,
-            settings=mock_settings
+            mongodb_client=mock_mongodb_client, metrics=mock_metrics, settings=mock_settings
         )
         reprocessor._producer = mock_producer
 
-        trace_context = {'correlation_id': 'corr-permanent-fail'}
+        trace_context = {"correlation_id": "corr-permanent-fail"}
 
         result = await reprocessor.reprocess_dlq_entry(sample_dlq_entry, trace_context)
 
         assert result is True  # Retorna True para commitar offset
         mock_producer.produce.assert_not_called()  # Não republica
-        mock_metrics.increment_dlq_permanently_failed.assert_called_once_with('high')
+        mock_metrics.increment_dlq_permanently_failed.assert_called_once_with("high")
         mock_mongodb_client.update_plan_dlq_status.assert_called_once()
 
     @pytest.mark.asyncio
-    @patch('src.services.dlq_reprocessor.Producer')
+    @patch("src.services.dlq_reprocessor.Producer")
     async def test_reprocess_dlq_entry_producer_failure(
         self,
         mock_producer_class,
         mock_settings,
         mock_mongodb_client,
         mock_metrics,
-        sample_dlq_entry
+        sample_dlq_entry,
     ):
         """Deve retornar False quando producer falha"""
         mock_producer = MagicMock()
-        mock_producer.produce.side_effect = Exception('Kafka unavailable')
+        mock_producer.produce.side_effect = Exception("Kafka unavailable")
         mock_producer_class.return_value = mock_producer
 
         reprocessor = DLQReprocessor(
-            mongodb_client=mock_mongodb_client,
-            metrics=mock_metrics,
-            settings=mock_settings
+            mongodb_client=mock_mongodb_client, metrics=mock_metrics, settings=mock_settings
         )
         reprocessor._producer = mock_producer
 
-        trace_context = {'correlation_id': 'corr-producer-fail'}
+        trace_context = {"correlation_id": "corr-producer-fail"}
 
         result = await reprocessor.reprocess_dlq_entry(sample_dlq_entry, trace_context)
 
@@ -387,9 +379,9 @@ class TestDLQReprocessorMessageValidation:
     def mock_settings(self):
         """Settings mockado"""
         settings = MagicMock()
-        settings.kafka_bootstrap_servers = 'localhost:9092'
-        settings.kafka_security_protocol = 'PLAINTEXT'
-        settings.kafka_approval_responses_topic = 'cognitive-plans-approval-responses'
+        settings.kafka_bootstrap_servers = "localhost:9092"
+        settings.kafka_security_protocol = "PLAINTEXT"
+        settings.kafka_approval_responses_topic = "cognitive-plans-approval-responses"
         settings.dlq_max_retry_count = 10
         return settings
 
@@ -406,13 +398,9 @@ class TestDLQReprocessorMessageValidation:
         return metrics
 
     @pytest.mark.asyncio
-    @patch('src.services.dlq_reprocessor.Producer')
+    @patch("src.services.dlq_reprocessor.Producer")
     async def test_reprocess_validates_required_fields(
-        self,
-        mock_producer_class,
-        mock_settings,
-        mock_mongodb_client,
-        mock_metrics
+        self, mock_producer_class, mock_settings, mock_mongodb_client, mock_metrics
     ):
         """Deve falhar se original_approval_response não tem campos obrigatórios"""
         mock_producer = MagicMock()
@@ -420,20 +408,18 @@ class TestDLQReprocessorMessageValidation:
 
         # Entrada com original_approval_response incompleto
         dlq_entry = ApprovalDLQEntry(
-            plan_id='plan-invalid-001',
-            intent_id='intent-invalid-001',
-            failure_reason='test',
+            plan_id="plan-invalid-001",
+            intent_id="intent-invalid-001",
+            failure_reason="test",
             retry_count=1,
             original_approval_response={
                 # Missing: plan_id, intent_id, decision
             },
-            failed_at=datetime.now(timezone.utc)
+            failed_at=datetime.now(timezone.utc),
         )
 
         reprocessor = DLQReprocessor(
-            mongodb_client=mock_mongodb_client,
-            metrics=mock_metrics,
-            settings=mock_settings
+            mongodb_client=mock_mongodb_client, metrics=mock_metrics, settings=mock_settings
         )
         reprocessor._producer = mock_producer
 
@@ -450,12 +436,12 @@ class TestDLQConsumerReprocessorIntegration:
     def mock_settings(self):
         """Settings mockado completo"""
         settings = MagicMock()
-        settings.kafka_bootstrap_servers = 'localhost:9092'
-        settings.kafka_consumer_group_id = 'semantic-translation-engine'
+        settings.kafka_bootstrap_servers = "localhost:9092"
+        settings.kafka_consumer_group_id = "semantic-translation-engine"
         settings.kafka_session_timeout_ms = 30000
-        settings.kafka_security_protocol = 'PLAINTEXT'
-        settings.kafka_approval_dlq_topic = 'cognitive-plans-approval-dlq'
-        settings.kafka_approval_responses_topic = 'cognitive-plans-approval-responses'
+        settings.kafka_security_protocol = "PLAINTEXT"
+        settings.kafka_approval_dlq_topic = "cognitive-plans-approval-dlq"
+        settings.kafka_approval_responses_topic = "cognitive-plans-approval-responses"
         settings.dlq_polling_interval_seconds = 300
         settings.dlq_max_retry_count = 10
         settings.dlq_backoff_base_minutes = 2
@@ -468,27 +454,24 @@ class TestDLQConsumerReprocessorIntegration:
 
         # Simular entrada DLQ
         dlq_entry = ApprovalDLQEntry(
-            plan_id='plan-callback-001',
-            intent_id='intent-callback-001',
-            failure_reason='test',
+            plan_id="plan-callback-001",
+            intent_id="intent-callback-001",
+            failure_reason="test",
             retry_count=1,
             original_approval_response={
-                'plan_id': 'plan-callback-001',
-                'intent_id': 'intent-callback-001',
-                'decision': 'approved'
+                "plan_id": "plan-callback-001",
+                "intent_id": "intent-callback-001",
+                "decision": "approved",
             },
-            failed_at=datetime.now(timezone.utc) - timedelta(hours=1),  # Suficiente para passar backoff
-            correlation_id='corr-callback-001'
+            failed_at=datetime.now(timezone.utc)
+            - timedelta(hours=1),  # Suficiente para passar backoff
+            correlation_id="corr-callback-001",
         )
 
         # Mock do callback
         mock_callback = AsyncMock(return_value=True)
 
-        trace_context = {
-            'correlation_id': 'corr-callback-001',
-            'trace_id': None,
-            'span_id': None
-        }
+        trace_context = {"correlation_id": "corr-callback-001", "trace_id": None, "span_id": None}
 
         # Chamar callback diretamente (simular processamento)
         result = await mock_callback(dlq_entry, trace_context)
@@ -509,9 +492,9 @@ class TestDLQReprocessorRetryCountIncrement:
     def mock_settings(self):
         """Settings mockado"""
         settings = MagicMock()
-        settings.kafka_bootstrap_servers = 'localhost:9092'
-        settings.kafka_security_protocol = 'PLAINTEXT'
-        settings.kafka_approval_responses_topic = 'cognitive-plans-approval-responses'
+        settings.kafka_bootstrap_servers = "localhost:9092"
+        settings.kafka_security_protocol = "PLAINTEXT"
+        settings.kafka_approval_responses_topic = "cognitive-plans-approval-responses"
         settings.dlq_max_retry_count = 5
         return settings
 
@@ -542,25 +525,25 @@ class TestDLQReprocessorRetryCountIncrement:
     def sample_dlq_entry(self):
         """Entrada DLQ de exemplo"""
         return ApprovalDLQEntry(
-            plan_id='plan-retry-001',
-            intent_id='intent-retry-001',
-            failure_reason='Original failure',
+            plan_id="plan-retry-001",
+            intent_id="intent-retry-001",
+            failure_reason="Original failure",
             retry_count=2,
             original_approval_response={
-                'plan_id': 'plan-retry-001',
-                'intent_id': 'intent-retry-001',
-                'decision': 'approved',
-                'approved_by': 'admin@company.com',
-                'approved_at': int(datetime.now(timezone.utc).timestamp() * 1000)
+                "plan_id": "plan-retry-001",
+                "intent_id": "intent-retry-001",
+                "decision": "approved",
+                "approved_by": "admin@company.com",
+                "approved_at": int(datetime.now(timezone.utc).timestamp() * 1000),
             },
             failed_at=datetime.now(timezone.utc) - timedelta(minutes=30),
-            correlation_id='corr-retry-001',
-            risk_band='high',
-            is_destructive=True
+            correlation_id="corr-retry-001",
+            risk_band="high",
+            is_destructive=True,
         )
 
     @pytest.mark.asyncio
-    @patch('src.services.dlq_reprocessor.Producer')
+    @patch("src.services.dlq_reprocessor.Producer")
     async def test_reprocess_failure_republishes_to_dlq_with_incremented_retry_count(
         self,
         mock_producer_class,
@@ -568,24 +551,24 @@ class TestDLQReprocessorRetryCountIncrement:
         mock_mongodb_client,
         mock_metrics,
         mock_dlq_producer,
-        sample_dlq_entry
+        sample_dlq_entry,
     ):
         """
         Falha no reprocessamento deve republicar na DLQ com retry_count incrementado.
         """
         mock_producer = MagicMock()
-        mock_producer.produce.side_effect = Exception('Kafka unavailable')
+        mock_producer.produce.side_effect = Exception("Kafka unavailable")
         mock_producer_class.return_value = mock_producer
 
         reprocessor = DLQReprocessor(
             mongodb_client=mock_mongodb_client,
             metrics=mock_metrics,
             settings=mock_settings,
-            dlq_producer=mock_dlq_producer
+            dlq_producer=mock_dlq_producer,
         )
         reprocessor._producer = mock_producer
 
-        trace_context = {'correlation_id': 'corr-retry-001'}
+        trace_context = {"correlation_id": "corr-retry-001"}
 
         result = await reprocessor.reprocess_dlq_entry(sample_dlq_entry, trace_context)
 
@@ -598,45 +581,45 @@ class TestDLQReprocessorRetryCountIncrement:
         # Verificar que retry_count foi incrementado
         republished_entry = mock_dlq_producer.send_dlq_entry.call_args[0][0]
         assert republished_entry.retry_count == sample_dlq_entry.retry_count + 1
-        assert '[REPROCESS_FAILED]' in republished_entry.failure_reason
+        assert "[REPROCESS_FAILED]" in republished_entry.failure_reason
 
     @pytest.mark.asyncio
-    @patch('src.services.dlq_reprocessor.Producer')
+    @patch("src.services.dlq_reprocessor.Producer")
     async def test_reprocess_failure_triggers_permanent_failure_when_max_exceeded(
         self,
         mock_producer_class,
         mock_settings,
         mock_mongodb_client,
         mock_metrics,
-        mock_dlq_producer
+        mock_dlq_producer,
     ):
         """
         Falha no reprocessamento deve tratar como permanente quando retry_count excede max.
         """
         mock_producer = MagicMock()
-        mock_producer.produce.side_effect = Exception('Kafka unavailable')
+        mock_producer.produce.side_effect = Exception("Kafka unavailable")
         mock_producer_class.return_value = mock_producer
 
         # Entrada com retry_count = max_retry_count (5), então após incremento será 6 > 5
         dlq_entry = ApprovalDLQEntry(
-            plan_id='plan-max-retry-001',
-            intent_id='intent-max-retry-001',
-            failure_reason='Previous failure',
+            plan_id="plan-max-retry-001",
+            intent_id="intent-max-retry-001",
+            failure_reason="Previous failure",
             retry_count=5,  # max_retry_count = 5
             original_approval_response={
-                'plan_id': 'plan-max-retry-001',
-                'intent_id': 'intent-max-retry-001',
-                'decision': 'approved'
+                "plan_id": "plan-max-retry-001",
+                "intent_id": "intent-max-retry-001",
+                "decision": "approved",
             },
             failed_at=datetime.now(timezone.utc) - timedelta(hours=1),
-            risk_band='critical'
+            risk_band="critical",
         )
 
         reprocessor = DLQReprocessor(
             mongodb_client=mock_mongodb_client,
             metrics=mock_metrics,
             settings=mock_settings,
-            dlq_producer=mock_dlq_producer
+            dlq_producer=mock_dlq_producer,
         )
         reprocessor._producer = mock_producer
 
@@ -649,33 +632,33 @@ class TestDLQReprocessorRetryCountIncrement:
         mock_dlq_producer.send_dlq_entry.assert_not_called()
 
         # Deve registrar métrica de falha permanente
-        mock_metrics.increment_dlq_permanently_failed.assert_called_once_with('critical')
+        mock_metrics.increment_dlq_permanently_failed.assert_called_once_with("critical")
 
         # Deve atualizar MongoDB
         mock_mongodb_client.update_plan_dlq_status.assert_called_once()
 
     @pytest.mark.asyncio
-    @patch('src.services.dlq_reprocessor.Producer')
+    @patch("src.services.dlq_reprocessor.Producer")
     async def test_reprocess_failure_without_dlq_producer_returns_false(
         self,
         mock_producer_class,
         mock_settings,
         mock_mongodb_client,
         mock_metrics,
-        sample_dlq_entry
+        sample_dlq_entry,
     ):
         """
         Falha sem DLQ producer deve retornar False para retry local.
         """
         mock_producer = MagicMock()
-        mock_producer.produce.side_effect = Exception('Kafka unavailable')
+        mock_producer.produce.side_effect = Exception("Kafka unavailable")
         mock_producer_class.return_value = mock_producer
 
         reprocessor = DLQReprocessor(
             mongodb_client=mock_mongodb_client,
             metrics=mock_metrics,
             settings=mock_settings,
-            dlq_producer=None  # Sem DLQ producer
+            dlq_producer=None,  # Sem DLQ producer
         )
         reprocessor._producer = mock_producer
 
@@ -707,7 +690,7 @@ class TestApprovalSagaDLQIntegration:
     def mock_plan_producer_failing(self):
         """Plan producer que sempre falha"""
         producer = MagicMock()
-        producer.send_plan = AsyncMock(side_effect=Exception('Kafka broker unavailable'))
+        producer.send_plan = AsyncMock(side_effect=Exception("Kafka broker unavailable"))
         return producer
 
     @pytest.fixture
@@ -732,20 +715,21 @@ class TestApprovalSagaDLQIntegration:
     def sample_cognitive_plan(self):
         """Plano cognitivo de exemplo para testes de integração"""
         from src.models.cognitive_plan import CognitivePlan
+
         return CognitivePlan(
-            plan_id='plan-dlq-integration-001',
-            intent_id='intent-dlq-integration-001',
-            version='1.0.0',
+            plan_id="plan-dlq-integration-001",
+            intent_id="intent-dlq-integration-001",
+            version="1.0.0",
             tasks=[],
             execution_order=[],
             risk_score=0.7,
-            risk_band='high',
+            risk_band="high",
             complexity_score=0.5,
-            explainability_token='exp-dlq-token',
-            reasoning_summary='Test DLQ integration',
-            original_domain='test',
-            original_priority='high',
-            original_security_level='confidential'
+            explainability_token="exp-dlq-token",
+            reasoning_summary="Test DLQ integration",
+            original_domain="test",
+            original_priority="high",
+            original_security_level="confidential",
         )
 
     @pytest.mark.asyncio
@@ -755,7 +739,7 @@ class TestApprovalSagaDLQIntegration:
         mock_plan_producer_failing,
         mock_dlq_producer,
         mock_metrics,
-        sample_cognitive_plan
+        sample_cognitive_plan,
     ):
         """
         Teste de integração: Saga envia entrada DLQ após retries esgotados.
@@ -770,23 +754,23 @@ class TestApprovalSagaDLQIntegration:
             mongodb_client=mock_mongodb_client,
             plan_producer=mock_plan_producer_failing,
             dlq_producer=mock_dlq_producer,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
 
-        trace_context = {'correlation_id': 'corr-dlq-integration-001'}
+        trace_context = {"correlation_id": "corr-dlq-integration-001"}
 
         # Executar saga - deve falhar após retries e enviar para DLQ
-        with patch('src.sagas.approval_saga.wait_exponential', return_value=lambda x: 0):
+        with patch("src.sagas.approval_saga.wait_exponential", return_value=lambda x: 0):
             with pytest.raises(RetryError):
                 await saga.execute(
-                    plan_id='plan-dlq-integration-001',
-                    intent_id='intent-dlq-integration-001',
-                    approved_by='admin@company.com',
+                    plan_id="plan-dlq-integration-001",
+                    intent_id="intent-dlq-integration-001",
+                    approved_by="admin@company.com",
                     approved_at=datetime.now(timezone.utc),
                     cognitive_plan=sample_cognitive_plan,
                     trace_context=trace_context,
-                    risk_band='high',
-                    is_destructive=True
+                    risk_band="high",
+                    is_destructive=True,
                 )
 
         # Verificar que DLQ entry foi enviada
@@ -794,23 +778,20 @@ class TestApprovalSagaDLQIntegration:
 
         # Verificar conteúdo da entrada DLQ
         dlq_entry = mock_dlq_producer.send_dlq_entry.call_args[0][0]
-        assert dlq_entry.plan_id == 'plan-dlq-integration-001'
-        assert dlq_entry.intent_id == 'intent-dlq-integration-001'
-        assert dlq_entry.risk_band == 'high'
+        assert dlq_entry.plan_id == "plan-dlq-integration-001"
+        assert dlq_entry.intent_id == "intent-dlq-integration-001"
+        assert dlq_entry.risk_band == "high"
         assert dlq_entry.is_destructive is True
-        assert 'Kafka broker unavailable' in dlq_entry.failure_reason
+        assert "Kafka broker unavailable" in dlq_entry.failure_reason
 
         # Verificar métricas de compensação
         mock_metrics.record_saga_compensation.assert_called_once_with(
-            reason='kafka_publish_failed',
-            risk_band='high'
+            reason="kafka_publish_failed", risk_band="high"
         )
 
         # Verificar métrica de DLQ
         mock_metrics.increment_approval_dlq_messages.assert_called_once_with(
-            reason='saga_compensation',
-            risk_band='high',
-            is_destructive=True
+            reason="saga_compensation", risk_band="high", is_destructive=True
         )
 
     @pytest.mark.asyncio
@@ -820,7 +801,7 @@ class TestApprovalSagaDLQIntegration:
         mock_plan_producer_failing,
         mock_dlq_producer,
         mock_metrics,
-        sample_cognitive_plan
+        sample_cognitive_plan,
     ):
         """
         Teste de integração: Entrada DLQ contém original_approval_response completa.
@@ -835,51 +816,47 @@ class TestApprovalSagaDLQIntegration:
             mongodb_client=mock_mongodb_client,
             plan_producer=mock_plan_producer_failing,
             dlq_producer=mock_dlq_producer,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
 
         approved_at = datetime.now(timezone.utc)
         trace_context = {
-            'correlation_id': 'corr-original-response-001',
-            'trace_id': 'trace-original-001',
-            'span_id': 'span-original-001'
+            "correlation_id": "corr-original-response-001",
+            "trace_id": "trace-original-001",
+            "span_id": "span-original-001",
         }
 
-        with patch('src.sagas.approval_saga.wait_exponential', return_value=lambda x: 0):
+        with patch("src.sagas.approval_saga.wait_exponential", return_value=lambda x: 0):
             with pytest.raises(RetryError):
                 await saga.execute(
-                    plan_id='plan-dlq-integration-001',
-                    intent_id='intent-dlq-integration-001',
-                    approved_by='reviewer@company.com',
+                    plan_id="plan-dlq-integration-001",
+                    intent_id="intent-dlq-integration-001",
+                    approved_by="reviewer@company.com",
                     approved_at=approved_at,
                     cognitive_plan=sample_cognitive_plan,
                     trace_context=trace_context,
-                    risk_band='high',
-                    is_destructive=True
+                    risk_band="high",
+                    is_destructive=True,
                 )
 
         dlq_entry = mock_dlq_producer.send_dlq_entry.call_args[0][0]
 
         # Verificar que original_approval_response contém dados necessários
         original_response = dlq_entry.original_approval_response
-        assert original_response['plan_id'] == 'plan-dlq-integration-001'
-        assert original_response['intent_id'] == 'intent-dlq-integration-001'
-        assert original_response['decision'] == 'approved'
-        assert original_response['approved_by'] == 'reviewer@company.com'
-        assert 'cognitive_plan' in original_response
+        assert original_response["plan_id"] == "plan-dlq-integration-001"
+        assert original_response["intent_id"] == "intent-dlq-integration-001"
+        assert original_response["decision"] == "approved"
+        assert original_response["approved_by"] == "reviewer@company.com"
+        assert "cognitive_plan" in original_response
 
         # Verificar trace context preservado
-        assert dlq_entry.correlation_id == 'corr-original-response-001'
-        assert dlq_entry.trace_id == 'trace-original-001'
-        assert dlq_entry.span_id == 'span-original-001'
+        assert dlq_entry.correlation_id == "corr-original-response-001"
+        assert dlq_entry.trace_id == "trace-original-001"
+        assert dlq_entry.span_id == "span-original-001"
 
     @pytest.mark.asyncio
     async def test_saga_compensation_failure_still_sends_to_dlq(
-        self,
-        mock_plan_producer_failing,
-        mock_dlq_producer,
-        mock_metrics,
-        sample_cognitive_plan
+        self, mock_plan_producer_failing, mock_dlq_producer, mock_metrics, sample_cognitive_plan
     ):
         """
         Teste de integração: DLQ entry enviada mesmo quando compensação falha.
@@ -900,27 +877,27 @@ class TestApprovalSagaDLQIntegration:
             mongodb_client=mongodb_client,
             plan_producer=mock_plan_producer_failing,
             dlq_producer=mock_dlq_producer,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
 
-        with patch('src.sagas.approval_saga.wait_exponential', return_value=lambda x: 0):
+        with patch("src.sagas.approval_saga.wait_exponential", return_value=lambda x: 0):
             with pytest.raises(RetryError):
                 await saga.execute(
-                    plan_id='plan-dlq-integration-001',
-                    intent_id='intent-dlq-integration-001',
-                    approved_by='admin@company.com',
+                    plan_id="plan-dlq-integration-001",
+                    intent_id="intent-dlq-integration-001",
+                    approved_by="admin@company.com",
                     approved_at=datetime.now(timezone.utc),
                     cognitive_plan=sample_cognitive_plan,
                     trace_context={},
-                    risk_band='critical',
-                    is_destructive=True
+                    risk_band="critical",
+                    is_destructive=True,
                 )
 
         # DLQ entry deve ser enviada mesmo com falha na compensação
         mock_dlq_producer.send_dlq_entry.assert_called_once()
 
         dlq_entry = mock_dlq_producer.send_dlq_entry.call_args[0][0]
-        assert '[COMPENSATION_FAILED]' in dlq_entry.failure_reason
+        assert "[COMPENSATION_FAILED]" in dlq_entry.failure_reason
 
         # Métrica de falha de compensação deve ser incrementada
-        mock_metrics.increment_saga_compensation_failure.assert_called_once_with('critical')
+        mock_metrics.increment_saga_compensation_failure.assert_called_once_with("critical")

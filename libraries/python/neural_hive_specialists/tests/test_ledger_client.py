@@ -27,9 +27,7 @@ class TestLedgerClientInitialization:
             assert client._metrics == mock_metrics
             assert client._buffer_max_size == mock_config.ledger_buffer_size
             assert client._circuit_breaker_state == "closed"
-            mock_metrics.set_circuit_breaker_state.assert_called_once_with(
-                "ledger", "closed"
-            )
+            mock_metrics.set_circuit_breaker_state.assert_called_once_with("ledger", "closed")
 
     def test_initialization_with_circuit_breaker_enabled(self, mock_config):
         """Testa criação de circuit breakers quando habilitado."""
@@ -82,9 +80,7 @@ class TestSaveOpinion:
 
     def test_save_opinion_success(self, ledger_client, sample_opinion):
         """Testa salvamento bem-sucedido de parecer."""
-        ledger_client._collection.insert_one = MagicMock(
-            return_value=MagicMock(acknowledged=True)
-        )
+        ledger_client._collection.insert_one = MagicMock(return_value=MagicMock(acknowledged=True))
 
         opinion_id = ledger_client.save_opinion(
             opinion=sample_opinion,
@@ -115,9 +111,7 @@ class TestSaveOpinion:
 
     def test_save_opinion_calculates_hash(self, ledger_client, sample_opinion):
         """Verifica cálculo correto do hash."""
-        ledger_client._collection.insert_one = MagicMock(
-            return_value=MagicMock(acknowledged=True)
-        )
+        ledger_client._collection.insert_one = MagicMock(return_value=MagicMock(acknowledged=True))
 
         ledger_client.save_opinion(
             opinion=sample_opinion,
@@ -166,9 +160,7 @@ class TestSaveOpinionWithFallback:
 
     def test_save_with_fallback_success(self, ledger_client, sample_opinion):
         """Testa salvamento bem-sucedido com fallback."""
-        ledger_client._collection.insert_one = MagicMock(
-            return_value=MagicMock(acknowledged=True)
-        )
+        ledger_client._collection.insert_one = MagicMock(return_value=MagicMock(acknowledged=True))
 
         opinion_id = ledger_client.save_opinion_with_fallback(
             opinion=sample_opinion,
@@ -202,9 +194,7 @@ class TestSaveOpinionWithFallback:
         assert opinion_id is not None
         assert ledger_client._last_save_was_buffered is True
 
-    def test_save_with_fallback_buffers_on_pymongo_error(
-        self, ledger_client, sample_opinion
-    ):
+    def test_save_with_fallback_buffers_on_pymongo_error(self, ledger_client, sample_opinion):
         """Testa que PyMongoError é propagado (não é buffered)."""
         ledger_client._collection.insert_one = MagicMock(
             side_effect=PyMongoError("Connection failed")
@@ -279,12 +269,11 @@ class TestBuffer:
     def test_flush_buffer_success(self, ledger_client, sample_opinion):
         """Testa flush bem-sucedido do buffer."""
         ledger_client._collection = MagicMock()
-        ledger_client._collection.insert_one = MagicMock(
-            return_value=MagicMock(acknowledged=True)
-        )
+        ledger_client._collection.insert_one = MagicMock(return_value=MagicMock(acknowledged=True))
 
         # Adicionar pareceres ao buffer com estrutura correta para flush
         from datetime import datetime, timezone
+
         for i in range(2):
             opinion_data = {
                 "opinion_id": f"opinion-{i}",
@@ -334,9 +323,7 @@ class TestRetrieval:
         result = ledger_client.get_opinion("opinion-123")
 
         assert result == mock_doc
-        ledger_client._collection.find_one.assert_called_once_with(
-            {"opinion_id": "opinion-123"}
-        )
+        ledger_client._collection.find_one.assert_called_once_with({"opinion_id": "opinion-123"})
 
     def test_get_opinion_not_found(self, ledger_client):
         """Testa que None é retornado quando parecer não existe."""
@@ -364,9 +351,7 @@ class TestRetrieval:
 
     def test_get_opinions_by_intent_id(self, ledger_client, sample_opinion):
         """Testa recuperação de pareceres por intent_id."""
-        mock_docs = [
-            {"opinion_id": "op1", "opinion": sample_opinion, "intent_id": "intent-456"}
-        ]
+        mock_docs = [{"opinion_id": "op1", "opinion": sample_opinion, "intent_id": "intent-456"}]
         # Criar cursor mock iterável
         mock_cursor = MagicMock()
         mock_cursor.__iter__ = lambda self: iter(mock_docs)

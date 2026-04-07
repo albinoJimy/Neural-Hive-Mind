@@ -29,9 +29,7 @@ class CICDProvider(StrEnum):
 class CICDClientError(Exception):
     """Erro generico do cliente CI/CD."""
 
-    def __init__(
-        self, message: str, provider: str | None = None, status_code: int | None = None
-    ):
+    def __init__(self, message: str, provider: str | None = None, status_code: int | None = None):
         super().__init__(message)
         self.provider = provider
         self.status_code = status_code

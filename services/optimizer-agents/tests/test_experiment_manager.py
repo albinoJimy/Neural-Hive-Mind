@@ -102,10 +102,12 @@ def mock_redis_client():
     client = AsyncMock()
     client.lock_component = AsyncMock(return_value=True)
     client.unlock_component = AsyncMock(return_value=True)
-    client.get_experiment_metrics = AsyncMock(return_value={
-        "baseline": {"latency_p95": 1000, "error_rate": 0.05},
-        "treatment": {"latency_p95": 800, "error_rate": 0.03}
-    })
+    client.get_experiment_metrics = AsyncMock(
+        return_value={
+            "baseline": {"latency_p95": 1000, "error_rate": 0.05},
+            "treatment": {"latency_p95": 800, "error_rate": 0.03},
+        }
+    )
     return client
 
 
@@ -116,7 +118,7 @@ def experiment_manager(mock_settings, mock_argo_client, mock_mongodb_client, moc
         settings=mock_settings,
         argo_client=mock_argo_client,
         mongodb_client=mock_mongodb_client,
-        redis_client=mock_redis_client
+        redis_client=mock_redis_client,
     )
 
 
@@ -145,7 +147,9 @@ class TestExperimentSubmission:
     """Testes de submissão de experimentos."""
 
     @pytest.mark.asyncio
-    async def test_submit_experiment_success(self, experiment_manager, sample_hypothesis, mock_argo_client, mock_mongodb_client):
+    async def test_submit_experiment_success(
+        self, experiment_manager, sample_hypothesis, mock_argo_client, mock_mongodb_client
+    ):
         """Testa submissão bem-sucedida de experimento."""
         experiment_id = await experiment_manager.submit_experiment(sample_hypothesis)
 
@@ -155,7 +159,9 @@ class TestExperimentSubmission:
         assert mock_mongodb_client.save_experiment.call_count == 2
 
     @pytest.mark.asyncio
-    async def test_submit_experiment_rejects_infeasible_hypothesis(self, experiment_manager, sample_hypothesis):
+    async def test_submit_experiment_rejects_infeasible_hypothesis(
+        self, experiment_manager, sample_hypothesis
+    ):
         """Testa que hipóteses inviáveis são rejeitadas."""
         sample_hypothesis.validate_feasibility.return_value = False
 
@@ -164,7 +170,9 @@ class TestExperimentSubmission:
         assert experiment_id is None
 
     @pytest.mark.asyncio
-    async def test_submit_experiment_respects_component_lock(self, experiment_manager, sample_hypothesis, mock_redis_client):
+    async def test_submit_experiment_respects_component_lock(
+        self, experiment_manager, sample_hypothesis, mock_redis_client
+    ):
         """Testa que experimento não é submetido se componente está bloqueado."""
         mock_redis_client.lock_component.return_value = False
 
@@ -173,9 +181,11 @@ class TestExperimentSubmission:
         assert experiment_id is None
 
     @pytest.mark.asyncio
-    async def test_submit_experiment_validates_guardrails(self, experiment_manager, sample_hypothesis, mock_argo_client):
+    async def test_submit_experiment_validates_guardrails(
+        self, experiment_manager, sample_hypothesis, mock_argo_client
+    ):
         """Testa validação de guardrails antes de submeter."""
-        with patch.object(experiment_manager, '_hypothesis_to_experiment_request') as mock_convert:
+        with patch.object(experiment_manager, "_hypothesis_to_experiment_request") as mock_convert:
             mock_request = Mock()
             mock_request.validate_guardrails.return_value = False
             mock_request.experiment_id = "exp-123"
@@ -187,7 +197,9 @@ class TestExperimentSubmission:
             mock_argo_client.submit_experiment_workflow.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_submit_experiment_unlocks_on_error(self, experiment_manager, sample_hypothesis, mock_redis_client, mock_argo_client):
+    async def test_submit_experiment_unlocks_on_error(
+        self, experiment_manager, sample_hypothesis, mock_redis_client, mock_argo_client
+    ):
         """Testa que componente é desbloqueado em caso de erro."""
         mock_argo_client.submit_experiment_workflow.side_effect = Exception("Argo error")
 
@@ -215,7 +227,9 @@ class TestExperimentMonitoring:
         mock_argo_client.get_workflow_status.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_monitor_experiment_returns_none_on_error(self, experiment_manager, mock_argo_client):
+    async def test_monitor_experiment_returns_none_on_error(
+        self, experiment_manager, mock_argo_client
+    ):
         """Testa que retorna None em caso de erro."""
         mock_argo_client.get_workflow_status.side_effect = Exception("Workflow not found")
         experiment_id = "exp-nonexistent"
@@ -248,6 +262,7 @@ class TestExperimentAnalysis:
 
         # Mock do ab_testing_engine.analyze_results para retornar resultado positivo
         from unittest.mock import AsyncMock, Mock
+
         mock_ab_result = Mock()
         mock_ab_result.statistical_recommendation = "APPLY"
         mock_ab_result.confidence_level = 0.95
@@ -262,7 +277,9 @@ class TestExperimentAnalysis:
         mock_ab_result.early_stopped = False
         mock_ab_result.early_stop_reason = None
 
-        experiment_manager.ab_testing_engine.analyze_results = AsyncMock(return_value=mock_ab_result)
+        experiment_manager.ab_testing_engine.analyze_results = AsyncMock(
+            return_value=mock_ab_result
+        )
 
         results = await experiment_manager.analyze_experiment_results(experiment_id)
 
@@ -270,7 +287,9 @@ class TestExperimentAnalysis:
         assert results.get("success") is True
         assert results.get("confidence") == 0.95
         assert results.get("recommendation") == "APPLY"
-        assert results.get("improvement_percentage", 0) < 0  # 800 < 1000 means improvement (lower latency)
+        assert (
+            results.get("improvement_percentage", 0) < 0
+        )  # 800 < 1000 means improvement (lower latency)
 
     @pytest.mark.asyncio
     async def test_analyze_results_negative_outcome(self, experiment_manager):
@@ -279,6 +298,7 @@ class TestExperimentAnalysis:
 
         # Mock do ab_testing_engine.analyze_results para retornar resultado negativo
         from unittest.mock import AsyncMock, Mock
+
         mock_ab_result = Mock()
         mock_ab_result.statistical_recommendation = "REJECT"
         mock_ab_result.confidence_level = 0.0
@@ -293,7 +313,9 @@ class TestExperimentAnalysis:
         mock_ab_result.early_stopped = False
         mock_ab_result.early_stop_reason = None
 
-        experiment_manager.ab_testing_engine.analyze_results = AsyncMock(return_value=mock_ab_result)
+        experiment_manager.ab_testing_engine.analyze_results = AsyncMock(
+            return_value=mock_ab_result
+        )
 
         results = await experiment_manager.analyze_experiment_results(experiment_id)
 
@@ -307,7 +329,9 @@ class TestExperimentAbort:
     """Testes de abort de experimentos."""
 
     @pytest.mark.asyncio
-    async def test_abort_experiment_success(self, experiment_manager, mock_argo_client, mock_mongodb_client):
+    async def test_abort_experiment_success(
+        self, experiment_manager, mock_argo_client, mock_mongodb_client
+    ):
         """Testa abort bem-sucedido de experimento."""
         experiment_id = "exp-123"
         reason = "timeout"
@@ -343,7 +367,7 @@ class TestExperimentRollback:
         mock_mongodb_client.get_experiment.return_value = {
             "experiment_id": experiment_id,
             "target_component": "consensus-engine",
-            "baseline_config": {"weights": {"accuracy": 0.5, "speed": 0.5}}
+            "baseline_config": {"weights": {"accuracy": 0.5, "speed": 0.5}},
         }
 
         result = await experiment_manager.rollback_experiment(experiment_id)
@@ -361,7 +385,10 @@ class TestExperimentRollback:
 
         assert result.get("success", False) is False
         # A reason contém "not_found" como parte da mensagem de erro
-        assert result.get("reason", "").find("not_found") != -1 or result.get("reason", "").find("not found") != -1
+        assert (
+            result.get("reason", "").find("not_found") != -1
+            or result.get("reason", "").find("not found") != -1
+        )
 
     @pytest.mark.asyncio
     async def test_rollback_updates_mongodb(self, experiment_manager, mock_mongodb_client):
@@ -371,7 +398,7 @@ class TestExperimentRollback:
         mock_mongodb_client.get_experiment.return_value = {
             "experiment_id": experiment_id,
             "target_component": "consensus-engine",
-            "baseline_config": {}
+            "baseline_config": {},
         }
 
         await experiment_manager.rollback_experiment(experiment_id)

@@ -20,7 +20,7 @@ def keycloak_settings():
         "client_id": "test-admin-client",
         "client_secret": "test-secret",
         "timeout_seconds": 5,
-        "token_cache_ttl_seconds": 300
+        "token_cache_ttl_seconds": 300,
     }
 
 
@@ -33,7 +33,7 @@ def keycloak_client(keycloak_settings):
         client_id=keycloak_settings["client_id"],
         client_secret=keycloak_settings["client_secret"],
         timeout_seconds=keycloak_settings["timeout_seconds"],
-        token_cache_ttl_seconds=keycloak_settings["token_cache_ttl_seconds"]
+        token_cache_ttl_seconds=keycloak_settings["token_cache_ttl_seconds"],
     )
 
 
@@ -52,15 +52,12 @@ class TestKeycloakAdminClientConnection:
         # Mock da resposta de token
         token_response = MagicMock()
         token_response.status_code = 200
-        token_response.json.return_value = {
-            "access_token": "test-admin-token",
-            "expires_in": 300
-        }
+        token_response.json.return_value = {"access_token": "test-admin-token", "expires_in": 300}
         token_response.raise_for_status = MagicMock()
 
         mock_httpx_client.post = AsyncMock(return_value=token_response)
 
-        with patch('httpx.AsyncClient', return_value=mock_httpx_client):
+        with patch("httpx.AsyncClient", return_value=mock_httpx_client):
             await keycloak_client.connect()
 
             assert keycloak_client._http_client is not None
@@ -71,15 +68,12 @@ class TestKeycloakAdminClientConnection:
         """Testa que cliente esta saudavel apos conexao"""
         token_response = MagicMock()
         token_response.status_code = 200
-        token_response.json.return_value = {
-            "access_token": "test-token",
-            "expires_in": 300
-        }
+        token_response.json.return_value = {"access_token": "test-token", "expires_in": 300}
         token_response.raise_for_status = MagicMock()
 
         mock_httpx_client.post = AsyncMock(return_value=token_response)
 
-        with patch('httpx.AsyncClient', return_value=mock_httpx_client):
+        with patch("httpx.AsyncClient", return_value=mock_httpx_client):
             await keycloak_client.connect()
 
             assert keycloak_client.is_healthy() is True
@@ -89,16 +83,13 @@ class TestKeycloakAdminClientConnection:
         """Testa fechamento de conexao"""
         token_response = MagicMock()
         token_response.status_code = 200
-        token_response.json.return_value = {
-            "access_token": "test-token",
-            "expires_in": 300
-        }
+        token_response.json.return_value = {"access_token": "test-token", "expires_in": 300}
         token_response.raise_for_status = MagicMock()
 
         mock_httpx_client.post = AsyncMock(return_value=token_response)
         mock_httpx_client.aclose = AsyncMock()
 
-        with patch('httpx.AsyncClient', return_value=mock_httpx_client):
+        with patch("httpx.AsyncClient", return_value=mock_httpx_client):
             await keycloak_client.connect()
             await keycloak_client.close()
 
@@ -115,10 +106,7 @@ class TestRevokeUserSessions:
         # Mock token
         token_response = MagicMock()
         token_response.status_code = 200
-        token_response.json.return_value = {
-            "access_token": "test-token",
-            "expires_in": 300
-        }
+        token_response.json.return_value = {"access_token": "test-token", "expires_in": 300}
         token_response.raise_for_status = MagicMock()
 
         # Mock logout response
@@ -127,7 +115,7 @@ class TestRevokeUserSessions:
 
         mock_httpx_client.post = AsyncMock(side_effect=[token_response, logout_response])
 
-        with patch('httpx.AsyncClient', return_value=mock_httpx_client):
+        with patch("httpx.AsyncClient", return_value=mock_httpx_client):
             await keycloak_client.connect()
             result = await keycloak_client.revoke_user_sessions("user-123")
 
@@ -142,10 +130,7 @@ class TestRevokeUserSessions:
         # Mock token
         token_response = MagicMock()
         token_response.status_code = 200
-        token_response.json.return_value = {
-            "access_token": "test-token",
-            "expires_in": 300
-        }
+        token_response.json.return_value = {"access_token": "test-token", "expires_in": 300}
         token_response.raise_for_status = MagicMock()
 
         # Mock 404 response
@@ -154,7 +139,7 @@ class TestRevokeUserSessions:
 
         mock_httpx_client.post = AsyncMock(side_effect=[token_response, not_found_response])
 
-        with patch('httpx.AsyncClient', return_value=mock_httpx_client):
+        with patch("httpx.AsyncClient", return_value=mock_httpx_client):
             await keycloak_client.connect()
             result = await keycloak_client.revoke_user_sessions("nonexistent-user")
 
@@ -167,10 +152,7 @@ class TestRevokeUserSessions:
         # Mock token
         token_response = MagicMock()
         token_response.status_code = 200
-        token_response.json.return_value = {
-            "access_token": "test-token",
-            "expires_in": 300
-        }
+        token_response.json.return_value = {"access_token": "test-token", "expires_in": 300}
         token_response.raise_for_status = MagicMock()
 
         # Mock erro HTTP
@@ -179,16 +161,14 @@ class TestRevokeUserSessions:
 
         def raise_for_status():
             raise httpx.HTTPStatusError(
-                "Server Error",
-                request=MagicMock(),
-                response=error_response
+                "Server Error", request=MagicMock(), response=error_response
             )
 
         error_response.raise_for_status = raise_for_status
 
         mock_httpx_client.post = AsyncMock(side_effect=[token_response, error_response])
 
-        with patch('httpx.AsyncClient', return_value=mock_httpx_client):
+        with patch("httpx.AsyncClient", return_value=mock_httpx_client):
             await keycloak_client.connect()
             result = await keycloak_client.revoke_user_sessions("user-123")
 
@@ -205,10 +185,7 @@ class TestDisableUser:
         # Mock token
         token_response = MagicMock()
         token_response.status_code = 200
-        token_response.json.return_value = {
-            "access_token": "test-token",
-            "expires_in": 300
-        }
+        token_response.json.return_value = {"access_token": "test-token", "expires_in": 300}
         token_response.raise_for_status = MagicMock()
 
         # Mock disable response
@@ -218,7 +195,7 @@ class TestDisableUser:
         mock_httpx_client.post = AsyncMock(return_value=token_response)
         mock_httpx_client.put = AsyncMock(return_value=disable_response)
 
-        with patch('httpx.AsyncClient', return_value=mock_httpx_client):
+        with patch("httpx.AsyncClient", return_value=mock_httpx_client):
             await keycloak_client.connect()
             result = await keycloak_client.disable_user("user-123")
 
@@ -232,10 +209,7 @@ class TestDisableUser:
         # Mock token
         token_response = MagicMock()
         token_response.status_code = 200
-        token_response.json.return_value = {
-            "access_token": "test-token",
-            "expires_in": 300
-        }
+        token_response.json.return_value = {"access_token": "test-token", "expires_in": 300}
         token_response.raise_for_status = MagicMock()
 
         # Mock 404 response
@@ -245,7 +219,7 @@ class TestDisableUser:
         mock_httpx_client.post = AsyncMock(return_value=token_response)
         mock_httpx_client.put = AsyncMock(return_value=not_found_response)
 
-        with patch('httpx.AsyncClient', return_value=mock_httpx_client):
+        with patch("httpx.AsyncClient", return_value=mock_httpx_client):
             await keycloak_client.connect()
             result = await keycloak_client.disable_user("nonexistent-user")
 
@@ -262,10 +236,7 @@ class TestEnableUser:
         # Mock token
         token_response = MagicMock()
         token_response.status_code = 200
-        token_response.json.return_value = {
-            "access_token": "test-token",
-            "expires_in": 300
-        }
+        token_response.json.return_value = {"access_token": "test-token", "expires_in": 300}
         token_response.raise_for_status = MagicMock()
 
         # Mock enable response
@@ -275,7 +246,7 @@ class TestEnableUser:
         mock_httpx_client.post = AsyncMock(return_value=token_response)
         mock_httpx_client.put = AsyncMock(return_value=enable_response)
 
-        with patch('httpx.AsyncClient', return_value=mock_httpx_client):
+        with patch("httpx.AsyncClient", return_value=mock_httpx_client):
             await keycloak_client.connect()
             result = await keycloak_client.enable_user("user-123")
 
@@ -292,10 +263,7 @@ class TestGetUserSessions:
         # Mock token
         token_response = MagicMock()
         token_response.status_code = 200
-        token_response.json.return_value = {
-            "access_token": "test-token",
-            "expires_in": 300
-        }
+        token_response.json.return_value = {"access_token": "test-token", "expires_in": 300}
         token_response.raise_for_status = MagicMock()
 
         # Mock sessions response
@@ -303,13 +271,13 @@ class TestGetUserSessions:
         sessions_response.status_code = 200
         sessions_response.json.return_value = [
             {"id": "session-1", "username": "user-123"},
-            {"id": "session-2", "username": "user-123"}
+            {"id": "session-2", "username": "user-123"},
         ]
 
         mock_httpx_client.post = AsyncMock(return_value=token_response)
         mock_httpx_client.get = AsyncMock(return_value=sessions_response)
 
-        with patch('httpx.AsyncClient', return_value=mock_httpx_client):
+        with patch("httpx.AsyncClient", return_value=mock_httpx_client):
             await keycloak_client.connect()
             result = await keycloak_client.get_user_sessions("user-123")
 
@@ -329,17 +297,14 @@ class TestTokenRefresh:
         expired_token_response.status_code = 200
         expired_token_response.json.return_value = {
             "access_token": "expired-token",
-            "expires_in": 1
+            "expires_in": 1,
         }
         expired_token_response.raise_for_status = MagicMock()
 
         # Mock novo token
         new_token_response = MagicMock()
         new_token_response.status_code = 200
-        new_token_response.json.return_value = {
-            "access_token": "new-token",
-            "expires_in": 300
-        }
+        new_token_response.json.return_value = {"access_token": "new-token", "expires_in": 300}
         new_token_response.raise_for_status = MagicMock()
 
         # Mock logout response
@@ -360,11 +325,12 @@ class TestTokenRefresh:
 
         mock_httpx_client.post = mock_post
 
-        with patch('httpx.AsyncClient', return_value=mock_httpx_client):
+        with patch("httpx.AsyncClient", return_value=mock_httpx_client):
             await keycloak_client.connect()
 
             # Token atual esta quase expirado
             import time
+
             time.sleep(0.1)
 
             # Forcar expiracao do token

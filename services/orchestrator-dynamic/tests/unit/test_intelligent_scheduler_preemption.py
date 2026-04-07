@@ -13,12 +13,12 @@ def mock_config():
     """Create mock configuration for tests."""
     config = MagicMock()
     # Identificação do serviço
-    config.service_name = 'orchestrator-dynamic'
+    config.service_name = "orchestrator-dynamic"
 
     # Configurações de preempção
     config.scheduler_enable_preemption = True
-    config.scheduler_preemption_min_preemptor_priority = 'HIGH'
-    config.scheduler_preemption_max_preemptable_priority = 'LOW'
+    config.scheduler_preemption_min_preemptor_priority = "HIGH"
+    config.scheduler_preemption_max_preemptable_priority = "LOW"
     config.scheduler_preemption_grace_period_seconds = 30
     config.scheduler_preemption_max_concurrent = 5
     config.scheduler_preemption_worker_cooldown_seconds = 60
@@ -26,7 +26,7 @@ def mock_config():
     config.scheduler_preemption_retry_delay_seconds = 300
 
     # Configurações do Service Registry
-    config.service_registry_host = 'localhost'
+    config.service_registry_host = "localhost"
     config.service_registry_port = 50051
     config.service_registry_timeout_seconds = 3
     config.service_registry_max_results = 5
@@ -36,7 +36,7 @@ def mock_config():
     config.enable_intelligent_scheduler = True
     config.enable_ml_enhanced_scheduling = False
     config.scheduler_max_parallel_tickets = 100
-    config.scheduler_priority_weights = {'risk': 0.4, 'qos': 0.3, 'sla': 0.3}
+    config.scheduler_priority_weights = {"risk": 0.4, "qos": 0.3, "sla": 0.3}
     config.scheduler_enable_affinity = False
 
     # Circuit breaker (desabilitado para testes)
@@ -72,7 +72,7 @@ def mock_resource_allocator():
     """Create mock resource allocator."""
     allocator = MagicMock()
     allocator.discover_workers = AsyncMock(return_value=[])
-    allocator.select_best_worker = AsyncMock(return_value={'agent_id': 'test-worker', 'score': 0.8})
+    allocator.select_best_worker = AsyncMock(return_value={"agent_id": "test-worker", "score": 0.8})
     return allocator
 
 
@@ -83,7 +83,7 @@ def scheduler(mock_config, mock_metrics, mock_priority_calculator, mock_resource
         config=mock_config,
         metrics=mock_metrics,
         priority_calculator=mock_priority_calculator,
-        resource_allocator=mock_resource_allocator
+        resource_allocator=mock_resource_allocator,
     )
     return scheduler
 
@@ -93,28 +93,28 @@ class TestCanPreempt:
 
     def test_can_preempt_high_preempts_low(self, scheduler):
         """HIGH priority can preempt LOW priority."""
-        assert scheduler._can_preempt('HIGH', 'LOW') is True
+        assert scheduler._can_preempt("HIGH", "LOW") is True
 
     def test_can_preempt_critical_preempts_low(self, scheduler):
         """CRITICAL priority can preempt LOW priority."""
-        assert scheduler._can_preempt('CRITICAL', 'LOW') is True
+        assert scheduler._can_preempt("CRITICAL", "LOW") is True
 
     def test_cannot_preempt_medium_preempts_low(self, scheduler):
         """MEDIUM priority cannot preempt (below threshold)."""
-        assert scheduler._can_preempt('MEDIUM', 'LOW') is False
+        assert scheduler._can_preempt("MEDIUM", "LOW") is False
 
     def test_cannot_preempt_high_preempts_medium(self, scheduler):
         """HIGH priority cannot preempt MEDIUM (MEDIUM above max preemptable)."""
-        assert scheduler._can_preempt('HIGH', 'MEDIUM') is False
+        assert scheduler._can_preempt("HIGH", "MEDIUM") is False
 
     def test_cannot_preempt_high_preempts_high(self, scheduler):
         """HIGH priority cannot preempt HIGH."""
-        assert scheduler._can_preempt('HIGH', 'HIGH') is False
+        assert scheduler._can_preempt("HIGH", "HIGH") is False
 
     def test_cannot_preempt_when_disabled(self, scheduler, mock_config):
         """Preemption returns False when disabled."""
         mock_config.scheduler_enable_preemption = False
-        assert scheduler._can_preempt('CRITICAL', 'LOW') is False
+        assert scheduler._can_preempt("CRITICAL", "LOW") is False
 
 
 class TestPreemptLowPriorityTasks:
@@ -124,7 +124,7 @@ class TestPreemptLowPriorityTasks:
     async def test_preemption_disabled_returns_empty(self, scheduler, mock_config):
         """Returns empty list when preemption is disabled."""
         mock_config.scheduler_enable_preemption = False
-        high_priority_ticket = {'ticket_id': 'test-1', 'priority': 'CRITICAL'}
+        high_priority_ticket = {"ticket_id": "test-1", "priority": "CRITICAL"}
 
         result = await scheduler.preempt_low_priority_tasks(high_priority_ticket)
 
@@ -133,15 +133,14 @@ class TestPreemptLowPriorityTasks:
     @pytest.mark.asyncio
     async def test_max_concurrent_preemptions_exceeded(self, scheduler, mock_metrics):
         """Returns empty when max concurrent preemptions reached."""
-        scheduler._active_preemptions = {'a', 'b', 'c', 'd', 'e'}  # 5 active
-        high_priority_ticket = {'ticket_id': 'test-1', 'priority': 'CRITICAL'}
+        scheduler._active_preemptions = {"a", "b", "c", "d", "e"}  # 5 active
+        high_priority_ticket = {"ticket_id": "test-1", "priority": "CRITICAL"}
 
         result = await scheduler.preempt_low_priority_tasks(high_priority_ticket)
 
         assert result == []
         mock_metrics.record_preemption_attempt.assert_called_with(
-            success=False,
-            reason='max_concurrent'
+            success=False, reason="max_concurrent"
         )
 
     @pytest.mark.asyncio
@@ -149,9 +148,9 @@ class TestPreemptLowPriorityTasks:
         """Returns empty when no preemptable tasks found."""
         scheduler._discover_workers_cached = AsyncMock(return_value=[])
         high_priority_ticket = {
-            'ticket_id': 'test-1',
-            'priority': 'CRITICAL',
-            'required_capabilities': ['test']
+            "ticket_id": "test-1",
+            "priority": "CRITICAL",
+            "required_capabilities": ["test"],
         }
 
         result = await scheduler.preempt_low_priority_tasks(high_priority_ticket)
@@ -162,21 +161,23 @@ class TestPreemptLowPriorityTasks:
     async def test_successful_preemption(self, scheduler, mock_metrics):
         """Successfully preempts a low priority task."""
         # Mock worker with running task
-        workers = [{
-            'agent_id': 'worker-1',
-            'endpoint': 'http://worker-1:8080',
-            'capabilities': ['test'],
-            'running_task': {
-                'ticket_id': 'low-priority-task',
-                'priority': 'LOW',
-                'started_at': '2024-01-01T00:00:00Z',
-                'progress_pct': 30
+        workers = [
+            {
+                "agent_id": "worker-1",
+                "endpoint": "http://worker-1:8080",
+                "capabilities": ["test"],
+                "running_task": {
+                    "ticket_id": "low-priority-task",
+                    "priority": "LOW",
+                    "started_at": "2024-01-01T00:00:00Z",
+                    "progress_pct": 30,
+                },
             }
-        }]
+        ]
         scheduler._discover_workers_cached = AsyncMock(return_value=workers)
 
         # Mock successful HTTP call
-        with patch('httpx.AsyncClient') as mock_client:
+        with patch("httpx.AsyncClient") as mock_client:
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_client.return_value.__aenter__.return_value.post = AsyncMock(
@@ -184,37 +185,36 @@ class TestPreemptLowPriorityTasks:
             )
 
             high_priority_ticket = {
-                'ticket_id': 'high-priority-task',
-                'priority': 'CRITICAL',
-                'required_capabilities': ['test']
+                "ticket_id": "high-priority-task",
+                "priority": "CRITICAL",
+                "required_capabilities": ["test"],
             }
 
             result = await scheduler.preempt_low_priority_tasks(high_priority_ticket)
 
-        assert 'worker-1' in result
-        assert 'worker-1' in scheduler._preemption_cooldowns
+        assert "worker-1" in result
+        assert "worker-1" in scheduler._preemption_cooldowns
 
     @pytest.mark.asyncio
     async def test_worker_in_cooldown_skipped(self, scheduler):
         """Workers in cooldown are skipped."""
         # Set worker in cooldown
-        scheduler._preemption_cooldowns['worker-1'] = datetime.now() + timedelta(seconds=60)
+        scheduler._preemption_cooldowns["worker-1"] = datetime.now() + timedelta(seconds=60)
 
-        workers = [{
-            'agent_id': 'worker-1',
-            'endpoint': 'http://worker-1:8080',
-            'capabilities': ['test'],
-            'running_task': {
-                'ticket_id': 'low-priority-task',
-                'priority': 'LOW'
+        workers = [
+            {
+                "agent_id": "worker-1",
+                "endpoint": "http://worker-1:8080",
+                "capabilities": ["test"],
+                "running_task": {"ticket_id": "low-priority-task", "priority": "LOW"},
             }
-        }]
+        ]
         scheduler._discover_workers_cached = AsyncMock(return_value=workers)
 
         high_priority_ticket = {
-            'ticket_id': 'high-priority-task',
-            'priority': 'CRITICAL',
-            'required_capabilities': ['test']
+            "ticket_id": "high-priority-task",
+            "priority": "CRITICAL",
+            "required_capabilities": ["test"],
         }
 
         result = await scheduler.preempt_low_priority_tasks(high_priority_ticket)
@@ -230,47 +230,47 @@ class TestFindPreemptableTasks:
         """Preemptable tasks sorted by priority then progress."""
         workers = [
             {
-                'agent_id': 'worker-1',
-                'capabilities': ['test'],
-                'running_task': {'ticket_id': 't1', 'priority': 'LOW', 'progress_pct': 80}
+                "agent_id": "worker-1",
+                "capabilities": ["test"],
+                "running_task": {"ticket_id": "t1", "priority": "LOW", "progress_pct": 80},
             },
             {
-                'agent_id': 'worker-2',
-                'capabilities': ['test'],
-                'running_task': {'ticket_id': 't2', 'priority': 'LOW', 'progress_pct': 20}
+                "agent_id": "worker-2",
+                "capabilities": ["test"],
+                "running_task": {"ticket_id": "t2", "priority": "LOW", "progress_pct": 20},
             },
         ]
         scheduler._discover_workers_cached = AsyncMock(return_value=workers)
 
         high_priority_ticket = {
-            'ticket_id': 'hp',
-            'priority': 'CRITICAL',
-            'required_capabilities': ['test']
+            "ticket_id": "hp",
+            "priority": "CRITICAL",
+            "required_capabilities": ["test"],
         }
 
         result = await scheduler._find_preemptable_tasks(high_priority_ticket, limit=5)
 
         # Should be sorted by priority (same) then progress (lowest first)
-        assert result[0]['ticket_id'] == 't2'
-        assert result[1]['ticket_id'] == 't1'
+        assert result[0]["ticket_id"] == "t2"
+        assert result[1]["ticket_id"] == "t1"
 
     @pytest.mark.asyncio
     async def test_respects_limit(self, scheduler):
         """Respects the limit parameter."""
         workers = [
             {
-                'agent_id': f'worker-{i}',
-                'capabilities': ['test'],
-                'running_task': {'ticket_id': f't{i}', 'priority': 'LOW'}
+                "agent_id": f"worker-{i}",
+                "capabilities": ["test"],
+                "running_task": {"ticket_id": f"t{i}", "priority": "LOW"},
             }
             for i in range(10)
         ]
         scheduler._discover_workers_cached = AsyncMock(return_value=workers)
 
         high_priority_ticket = {
-            'ticket_id': 'hp',
-            'priority': 'CRITICAL',
-            'required_capabilities': ['test']
+            "ticket_id": "hp",
+            "priority": "CRITICAL",
+            "required_capabilities": ["test"],
         }
 
         result = await scheduler._find_preemptable_tasks(high_priority_ticket, limit=3)
@@ -284,14 +284,10 @@ class TestPreemptTask:
     @pytest.mark.asyncio
     async def test_preempt_task_success(self, scheduler, mock_metrics):
         """Successfully preempts a task."""
-        task = {
-            'ticket_id': 'low-task',
-            'worker_endpoint': 'http://worker:8080',
-            'priority': 'LOW'
-        }
-        preemptor = {'ticket_id': 'high-task', 'priority': 'CRITICAL'}
+        task = {"ticket_id": "low-task", "worker_endpoint": "http://worker:8080", "priority": "LOW"}
+        preemptor = {"ticket_id": "high-task", "priority": "CRITICAL"}
 
-        with patch('httpx.AsyncClient') as mock_client:
+        with patch("httpx.AsyncClient") as mock_client:
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_client.return_value.__aenter__.return_value.post = AsyncMock(
@@ -306,17 +302,13 @@ class TestPreemptTask:
     @pytest.mark.asyncio
     async def test_preempt_task_worker_rejected(self, scheduler, mock_metrics):
         """Handles worker rejection."""
-        task = {
-            'ticket_id': 'low-task',
-            'worker_endpoint': 'http://worker:8080',
-            'priority': 'LOW'
-        }
-        preemptor = {'ticket_id': 'high-task', 'priority': 'CRITICAL'}
+        task = {"ticket_id": "low-task", "worker_endpoint": "http://worker:8080", "priority": "LOW"}
+        preemptor = {"ticket_id": "high-task", "priority": "CRITICAL"}
 
-        with patch('httpx.AsyncClient') as mock_client:
+        with patch("httpx.AsyncClient") as mock_client:
             mock_response = MagicMock()
             mock_response.status_code = 400
-            mock_response.text = 'Task not found'
+            mock_response.text = "Task not found"
             mock_client.return_value.__aenter__.return_value.post = AsyncMock(
                 return_value=mock_response
             )
@@ -324,35 +316,31 @@ class TestPreemptTask:
             result = await scheduler._preempt_task(task, preemptor)
 
         assert result is False
-        mock_metrics.record_preemption_failure.assert_called_with(reason='worker_rejected')
+        mock_metrics.record_preemption_failure.assert_called_with(reason="worker_rejected")
 
     @pytest.mark.asyncio
     async def test_preempt_task_timeout(self, scheduler, mock_metrics):
         """Handles timeout during preemption."""
         import httpx
 
-        task = {
-            'ticket_id': 'low-task',
-            'worker_endpoint': 'http://worker:8080',
-            'priority': 'LOW'
-        }
-        preemptor = {'ticket_id': 'high-task', 'priority': 'CRITICAL'}
+        task = {"ticket_id": "low-task", "worker_endpoint": "http://worker:8080", "priority": "LOW"}
+        preemptor = {"ticket_id": "high-task", "priority": "CRITICAL"}
 
-        with patch('httpx.AsyncClient') as mock_client:
+        with patch("httpx.AsyncClient") as mock_client:
             mock_client.return_value.__aenter__.return_value.post = AsyncMock(
-                side_effect=httpx.TimeoutException('timeout')
+                side_effect=httpx.TimeoutException("timeout")
             )
 
             result = await scheduler._preempt_task(task, preemptor)
 
         assert result is False
-        mock_metrics.record_preemption_failure.assert_called_with(reason='timeout')
+        mock_metrics.record_preemption_failure.assert_called_with(reason="timeout")
 
     @pytest.mark.asyncio
     async def test_preempt_task_no_endpoint(self, scheduler):
         """Returns False when no endpoint provided."""
-        task = {'ticket_id': 'low-task', 'priority': 'LOW'}
-        preemptor = {'ticket_id': 'high-task', 'priority': 'CRITICAL'}
+        task = {"ticket_id": "low-task", "priority": "LOW"}
+        preemptor = {"ticket_id": "high-task", "priority": "CRITICAL"}
 
         result = await scheduler._preempt_task(task, preemptor)
 

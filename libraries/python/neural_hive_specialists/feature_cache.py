@@ -149,9 +149,7 @@ class FeatureCache:
                 # Não cachear embeddings (muito grandes e variam)
             }
 
-            self.redis.setex(
-                cache_key, self.cache_ttl_seconds, json.dumps(cacheable_features)
-            )
+            self.redis.setex(cache_key, self.cache_ttl_seconds, json.dumps(cacheable_features))
 
             logger.debug(
                 "feature_cache_set",
@@ -174,9 +172,7 @@ class FeatureCache:
             )
             return False
 
-    def _serialize_ontology_features(
-        self, ontology_features: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def _serialize_ontology_features(self, ontology_features: Dict[str, Any]) -> Dict[str, Any]:
         """
         Serializa features de ontologia, convertendo objetos não-serializáveis.
 

@@ -34,17 +34,13 @@ class Mitigation(BaseModel):
 class Opinion(BaseModel):
     """Opinião do especialista."""
 
-    confidence_score: float = Field(
-        ..., ge=0.0, le=1.0, description="Score de confiança"
-    )
+    confidence_score: float = Field(..., ge=0.0, le=1.0, description="Score de confiança")
     risk_score: float = Field(..., ge=0.0, le=1.0, description="Score de risco")
     recommendation: str = Field(
         ..., description="Recomendação (approve, reject, review_required, conditional)"
     )
     reasoning_summary: str = Field(..., description="Resumo do raciocínio")
-    reasoning_factors: List[ReasoningFactor] = Field(
-        ..., description="Fatores de raciocínio"
-    )
+    reasoning_factors: List[ReasoningFactor] = Field(..., description="Fatores de raciocínio")
     explainability_token: str = Field(..., description="Token de explicabilidade")
     explainability: Dict[str, Any] = Field(
         default_factory=dict, description="Metadados de explicabilidade"
@@ -52,9 +48,7 @@ class Opinion(BaseModel):
     mitigations: List[Mitigation] = Field(
         default_factory=list, description="Mitigações recomendadas"
     )
-    metadata: Dict[str, Any] = Field(
-        default_factory=dict, description="Metadados adicionais"
-    )
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais")
 
     @field_validator("recommendation")
     @classmethod
@@ -95,29 +89,21 @@ class OpinionDocumentV2(BaseModel):
 
     # Processamento
     processing_time_ms: int = Field(..., description="Tempo de processamento")
-    buffered: bool = Field(
-        default=False, description="Se foi bufferizado por indisponibilidade"
-    )
+    buffered: bool = Field(default=False, description="Se foi bufferizado por indisponibilidade")
 
     # Segurança e auditoria
     content_hash: str = Field(..., description="Hash SHA-256 do conteúdo")
-    digital_signature: Optional[str] = Field(
-        None, description="Assinatura digital do documento"
-    )
+    digital_signature: Optional[str] = Field(None, description="Assinatura digital do documento")
     signature_algorithm: Optional[str] = Field(
         None, description="Algoritmo de assinatura (RSA-SHA256, etc.)"
     )
 
     # Compliance
-    retention_policy: Optional[str] = Field(
-        None, description="Política de retenção aplicada"
-    )
+    retention_policy: Optional[str] = Field(None, description="Política de retenção aplicada")
     masked_fields: List[str] = Field(
         default_factory=list, description="Campos mascarados por compliance"
     )
-    gdpr_consent: Optional[bool] = Field(
-        None, description="Consentimento GDPR se aplicável"
-    )
+    gdpr_consent: Optional[bool] = Field(None, description="Consentimento GDPR se aplicável")
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -196,9 +182,7 @@ class SchemaVersionManager:
             ],
             explainability_token=v1_document["opinion"]["explainability_token"],
             explainability=v1_document["opinion"].get("explainability", {}),
-            mitigations=[
-                Mitigation(**m) for m in v1_document["opinion"].get("mitigations", [])
-            ],
+            mitigations=[Mitigation(**m) for m in v1_document["opinion"].get("mitigations", [])],
             metadata=v1_document["opinion"].get("metadata", {}),
         )
 

@@ -22,7 +22,7 @@ class TestArchitectureFlow:
                 "intent": sample_cognitive_plan["intent"]["action"],
                 "context": sample_cognitive_plan["intent"]["context"],
                 "cognitive_plan_id": sample_cognitive_plan["plan_id"],
-            }
+            },
         )
 
         assert response.status_code == 201
@@ -42,7 +42,7 @@ class TestArchitectureFlow:
             json={
                 "intent": "design user authentication system",
                 "context": {"requirements": ["oauth2", "jwt"]},
-            }
+            },
         )
 
         assert response.status_code == 201
@@ -57,7 +57,7 @@ class TestArchitectureFlow:
             "/api/v1/architecture",
             json={
                 "intent": "",  # Intent vazio
-            }
+            },
         )
 
         assert response.status_code == 422  # Validation error
@@ -71,7 +71,7 @@ class TestArchitectureFlow:
                 "intent": sample_cognitive_plan["intent"]["action"],
                 "context": sample_cognitive_plan["intent"]["context"],
                 "cognitive_plan_id": sample_cognitive_plan["plan_id"],
-            }
+            },
         )
         plan_id = create_response.json()["plan_id"]
 
@@ -99,7 +99,7 @@ class TestArchitectureFlow:
                 json={
                     "intent": f"design service {i}",
                     "context": {"index": i},
-                }
+                },
             )
 
         # Listar
@@ -154,12 +154,13 @@ class TestArchitecturePersistence:
                 "intent": sample_cognitive_plan["intent"]["action"],
                 "context": sample_cognitive_plan["intent"]["context"],
                 "cognitive_plan_id": sample_cognitive_plan["plan_id"],
-            }
+            },
         )
         plan_id = response.json()["plan_id"]
 
         # Verificar no MongoDB
         from src.config.settings import get_settings
+
         settings = get_settings()
         collection = mongo_database[settings.mongodb.collection_architecture]
 
@@ -191,9 +192,7 @@ class TestArchitecturePersistence:
         """Testa listagem de planos do MongoDB."""
         # Criar planos
         for i in range(5):
-            plan = sample_architecture_plan.model_copy(
-                update={"plan_id": f"arch-list-test-{i}"}
-            )
+            plan = sample_architecture_plan.model_copy(update={"plan_id": f"arch-list-test-{i}"})
             await architecture_repository.create(plan)
 
         # Listar

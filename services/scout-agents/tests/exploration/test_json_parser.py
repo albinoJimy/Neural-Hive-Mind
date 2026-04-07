@@ -18,22 +18,22 @@ class TestJSONParserBasic:
 
     def test_parse_simple_object(self, json_parser):
         """Testa parsing de objeto simples."""
-        code = '''
+        code = """
 {
   "name": "test-service",
   "version": "1.0.0",
   "port": 8080
 }
-'''
+"""
         result = json_parser.parse(code, "config.json")
 
         assert result is not None
-        assert len(result['keys']) == 3
-        assert 'name' in result['keys']
+        assert len(result["keys"]) == 3
+        assert "name" in result["keys"]
 
     def test_parse_nested_object(self, json_parser):
         """Testa parsing de objeto aninhado."""
-        code = '''
+        code = """
 {
   "server": {
     "host": "localhost",
@@ -48,32 +48,32 @@ class TestJSONParserBasic:
     "port": 5432
   }
 }
-'''
+"""
         result = json_parser.parse(code, "config.json")
 
         assert result is not None
-        assert len(result['keys']) >= 2
-        assert 'server' in result['keys']
-        assert 'database' in result['keys']
+        assert len(result["keys"]) >= 2
+        assert "server" in result["keys"]
+        assert "database" in result["keys"]
 
     def test_parse_array(self, json_parser):
         """Testa parsing de arrays."""
-        code = '''
+        code = """
 {
   "hosts": ["localhost:8080", "localhost:8081", "localhost:8082"],
   "tags": ["web", "api", "microservice"],
   "numbers": [1, 2, 3, 4, 5]
 }
-'''
+"""
         result = json_parser.parse(code, "config.json")
 
         assert result is not None
-        assert 'hosts' in result['keys']
-        assert 'tags' in result['keys']
+        assert "hosts" in result["keys"]
+        assert "tags" in result["keys"]
 
     def test_parse_mixed_types(self, json_parser):
         """Testa parsing de tipos mistos."""
-        code = '''
+        code = """
 {
   "string": "value",
   "number": 42,
@@ -83,7 +83,7 @@ class TestJSONParserBasic:
   "array": [1, 2, 3],
   "object": {"key": "value"}
 }
-'''
+"""
         result = json_parser.parse(code, "mixed.json")
 
         assert result is not None
@@ -91,7 +91,7 @@ class TestJSONParserBasic:
 
     def test_parse_package_json(self, json_parser):
         """Testa parsing de package.json."""
-        code = '''
+        code = """
 {
   "name": "my-app",
   "version": "1.0.0",
@@ -111,17 +111,17 @@ class TestJSONParserBasic:
     "webpack": "^5.0.0"
   }
 }
-'''
+"""
         result = json_parser.parse(code, "package.json")
 
         assert result is not None
-        assert result.get('type') == 'package.json'
-        assert 'dependencies' in result['keys']
-        assert 'devDependencies' in result['keys']
+        assert result.get("type") == "package.json"
+        assert "dependencies" in result["keys"]
+        assert "devDependencies" in result["keys"]
 
     def test_parse_tsconfig(self, json_parser):
         """Testa parsing de tsconfig.json."""
-        code = '''
+        code = """
 {
   "compilerOptions": {
     "target": "ES2020",
@@ -137,16 +137,16 @@ class TestJSONParserBasic:
   "include": ["src/**/*"],
   "exclude": ["node_modules", "**/*.test.ts"]
 }
-'''
+"""
         result = json_parser.parse(code, "tsconfig.json")
 
         assert result is not None
-        assert result.get('type') == 'tsconfig.json'
-        assert 'compilerOptions' in result['keys']
+        assert result.get("type") == "tsconfig.json"
+        assert "compilerOptions" in result["keys"]
 
     def test_parse_eslint_config(self, json_parser):
         """Testa parsing de configuração ESLint."""
-        code = '''
+        code = """
 {
   "env": {
     "browser": true,
@@ -164,12 +164,12 @@ class TestJSONParserBasic:
     "semi": ["error", "always"]
   }
 }
-'''
+"""
         result = json_parser.parse(code, ".eslintrc.json")
 
         assert result is not None
-        assert result.get('type') == '.eslintrc.json'
-        assert 'rules' in result['keys']
+        assert result.get("type") == ".eslintrc.json"
+        assert "rules" in result["keys"]
 
 
 class TestJSONParserNPM:
@@ -177,7 +177,7 @@ class TestJSONParserNPM:
 
     def test_extract_npm_scripts(self, json_parser):
         """Testa extração de scripts npm."""
-        code = '''
+        code = """
 {
   "scripts": {
     "start": "node server.js",
@@ -188,16 +188,16 @@ class TestJSONParserNPM:
     "deploy": "serverless deploy"
   }
 }
-'''
+"""
         result = json_parser.parse(code, "package.json")
 
         assert result is not None
-        scripts = result.get('scripts', {})
+        scripts = result.get("scripts", {})
         assert len(scripts) >= 6
 
     def test_extract_npm_dependencies(self, json_parser):
         """Testa extração de dependências npm."""
-        code = '''
+        code = """
 {
   "dependencies": {
     "express": "^4.18.0",
@@ -216,12 +216,12 @@ class TestJSONParserNPM:
     "fsevents": "^2.3.0"
   }
 }
-'''
+"""
         result = json_parser.parse(code, "package.json")
 
         assert result is not None
-        assert 'dependencies' in result['keys']
-        assert 'devDependencies' in result['keys']
+        assert "dependencies" in result["keys"]
+        assert "devDependencies" in result["keys"]
         # Deve contar total de dependências
 
 
@@ -230,7 +230,7 @@ class TestJSONParserStructureAnalysis:
 
     def test_calculate_depth(self, json_parser):
         """Testa cálculo de profundidade."""
-        code = '''
+        code = """
 {
   "level1": {
     "level2": {
@@ -240,23 +240,23 @@ class TestJSONParserStructureAnalysis:
     }
   }
 }
-'''
+"""
         result = json_parser.parse(code, "deep.json")
 
         assert result is not None
-        depth = result.get('max_depth', 0)
+        depth = result.get("max_depth", 0)
         assert depth >= 4
 
     def test_count_primitive_values(self, json_parser):
         """Testa contagem de valores primitivos."""
-        code = '''
+        code = """
 {
   "strings": ["a", "b", "c"],
   "numbers": [1, 2, 3],
   "booleans": [true, false],
   "nulls": [null, null]
 }
-'''
+"""
         result = json_parser.parse(code, "primitives.json")
 
         assert result is not None
@@ -264,19 +264,19 @@ class TestJSONParserStructureAnalysis:
 
     def test_detect_empty_containers(self, json_parser):
         """Testa detecção de containers vazios."""
-        code = '''
+        code = """
 {
   "empty_object": {},
   "empty_array": [],
   "non_empty": {"key": "value"},
   "nested_empty": {"outer": {"inner": {}}}
 }
-'''
+"""
         result = json_parser.parse(code, "empty.json")
 
         assert result is not None
-        assert result.get('has_empty_containers') == True
-        assert result.get('empty_count') >= 2
+        assert result.get("has_empty_containers") == True
+        assert result.get("empty_count") >= 2
 
 
 class TestJSONParserErrorHandling:
@@ -284,36 +284,36 @@ class TestJSONParserErrorHandling:
 
     def test_parse_invalid_json(self, json_parser):
         """Testa parsing de JSON inválido."""
-        invalid_code = '''
+        invalid_code = """
 {
   "name": "test",
   invalid syntax here
   "port": 8080
 }
-'''
+"""
         result = json_parser.parse(invalid_code, "invalid.json")
 
-        assert result is None or result.get('has_errors') == True
+        assert result is None or result.get("has_errors") == True
 
     def test_parse_trailing_comma(self, json_parser):
         """Testa parsing com trailing comma (não válido JSON padrão)."""
-        code = '''
+        code = """
 {
   "name": "test",
   "port": 8080,
 }
-'''
+"""
         result = json_parser.parse(code, "trailing.json")
 
         # JSON padrão não aceita trailing comma
-        assert result is None or result.get('has_errors') == True
+        assert result is None or result.get("has_errors") == True
 
     def test_parse_empty_json(self, json_parser):
         """Testa parsing de JSON vazio."""
         result = json_parser.parse("{}", "empty.json")
 
         assert result is not None
-        assert len(result.get('keys', [])) == 0
+        assert len(result.get("keys", [])) == 0
 
 
 class TestJSONParserSecurity:
@@ -321,7 +321,7 @@ class TestJSONParserSecurity:
 
     def test_detect_secrets_in_json(self, json_parser):
         """Testa detecção de segredos em JSON."""
-        code = '''
+        code = """
 {
   "database": {
     "password": "admin123",
@@ -332,16 +332,16 @@ class TestJSONParserSecurity:
   },
   "safe_value": "normal_value"
 }
-'''
+"""
         result = json_parser.parse(code, "secrets.json")
 
         assert result is not None
-        assert result.get('has_secrets') == True
-        assert len(result.get('secret_keys', [])) >= 2
+        assert result.get("has_secrets") == True
+        assert len(result.get("secret_keys", [])) >= 2
 
     def test_detect_sensitive_patterns(self, json_parser):
         """Testa detecção de padrões sensíveis."""
-        code = '''
+        code = """
 {
   "credentials": {
     "username": "admin",
@@ -352,7 +352,7 @@ class TestJSONParserSecurity:
     "access_token": "ghp_xyz123"
   }
 }
-'''
+"""
         result = json_parser.parse(code, "sensitive.json")
 
         assert result is not None

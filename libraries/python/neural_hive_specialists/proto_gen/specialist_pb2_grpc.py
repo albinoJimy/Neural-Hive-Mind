@@ -5,29 +5,29 @@ import warnings
 
 from . import specialist_pb2 as specialist__pb2
 
-GRPC_GENERATED_VERSION = '1.68.1'
+GRPC_GENERATED_VERSION = "1.68.1"
 GRPC_VERSION = grpc.__version__
 _version_not_supported = False
 
 try:
     from grpc._utilities import first_version_is_lower
+
     _version_not_supported = first_version_is_lower(GRPC_VERSION, GRPC_GENERATED_VERSION)
 except ImportError:
     _version_not_supported = True
 
 if _version_not_supported:
     raise RuntimeError(
-        f'The grpc package installed is at version {GRPC_VERSION},'
-        + f' but the generated code in specialist_pb2_grpc.py depends on'
-        + f' grpcio>={GRPC_GENERATED_VERSION}.'
-        + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
-        + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
+        f"The grpc package installed is at version {GRPC_VERSION},"
+        + f" but the generated code in specialist_pb2_grpc.py depends on"
+        + f" grpcio>={GRPC_GENERATED_VERSION}."
+        + f" Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}"
+        + f" or downgrade your generated code using grpcio-tools<={GRPC_VERSION}."
     )
 
 
 class SpecialistServiceStub(object):
-    """Serviço principal do especialista
-    """
+    """Serviço principal do especialista"""
 
     def __init__(self, channel):
         """Constructor.
@@ -36,92 +36,95 @@ class SpecialistServiceStub(object):
             channel: A grpc.Channel.
         """
         self.EvaluatePlan = channel.unary_unary(
-                '/neural_hive.specialist.SpecialistService/EvaluatePlan',
-                request_serializer=specialist__pb2.EvaluatePlanRequest.SerializeToString,
-                response_deserializer=specialist__pb2.EvaluatePlanResponse.FromString,
-                _registered_method=True)
+            "/neural_hive.specialist.SpecialistService/EvaluatePlan",
+            request_serializer=specialist__pb2.EvaluatePlanRequest.SerializeToString,
+            response_deserializer=specialist__pb2.EvaluatePlanResponse.FromString,
+            _registered_method=True,
+        )
         self.HealthCheck = channel.unary_unary(
-                '/neural_hive.specialist.SpecialistService/HealthCheck',
-                request_serializer=specialist__pb2.HealthCheckRequest.SerializeToString,
-                response_deserializer=specialist__pb2.HealthCheckResponse.FromString,
-                _registered_method=True)
+            "/neural_hive.specialist.SpecialistService/HealthCheck",
+            request_serializer=specialist__pb2.HealthCheckRequest.SerializeToString,
+            response_deserializer=specialist__pb2.HealthCheckResponse.FromString,
+            _registered_method=True,
+        )
         self.GetCapabilities = channel.unary_unary(
-                '/neural_hive.specialist.SpecialistService/GetCapabilities',
-                request_serializer=specialist__pb2.GetCapabilitiesRequest.SerializeToString,
-                response_deserializer=specialist__pb2.GetCapabilitiesResponse.FromString,
-                _registered_method=True)
+            "/neural_hive.specialist.SpecialistService/GetCapabilities",
+            request_serializer=specialist__pb2.GetCapabilitiesRequest.SerializeToString,
+            response_deserializer=specialist__pb2.GetCapabilitiesResponse.FromString,
+            _registered_method=True,
+        )
 
 
 class SpecialistServiceServicer(object):
-    """Serviço principal do especialista
-    """
+    """Serviço principal do especialista"""
 
     def EvaluatePlan(self, request, context):
-        """Avaliar plano cognitivo e retornar parecer
-        """
+        """Avaliar plano cognitivo e retornar parecer"""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
 
     def HealthCheck(self, request, context):
-        """Health check do especialista
-        """
+        """Health check do especialista"""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
 
     def GetCapabilities(self, request, context):
-        """Obter capacidades e metadados do especialista
-        """
+        """Obter capacidades e metadados do especialista"""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
 
 
 def add_SpecialistServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'EvaluatePlan': grpc.unary_unary_rpc_method_handler(
-                    servicer.EvaluatePlan,
-                    request_deserializer=specialist__pb2.EvaluatePlanRequest.FromString,
-                    response_serializer=specialist__pb2.EvaluatePlanResponse.SerializeToString,
-            ),
-            'HealthCheck': grpc.unary_unary_rpc_method_handler(
-                    servicer.HealthCheck,
-                    request_deserializer=specialist__pb2.HealthCheckRequest.FromString,
-                    response_serializer=specialist__pb2.HealthCheckResponse.SerializeToString,
-            ),
-            'GetCapabilities': grpc.unary_unary_rpc_method_handler(
-                    servicer.GetCapabilities,
-                    request_deserializer=specialist__pb2.GetCapabilitiesRequest.FromString,
-                    response_serializer=specialist__pb2.GetCapabilitiesResponse.SerializeToString,
-            ),
+        "EvaluatePlan": grpc.unary_unary_rpc_method_handler(
+            servicer.EvaluatePlan,
+            request_deserializer=specialist__pb2.EvaluatePlanRequest.FromString,
+            response_serializer=specialist__pb2.EvaluatePlanResponse.SerializeToString,
+        ),
+        "HealthCheck": grpc.unary_unary_rpc_method_handler(
+            servicer.HealthCheck,
+            request_deserializer=specialist__pb2.HealthCheckRequest.FromString,
+            response_serializer=specialist__pb2.HealthCheckResponse.SerializeToString,
+        ),
+        "GetCapabilities": grpc.unary_unary_rpc_method_handler(
+            servicer.GetCapabilities,
+            request_deserializer=specialist__pb2.GetCapabilitiesRequest.FromString,
+            response_serializer=specialist__pb2.GetCapabilitiesResponse.SerializeToString,
+        ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'neural_hive.specialist.SpecialistService', rpc_method_handlers)
+        "neural_hive.specialist.SpecialistService", rpc_method_handlers
+    )
     server.add_generic_rpc_handlers((generic_handler,))
-    server.add_registered_method_handlers('neural_hive.specialist.SpecialistService', rpc_method_handlers)
+    server.add_registered_method_handlers(
+        "neural_hive.specialist.SpecialistService", rpc_method_handlers
+    )
 
 
- # This class is part of an EXPERIMENTAL API.
+# This class is part of an EXPERIMENTAL API.
 class SpecialistService(object):
-    """Serviço principal do especialista
-    """
+    """Serviço principal do especialista"""
 
     @staticmethod
-    def EvaluatePlan(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
+    def EvaluatePlan(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/neural_hive.specialist.SpecialistService/EvaluatePlan',
+            "/neural_hive.specialist.SpecialistService/EvaluatePlan",
             specialist__pb2.EvaluatePlanRequest.SerializeToString,
             specialist__pb2.EvaluatePlanResponse.FromString,
             options,
@@ -132,23 +135,26 @@ class SpecialistService(object):
             wait_for_ready,
             timeout,
             metadata,
-            _registered_method=True)
+            _registered_method=True,
+        )
 
     @staticmethod
-    def HealthCheck(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
+    def HealthCheck(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/neural_hive.specialist.SpecialistService/HealthCheck',
+            "/neural_hive.specialist.SpecialistService/HealthCheck",
             specialist__pb2.HealthCheckRequest.SerializeToString,
             specialist__pb2.HealthCheckResponse.FromString,
             options,
@@ -159,23 +165,26 @@ class SpecialistService(object):
             wait_for_ready,
             timeout,
             metadata,
-            _registered_method=True)
+            _registered_method=True,
+        )
 
     @staticmethod
-    def GetCapabilities(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
+    def GetCapabilities(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/neural_hive.specialist.SpecialistService/GetCapabilities',
+            "/neural_hive.specialist.SpecialistService/GetCapabilities",
             specialist__pb2.GetCapabilitiesRequest.SerializeToString,
             specialist__pb2.GetCapabilitiesResponse.FromString,
             options,
@@ -186,4 +195,5 @@ class SpecialistService(object):
             wait_for_ready,
             timeout,
             metadata,
-            _registered_method=True)
+            _registered_method=True,
+        )

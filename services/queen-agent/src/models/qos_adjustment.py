@@ -43,7 +43,14 @@ class QoSAdjustment(BaseModel):
 
     def to_grpc_request(
         self,
-    ) -> orchestrator_strategic_pb2.AdjustPrioritiesRequest | orchestrator_strategic_pb2.PauseWorkflowRequest | orchestrator_strategic_pb2.ResumeWorkflowRequest | orchestrator_strategic_pb2.RebalanceResourcesRequest | orchestrator_strategic_pb2.TriggerReplanningRequest | dict[str, Any]:
+    ) -> (
+        orchestrator_strategic_pb2.AdjustPrioritiesRequest
+        | orchestrator_strategic_pb2.PauseWorkflowRequest
+        | orchestrator_strategic_pb2.ResumeWorkflowRequest
+        | orchestrator_strategic_pb2.RebalanceResourcesRequest
+        | orchestrator_strategic_pb2.TriggerReplanningRequest
+        | dict[str, Any]
+    ):
         """
         Converter para mensagem gRPC proto para Orchestrator.
 

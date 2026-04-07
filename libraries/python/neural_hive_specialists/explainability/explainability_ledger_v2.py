@@ -19,12 +19,8 @@ logger = structlog.get_logger(__name__)
 class ExplainabilityRecordSchema(BaseModel):
     """Schema Pydantic para registro de explicabilidade v2."""
 
-    explainability_token: str = Field(
-        ..., description="Token único SHA-256 da explicação"
-    )
-    schema_version: str = Field(
-        default="2.0.0", description="Versão do schema do ledger"
-    )
+    explainability_token: str = Field(..., description="Token único SHA-256 da explicação")
+    schema_version: str = Field(default="2.0.0", description="Versão do schema do ledger")
     plan_id: str = Field(..., description="ID do plano cognitivo")
     specialist_type: str = Field(
         ..., description="Tipo do especialista (business, technical, etc.)"
@@ -41,9 +37,7 @@ class ExplainabilityRecordSchema(BaseModel):
 
     # Model metadata
     model_version: str = Field(..., description="Versão do modelo MLflow")
-    model_type: str = Field(
-        ..., description="Tipo do modelo (RandomForest, XGBoost, etc.)"
-    )
+    model_type: str = Field(..., description="Tipo do modelo (RandomForest, XGBoost, etc.)")
 
     # Importance vectors (suporta ambos feature_importances e importance_vectors)
     feature_importances: List[Dict[str, Any]] = Field(
@@ -51,28 +45,20 @@ class ExplainabilityRecordSchema(BaseModel):
     )
 
     # Narrativa legível
-    human_readable_summary: str = Field(
-        ..., description="Resumo executivo em português"
-    )
-    detailed_narrative: str = Field(
-        ..., description="Narrativa completa com top features"
-    )
+    human_readable_summary: str = Field(..., description="Resumo executivo em português")
+    detailed_narrative: str = Field(..., description="Narrativa completa com top features")
 
     # Metadata adicional
     prediction: Dict[str, float] = Field(
         ..., description="Predição do modelo (confidence_score, risk_score)"
     )
-    computation_time_ms: int = Field(
-        ..., description="Tempo de computação da explicação"
-    )
+    computation_time_ms: int = Field(..., description="Tempo de computação da explicação")
 
     # Reprodutibilidade
     background_dataset_hash: Optional[str] = Field(
         None, description="Hash SHA-256 do background dataset (SHAP)"
     )
-    random_seed: Optional[int] = Field(
-        None, description="Seed para reprodutibilidade (LIME)"
-    )
+    random_seed: Optional[int] = Field(None, description="Seed para reprodutibilidade (LIME)")
     num_samples: Optional[int] = Field(None, description="Número de amostras (LIME)")
 
     # Timestamps
@@ -119,9 +105,7 @@ class ExplainabilityLedgerV2:
     def mongo_client(self) -> MongoClient:
         """Lazy initialization do cliente MongoDB."""
         if self._mongo_client is None:
-            self._mongo_client = MongoClient(
-                self.config.mongodb_uri, serverSelectionTimeoutMS=5000
-            )
+            self._mongo_client = MongoClient(self.config.mongodb_uri, serverSelectionTimeoutMS=5000)
         return self._mongo_client
 
     def _ensure_indexes(self):
@@ -146,9 +130,7 @@ class ExplainabilityLedgerV2:
             logger.info("Explainability ledger v2 indexes created")
 
         except Exception as e:
-            logger.warning(
-                "Failed to create indexes for explainability ledger v2", error=str(e)
-            )
+            logger.warning("Failed to create indexes for explainability ledger v2", error=str(e))
 
     def persist(
         self,
@@ -186,9 +168,7 @@ class ExplainabilityLedgerV2:
                 detailed_narrative=explainability_data["detailed_narrative"],
                 prediction=explainability_data["prediction"],
                 computation_time_ms=explainability_data["computation_time_ms"],
-                background_dataset_hash=explainability_data.get(
-                    "background_dataset_hash"
-                ),
+                background_dataset_hash=explainability_data.get("background_dataset_hash"),
                 random_seed=explainability_data.get("random_seed"),
                 num_samples=explainability_data.get("num_samples"),
                 correlation_id=correlation_id,
@@ -209,9 +189,7 @@ class ExplainabilityLedgerV2:
             return token
 
         except Exception as e:
-            logger.error(
-                "Failed to persist explainability record", error=str(e), exc_info=True
-            )
+            logger.error("Failed to persist explainability record", error=str(e), exc_info=True)
             raise
 
     def _generate_token(self, explainability_data: Dict[str, Any]) -> str:
@@ -263,9 +241,7 @@ class ExplainabilityLedgerV2:
             return None
 
         except Exception as e:
-            logger.error(
-                "Failed to retrieve explainability record", token=token, error=str(e)
-            )
+            logger.error("Failed to retrieve explainability record", token=token, error=str(e))
             return None
 
     def query_by_plan(self, plan_id: str) -> List[Dict[str, Any]]:
@@ -292,14 +268,10 @@ class ExplainabilityLedgerV2:
             return documents
 
         except Exception as e:
-            logger.error(
-                "Failed to query explanations by plan", plan_id=plan_id, error=str(e)
-            )
+            logger.error("Failed to query explanations by plan", plan_id=plan_id, error=str(e))
             return []
 
-    def query_by_specialist(
-        self, specialist_type: str, limit: int = 100
-    ) -> List[Dict[str, Any]]:
+    def query_by_specialist(self, specialist_type: str, limit: int = 100) -> List[Dict[str, Any]]:
         """
         Recupera explicações por tipo de especialista.
 

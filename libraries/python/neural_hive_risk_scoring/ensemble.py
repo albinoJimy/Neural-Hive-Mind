@@ -21,12 +21,13 @@ logger = structlog.get_logger(__name__)
 
 class EnsembleMethod(str, Enum):
     """Métodos de ensemble."""
-    MAJORITY_VOTE = 'majority_vote'  # Votação por majority
-    WEIGHTED_AVERAGE = 'weighted_average'  # Média ponderada
-    STACKING = 'stacking'  # Stacking com meta-modelo
-    BORDA_COUNT = 'borda_count'  # Contagem Borda
-    BUCKET_VOTE = 'bucket_vote'  # Votação por buckets
-    CONFIDENCE_WEIGHTED = 'confidence_weighted'  # Ponderado por confiança
+
+    MAJORITY_VOTE = "majority_vote"  # Votação por majority
+    WEIGHTED_AVERAGE = "weighted_average"  # Média ponderada
+    STACKING = "stacking"  # Stacking com meta-modelo
+    BORDA_COUNT = "borda_count"  # Contagem Borda
+    BUCKET_VOTE = "bucket_vote"  # Votação por buckets
+    CONFIDENCE_WEIGHTED = "confidence_weighted"  # Ponderado por confiança
 
 
 class RiskModel:
@@ -38,7 +39,7 @@ class RiskModel:
         assessor: Callable,
         weight: float = 1.0,
         domains: Optional[List[UnifiedDomain]] = None,
-        metadata: Optional[Dict] = None
+        metadata: Optional[Dict] = None,
     ):
         """Inicializa modelo.
 
@@ -59,11 +60,7 @@ class RiskModel:
         self._accuracy_history: List[float] = []
         self._call_count = 0
 
-    def assess(
-        self,
-        entity: Dict[str, Any],
-        domain: UnifiedDomain
-    ) -> Optional[RiskAssessment]:
+    def assess(self, entity: Dict[str, Any], domain: UnifiedDomain) -> Optional[RiskAssessment]:
         """Executa avaliação.
 
         Args:
@@ -82,10 +79,7 @@ class RiskModel:
             return result
         except Exception as e:
             logger.error(
-                "model_assessment_failed",
-                model=self.name,
-                domain=domain.value,
-                error=str(e)
+                "model_assessment_failed", model=self.name, domain=domain.value, error=str(e)
             )
             return None
 
@@ -106,6 +100,7 @@ class RiskModel:
 @dataclass
 class EnsembleResult:
     """Resultado do ensemble."""
+
     entity_id: str
     domain: UnifiedDomain
     final_score: float
@@ -121,20 +116,20 @@ class EnsembleResult:
     def to_dict(self) -> Dict:
         """Converte para dicionário."""
         return {
-            'entity_id': self.entity_id,
-            'domain': self.domain.value,
-            'final_score': self.final_score,
-            'final_band': self.final_band.value,
-            'method': self.method.value,
-            'model_count': self.model_count,
-            'model_votes': {
-                name: {'score': score, 'band': band.value}
+            "entity_id": self.entity_id,
+            "domain": self.domain.value,
+            "final_score": self.final_score,
+            "final_band": self.final_band.value,
+            "method": self.method.value,
+            "model_count": self.model_count,
+            "model_votes": {
+                name: {"score": score, "band": band.value}
                 for name, (score, band) in self.model_votes.items()
             },
-            'confidence': self.confidence,
-            'consensus_level': self.consensus_level,
-            'timestamp': self.timestamp.isoformat(),
-            'metadata': self.metadata
+            "confidence": self.confidence,
+            "consensus_level": self.consensus_level,
+            "timestamp": self.timestamp.isoformat(),
+            "metadata": self.metadata,
         }
 
 
@@ -146,7 +141,7 @@ class RiskEnsemble:
         method: EnsembleMethod = EnsembleMethod.WEIGHTED_AVERAGE,
         config: Optional[RiskScoringConfig] = None,
         min_models: int = 2,
-        fallback_to_default: bool = True
+        fallback_to_default: bool = True,
     ):
         """Inicializa ensemble.
 
@@ -182,10 +177,7 @@ class RiskEnsemble:
         logger.info("model_removed_from_ensemble", model_name=model_name)
 
     def assess(
-        self,
-        entity: Dict[str, Any],
-        domain: UnifiedDomain,
-        entity_id: str
+        self, entity: Dict[str, Any], domain: UnifiedDomain, entity_id: str
     ) -> EnsembleResult:
         """Avalia usando ensemble de modelos.
 
@@ -211,7 +203,7 @@ class RiskEnsemble:
                 logger.warning(
                     "insufficient_models_falling_back",
                     available=len(model_votes),
-                    required=self.min_models
+                    required=self.min_models,
                 )
                 return self._fallback_result(entity_id, domain, model_votes)
             else:
@@ -246,7 +238,7 @@ class RiskEnsemble:
             model_count=len(model_votes),
             model_votes=model_votes,
             confidence=confidence,
-            consensus_level=consensus
+            consensus_level=consensus,
         )
 
         logger.info(
@@ -256,14 +248,13 @@ class RiskEnsemble:
             final_score=final_score,
             final_band=final_band.value,
             model_count=len(model_votes),
-            consensus=consensus
+            consensus=consensus,
         )
 
         return result
 
     def _majority_vote(
-        self,
-        model_votes: Dict[str, Tuple[float, RiskBand]]
+        self, model_votes: Dict[str, Tuple[float, RiskBand]]
     ) -> Tuple[float, RiskBand]:
         """Votação por maioria (band)."""
         # Contar votos por band
@@ -275,17 +266,13 @@ class RiskEnsemble:
         winning_band = max(band_counts.items(), key=lambda x: x[1])[0]
 
         # Média dos scores dos modelos que votaram na banda vencedora
-        winning_scores = [
-            score for score, band in model_votes.values()
-            if band == winning_band
-        ]
+        winning_scores = [score for score, band in model_votes.values() if band == winning_band]
         final_score = mean(winning_scores) if winning_scores else 0.5
 
         return final_score, winning_band
 
     def _weighted_average(
-        self,
-        model_votes: Dict[str, Tuple[float, RiskBand]]
+        self, model_votes: Dict[str, Tuple[float, RiskBand]]
     ) -> Tuple[float, RiskBand]:
         """Média ponderada dos scores."""
         # Buscar pesos dos modelos
@@ -306,11 +293,11 @@ class RiskEnsemble:
         # Classificar band
         if self.config:
             thresholds = self.config.get_thresholds(list(model_votes.values())[0][1])
-            if final_score >= thresholds['critical']:
+            if final_score >= thresholds["critical"]:
                 final_band = RiskBand.CRITICAL
-            elif final_score >= thresholds['high']:
+            elif final_score >= thresholds["high"]:
                 final_band = RiskBand.HIGH
-            elif final_score >= thresholds['medium']:
+            elif final_score >= thresholds["medium"]:
                 final_band = RiskBand.MEDIUM
             else:
                 final_band = RiskBand.LOW
@@ -331,7 +318,7 @@ class RiskEnsemble:
         self,
         model_votes: Dict[str, Tuple[float, RiskBand]],
         entity: Dict[str, Any],
-        domain: UnifiedDomain
+        domain: UnifiedDomain,
     ) -> Tuple[float, RiskBand]:
         """Stacking: usa meta-modelo simples para combinar."""
         # Meta-modelo simples: média ponderada por acurácia histórica
@@ -354,11 +341,11 @@ class RiskEnsemble:
         # Classificar band
         if self.config:
             thresholds = self.config.get_thresholds(domain)
-            if final_score >= thresholds['critical']:
+            if final_score >= thresholds["critical"]:
                 final_band = RiskBand.CRITICAL
-            elif final_score >= thresholds['high']:
+            elif final_score >= thresholds["high"]:
                 final_band = RiskBand.HIGH
-            elif final_score >= thresholds['medium']:
+            elif final_score >= thresholds["medium"]:
                 final_band = RiskBand.MEDIUM
             else:
                 final_band = RiskBand.LOW
@@ -375,8 +362,7 @@ class RiskEnsemble:
         return final_score, final_band
 
     def _borda_count(
-        self,
-        model_votes: Dict[str, Tuple[float, RiskBand]]
+        self, model_votes: Dict[str, Tuple[float, RiskBand]]
     ) -> Tuple[float, RiskBand]:
         """Contagem Borda: cada modelo dá pontos para cada band."""
         # Ordem de bands (do menor para o maior risco)
@@ -401,8 +387,7 @@ class RiskEnsemble:
         return final_score, winning_band
 
     def _bucket_vote(
-        self,
-        model_votes: Dict[str, Tuple[float, RiskBand]]
+        self, model_votes: Dict[str, Tuple[float, RiskBand]]
     ) -> Tuple[float, RiskBand]:
         """Votação por buckets de score."""
         # Criar buckets de score
@@ -410,7 +395,7 @@ class RiskEnsemble:
             RiskBand.LOW: (0.0, 0.4),
             RiskBand.MEDIUM: (0.4, 0.65),
             RiskBand.HIGH: (0.65, 0.85),
-            RiskBand.CRITICAL: (0.85, 1.0)
+            RiskBand.CRITICAL: (0.85, 1.0),
         }
 
         # Contar votos em buckets
@@ -434,8 +419,7 @@ class RiskEnsemble:
         return final_score, winning_band
 
     def _confidence_weighted(
-        self,
-        model_votes: Dict[str, Tuple[float, RiskBand]]
+        self, model_votes: Dict[str, Tuple[float, RiskBand]]
     ) -> Tuple[float, RiskBand]:
         """Ponderação por confiança (baseado em variância)."""
         # Usar mediana como baseline
@@ -463,11 +447,11 @@ class RiskEnsemble:
         # Classificar band
         if self.config:
             thresholds = self.config.get_thresholds(list(model_votes.values())[0][1])
-            if final_score >= thresholds['critical']:
+            if final_score >= thresholds["critical"]:
                 final_band = RiskBand.CRITICAL
-            elif final_score >= thresholds['high']:
+            elif final_score >= thresholds["high"]:
                 final_band = RiskBand.HIGH
-            elif final_score >= thresholds['medium']:
+            elif final_score >= thresholds["medium"]:
                 final_band = RiskBand.MEDIUM
             else:
                 final_band = RiskBand.LOW
@@ -484,9 +468,7 @@ class RiskEnsemble:
         return final_score, final_band
 
     def _calculate_confidence(
-        self,
-        model_votes: Dict[str, Tuple[float, RiskBand]],
-        final_score: float
+        self, model_votes: Dict[str, Tuple[float, RiskBand]], final_score: float
     ) -> float:
         """Calcula confiança do ensemble (inverso da variância)."""
         scores = [score for score, _ in model_votes.values()]
@@ -503,10 +485,7 @@ class RiskEnsemble:
 
         return confidence
 
-    def _calculate_consensus(
-        self,
-        model_votes: Dict[str, Tuple[float, RiskBand]]
-    ) -> float:
+    def _calculate_consensus(self, model_votes: Dict[str, Tuple[float, RiskBand]]) -> float:
         """Calcula nível de consenso entre modelos.
 
         Returns:
@@ -539,10 +518,7 @@ class RiskEnsemble:
         return max(0.0, min(1.0, consensus))
 
     def _fallback_result(
-        self,
-        entity_id: str,
-        domain: UnifiedDomain,
-        model_votes: Dict[str, Tuple[float, RiskBand]]
+        self, entity_id: str, domain: UnifiedDomain, model_votes: Dict[str, Tuple[float, RiskBand]]
     ) -> EnsembleResult:
         """Resultado de fallback quando modelos insuficientes."""
         if model_votes:
@@ -565,7 +541,7 @@ class RiskEnsemble:
             model_votes=model_votes,
             confidence=0.0,
             consensus_level=0.0,
-            metadata={'fallback': True}
+            metadata={"fallback": True},
         )
 
     def get_model_stats(self) -> List[Dict]:
@@ -573,14 +549,16 @@ class RiskEnsemble:
         stats = []
 
         for model in self._models:
-            stats.append({
-                'name': model.name,
-                'weight': model.weight,
-                'domains': [d.value for d in model.domains],
-                'call_count': model._call_count,
-                'accuracy': model.get_accuracy(),
-                'metadata': model.metadata
-            })
+            stats.append(
+                {
+                    "name": model.name,
+                    "weight": model.weight,
+                    "domains": [d.value for d in model.domains],
+                    "call_count": model._call_count,
+                    "accuracy": model.get_accuracy(),
+                    "metadata": model.metadata,
+                }
+            )
 
         return stats
 

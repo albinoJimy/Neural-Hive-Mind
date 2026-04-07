@@ -172,9 +172,7 @@ class TestEncryptField:
 
     def test_encrypt_field_handles_error(self, encryptor):
         """Testa que erro na criptografia retorna valor original."""
-        with patch.object(
-            encryptor.cipher, "encrypt", side_effect=Exception("Crypto error")
-        ):
+        with patch.object(encryptor.cipher, "encrypt", side_effect=Exception("Crypto error")):
             value = "test"
             encrypted = encryptor.encrypt_field(value)
 
@@ -241,9 +239,7 @@ class TestDecryptField:
 
     def test_decrypt_field_handles_error(self, encryptor):
         """Testa que erro na descriptografia retorna valor sem prefixo."""
-        with patch.object(
-            encryptor.cipher, "decrypt", side_effect=Exception("Decrypt error")
-        ):
+        with patch.object(encryptor.cipher, "decrypt", side_effect=Exception("Decrypt error")):
             encrypted = "enc:some_encrypted_data"
             decrypted = encryptor.decrypt_field(encrypted)
 
@@ -330,9 +326,7 @@ class TestEncryptDict:
             "other": "unchanged",
         }
 
-        encrypted_data = encryptor.encrypt_dict(
-            data, fields_to_encrypt=["custom_field_1"]
-        )
+        encrypted_data = encryptor.encrypt_dict(data, fields_to_encrypt=["custom_field_1"])
 
         assert encrypted_data["custom_field_1"].startswith("enc:")
         assert encrypted_data["custom_field_2"] == "value2"
@@ -406,12 +400,8 @@ class TestDecryptDict:
         """Testa descriptografia de campos customizados."""
         data = {"custom_field": "value"}
 
-        encrypted_data = encryptor.encrypt_dict(
-            data, fields_to_encrypt=["custom_field"]
-        )
-        decrypted_data = encryptor.decrypt_dict(
-            encrypted_data, fields_to_decrypt=["custom_field"]
-        )
+        encrypted_data = encryptor.encrypt_dict(data, fields_to_encrypt=["custom_field"])
+        decrypted_data = encryptor.decrypt_dict(encrypted_data, fields_to_decrypt=["custom_field"])
 
         assert decrypted_data["custom_field"] == "value"
 

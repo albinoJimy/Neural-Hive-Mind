@@ -53,16 +53,12 @@ class ComplianceLayer:
 
         # Inicializar componentes
         try:
-            self.pii_detector = (
-                PIIDetector(config) if config.enable_pii_detection else None
-            )
+            self.pii_detector = PIIDetector(config) if config.enable_pii_detection else None
             self.field_encryptor = (
                 FieldEncryptor(config) if config.enable_field_encryption else None
             )
             self.audit_logger = (
-                AuditLogger(config, specialist_type)
-                if config.enable_audit_logging
-                else None
+                AuditLogger(config, specialist_type) if config.enable_audit_logging else None
             )
 
             logger.info(
@@ -145,9 +141,7 @@ class ComplianceLayer:
                                 (
                                     anonymized_text,
                                     entities,
-                                ) = self.pii_detector.anonymize_text(
-                                    param_value, language
-                                )
+                                ) = self.pii_detector.anonymize_text(param_value, language)
 
                                 if entities:
                                     task["parameters"][param_key] = anonymized_text
@@ -157,9 +151,7 @@ class ComplianceLayer:
                                     all_entities.extend(entities)
 
             # Varrer metadata
-            if "metadata" in sanitized_plan and isinstance(
-                sanitized_plan["metadata"], dict
-            ):
+            if "metadata" in sanitized_plan and isinstance(sanitized_plan["metadata"], dict):
                 for meta_key, meta_value in sanitized_plan["metadata"].items():
                     if isinstance(meta_value, str) and meta_value:
                         field_name = f"metadata.{meta_key}"
@@ -193,9 +185,7 @@ class ComplianceLayer:
                         )
 
                 if hasattr(self.metrics, "increment_pii_anonymization"):
-                    self.metrics.increment_pii_anonymization(
-                        self.config.pii_anonymization_strategy
-                    )
+                    self.metrics.increment_pii_anonymization(self.config.pii_anonymization_strategy)
 
             if hasattr(self.metrics, "observe_pii_detection_duration"):
                 self.metrics.observe_pii_detection_duration(duration)
@@ -327,15 +317,11 @@ class ComplianceLayer:
             start_time = time.time()
 
             # Obter campos criptografados dos metadados
-            fields_to_decrypt = opinion_doc.get("_compliance", {}).get(
-                "encrypted_fields"
-            )
+            fields_to_decrypt = opinion_doc.get("_compliance", {}).get("encrypted_fields")
             if not fields_to_decrypt:
                 fields_to_decrypt = self.config.fields_to_encrypt
 
-            decrypted_doc = self.field_encryptor.decrypt_dict(
-                opinion_doc, fields_to_decrypt
-            )
+            decrypted_doc = self.field_encryptor.decrypt_dict(opinion_doc, fields_to_decrypt)
 
             duration = time.time() - start_time
 

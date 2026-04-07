@@ -36,9 +36,7 @@ class TestOpinionCacheInitialization:
         with patch("neural_hive_specialists.opinion_cache.RedisCluster") as mock_redis:
             mock_redis.side_effect = RedisConnectionError("Connection failed")
 
-            cache = OpinionCache(
-                redis_cluster_nodes="localhost:6379", specialist_type="technical"
-            )
+            cache = OpinionCache(redis_cluster_nodes="localhost:6379", specialist_type="technical")
 
             assert cache.is_connected() is False
             assert cache.redis_client is None
@@ -204,9 +202,7 @@ class TestCacheInvalidation:
     def cache(self):
         with patch("neural_hive_specialists.opinion_cache.RedisCluster") as mock_redis:
             mock_redis.return_value.ping.return_value = True
-            cache = OpinionCache(
-                redis_cluster_nodes="localhost:6379", specialist_type="technical"
-            )
+            cache = OpinionCache(redis_cluster_nodes="localhost:6379", specialist_type="technical")
             cache.redis_client = mock_redis.return_value
             cache._connected = True
             return cache
@@ -245,9 +241,7 @@ class TestConnectionManagement:
         with patch("neural_hive_specialists.opinion_cache.RedisCluster") as mock_redis:
             mock_redis.return_value.ping.return_value = True
 
-            cache = OpinionCache(
-                redis_cluster_nodes="localhost:6379", specialist_type="technical"
-            )
+            cache = OpinionCache(redis_cluster_nodes="localhost:6379", specialist_type="technical")
 
             assert cache.is_connected() is True
 
@@ -257,9 +251,7 @@ class TestConnectionManagement:
             # side_effect: init(True), is_connected #1(True), is_connected #2(exceção)
             mock_redis.return_value.ping.side_effect = [True, True, RedisError("Ping failed")]
 
-            cache = OpinionCache(
-                redis_cluster_nodes="localhost:6379", specialist_type="technical"
-            )
+            cache = OpinionCache(redis_cluster_nodes="localhost:6379", specialist_type="technical")
 
             assert cache.is_connected() is True  # Primeira vez
             assert cache.is_connected() is False  # Segunda vez (ping falha)
@@ -269,9 +261,7 @@ class TestConnectionManagement:
         with patch("neural_hive_specialists.opinion_cache.RedisCluster") as mock_redis:
             mock_redis.return_value.ping.return_value = True
 
-            cache = OpinionCache(
-                redis_cluster_nodes="localhost:6379", specialist_type="technical"
-            )
+            cache = OpinionCache(redis_cluster_nodes="localhost:6379", specialist_type="technical")
 
             cache.close()
 
@@ -283,23 +273,19 @@ class TestConnectionManagement:
 # Testes Adicionais para Cobertura
 # =============================================================================
 
+
 class TestGenerateCacheKey:
     """Testes de geração de chave de cache."""
 
     def test_generate_cache_key_basic(self):
         """Testa geração básica de chave."""
         with patch("neural_hive_specialists.opinion_cache.RedisCluster"):
-            cache = OpinionCache(
-                redis_cluster_nodes="localhost:6379",
-                specialist_type="business"
-            )
+            cache = OpinionCache(redis_cluster_nodes="localhost:6379", specialist_type="business")
 
             plan_bytes = b"test plan content"
 
             key = cache.generate_cache_key(
-                plan_bytes=plan_bytes,
-                specialist_type="business",
-                specialist_version="v1.0"
+                plan_bytes=plan_bytes, specialist_type="business", specialist_version="v1.0"
             )
 
             assert key.startswith("opinion:")
@@ -308,10 +294,7 @@ class TestGenerateCacheKey:
     def test_generate_cache_key_with_tenant(self):
         """Testa geração de chave com tenant."""
         with patch("neural_hive_specialists.opinion_cache.RedisCluster"):
-            cache = OpinionCache(
-                redis_cluster_nodes="localhost:6379",
-                specialist_type="technical"
-            )
+            cache = OpinionCache(redis_cluster_nodes="localhost:6379", specialist_type="technical")
 
             plan_bytes = b"test plan content"
 
@@ -319,7 +302,7 @@ class TestGenerateCacheKey:
                 plan_bytes=plan_bytes,
                 specialist_type="technical",
                 specialist_version="v2.0",
-                tenant_id="tenant-123"
+                tenant_id="tenant-123",
             )
 
             assert "tenant-123" in key
@@ -327,23 +310,16 @@ class TestGenerateCacheKey:
     def test_generate_cache_key_deterministic(self):
         """Testa que mesma entrada gera mesma chave."""
         with patch("neural_hive_specialists.opinion_cache.RedisCluster"):
-            cache = OpinionCache(
-                redis_cluster_nodes="localhost:6379",
-                specialist_type="business"
-            )
+            cache = OpinionCache(redis_cluster_nodes="localhost:6379", specialist_type="business")
 
             plan_bytes = b"test plan content"
 
             key1 = cache.generate_cache_key(
-                plan_bytes=plan_bytes,
-                specialist_type="business",
-                specialist_version="v1.0"
+                plan_bytes=plan_bytes, specialist_type="business", specialist_version="v1.0"
             )
 
             key2 = cache.generate_cache_key(
-                plan_bytes=plan_bytes,
-                specialist_type="business",
-                specialist_version="v1.0"
+                plan_bytes=plan_bytes, specialist_type="business", specialist_version="v1.0"
             )
 
             assert key1 == key2
@@ -351,21 +327,14 @@ class TestGenerateCacheKey:
     def test_generate_cache_key_different_content(self):
         """Testa que conteúdo diferente gera chave diferente."""
         with patch("neural_hive_specialists.opinion_cache.RedisCluster"):
-            cache = OpinionCache(
-                redis_cluster_nodes="localhost:6379",
-                specialist_type="business"
-            )
+            cache = OpinionCache(redis_cluster_nodes="localhost:6379", specialist_type="business")
 
             key1 = cache.generate_cache_key(
-                plan_bytes=b"content 1",
-                specialist_type="business",
-                specialist_version="v1.0"
+                plan_bytes=b"content 1", specialist_type="business", specialist_version="v1.0"
             )
 
             key2 = cache.generate_cache_key(
-                plan_bytes=b"content 2",
-                specialist_type="business",
-                specialist_version="v1.0"
+                plan_bytes=b"content 2", specialist_type="business", specialist_version="v1.0"
             )
 
             assert key1 != key2
@@ -381,10 +350,7 @@ class TestGetOpinion:
             mock_client.get = Mock(return_value='{"opinion": "approve"}')
             mock_redis.return_value = mock_client
 
-            cache = OpinionCache(
-                redis_cluster_nodes="localhost:6379",
-                specialist_type="business"
-            )
+            cache = OpinionCache(redis_cluster_nodes="localhost:6379", specialist_type="business")
 
             result = cache.get_cached_opinion("test:key")
 
@@ -397,10 +363,7 @@ class TestGetOpinion:
             mock_client.get = Mock(return_value=None)
             mock_redis.return_value = mock_client
 
-            cache = OpinionCache(
-                redis_cluster_nodes="localhost:6379",
-                specialist_type="business"
-            )
+            cache = OpinionCache(redis_cluster_nodes="localhost:6379", specialist_type="business")
 
             result = cache.get_cached_opinion("test:key")
 
@@ -413,10 +376,7 @@ class TestGetOpinion:
             mock_client.get = Mock(return_value="invalid json")
             mock_redis.return_value = mock_client
 
-            cache = OpinionCache(
-                redis_cluster_nodes="localhost:6379",
-                specialist_type="business"
-            )
+            cache = OpinionCache(redis_cluster_nodes="localhost:6379", specialist_type="business")
 
             result = cache.get_cached_opinion("test:key")
 
@@ -433,10 +393,7 @@ class TestSetOpinion:
             mock_client.setex = Mock()
             mock_redis.return_value = mock_client
 
-            cache = OpinionCache(
-                redis_cluster_nodes="localhost:6379",
-                specialist_type="business"
-            )
+            cache = OpinionCache(redis_cluster_nodes="localhost:6379", specialist_type="business")
 
             cache.set_cached_opinion("test:key", {"opinion": "approve"})
 
@@ -449,10 +406,7 @@ class TestSetOpinion:
             mock_client.setex = Mock()
             mock_redis.return_value = mock_client
 
-            cache = OpinionCache(
-                redis_cluster_nodes="localhost:6379",
-                specialist_type="business"
-            )
+            cache = OpinionCache(redis_cluster_nodes="localhost:6379", specialist_type="business")
 
             cache.set_cached_opinion("test:key", {"opinion": "approve", "confidence": 0.8})
 
@@ -471,10 +425,7 @@ class TestInvalidateOpinion:
             mock_client.delete = Mock(return_value=1)
             mock_redis.return_value = mock_client
 
-            cache = OpinionCache(
-                redis_cluster_nodes="localhost:6379",
-                specialist_type="business"
-            )
+            cache = OpinionCache(redis_cluster_nodes="localhost:6379", specialist_type="business")
 
             result = cache.invalidate_cache("test:key")
 
@@ -487,10 +438,7 @@ class TestInvalidateOpinion:
             mock_client.delete = Mock(return_value=0)
             mock_redis.return_value = mock_client
 
-            cache = OpinionCache(
-                redis_cluster_nodes="localhost:6379",
-                specialist_type="business"
-            )
+            cache = OpinionCache(redis_cluster_nodes="localhost:6379", specialist_type="business")
 
             result = cache.invalidate_cache("test:key")
 

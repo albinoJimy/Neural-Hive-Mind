@@ -19,9 +19,10 @@ try:
         DeregisterRequest,
         DeregisterResponse,
         GetStatusRequest,
-        GetStatusResponse
+        GetStatusResponse,
     )
     from proto.agent_service_pb2_grpc import AgentServiceStub
+
     PROTO_AVAILABLE = True
 except ImportError:
     # Fallback para desenvolvimento se proto não foi gerado
@@ -40,6 +41,7 @@ logger = structlog.get_logger()
 # Mapeamento entre AgentType Enum e Proto
 class AgentType(str, Enum):
     """Tipos de agentes"""
+
     WORKER = "WORKER"
     SCOUT = "SCOUT"
     GUARD = "GUARD"
@@ -66,7 +68,7 @@ class AgentTelemetry:
         success_rate: float = 0.0,
         avg_duration_ms: int = 0,
         total_executions: int = 0,
-        failed_executions: int = 0
+        failed_executions: int = 0,
     ):
         self.success_rate = success_rate
         self.avg_duration_ms = avg_duration_ms
@@ -79,11 +81,11 @@ class AgentTelemetry:
         if not PROTO_AVAILABLE:
             # Fallback dict para desenvolvimento
             return {
-                'success_rate': self.success_rate,
-                'avg_duration_ms': self.avg_duration_ms,
-                'total_executions': self.total_executions,
-                'failed_executions': self.failed_executions,
-                'last_execution_at': self.last_execution_at
+                "success_rate": self.success_rate,
+                "avg_duration_ms": self.avg_duration_ms,
+                "total_executions": self.total_executions,
+                "failed_executions": self.failed_executions,
+                "last_execution_at": self.last_execution_at,
             }
 
         # Criar mensagem protobuf real
@@ -92,7 +94,7 @@ class AgentTelemetry:
             avg_duration_ms=self.avg_duration_ms,
             total_executions=self.total_executions,
             failed_executions=self.failed_executions,
-            last_execution_at=self.last_execution_at
+            last_execution_at=self.last_execution_at,
         )
 
 
@@ -124,40 +126,32 @@ class AgentClient:
                 channel = grpc.aio.insecure_channel(
                     self.config.REGISTRY_GRPC_ENDPOINT,
                     options=[
-                        ('grpc.max_send_message_length', 50 * 1024 * 1024),
-                        ('grpc.max_receive_message_length', 50 * 1024 * 1024),
-                    ]
+                        ("grpc.max_send_message_length", 50 * 1024 * 1024),
+                        ("grpc.max_receive_message_length", 50 * 1024 * 1024),
+                    ],
                 )
 
                 # Testar conexão
                 await asyncio.wait_for(
-                    channel.channel_ready(),
-                    timeout=self.config.GRPC_TIMEOUT_SECONDS
+                    channel.channel_ready(), timeout=self.config.GRPC_TIMEOUT_SECONDS
                 )
 
-                logger.info(
-                    "grpc_channel_created",
-                    endpoint=self.config.REGISTRY_GRPC_ENDPOINT
-                )
+                logger.info("grpc_channel_created", endpoint=self.config.REGISTRY_GRPC_ENDPOINT)
                 return channel
 
             except Exception as e:
-                logger.warning(
-                    "grpc_channel_creation_failed",
-                    attempt=attempt + 1,
-                    error=str(e)
-                )
+                logger.warning("grpc_channel_creation_failed", attempt=attempt + 1, error=str(e))
 
                 if attempt == self.config.GRPC_MAX_RETRIES - 1:
                     raise
 
-                await asyncio.sleep(2 ** attempt)  # Backoff exponencial
+                await asyncio.sleep(2**attempt)  # Backoff exponencial
 
     async def register(
         self,
         agent_type: AgentType,
         capabilities: List[str],
-        metadata: Optional[Dict[str, str]] = None
+        metadata: Optional[Dict[str, str]] = None,
     ) -> str:
         """
         Registra o agente no Service Registry.
@@ -185,11 +179,13 @@ class AgentClient:
             if metadata is None:
                 metadata = {}
 
-            metadata.update({
-                'namespace': self.config.AGENT_NAMESPACE,
-                'cluster': self.config.AGENT_CLUSTER,
-                'version': self.config.AGENT_VERSION
-            })
+            metadata.update(
+                {
+                    "namespace": self.config.AGENT_NAMESPACE,
+                    "cluster": self.config.AGENT_CLUSTER,
+                    "version": self.config.AGENT_VERSION,
+                }
+            )
 
             # F3: Usar proto real se disponível
             if PROTO_AVAILABLE and self.stub:
@@ -200,13 +196,12 @@ class AgentClient:
                     namespace=self.config.AGENT_NAMESPACE,
                     cluster=self.config.AGENT_CLUSTER,
                     version=self.config.AGENT_VERSION,
-                    telemetry=self.telemetry.to_proto()
+                    telemetry=self.telemetry.to_proto(),
                 )
 
                 # Chamar RPC Register
                 response = await self.stub.Register(
-                    request,
-                    timeout=self.config.GRPC_TIMEOUT_SECONDS
+                    request, timeout=self.config.GRPC_TIMEOUT_SECONDS
                 )
 
                 self.agent_id = response.agent_id
@@ -216,11 +211,12 @@ class AgentClient:
                     "agent_registered_grpc",
                     agent_id=self.agent_id,
                     agent_type=agent_type.value,
-                    capabilities=capabilities
+                    capabilities=capabilities,
                 )
             else:
                 # Fallback mock para desenvolvimento
                 import uuid
+
                 self.agent_id = str(uuid.uuid4())
                 self.registration_token = f"token-{self.agent_id}"
 
@@ -228,7 +224,7 @@ class AgentClient:
                     "agent_registered_mock",
                     agent_id=self.agent_id,
                     agent_type=agent_type.value,
-                    capabilities=capabilities
+                    capabilities=capabilities,
                 )
 
             # Iniciar heartbeat automático
@@ -238,7 +234,7 @@ class AgentClient:
                 "agent_registered",
                 agent_id=self.agent_id,
                 agent_type=agent_type.value,
-                capabilities=capabilities
+                capabilities=capabilities,
             )
 
             return self.agent_id
@@ -256,10 +252,7 @@ class AgentClient:
         self._running = True
         self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
 
-        logger.info(
-            "heartbeat_started",
-            interval_seconds=self.config.HEARTBEAT_INTERVAL_SECONDS
-        )
+        logger.info("heartbeat_started", interval_seconds=self.config.HEARTBEAT_INTERVAL_SECONDS)
 
     async def _heartbeat_loop(self):
         """Loop de heartbeat"""
@@ -283,26 +276,24 @@ class AgentClient:
         try:
             if PROTO_AVAILABLE and HeartbeatRequest:
                 request = HeartbeatRequest(
-                    agent_id=self.agent_id,
-                    telemetry=self.telemetry.to_proto()
+                    agent_id=self.agent_id, telemetry=self.telemetry.to_proto()
                 )
 
                 response = await self.stub.Heartbeat(
-                    request,
-                    timeout=self.config.GRPC_TIMEOUT_SECONDS
+                    request, timeout=self.config.GRPC_TIMEOUT_SECONDS
                 )
 
                 logger.debug(
                     "heartbeat_sent",
                     agent_id=self.agent_id,
                     status=response.status,
-                    telemetry=self.telemetry.to_proto()
+                    telemetry=self.telemetry.to_proto(),
                 )
             else:
                 logger.debug(
                     "heartbeat_sent_mock",
                     agent_id=self.agent_id,
-                    telemetry=self.telemetry.to_proto()
+                    telemetry=self.telemetry.to_proto(),
                 )
 
         except Exception as e:
@@ -315,7 +306,7 @@ class AgentClient:
         logger.debug(
             "telemetry_updated",
             success_rate=telemetry.success_rate,
-            total_executions=telemetry.total_executions
+            total_executions=telemetry.total_executions,
         )
 
     async def deregister(self):
@@ -340,14 +331,11 @@ class AgentClient:
                     request = DeregisterRequest(agent_id=self.agent_id)
 
                     response = await self.stub.Deregister(
-                        request,
-                        timeout=self.config.GRPC_TIMEOUT_SECONDS
+                        request, timeout=self.config.GRPC_TIMEOUT_SECONDS
                     )
 
                     logger.info(
-                        "agent_deregistered",
-                        agent_id=self.agent_id,
-                        success=response.success
+                        "agent_deregistered", agent_id=self.agent_id, success=response.success
                     )
                 else:
                     logger.info("agent_deregistered_mock", agent_id=self.agent_id)

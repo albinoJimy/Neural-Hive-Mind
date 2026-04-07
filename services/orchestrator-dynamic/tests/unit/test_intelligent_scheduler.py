@@ -76,17 +76,17 @@ def sample_ticket() -> Dict[str, Any]:
         "qos": {
             "delivery_mode": "AT_LEAST_ONCE",
             "consistency": "EVENTUAL",
-            "durability": "PERSISTENT"
+            "durability": "PERSISTENT",
         },
         "sla": {
             "deadline": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
-            "timeout_ms": 3600000
+            "timeout_ms": 3600000,
         },
         "required_capabilities": ["python", "data-processing"],
         "namespace": "default",
         "security_level": "standard",
         "estimated_duration_ms": 1000,
-        "created_at": datetime.now(timezone.utc).isoformat()
+        "created_at": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -100,11 +100,7 @@ def sample_workers() -> List[Dict[str, Any]]:
             "score": 0.85,
             "capabilities": ["python", "data-processing"],
             "status": "HEALTHY",
-            "telemetry": {
-                "success_rate": 0.95,
-                "avg_duration_ms": 800,
-                "total_executions": 100
-            }
+            "telemetry": {"success_rate": 0.95, "avg_duration_ms": 800, "total_executions": 100},
         },
         {
             "agent_id": "worker-002",
@@ -112,12 +108,8 @@ def sample_workers() -> List[Dict[str, Any]]:
             "score": 0.70,
             "capabilities": ["python", "data-processing"],
             "status": "HEALTHY",
-            "telemetry": {
-                "success_rate": 0.90,
-                "avg_duration_ms": 1200,
-                "total_executions": 50
-            }
-        }
+            "telemetry": {"success_rate": 0.90, "avg_duration_ms": 1200, "total_executions": 50},
+        },
     ]
 
 
@@ -126,8 +118,13 @@ class TestIntelligentScheduler:
 
     @pytest.mark.asyncio
     async def test_schedule_ticket_success_with_workers(
-        self, mock_config, mock_metrics, mock_priority_calculator,
-        mock_resource_allocator, sample_ticket, sample_workers
+        self,
+        mock_config,
+        mock_metrics,
+        mock_priority_calculator,
+        mock_resource_allocator,
+        sample_ticket,
+        sample_workers,
     ):
         """Testa alocação bem-sucedida com workers descobertos."""
         # Configurar mocks
@@ -140,7 +137,7 @@ class TestIntelligentScheduler:
             config=mock_config,
             metrics=mock_metrics,
             priority_calculator=mock_priority_calculator,
-            resource_allocator=mock_resource_allocator
+            resource_allocator=mock_resource_allocator,
         )
 
         # Executar
@@ -161,8 +158,12 @@ class TestIntelligentScheduler:
 
     @pytest.mark.asyncio
     async def test_schedule_ticket_no_workers_fallback(
-        self, mock_config, mock_metrics, mock_priority_calculator,
-        mock_resource_allocator, sample_ticket
+        self,
+        mock_config,
+        mock_metrics,
+        mock_priority_calculator,
+        mock_resource_allocator,
+        sample_ticket,
     ):
         """Testa fallback quando lista de workers está vazia."""
         # Configurar mocks
@@ -173,7 +174,7 @@ class TestIntelligentScheduler:
             config=mock_config,
             metrics=mock_metrics,
             priority_calculator=mock_priority_calculator,
-            resource_allocator=mock_resource_allocator
+            resource_allocator=mock_resource_allocator,
         )
 
         # Executar
@@ -186,8 +187,13 @@ class TestIntelligentScheduler:
 
     @pytest.mark.asyncio
     async def test_schedule_ticket_no_suitable_worker_fallback(
-        self, mock_config, mock_metrics, mock_priority_calculator,
-        mock_resource_allocator, sample_ticket, sample_workers
+        self,
+        mock_config,
+        mock_metrics,
+        mock_priority_calculator,
+        mock_resource_allocator,
+        sample_ticket,
+        sample_workers,
     ):
         """Testa fallback quando select_best_worker retorna None."""
         # Configurar mocks
@@ -199,7 +205,7 @@ class TestIntelligentScheduler:
             config=mock_config,
             metrics=mock_metrics,
             priority_calculator=mock_priority_calculator,
-            resource_allocator=mock_resource_allocator
+            resource_allocator=mock_resource_allocator,
         )
 
         # Executar
@@ -211,18 +217,19 @@ class TestIntelligentScheduler:
 
     @pytest.mark.asyncio
     async def test_schedule_ticket_with_ml_predictions_priority_boost(
-        self, mock_config, mock_metrics, mock_priority_calculator,
-        mock_resource_allocator, sample_ticket, sample_workers
+        self,
+        mock_config,
+        mock_metrics,
+        mock_priority_calculator,
+        mock_resource_allocator,
+        sample_ticket,
+        sample_workers,
     ):
         """Testa boost de prioridade com predições ML."""
         # Adicionar predições ao ticket
         sample_ticket["predictions"] = {
             "duration_ms": 1600,  # 160% do estimado
-            "anomaly": {
-                "is_anomaly": False,
-                "anomaly_score": 0.12,
-                "anomaly_type": None
-            }
+            "anomaly": {"is_anomaly": False, "anomaly_score": 0.12, "anomaly_type": None},
         }
 
         # Configurar mocks
@@ -235,7 +242,7 @@ class TestIntelligentScheduler:
             config=mock_config,
             metrics=mock_metrics,
             priority_calculator=mock_priority_calculator,
-            resource_allocator=mock_resource_allocator
+            resource_allocator=mock_resource_allocator,
         )
 
         # Executar
@@ -246,8 +253,13 @@ class TestIntelligentScheduler:
 
     @pytest.mark.asyncio
     async def test_schedule_ticket_cache_hit(
-        self, mock_config, mock_metrics, mock_priority_calculator,
-        mock_resource_allocator, sample_ticket, sample_workers
+        self,
+        mock_config,
+        mock_metrics,
+        mock_priority_calculator,
+        mock_resource_allocator,
+        sample_ticket,
+        sample_workers,
     ):
         """Testa cache hit - discover_workers chamado apenas uma vez."""
         # Configurar mocks
@@ -259,7 +271,7 @@ class TestIntelligentScheduler:
             config=mock_config,
             metrics=mock_metrics,
             priority_calculator=mock_priority_calculator,
-            resource_allocator=mock_resource_allocator
+            resource_allocator=mock_resource_allocator,
         )
 
         # Executar duas vezes
@@ -274,8 +286,13 @@ class TestIntelligentScheduler:
 
     @pytest.mark.asyncio
     async def test_schedule_ticket_cache_miss_different_capabilities(
-        self, mock_config, mock_metrics, mock_priority_calculator,
-        mock_resource_allocator, sample_ticket, sample_workers
+        self,
+        mock_config,
+        mock_metrics,
+        mock_priority_calculator,
+        mock_resource_allocator,
+        sample_ticket,
+        sample_workers,
     ):
         """Testa cache miss com capabilities diferentes."""
         # Configurar mocks
@@ -287,7 +304,7 @@ class TestIntelligentScheduler:
             config=mock_config,
             metrics=mock_metrics,
             priority_calculator=mock_priority_calculator,
-            resource_allocator=mock_resource_allocator
+            resource_allocator=mock_resource_allocator,
         )
 
         # Primeira chamada
@@ -302,8 +319,13 @@ class TestIntelligentScheduler:
 
     @pytest.mark.asyncio
     async def test_schedule_ticket_cache_expiration(
-        self, mock_config, mock_metrics, mock_priority_calculator,
-        mock_resource_allocator, sample_ticket, sample_workers
+        self,
+        mock_config,
+        mock_metrics,
+        mock_priority_calculator,
+        mock_resource_allocator,
+        sample_ticket,
+        sample_workers,
     ):
         """Testa expiração do cache."""
         # Configurar TTL curto
@@ -318,7 +340,7 @@ class TestIntelligentScheduler:
             config=mock_config,
             metrics=mock_metrics,
             priority_calculator=mock_priority_calculator,
-            resource_allocator=mock_resource_allocator
+            resource_allocator=mock_resource_allocator,
         )
 
         # Primeira chamada
@@ -335,10 +357,15 @@ class TestIntelligentScheduler:
 
     @pytest.mark.asyncio
     async def test_schedule_ticket_discovery_timeout(
-        self, mock_config, mock_metrics, mock_priority_calculator,
-        mock_resource_allocator, sample_ticket
+        self,
+        mock_config,
+        mock_metrics,
+        mock_priority_calculator,
+        mock_resource_allocator,
+        sample_ticket,
     ):
         """Testa timeout na descoberta de workers."""
+
         # Configurar timeout
         async def slow_discovery(*args, **kwargs):
             await asyncio.sleep(6)  # Excede timeout de 5s
@@ -351,7 +378,7 @@ class TestIntelligentScheduler:
             config=mock_config,
             metrics=mock_metrics,
             priority_calculator=mock_priority_calculator,
-            resource_allocator=mock_resource_allocator
+            resource_allocator=mock_resource_allocator,
         )
 
         # Executar
@@ -365,8 +392,12 @@ class TestIntelligentScheduler:
 
     @pytest.mark.asyncio
     async def test_schedule_ticket_discovery_exception(
-        self, mock_config, mock_metrics, mock_priority_calculator,
-        mock_resource_allocator, sample_ticket
+        self,
+        mock_config,
+        mock_metrics,
+        mock_priority_calculator,
+        mock_resource_allocator,
+        sample_ticket,
     ):
         """Testa exceção na descoberta de workers."""
         # Configurar exceção
@@ -377,7 +408,7 @@ class TestIntelligentScheduler:
             config=mock_config,
             metrics=mock_metrics,
             priority_calculator=mock_priority_calculator,
-            resource_allocator=mock_resource_allocator
+            resource_allocator=mock_resource_allocator,
         )
 
         # Executar
@@ -388,8 +419,13 @@ class TestIntelligentScheduler:
 
     @pytest.mark.asyncio
     async def test_schedule_ticket_latency_measurement(
-        self, mock_config, mock_metrics, mock_priority_calculator,
-        mock_resource_allocator, sample_ticket, sample_workers
+        self,
+        mock_config,
+        mock_metrics,
+        mock_priority_calculator,
+        mock_resource_allocator,
+        sample_ticket,
+        sample_workers,
     ):
         """Testa medição de latência."""
         # Configurar mocks
@@ -401,7 +437,7 @@ class TestIntelligentScheduler:
             config=mock_config,
             metrics=mock_metrics,
             priority_calculator=mock_priority_calculator,
-            resource_allocator=mock_resource_allocator
+            resource_allocator=mock_resource_allocator,
         )
 
         # Executar
@@ -413,15 +449,14 @@ class TestIntelligentScheduler:
         assert call_args[1]["duration_seconds"] > 0
 
     def test_calculate_composite_score(
-        self, mock_config, mock_metrics, mock_priority_calculator,
-        mock_resource_allocator
+        self, mock_config, mock_metrics, mock_priority_calculator, mock_resource_allocator
     ):
         """Testa cálculo de score composto."""
         scheduler = IntelligentScheduler(
             config=mock_config,
             metrics=mock_metrics,
             priority_calculator=mock_priority_calculator,
-            resource_allocator=mock_resource_allocator
+            resource_allocator=mock_resource_allocator,
         )
 
         # Testar cálculo: (agent_score * 0.6) + (priority_score * 0.4)
@@ -438,15 +473,19 @@ class TestIntelligentScheduler:
         assert scheduler._calculate_composite_score(0.0, 0.0) == 0.0
 
     def test_build_cache_key(
-        self, mock_config, mock_metrics, mock_priority_calculator,
-        mock_resource_allocator, sample_ticket
+        self,
+        mock_config,
+        mock_metrics,
+        mock_priority_calculator,
+        mock_resource_allocator,
+        sample_ticket,
     ):
         """Testa geração de chave de cache."""
         scheduler = IntelligentScheduler(
             config=mock_config,
             metrics=mock_metrics,
             priority_calculator=mock_priority_calculator,
-            resource_allocator=mock_resource_allocator
+            resource_allocator=mock_resource_allocator,
         )
 
         # Gerar chave

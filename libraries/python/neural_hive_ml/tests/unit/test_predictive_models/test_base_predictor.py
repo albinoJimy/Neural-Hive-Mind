@@ -32,10 +32,7 @@ class DummyPredictor(BasePredictor):
 @pytest.fixture
 def base_config():
     """Configuração base para o preditor."""
-    return {
-        'model_name': 'test-model',
-        'model_type': 'test-type'
-    }
+    return {"model_name": "test-model", "model_type": "test-type"}
 
 
 @pytest.fixture
@@ -59,22 +56,20 @@ def mock_metrics():
 @pytest.fixture
 def predictor(base_config, mock_registry, mock_metrics):
     """Fixture para DummyPredictor."""
-    return DummyPredictor(
-        config=base_config,
-        model_registry=mock_registry,
-        metrics=mock_metrics
-    )
+    return DummyPredictor(config=base_config, model_registry=mock_registry, metrics=mock_metrics)
 
 
 @pytest.fixture
 def training_data():
     """Dados de treinamento de exemplo."""
-    return pd.DataFrame({
-        'feature1': np.random.rand(100),
-        'feature2': np.random.rand(100),
-        'feature3': np.random.rand(100),
-        'target': np.random.choice([0, 1], 100)
-    })
+    return pd.DataFrame(
+        {
+            "feature1": np.random.rand(100),
+            "feature2": np.random.rand(100),
+            "feature3": np.random.rand(100),
+            "target": np.random.choice([0, 1], 100),
+        }
+    )
 
 
 # =============================================================================
@@ -89,8 +84,8 @@ class TestPredictReturnsResult:
         """Testa que predict retorna estrutura válida."""
         # O método predict não está na classe base,
         # mas cada implementação deve ter
-        assert hasattr(predictor, 'train_model')
-        assert hasattr(predictor, '_extract_features')
+        assert hasattr(predictor, "train_model")
+        assert hasattr(predictor, "_extract_features")
 
 
 class TestPredictReturnsConfidence:
@@ -101,8 +96,7 @@ class TestPredictReturnsConfidence:
         # Loga métricas de treinamento
         metrics = {"accuracy": 0.85, "confidence": 0.9}
 
-        with patch('mlflow.active_run', return_value=True), \
-             patch('mlflow.log_metric'):
+        with patch("mlflow.active_run", return_value=True), patch("mlflow.log_metric"):
             predictor._log_metrics(metrics, "test-model", "training")
 
         # Verifica que métricas foram processadas
@@ -170,7 +164,7 @@ class TestPredictCachesResult:
     def test_model_caching_after_load(self, predictor, mock_registry):
         """Testa que modelo é cacheado após carregamento."""
         # Simula carregamento de modelo
-        with patch.object(predictor, '_load_from_registry', return_value=Mock()) as mock_load:
+        with patch.object(predictor, "_load_from_registry", return_value=Mock()) as mock_load:
             predictor._load_from_registry("test-model", "Production")
 
             # Verifica que foi chamado
@@ -200,8 +194,7 @@ class TestPredictMetrics:
         """Testa registro de métricas no MLflow."""
         metrics = {"accuracy": 0.85, "precision": 0.82, "recall": 0.78}
 
-        with patch('mlflow.active_run', return_value=True), \
-             patch('mlflow.log_metric') as mock_log:
+        with patch("mlflow.active_run", return_value=True), patch("mlflow.log_metric") as mock_log:
             predictor._log_metrics(metrics, "test-model", "training")
 
             # Verifica que log_metric foi chamado para cada métrica
@@ -211,7 +204,7 @@ class TestPredictMetrics:
         """Testa log de métricas sem run ativo."""
         metrics = {"accuracy": 0.85}
 
-        with patch('mlflow.active_run', return_value=None):
+        with patch("mlflow.active_run", return_value=None):
             # Não deve levantar erro
             predictor._log_metrics(metrics, "test-model", "training")
 
@@ -226,10 +219,7 @@ class TestSaveToRegistry:
         params = {"n_estimators": 100}
 
         version = predictor._save_to_registry(
-            model=model,
-            model_name="test-model",
-            metrics=metrics,
-            params=params
+            model=model, model_name="test-model", metrics=metrics, params=params
         )
 
         mock_registry.save_model.assert_called_once()
@@ -244,10 +234,7 @@ class TestSaveToRegistry:
         params = {"n_estimators": 100}
 
         version = predictor._save_to_registry(
-            model=model,
-            model_name="test-model",
-            metrics=metrics,
-            params=params
+            model=model, model_name="test-model", metrics=metrics, params=params
         )
 
         # Deve retornar "unknown" quando não há registry
@@ -262,8 +249,7 @@ class TestLoadFromRegistry:
         model = predictor._load_from_registry("test-model", "Production")
 
         mock_registry.load_model.assert_called_once_with(
-            model_name="test-model",
-            stage="Production"
+            model_name="test-model", stage="Production"
         )
         assert model is not None
 

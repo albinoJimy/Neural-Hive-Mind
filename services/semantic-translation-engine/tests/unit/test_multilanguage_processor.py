@@ -10,7 +10,7 @@ from src.services.multilanguage_processor import (
     TranslationService,
     MultiLanguageProcessor,
     LanguageCode,
-    DetectedLanguage
+    DetectedLanguage,
 )
 
 
@@ -132,29 +132,25 @@ class TestTranslationService:
     def test_normalize_intent(self, translator):
         """Testa normalização de intenção"""
         detected = DetectedLanguage(
-            language=LanguageCode.PT_BR,
-            confidence=0.8,
-            original_text="criar relatório"
+            language=LanguageCode.PT_BR, confidence=0.8, original_text="criar relatório"
         )
 
         result = translator.normalize_intent("criar relatório", detected)
 
-        assert result['original_text'] == "criar relatório"
-        assert 'normalized_text' in result
-        assert result['detected_language'] == 'pt-BR'
-        assert result['translation_applied'] is True
+        assert result["original_text"] == "criar relatório"
+        assert "normalized_text" in result
+        assert result["detected_language"] == "pt-BR"
+        assert result["translation_applied"] is True
 
     def test_normalize_english_no_translation(self, translator):
         """Testa que inglês não aplica tradução"""
         detected = DetectedLanguage(
-            language=LanguageCode.EN_US,
-            confidence=1.0,
-            original_text="create report"
+            language=LanguageCode.EN_US, confidence=1.0, original_text="create report"
         )
 
         result = translator.normalize_intent("create report", detected)
 
-        assert result['translation_applied'] is False
+        assert result["translation_applied"] is False
 
 
 class TestMultiLanguageProcessor:
@@ -167,88 +163,79 @@ class TestMultiLanguageProcessor:
 
     def test_process_portuguese_intent(self, processor):
         """Testa processamento de intenção em português"""
-        intent_data = {
-            'intent_id': 'test-001',
-            'text': 'Criar um relatório de vendas'
-        }
+        intent_data = {"intent_id": "test-001", "text": "Criar um relatório de vendas"}
 
         result = processor.process(intent_data)
 
-        assert result['intent_id'] == 'test-001'
-        assert result['original_text'] == 'Criar um relatório de vendas'
-        assert result['detected_language'] == 'pt-BR'
-        assert result['translation_applied'] is True
-        assert 'create' in result['normalized_text'].lower()
-        assert 'report' in result['normalized_text'].lower()
+        assert result["intent_id"] == "test-001"
+        assert result["original_text"] == "Criar um relatório de vendas"
+        assert result["detected_language"] == "pt-BR"
+        assert result["translation_applied"] is True
+        assert "create" in result["normalized_text"].lower()
+        assert "report" in result["normalized_text"].lower()
 
     def test_process_english_intent(self, processor):
         """Testa processamento de intenção em inglês"""
-        intent_data = {
-            'intent_id': 'test-002',
-            'text': 'Create a sales report'
-        }
+        intent_data = {"intent_id": "test-002", "text": "Create a sales report"}
 
         result = processor.process(intent_data)
 
-        assert result['detected_language'] == 'en-US'
-        assert result['translation_applied'] is False
+        assert result["detected_language"] == "en-US"
+        assert result["translation_applied"] is False
         # Texto normalizado deve ser similar ao original
-        assert 'create' in result['normalized_text'].lower()
+        assert "create" in result["normalized_text"].lower()
 
     def test_process_spanish_intent(self, processor):
         """Testa processamento de intenção em espanhol"""
         # Usar palavra única do espanhol "gracias"
-        intent_data = {
-            'intent_id': 'test-003',
-            'text': 'Crear informe de ventas por favor'
-        }
+        intent_data = {"intent_id": "test-003", "text": "Crear informe de ventas por favor"}
 
         result = processor.process(intent_data)
 
-        assert result['detected_language'] == 'es-ES'
-        assert result['translation_applied'] is True
-        assert 'create' in result['normalized_text'].lower() or 'report' in result['normalized_text'].lower()
+        assert result["detected_language"] == "es-ES"
+        assert result["translation_applied"] is True
+        assert (
+            "create" in result["normalized_text"].lower()
+            or "report" in result["normalized_text"].lower()
+        )
 
     def test_process_preserves_original_fields(self, processor):
         """Testa que campos originais são preservados"""
         intent_data = {
-            'intent_id': 'test-004',
-            'text': 'Criar relatório',
-            'user_id': 'user-123',
-            'timestamp': 1234567890
+            "intent_id": "test-004",
+            "text": "Criar relatório",
+            "user_id": "user-123",
+            "timestamp": 1234567890,
         }
 
         result = processor.process(intent_data)
 
-        assert result['intent_id'] == 'test-004'
-        assert result['user_id'] == 'user-123'
-        assert result['timestamp'] == 1234567890
+        assert result["intent_id"] == "test-004"
+        assert result["user_id"] == "user-123"
+        assert result["timestamp"] == 1234567890
 
     def test_process_empty_text(self, processor):
         """Testa processamento de texto vazio"""
-        intent_data = {
-            'intent_id': 'test-005',
-            'text': ''
-        }
+        intent_data = {"intent_id": "test-005", "text": ""}
 
         result = processor.process(intent_data)
 
-        assert result['detected_language'] == 'unknown'
-        assert result['language_confidence'] == 0.0
+        assert result["detected_language"] == "unknown"
+        assert result["language_confidence"] == 0.0
 
     def test_all_supported_languages(self, processor):
         """Testa todos os idiomas suportados"""
         test_cases = [
-            ('pt-BR', 'criar tabela'),
-            ('en-US', 'create table'),
-            ('es-ES', 'crear tabla'),
-            ('fr-FR', 'créer table'),
-            ('de-DE', 'tabelle erstellen'),
-            ('it-IT', 'creare tabella')
+            ("pt-BR", "criar tabela"),
+            ("en-US", "create table"),
+            ("es-ES", "crear tabla"),
+            ("fr-FR", "créer table"),
+            ("de-DE", "tabelle erstellen"),
+            ("it-IT", "creare tabella"),
         ]
 
         for expected_lang, text in test_cases:
-            intent_data = {'intent_id': f'test-{expected_lang}', 'text': text}
+            intent_data = {"intent_id": f"test-{expected_lang}", "text": text}
             result = processor.process(intent_data)
 
-            assert result['detected_language'] == expected_lang
+            assert result["detected_language"] == expected_lang

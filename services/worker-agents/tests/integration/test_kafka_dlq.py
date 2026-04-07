@@ -7,18 +7,18 @@ from unittest.mock import Mock, AsyncMock, patch, MagicMock
 @pytest.fixture
 def mock_config():
     config = Mock()
-    config.kafka_bootstrap_servers = 'localhost:9092'
-    config.kafka_consumer_group_id = 'test-group'
-    config.kafka_tickets_topic = 'execution.tickets'
-    config.kafka_dlq_topic = 'execution.tickets.dlq'
+    config.kafka_bootstrap_servers = "localhost:9092"
+    config.kafka_consumer_group_id = "test-group"
+    config.kafka_tickets_topic = "execution.tickets"
+    config.kafka_dlq_topic = "execution.tickets.dlq"
     config.kafka_max_retries_before_dlq = 3
-    config.kafka_auto_offset_reset = 'earliest'
-    config.kafka_security_protocol = 'PLAINTEXT'
+    config.kafka_auto_offset_reset = "earliest"
+    config.kafka_security_protocol = "PLAINTEXT"
     config.kafka_sasl_mechanism = None
     config.kafka_sasl_username = None
     config.kafka_sasl_password = None
-    config.schemas_base_path = '/app/schemas'
-    config.supported_task_types = ['BUILD', 'DEPLOY', 'TEST']
+    config.schemas_base_path = "/app/schemas"
+    config.supported_task_types = ["BUILD", "DEPLOY", "TEST"]
     return config
 
 
@@ -71,18 +71,16 @@ class TestKafkaTicketConsumerDLQ:
         mock_engine.process_ticket = AsyncMock(side_effect=Exception("Test error"))
 
         consumer = KafkaTicketConsumer(
-            config=mock_config,
-            execution_engine=mock_engine,
-            metrics=mock_metrics
+            config=mock_config, execution_engine=mock_engine, metrics=mock_metrics
         )
         consumer.redis_client = mock_redis
 
         # Simular incremento
-        result = await consumer._increment_retry_count('test-ticket-123')
+        result = await consumer._increment_retry_count("test-ticket-123")
 
         assert result == 1
-        mock_redis.incr.assert_called_once_with('ticket:retry_count:test-ticket-123')
-        mock_redis.expire.assert_called_once_with('ticket:retry_count:test-ticket-123', 604800)
+        mock_redis.incr.assert_called_once_with("ticket:retry_count:test-ticket-123")
+        mock_redis.expire.assert_called_once_with("ticket:retry_count:test-ticket-123", 604800)
 
     @pytest.mark.asyncio
     async def test_retry_count_cleared_on_success(self, mock_config, mock_redis, mock_metrics):
@@ -92,15 +90,13 @@ class TestKafkaTicketConsumerDLQ:
         mock_engine = AsyncMock()
 
         consumer = KafkaTicketConsumer(
-            config=mock_config,
-            execution_engine=mock_engine,
-            metrics=mock_metrics
+            config=mock_config, execution_engine=mock_engine, metrics=mock_metrics
         )
         consumer.redis_client = mock_redis
 
-        await consumer._clear_retry_count('test-ticket-456')
+        await consumer._clear_retry_count("test-ticket-456")
 
-        mock_redis.delete.assert_called_once_with('ticket:retry_count:test-ticket-456')
+        mock_redis.delete.assert_called_once_with("ticket:retry_count:test-ticket-456")
 
     @pytest.mark.asyncio
     async def test_fail_open_when_redis_unavailable(self, mock_config, mock_metrics):
@@ -110,17 +106,15 @@ class TestKafkaTicketConsumerDLQ:
         mock_engine = AsyncMock()
 
         consumer = KafkaTicketConsumer(
-            config=mock_config,
-            execution_engine=mock_engine,
-            metrics=mock_metrics
+            config=mock_config, execution_engine=mock_engine, metrics=mock_metrics
         )
         consumer.redis_client = None  # Redis indisponivel
 
         # Nao deve lancar excecao
-        count = await consumer._get_retry_count('test-ticket-999')
+        count = await consumer._get_retry_count("test-ticket-999")
         assert count == 0
 
-        count = await consumer._increment_retry_count('test-ticket-999')
+        count = await consumer._increment_retry_count("test-ticket-999")
         assert count == 1
 
     @pytest.mark.asyncio
@@ -134,27 +128,25 @@ class TestKafkaTicketConsumerDLQ:
         mock_config.dlq_publish_max_retries = 1
 
         consumer = KafkaTicketConsumer(
-            config=mock_config,
-            execution_engine=mock_engine,
-            metrics=mock_metrics
+            config=mock_config, execution_engine=mock_engine, metrics=mock_metrics
         )
         consumer.redis_client = mock_redis
 
         ticket = {
-            'ticket_id': 'test-ticket-dlq',
-            'task_type': 'BUILD',
-            'status': 'PENDING',
-            'dependencies': []
+            "ticket_id": "test-ticket-dlq",
+            "task_type": "BUILD",
+            "status": "PENDING",
+            "dependencies": [],
         }
         error = Exception("Max retries exceeded")
 
-        with patch('confluent_kafka.Producer') as MockProducer:
+        with patch("confluent_kafka.Producer") as MockProducer:
             mock_producer_instance = MagicMock()
             MockProducer.return_value = mock_producer_instance
 
             # Simular callback de sucesso quando produce é chamado
             def simulate_success_produce(**kwargs):
-                callback = kwargs.get('callback')
+                callback = kwargs.get("callback")
                 if callback:
                     # Simular entrega bem-sucedida
                     mock_msg = MagicMock()
@@ -173,15 +165,15 @@ class TestKafkaTicketConsumerDLQ:
             mock_producer_instance.produce.assert_called_once()
             call_args = mock_producer_instance.produce.call_args
 
-            assert call_args.kwargs['topic'] == 'execution.tickets.dlq'
-            assert call_args.kwargs['key'] == b'test-ticket-dlq'
+            assert call_args.kwargs["topic"] == "execution.tickets.dlq"
+            assert call_args.kwargs["key"] == b"test-ticket-dlq"
 
             # Verificar payload
-            payload = json.loads(call_args.kwargs['value'].decode('utf-8'))
-            assert payload['ticket_id'] == 'test-ticket-dlq'
-            assert 'dlq_metadata' in payload
-            assert payload['dlq_metadata']['retry_count'] == 3
-            assert payload['dlq_metadata']['error_type'] == 'Exception'
+            payload = json.loads(call_args.kwargs["value"].decode("utf-8"))
+            assert payload["ticket_id"] == "test-ticket-dlq"
+            assert "dlq_metadata" in payload
+            assert payload["dlq_metadata"]["retry_count"] == 3
+            assert payload["dlq_metadata"]["error_type"] == "Exception"
 
 
 class TestKafkaDLQConsumer:
@@ -194,31 +186,29 @@ class TestKafkaDLQConsumer:
 
         mock_mongodb = AsyncMock()
         mock_collection = AsyncMock()
-        mock_mongodb.db = {'execution_tickets_dlq': mock_collection}
+        mock_mongodb.db = {"execution_tickets_dlq": mock_collection}
 
         dlq_consumer = KafkaDLQConsumer(
-            config=mock_config,
-            mongodb_client=mock_mongodb,
-            alert_manager=None
+            config=mock_config, mongodb_client=mock_mongodb, alert_manager=None
         )
 
         dlq_message = {
-            'ticket_id': 'test-ticket-789',
-            'task_type': 'DEPLOY',
-            'dlq_metadata': {
-                'original_error': 'Connection timeout',
-                'error_type': 'TimeoutError',
-                'retry_count': 3
-            }
+            "ticket_id": "test-ticket-789",
+            "task_type": "DEPLOY",
+            "dlq_metadata": {
+                "original_error": "Connection timeout",
+                "error_type": "TimeoutError",
+                "retry_count": 3,
+            },
         }
 
         await dlq_consumer._persist_dlq_message(dlq_message)
 
         mock_collection.insert_one.assert_called_once()
         call_args = mock_collection.insert_one.call_args[0][0]
-        assert call_args['ticket_id'] == 'test-ticket-789'
-        assert 'processed_at' in call_args
-        assert 'processed_at_ms' in call_args
+        assert call_args["ticket_id"] == "test-ticket-789"
+        assert "processed_at" in call_args
+        assert "processed_at_ms" in call_args
 
     @pytest.mark.asyncio
     async def test_dlq_consumer_sends_alert(self, mock_config):
@@ -228,29 +218,27 @@ class TestKafkaDLQConsumer:
         mock_alert_manager = AsyncMock()
 
         dlq_consumer = KafkaDLQConsumer(
-            config=mock_config,
-            mongodb_client=None,
-            alert_manager=mock_alert_manager
+            config=mock_config, mongodb_client=None, alert_manager=mock_alert_manager
         )
 
         dlq_message = {
-            'ticket_id': 'test-ticket-alert',
-            'task_type': 'TEST',
-            'dlq_metadata': {
-                'original_error': 'Test failed',
-                'error_type': 'AssertionError',
-                'retry_count': 3
-            }
+            "ticket_id": "test-ticket-alert",
+            "task_type": "TEST",
+            "dlq_metadata": {
+                "original_error": "Test failed",
+                "error_type": "AssertionError",
+                "retry_count": 3,
+            },
         }
 
         await dlq_consumer._alert_sre(dlq_message)
 
         mock_alert_manager.send_alert.assert_called_once()
         alert_payload = mock_alert_manager.send_alert.call_args[0][0]
-        assert alert_payload['ticket_id'] == 'test-ticket-alert'
-        assert alert_payload['severity'] == 'warning'
-        assert alert_payload['component'] == 'worker-agents'
-        assert 'runbook_url' in alert_payload
+        assert alert_payload["ticket_id"] == "test-ticket-alert"
+        assert alert_payload["severity"] == "warning"
+        assert alert_payload["component"] == "worker-agents"
+        assert "runbook_url" in alert_payload
 
     @pytest.mark.asyncio
     async def test_dlq_consumer_handles_missing_mongodb(self, mock_config):
@@ -258,15 +246,13 @@ class TestKafkaDLQConsumer:
         from src.clients.kafka_dlq_consumer import KafkaDLQConsumer
 
         dlq_consumer = KafkaDLQConsumer(
-            config=mock_config,
-            mongodb_client=None,  # MongoDB indisponivel
-            alert_manager=None
+            config=mock_config, mongodb_client=None, alert_manager=None  # MongoDB indisponivel
         )
 
         dlq_message = {
-            'ticket_id': 'test-ticket-no-mongo',
-            'task_type': 'BUILD',
-            'dlq_metadata': {}
+            "ticket_id": "test-ticket-no-mongo",
+            "task_type": "BUILD",
+            "dlq_metadata": {},
         }
 
         # Nao deve lancar excecao
@@ -287,26 +273,20 @@ class TestDLQMetrics:
         mock_config.dlq_publish_max_retries = 1
 
         consumer = KafkaTicketConsumer(
-            config=mock_config,
-            execution_engine=mock_engine,
-            metrics=mock_metrics
+            config=mock_config, execution_engine=mock_engine, metrics=mock_metrics
         )
         consumer.redis_client = mock_redis
 
-        ticket = {
-            'ticket_id': 'test-metrics',
-            'task_type': 'VALIDATE',
-            'status': 'PENDING'
-        }
+        ticket = {"ticket_id": "test-metrics", "task_type": "VALIDATE", "status": "PENDING"}
         error = Exception("Validation failed")
 
-        with patch('confluent_kafka.Producer') as MockProducer:
+        with patch("confluent_kafka.Producer") as MockProducer:
             mock_producer_instance = MagicMock()
             MockProducer.return_value = mock_producer_instance
 
             # Simular callback de sucesso quando produce é chamado
             def simulate_success_produce(**kwargs):
-                callback = kwargs.get('callback')
+                callback = kwargs.get("callback")
                 if callback:
                     mock_msg = MagicMock()
                     mock_msg.partition.return_value = 0
@@ -322,8 +302,7 @@ class TestDLQMetrics:
 
             # Verificar metricas
             mock_metrics.dlq_messages_total.labels.assert_called_with(
-                reason='max_retries_exceeded',
-                task_type='VALIDATE'
+                reason="max_retries_exceeded", task_type="VALIDATE"
             )
             mock_metrics.dlq_publish_duration_seconds.observe.assert_called_once()
-            mock_metrics.ticket_retry_count.labels.assert_called_with(task_type='VALIDATE')
+            mock_metrics.ticket_retry_count.labels.assert_called_with(task_type="VALIDATE")

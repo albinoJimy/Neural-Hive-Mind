@@ -111,19 +111,17 @@ def push_metrics_to_gateway(pushgateway_url: str, metrics: dict, job_name: str):
 
         # Definir valores
         status_value = 1 if metrics.get("status") == "success" else 0
-        test_status.labels(
-            specialist_type=metrics.get("specialist_type", "unknown")
-        ).set(status_value)
-        test_duration.labels(
-            specialist_type=metrics.get("specialist_type", "unknown")
-        ).set(metrics.get("duration_seconds", 0))
+        test_status.labels(specialist_type=metrics.get("specialist_type", "unknown")).set(
+            status_value
+        )
+        test_duration.labels(specialist_type=metrics.get("specialist_type", "unknown")).set(
+            metrics.get("duration_seconds", 0)
+        )
 
         # Enviar para pushgateway
         push_to_gateway(pushgateway_url, job=job_name, registry=registry)
 
-        logger.info(
-            "Métricas enviadas para Pushgateway", url=pushgateway_url, job=job_name
-        )
+        logger.info("Métricas enviadas para Pushgateway", url=pushgateway_url, job=job_name)
 
     except ImportError:
         logger.warning("prometheus_client não instalado, métricas não enviadas")
@@ -208,7 +206,9 @@ def send_alert(
     # Enviar alertas externos de forma assíncrona
     if alertmanager_url or slack_webhook_url:
         try:
-            asyncio.run(send_alert_async(message, specialist_type, alertmanager_url, slack_webhook_url))
+            asyncio.run(
+                send_alert_async(message, specialist_type, alertmanager_url, slack_webhook_url)
+            )
         except Exception as e:
             logger.error("Erro ao enviar alertas externos", error=str(e))
 
@@ -393,9 +393,7 @@ def main():
         help="ID ou nome do arquivo de backup específico (usa mais recente se não especificado)",
     )
 
-    parser.add_argument(
-        "--verbose", action="store_true", help="Modo verbose (log detalhado)"
-    )
+    parser.add_argument("--verbose", action="store_true", help="Modo verbose (log detalhado)")
 
     parser.add_argument(
         "--alert-on-failure", action="store_true", help="Enviar alerta em caso de falha"
@@ -414,9 +412,7 @@ def main():
         import logging
 
         logging.basicConfig(level=logging.DEBUG)
-        structlog.configure(
-            wrapper_class=structlog.make_filtering_bound_logger(logging.DEBUG)
-        )
+        structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.DEBUG))
 
     try:
         # Carregar configuração

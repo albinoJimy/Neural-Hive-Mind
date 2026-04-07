@@ -6,6 +6,7 @@ Creates human-readable explanations for plan generation decisions.
 
 import uuid
 from datetime import datetime, timezone
+
 UTC = timezone.utc  # type: ignore
 
 import structlog

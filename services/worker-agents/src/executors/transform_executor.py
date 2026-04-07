@@ -715,7 +715,9 @@ class TransformExecutor(BaseTaskExecutor):
             doc["_id"] = str(doc["_id"])
         return doc
 
-    def _success_result(self, output_data: Any, metadata: dict[str, Any] | None = None) -> dict[str, Any]:
+    def _success_result(
+        self, output_data: Any, metadata: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Retorna resultado de sucesso padronizado."""
         base_metadata = {"executor": "TransformExecutor", "success": True}
         if metadata:

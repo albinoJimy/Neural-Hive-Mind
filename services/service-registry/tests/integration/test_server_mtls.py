@@ -16,6 +16,7 @@ import grpc
 @dataclass
 class X509SVID:
     """Mock de X.509-SVID"""
+
     certificate: str
     private_key: str
     spiffe_id: str
@@ -60,9 +61,9 @@ def mock_spiffe_manager():
     manager.fetch_x509_svid.return_value = X509SVID(
         certificate=TEST_CERT,
         private_key=TEST_PRIVATE_KEY,
-        spiffe_id='spiffe://neural-hive.local/ns/neural-hive-execution/sa/service-registry',
+        spiffe_id="spiffe://neural-hive.local/ns/neural-hive-execution/sa/service-registry",
         ca_bundle=TEST_CA_BUNDLE,
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=24)
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
     )
     return manager
 
@@ -71,23 +72,23 @@ def mock_spiffe_manager():
 def mock_settings():
     """Fixture que retorna configuracoes mockadas"""
     settings = MagicMock()
-    settings.SERVICE_NAME = 'service-registry'
-    settings.SERVICE_VERSION = '1.0.0'
-    settings.ENVIRONMENT = 'production'
-    settings.LOG_LEVEL = 'INFO'
+    settings.SERVICE_NAME = "service-registry"
+    settings.SERVICE_VERSION = "1.0.0"
+    settings.ENVIRONMENT = "production"
+    settings.LOG_LEVEL = "INFO"
     settings.GRPC_PORT = 50051
     settings.METRICS_PORT = 9090
     settings.SPIFFE_ENABLED = True
     settings.SPIFFE_ENABLE_X509 = True
-    settings.SPIFFE_SOCKET_PATH = 'unix:///run/spire/sockets/agent.sock'
-    settings.SPIFFE_TRUST_DOMAIN = 'neural-hive.local'
+    settings.SPIFFE_SOCKET_PATH = "unix:///run/spire/sockets/agent.sock"
+    settings.SPIFFE_TRUST_DOMAIN = "neural-hive.local"
     settings.SPIFFE_VERIFY_PEER = True
-    settings.OTEL_EXPORTER_ENDPOINT = 'http://otel-collector:4317'
-    settings.ETCD_ENDPOINTS = ['redis:6379']
-    settings.ETCD_PREFIX = 'neural-hive:agents'
+    settings.OTEL_EXPORTER_ENDPOINT = "http://otel-collector:4317"
+    settings.ETCD_ENDPOINTS = ["redis:6379"]
+    settings.ETCD_PREFIX = "neural-hive:agents"
     settings.ETCD_TIMEOUT_SECONDS = 5
-    settings.REDIS_CLUSTER_NODES = ['redis:6379']
-    settings.REDIS_PASSWORD = 'test-password'
+    settings.REDIS_CLUSTER_NODES = ["redis:6379"]
+    settings.REDIS_PASSWORD = "test-password"
     settings.HEALTH_CHECK_INTERVAL_SECONDS = 60
     settings.HEARTBEAT_TIMEOUT_SECONDS = 120
     return settings
@@ -98,9 +99,9 @@ async def test_server_creates_mtls_credentials(mock_spiffe_manager, mock_setting
     """Testa que servidor cria credenciais mTLS corretamente"""
     from src.main import ServiceRegistryServer
 
-    with patch('src.main.get_settings') as mock_get_settings, \
-         patch('grpc.ssl_server_credentials') as mock_ssl_server_creds:
-
+    with patch("src.main.get_settings") as mock_get_settings, patch(
+        "grpc.ssl_server_credentials"
+    ) as mock_ssl_server_creds:
         mock_get_settings.return_value = mock_settings
 
         mock_credentials = MagicMock()
@@ -123,12 +124,12 @@ async def test_server_creates_mtls_credentials(mock_spiffe_manager, mock_setting
         # Verificar argumentos
         private_key_cert_chain_pairs = call_args[0][0]
         assert len(private_key_cert_chain_pairs) == 1
-        assert private_key_cert_chain_pairs[0][0] == TEST_PRIVATE_KEY.encode('utf-8')
-        assert private_key_cert_chain_pairs[0][1] == TEST_CERT.encode('utf-8')
+        assert private_key_cert_chain_pairs[0][0] == TEST_PRIVATE_KEY.encode("utf-8")
+        assert private_key_cert_chain_pairs[0][1] == TEST_CERT.encode("utf-8")
 
         kwargs = call_args.kwargs
-        assert kwargs['root_certificates'] == TEST_CA_BUNDLE.encode('utf-8')
-        assert kwargs['require_client_auth'] is True
+        assert kwargs["root_certificates"] == TEST_CA_BUNDLE.encode("utf-8")
+        assert kwargs["require_client_auth"] is True
 
         assert credentials == mock_credentials
 
@@ -140,7 +141,7 @@ async def test_server_returns_none_when_spiffe_disabled(mock_settings):
 
     mock_settings.SPIFFE_ENABLED = False
 
-    with patch('src.main.get_settings') as mock_get_settings:
+    with patch("src.main.get_settings") as mock_get_settings:
         mock_get_settings.return_value = mock_settings
 
         server = ServiceRegistryServer()
@@ -158,7 +159,7 @@ async def test_server_returns_none_when_x509_disabled(mock_spiffe_manager, mock_
 
     mock_settings.SPIFFE_ENABLE_X509 = False
 
-    with patch('src.main.get_settings') as mock_get_settings:
+    with patch("src.main.get_settings") as mock_get_settings:
         mock_get_settings.return_value = mock_settings
 
         server = ServiceRegistryServer()
@@ -174,7 +175,7 @@ async def test_server_fails_in_production_without_credentials(mock_settings):
     """Testa que servidor falha em producao se credenciais nao puderem ser criadas"""
     from src.main import ServiceRegistryServer
 
-    mock_settings.ENVIRONMENT = 'production'
+    mock_settings.ENVIRONMENT = "production"
     mock_settings.SPIFFE_ENABLED = True
     mock_settings.SPIFFE_ENABLE_X509 = True
 
@@ -182,7 +183,7 @@ async def test_server_fails_in_production_without_credentials(mock_settings):
     failing_manager = MockSPIFFEManager()
     failing_manager.fetch_x509_svid.side_effect = Exception("SPIRE unavailable")
 
-    with patch('src.main.get_settings') as mock_get_settings:
+    with patch("src.main.get_settings") as mock_get_settings:
         mock_get_settings.return_value = mock_settings
 
         server = ServiceRegistryServer()
@@ -197,7 +198,7 @@ async def test_server_allows_failure_in_development(mock_settings):
     """Testa que servidor permite falha em desenvolvimento"""
     from src.main import ServiceRegistryServer
 
-    mock_settings.ENVIRONMENT = 'development'
+    mock_settings.ENVIRONMENT = "development"
     mock_settings.SPIFFE_ENABLED = True
     mock_settings.SPIFFE_ENABLE_X509 = True
 
@@ -205,7 +206,7 @@ async def test_server_allows_failure_in_development(mock_settings):
     failing_manager = MockSPIFFEManager()
     failing_manager.fetch_x509_svid.side_effect = Exception("SPIRE unavailable")
 
-    with patch('src.main.get_settings') as mock_get_settings:
+    with patch("src.main.get_settings") as mock_get_settings:
         mock_get_settings.return_value = mock_settings
 
         server = ServiceRegistryServer()
@@ -221,9 +222,9 @@ async def test_server_logs_mtls_configuration(mock_spiffe_manager, mock_settings
     """Testa que servidor loga configuracao mTLS"""
     from src.main import ServiceRegistryServer
 
-    with patch('src.main.get_settings') as mock_get_settings, \
-         patch('grpc.ssl_server_credentials') as mock_ssl_server_creds:
-
+    with patch("src.main.get_settings") as mock_get_settings, patch(
+        "grpc.ssl_server_credentials"
+    ) as mock_ssl_server_creds:
         mock_get_settings.return_value = mock_settings
 
         mock_credentials = MagicMock()
@@ -247,14 +248,14 @@ async def test_server_certificate_expiry_info(mock_spiffe_manager, mock_settings
     mock_spiffe_manager.fetch_x509_svid.return_value = X509SVID(
         certificate=TEST_CERT,
         private_key=TEST_PRIVATE_KEY,
-        spiffe_id='spiffe://neural-hive.local/ns/neural-hive-execution/sa/service-registry',
+        spiffe_id="spiffe://neural-hive.local/ns/neural-hive-execution/sa/service-registry",
         ca_bundle=TEST_CA_BUNDLE,
-        expires_at=expires_at
+        expires_at=expires_at,
     )
 
-    with patch('src.main.get_settings') as mock_get_settings, \
-         patch('grpc.ssl_server_credentials') as mock_ssl_server_creds:
-
+    with patch("src.main.get_settings") as mock_get_settings, patch(
+        "grpc.ssl_server_credentials"
+    ) as mock_ssl_server_creds:
         mock_get_settings.return_value = mock_settings
 
         mock_credentials = MagicMock()

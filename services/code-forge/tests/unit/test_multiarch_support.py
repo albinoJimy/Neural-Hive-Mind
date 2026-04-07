@@ -12,7 +12,7 @@ from src.services.container_builder import (
     BuilderType,
     BuildResult,
     Platform,
-    PLATFORM_ALIASES
+    PLATFORM_ALIASES,
 )
 
 
@@ -125,13 +125,13 @@ class TestDockerMultiArch:
             mock_proc.returncode = 0
             mock_exec.return_value = mock_proc
 
-            with patch.object(builder, '_get_image_digest', return_value="sha256:abc123"):
-                with patch.object(builder, '_get_image_size', return_value=1024000):
+            with patch.object(builder, "_get_image_digest", return_value="sha256:abc123"):
+                with patch.object(builder, "_get_image_size", return_value=1024000):
                     result = await builder.build_container(
                         dockerfile_path="Dockerfile",
                         build_context=".",
                         image_tag="myapp:latest",
-                        platforms=["amd64"]
+                        platforms=["amd64"],
                     )
 
             all_args = list(mock_exec.call_args[0])
@@ -150,13 +150,13 @@ class TestDockerMultiArch:
             mock_proc.returncode = 0
             mock_exec.return_value = mock_proc
 
-            with patch.object(builder, '_get_image_digest', return_value="sha256:abc123"):
-                with patch.object(builder, '_get_image_size', return_value=1024000):
+            with patch.object(builder, "_get_image_digest", return_value="sha256:abc123"):
+                with patch.object(builder, "_get_image_size", return_value=1024000):
                     result = await builder.build_container(
                         dockerfile_path="Dockerfile",
                         build_context=".",
                         image_tag="myapp:latest",
-                        platforms=["amd64", "arm64"]
+                        platforms=["amd64", "arm64"],
                     )
 
             all_args = list(mock_exec.call_args[0])
@@ -176,12 +176,10 @@ class TestDockerMultiArch:
             mock_proc.returncode = 0
             mock_exec.return_value = mock_proc
 
-            with patch.object(builder, '_get_image_digest', return_value="sha256:abc123"):
-                with patch.object(builder, '_get_image_size', return_value=1024000):
+            with patch.object(builder, "_get_image_digest", return_value="sha256:abc123"):
+                with patch.object(builder, "_get_image_size", return_value=1024000):
                     result = await builder.build_container(
-                        dockerfile_path="Dockerfile",
-                        build_context=".",
-                        image_tag="myapp:latest"
+                        dockerfile_path="Dockerfile", build_context=".", image_tag="myapp:latest"
                     )
 
             all_args = list(mock_exec.call_args[0])
@@ -200,14 +198,12 @@ class TestKanikoMultiArch:
     @pytest.mark.asyncio
     async def test_kaniko_build_with_platform(self):
         """Testa build Kaniko com plataforma especificada."""
-        builder = ContainerBuilder(
-            builder_type=BuilderType.KANIKO,
-            enable_cache=False
-        )
+        builder = ContainerBuilder(builder_type=BuilderType.KANIKO, enable_cache=False)
 
         # Criar Dockerfile temporário
         import tempfile
         import os
+
         with tempfile.TemporaryDirectory() as tmpdir:
             dockerfile_path = os.path.join(tmpdir, "Dockerfile")
             with open(dockerfile_path, "w") as f:
@@ -218,7 +214,7 @@ class TestKanikoMultiArch:
                 dockerfile_path=dockerfile_path,
                 build_context=tmpdir,
                 image_tag="myapp:latest",
-                platforms=["arm64"]
+                platforms=["arm64"],
             )
 
             # A normalização aconteceu, então o build tentou executar
@@ -234,37 +230,26 @@ class TestBuildResultPlatforms:
             success=True,
             image_digest="sha256:abc123",
             image_tag="myapp:latest",
-            platforms=["linux/amd64", "linux/arm64"]
+            platforms=["linux/amd64", "linux/arm64"],
         )
         assert result.platforms == ["linux/amd64", "linux/arm64"]
         assert len(result.platforms) == 2
 
     def test_build_result_without_platforms(self):
         """Testa BuildResult sem plataformas (single arch)."""
-        result = BuildResult(
-            success=True,
-            image_digest="sha256:abc123",
-            image_tag="myapp:latest"
-        )
+        result = BuildResult(success=True, image_digest="sha256:abc123", image_tag="myapp:latest")
         assert result.platforms is None
 
     def test_build_result_cache_hit(self):
         """Testa BuildResult com informação de cache."""
         result = BuildResult(
-            success=True,
-            image_digest="sha256:abc123",
-            image_tag="myapp:latest",
-            cache_hit=True
+            success=True, image_digest="sha256:abc123", image_tag="myapp:latest", cache_hit=True
         )
         assert result.cache_hit is True
 
     def test_build_result_cache_miss(self):
         """Testa BuildResult sem cache (padrão)."""
-        result = BuildResult(
-            success=True,
-            image_digest="sha256:abc123",
-            image_tag="myapp:latest"
-        )
+        result = BuildResult(success=True, image_digest="sha256:abc123", image_tag="myapp:latest")
         assert result.cache_hit is False
 
 
@@ -286,11 +271,7 @@ class TestPlatformSupportMatrix:
         """Testa que ordem das plataformas é preservada."""
         builder = ContainerBuilder()
         result = builder._normalize_platforms(["amd64", "arm64", "arm"])
-        assert result == [
-            Platform.LINUX_AMD64,
-            Platform.LINUX_ARM64,
-            Platform.LINUX_ARM_V7
-        ]
+        assert result == [Platform.LINUX_AMD64, Platform.LINUX_ARM64, Platform.LINUX_ARM_V7]
 
     def test_duplicate_platforms_deduplicated(self):
         """Testa que plataformas duplicadas são mantidas (Docker trata)."""

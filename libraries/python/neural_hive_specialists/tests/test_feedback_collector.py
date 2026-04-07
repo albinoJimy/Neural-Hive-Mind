@@ -112,9 +112,7 @@ class TestFeedbackCollector:
 
     def test_validate_opinion_exists_true(self, feedback_collector):
         """Teste de validação quando opinião existe."""
-        feedback_collector._opinions_collection.find_one.return_value = {
-            "opinion_id": "test"
-        }
+        feedback_collector._opinions_collection.find_one.return_value = {"opinion_id": "test"}
 
         result = feedback_collector.validate_opinion_exists("test")
 
@@ -136,18 +134,14 @@ class TestFeedbackCollector:
         feedback_collector.validate_opinion_exists = Mock(return_value=True)
         feedback_collector._collection.insert_one = Mock()
         # Mock para enriquecimento de feedback
-        feedback_collector._opinions_collection.find_one.return_value = (
-            sample_opinion_document
-        )
+        feedback_collector._opinions_collection.find_one.return_value = sample_opinion_document
 
         feedback_id = feedback_collector.submit_feedback(sample_feedback_data)
 
         assert feedback_id.startswith("feedback-")
         feedback_collector._collection.insert_one.assert_called_once()
 
-    def test_submit_feedback_opinion_not_found(
-        self, feedback_collector, sample_feedback_data
-    ):
+    def test_submit_feedback_opinion_not_found(self, feedback_collector, sample_feedback_data):
         """Teste de submissão quando opinião não existe."""
         feedback_collector.validate_opinion_exists = Mock(return_value=False)
 
@@ -165,9 +159,7 @@ class TestFeedbackCollector:
         """Teste de submissão com rating inválido."""
         feedback_collector.validate_opinion_exists = Mock(return_value=True)
         # Mock para enriquecimento de feedback
-        feedback_collector._opinions_collection.find_one.return_value = (
-            sample_opinion_document
-        )
+        feedback_collector._opinions_collection.find_one.return_value = sample_opinion_document
         sample_feedback_data["human_rating"] = 1.5  # Fora do range
 
         # Pydantic valida antes da validação customizada - erro é sobre o valor máximo
@@ -181,9 +173,7 @@ class TestFeedbackCollector:
         feedback_collector.validate_opinion_exists = Mock(return_value=True)
         feedback_collector._collection.insert_one = Mock()
         # Mock para enriquecimento de feedback
-        feedback_collector._opinions_collection.find_one.return_value = (
-            sample_opinion_document
-        )
+        feedback_collector._opinions_collection.find_one.return_value = sample_opinion_document
         feedback_collector.audit_logger = mock_audit_logger
 
         feedback_collector.submit_feedback(sample_feedback_data)
@@ -237,9 +227,7 @@ class TestFeedbackCollector:
             for i in range(5)
         ]
 
-        feedback_collector.get_feedback_by_specialist = Mock(
-            return_value=mock_feedbacks
-        )
+        feedback_collector.get_feedback_by_specialist = Mock(return_value=mock_feedbacks)
 
         stats = feedback_collector.get_feedback_statistics("technical", 30)
 
@@ -256,9 +244,7 @@ class TestFeedbackCollector:
         feedback_collector.validate_opinion_exists = Mock(return_value=True)
         feedback_collector._collection.insert_one = Mock()
         # Mock para enriquecimento de feedback
-        feedback_collector._opinions_collection.find_one.return_value = (
-            sample_opinion_document
-        )
+        feedback_collector._opinions_collection.find_one.return_value = sample_opinion_document
 
         feedback_collector.submit_feedback(sample_feedback_data)
 

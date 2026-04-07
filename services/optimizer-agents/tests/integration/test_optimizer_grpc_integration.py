@@ -84,8 +84,10 @@ def mock_mongodb_client():
             if filters.get("component"):
                 result = [o for o in result if o["target_component"] == filters["component"]]
             if filters.get("optimization_type"):
-                result = [o for o in result if o["optimization_type"] == filters["optimization_type"]]
-        return result[skip:skip+limit]
+                result = [
+                    o for o in result if o["optimization_type"] == filters["optimization_type"]
+                ]
+        return result[skip : skip + limit]
 
     client.get_optimization = AsyncMock(side_effect=get_optimization)
     client.list_optimizations = AsyncMock(side_effect=list_optimizations)
@@ -190,15 +192,15 @@ class TestGrpcServerLifecycle:
         )
 
         assert server.servicer is not None
-        assert hasattr(server.servicer, 'TriggerOptimization')
-        assert hasattr(server.servicer, 'GetOptimizationStatus')
-        assert hasattr(server.servicer, 'ListOptimizations')
-        assert hasattr(server.servicer, 'RollbackOptimization')
-        assert hasattr(server.servicer, 'GetStatistics')
-        assert hasattr(server.servicer, 'HealthCheck')
-        assert hasattr(server.servicer, 'GetLoadForecast')
-        assert hasattr(server.servicer, 'GetSchedulingRecommendation')
-        assert hasattr(server.servicer, 'GetSchedulingMetrics')
+        assert hasattr(server.servicer, "TriggerOptimization")
+        assert hasattr(server.servicer, "GetOptimizationStatus")
+        assert hasattr(server.servicer, "ListOptimizations")
+        assert hasattr(server.servicer, "RollbackOptimization")
+        assert hasattr(server.servicer, "GetStatistics")
+        assert hasattr(server.servicer, "HealthCheck")
+        assert hasattr(server.servicer, "GetLoadForecast")
+        assert hasattr(server.servicer, "GetSchedulingRecommendation")
+        assert hasattr(server.servicer, "GetSchedulingMetrics")
 
 
 class TestTriggerOptimizationIntegration:
@@ -226,9 +228,7 @@ class TestTriggerOptimizationIntegration:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_trigger_slo_adjustment_via_servicer(
-        self, optimizer_servicer, mock_slo_adjuster
-    ):
+    async def test_trigger_slo_adjustment_via_servicer(self, optimizer_servicer, mock_slo_adjuster):
         """Testa trigger de SLO adjustment via servicer."""
         request = Mock()
         request.component = "orchestrator"
@@ -287,9 +287,7 @@ class TestGetLoadForecastIntegration:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_get_forecast_with_full_metadata(
-        self, optimizer_servicer, mock_load_predictor
-    ):
+    async def test_get_forecast_with_full_metadata(self, optimizer_servicer, mock_load_predictor):
         """Testa forecast com metadata completa."""
         request = Mock()
         request.horizon_minutes = 60
@@ -304,8 +302,7 @@ class TestGetLoadForecastIntegration:
         assert "metadata" in result
         assert len(result["forecast"]) == 2
         mock_load_predictor.predict_load.assert_called_once_with(
-            horizon_minutes=60,
-            include_confidence_intervals=True
+            horizon_minutes=60, include_confidence_intervals=True
         )
 
 
@@ -391,9 +388,7 @@ class TestGrpcErrorHandling:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_invalid_argument_error(
-        self, optimizer_servicer, mock_load_predictor
-    ):
+    async def test_invalid_argument_error(self, optimizer_servicer, mock_load_predictor):
         """Testa erro INVALID_ARGUMENT para parametros invalidos."""
         request = Mock()
         request.horizon_minutes = -100

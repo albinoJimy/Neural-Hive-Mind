@@ -15,6 +15,7 @@ from src.clients.clickhouse_client import ClickHouseClient
 
 # Fixtures
 
+
 @pytest.fixture
 def mock_redis():
     """Mock de Redis client."""
@@ -28,11 +29,11 @@ def mock_redis():
 def mock_config():
     """Mock de configuração."""
     return {
-        'clickhouse_host': 'clickhouse.test.local',
-        'clickhouse_port': 9000,
-        'clickhouse_user': 'test_user',
-        'clickhouse_password': 'test_password',
-        'clickhouse_database': 'test_db'
+        "clickhouse_host": "clickhouse.test.local",
+        "clickhouse_port": 9000,
+        "clickhouse_user": "test_user",
+        "clickhouse_password": "test_password",
+        "clickhouse_database": "test_db",
     }
 
 
@@ -41,15 +42,7 @@ def sample_execution_data():
     """Dados de execução de exemplo."""
     base_time = datetime.now(timezone.utc) - timedelta(hours=24)
     return [
-        (
-            base_time + timedelta(hours=i),
-            100 + i,
-            60000,
-            500,
-            2048,
-            'BUILD',
-            'high'
-        )
+        (base_time + timedelta(hours=i), 100 + i, 60000, 500, 2048, "BUILD", "high")
         for i in range(24)
     ]
 
@@ -63,14 +56,15 @@ def sample_metrics_data():
             base_time + timedelta(hours=i),
             0.75 + (i * 0.01),
             0.85 + (i * 0.01),
-            'worker_cpu_usage',
-            'worker-agents'
+            "worker_cpu_usage",
+            "worker-agents",
         )
         for i in range(12)
     ]
 
 
 # Tests - Inicialização e Conexão
+
 
 @pytest.mark.asyncio
 class TestClickHouseClientInitialization:
@@ -80,7 +74,7 @@ class TestClickHouseClientInitialization:
         """Testa inicialização bem-sucedida."""
         client = ClickHouseClient(mock_redis, mock_config)
 
-        with patch.object(client, '_create_sync_client') as mock_create:
+        with patch.object(client, "_create_sync_client") as mock_create:
             mock_sync_client = Mock()
             mock_sync_client.execute = Mock(return_value=[(1,)])
             mock_create.return_value = mock_sync_client
@@ -103,11 +97,11 @@ class TestClickHouseClientInitialization:
                 raise Exception("Connection failed")
             return [(1,)]
 
-        with patch.object(client, '_create_sync_client') as mock_create:
+        with patch.object(client, "_create_sync_client") as mock_create:
             mock_sync_client = Mock()
             mock_create.return_value = mock_sync_client
 
-            with patch.object(client, '_execute_query', side_effect=mock_execute_with_retry):
+            with patch.object(client, "_execute_query", side_effect=mock_execute_with_retry):
                 await client.initialize()
 
         assert call_count == 2  # 1 falha + 1 sucesso
@@ -117,7 +111,7 @@ class TestClickHouseClientInitialization:
         """Testa falha após máximo de retries."""
         client = ClickHouseClient(mock_redis, mock_config)
 
-        with patch.object(client, '_create_sync_client') as mock_create:
+        with patch.object(client, "_create_sync_client") as mock_create:
             mock_create.side_effect = Exception("Connection refused")
 
             with pytest.raises(Exception, match="Connection refused"):
@@ -128,11 +122,14 @@ class TestClickHouseClientInitialization:
 
 # Tests - Query Execution Timeseries
 
+
 @pytest.mark.asyncio
 class TestQueryExecutionTimeseries:
     """Testes de queries de séries temporais."""
 
-    async def test_query_execution_timeseries_success(self, mock_redis, mock_config, sample_execution_data):
+    async def test_query_execution_timeseries_success(
+        self, mock_redis, mock_config, sample_execution_data
+    ):
         """Testa query bem-sucedida."""
         client = ClickHouseClient(mock_redis, mock_config)
         client._initialized = True
@@ -145,15 +142,13 @@ class TestQueryExecutionTimeseries:
         end_time = datetime.now(timezone.utc)
 
         result = await client.query_execution_timeseries(
-            start_timestamp=start_time,
-            end_timestamp=end_time,
-            aggregation_interval='1h'
+            start_timestamp=start_time, end_timestamp=end_time, aggregation_interval="1h"
         )
 
         assert len(result) == len(sample_execution_data)
-        assert 'timestamp' in result[0]
-        assert 'ticket_count' in result[0]
-        assert 'avg_duration_ms' in result[0]
+        assert "timestamp" in result[0]
+        assert "ticket_count" in result[0]
+        assert "avg_duration_ms" in result[0]
 
     async def test_query_execution_timeseries_cache_hit(self, mock_redis, mock_config):
         """Testa cache hit."""
@@ -163,9 +158,9 @@ class TestQueryExecutionTimeseries:
         # Mock cache retornando dados
         cached_data = [
             {
-                'timestamp': datetime.now(timezone.utc).isoformat(),
-                'ticket_count': 100,
-                'avg_duration_ms': 60000
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "ticket_count": 100,
+                "avg_duration_ms": 60000,
             }
         ]
         mock_redis.get = AsyncMock(return_value=json.dumps(cached_data))
@@ -174,16 +169,17 @@ class TestQueryExecutionTimeseries:
         end_time = datetime.now(timezone.utc)
 
         result = await client.query_execution_timeseries(
-            start_timestamp=start_time,
-            end_timestamp=end_time
+            start_timestamp=start_time, end_timestamp=end_time
         )
 
         # Deve retornar do cache sem executar query
         assert result == cached_data
         # client.client nunca foi usado
-        assert not hasattr(client, 'client') or client.client is None
+        assert not hasattr(client, "client") or client.client is None
 
-    async def test_query_execution_timeseries_different_intervals(self, mock_redis, mock_config, sample_execution_data):
+    async def test_query_execution_timeseries_different_intervals(
+        self, mock_redis, mock_config, sample_execution_data
+    ):
         """Testa diferentes intervalos de agregação."""
         client = ClickHouseClient(mock_redis, mock_config)
         client._initialized = True
@@ -195,11 +191,9 @@ class TestQueryExecutionTimeseries:
         start_time = datetime.now(timezone.utc) - timedelta(days=1)
         end_time = datetime.now(timezone.utc)
 
-        for interval in ['1m', '1h', '1d']:
+        for interval in ["1m", "1h", "1d"]:
             result = await client.query_execution_timeseries(
-                start_timestamp=start_time,
-                end_timestamp=end_time,
-                aggregation_interval=interval
+                start_timestamp=start_time, end_timestamp=end_time, aggregation_interval=interval
             )
 
             assert isinstance(result, list)
@@ -219,8 +213,7 @@ class TestQueryExecutionTimeseries:
         end_time = datetime.now(timezone.utc)
 
         result = await client.query_execution_timeseries(
-            start_timestamp=start_time,
-            end_timestamp=end_time
+            start_timestamp=start_time, end_timestamp=end_time
         )
 
         # Deve retornar lista vazia em caso de erro
@@ -229,11 +222,14 @@ class TestQueryExecutionTimeseries:
 
 # Tests - Query Resource Utilization
 
+
 @pytest.mark.asyncio
 class TestQueryResourceUtilization:
     """Testes de queries de utilização de recursos."""
 
-    async def test_query_resource_utilization_success(self, mock_redis, mock_config, sample_metrics_data):
+    async def test_query_resource_utilization_success(
+        self, mock_redis, mock_config, sample_metrics_data
+    ):
         """Testa query bem-sucedida."""
         client = ClickHouseClient(mock_redis, mock_config)
         client._initialized = True
@@ -246,17 +242,17 @@ class TestQueryResourceUtilization:
         end_time = datetime.now(timezone.utc)
 
         result = await client.query_resource_utilization(
-            start_timestamp=start_time,
-            end_timestamp=end_time
+            start_timestamp=start_time, end_timestamp=end_time
         )
 
         assert len(result) == len(sample_metrics_data)
-        assert 'timestamp' in result[0]
-        assert 'avg_value' in result[0]
-        assert 'metric_name' in result[0]
+        assert "timestamp" in result[0]
+        assert "avg_value" in result[0]
+        assert "metric_name" in result[0]
 
 
 # Tests - Query SLA Compliance
+
 
 @pytest.mark.asyncio
 class TestQuerySlaCompliance:
@@ -268,8 +264,8 @@ class TestQuerySlaCompliance:
         client._initialized = True
 
         mock_data = [
-            (datetime.now(timezone.utc).date(), 'service-a', 95.5, 1000),
-            (datetime.now(timezone.utc).date(), 'service-b', 98.2, 1500)
+            (datetime.now(timezone.utc).date(), "service-a", 95.5, 1000),
+            (datetime.now(timezone.utc).date(), "service-b", 98.2, 1500),
         ]
 
         mock_sync_client = Mock()
@@ -280,16 +276,16 @@ class TestQuerySlaCompliance:
         end_time = datetime.now(timezone.utc)
 
         result = await client.query_sla_compliance(
-            start_timestamp=start_time,
-            end_timestamp=end_time
+            start_timestamp=start_time, end_timestamp=end_time
         )
 
         assert len(result) == 2
-        assert result[0]['compliance_percentage'] == 95.5
-        assert result[1]['total_tickets'] == 1500
+        assert result[0]["compliance_percentage"] == 95.5
+        assert result[1]["total_tickets"] == 1500
 
 
 # Tests - Query Bottleneck Events
+
 
 @pytest.mark.asyncio
 class TestQueryBottleneckEvents:
@@ -301,8 +297,8 @@ class TestQueryBottleneckEvents:
         client._initialized = True
 
         mock_data = [
-            (datetime.now(timezone.utc), 'queue_depth', 150, 'worker-agents'),
-            (datetime.now(timezone.utc), 'worker_utilization', 0.95, 'worker-agents')
+            (datetime.now(timezone.utc), "queue_depth", 150, "worker-agents"),
+            (datetime.now(timezone.utc), "worker_utilization", 0.95, "worker-agents"),
         ]
 
         mock_sync_client = Mock()
@@ -313,16 +309,16 @@ class TestQueryBottleneckEvents:
         end_time = datetime.now(timezone.utc)
 
         result = await client.query_bottleneck_events(
-            start_timestamp=start_time,
-            end_timestamp=end_time
+            start_timestamp=start_time, end_timestamp=end_time
         )
 
         assert len(result) == 2
-        assert result[0]['bottleneck_type'] == 'queue_saturation'
-        assert result[1]['bottleneck_type'] == 'worker_saturation'
+        assert result[0]["bottleneck_type"] == "queue_saturation"
+        assert result[1]["bottleneck_type"] == "worker_saturation"
 
 
 # Tests - Cache
+
 
 @pytest.mark.asyncio
 class TestCache:
@@ -332,13 +328,13 @@ class TestCache:
         """Testa recuperação do cache."""
         client = ClickHouseClient(mock_redis, mock_config)
 
-        cached_data = [{'key': 'value'}]
+        cached_data = [{"key": "value"}]
         mock_redis.get = AsyncMock(return_value=json.dumps(cached_data))
 
-        result = await client._get_cached_result('test_key')
+        result = await client._get_cached_result("test_key")
 
         assert result == cached_data
-        mock_redis.get.assert_called_once_with('test_key')
+        mock_redis.get.assert_called_once_with("test_key")
 
     async def test_get_cached_result_miss(self, mock_redis, mock_config):
         """Testa cache miss."""
@@ -346,7 +342,7 @@ class TestCache:
 
         mock_redis.get = AsyncMock(return_value=None)
 
-        result = await client._get_cached_result('test_key')
+        result = await client._get_cached_result("test_key")
 
         assert result is None
 
@@ -354,19 +350,14 @@ class TestCache:
         """Testa armazenamento no cache."""
         client = ClickHouseClient(mock_redis, mock_config)
 
-        data = [
-            {
-                'timestamp': datetime.now(timezone.utc),
-                'value': 100
-            }
-        ]
+        data = [{"timestamp": datetime.now(timezone.utc), "value": 100}]
 
-        await client._cache_result('test_key', data, ttl=300)
+        await client._cache_result("test_key", data, ttl=300)
 
         # Verificar que setex foi chamado
         mock_redis.setex.assert_called_once()
         args = mock_redis.setex.call_args[0]
-        assert args[0] == 'test_key'
+        assert args[0] == "test_key"
         assert args[1] == 300
         # args[2] deve ser JSON serializado
 
@@ -374,23 +365,19 @@ class TestCache:
         """Testa serialização de datetimes."""
         client = ClickHouseClient(mock_redis, mock_config)
 
-        data = [
-            {
-                'timestamp': datetime(2024, 1, 1, 12, 0, 0),
-                'value': 100
-            }
-        ]
+        data = [{"timestamp": datetime(2024, 1, 1, 12, 0, 0), "value": 100}]
 
-        await client._cache_result('test_key', data, ttl=300)
+        await client._cache_result("test_key", data, ttl=300)
 
         # Verificar que datetime foi convertido para ISO string
         args = mock_redis.setex.call_args[0]
         cached_json = args[2]
         parsed = json.loads(cached_json)
-        assert parsed[0]['timestamp'] == '2024-01-01T12:00:00'
+        assert parsed[0]["timestamp"] == "2024-01-01T12:00:00"
 
 
 # Tests - Query Execution (Low-level)
+
 
 @pytest.mark.asyncio
 class TestQueryExecution:
@@ -402,15 +389,12 @@ class TestQueryExecution:
         client._initialized = True
 
         mock_sync_client = Mock()
-        mock_sync_client.execute = Mock(return_value=[(1, 'test')])
+        mock_sync_client.execute = Mock(return_value=[(1, "test")])
         client.client = mock_sync_client
 
-        result = await client._execute_query(
-            "SELECT 1, 'test'",
-            params={'param1': 'value1'}
-        )
+        result = await client._execute_query("SELECT 1, 'test'", params={"param1": "value1"})
 
-        assert result == [(1, 'test')]
+        assert result == [(1, "test")]
         mock_sync_client.execute.assert_called_once()
 
     async def test_execute_query_not_initialized(self, mock_redis, mock_config):
@@ -428,9 +412,11 @@ class TestQueryExecution:
         client.query_timeout = 1  # 1 segundo
 
         mock_sync_client = Mock()
+
         # Simular query lenta
         def slow_execute(*args, **kwargs):
             import time
+
             time.sleep(2)
             return [(1,)]
 
@@ -444,6 +430,7 @@ class TestQueryExecution:
 
 # Tests - Connection Pooling
 
+
 @pytest.mark.asyncio
 class TestConnectionPooling:
     """Testes de pooling de conexões."""
@@ -452,7 +439,7 @@ class TestConnectionPooling:
         """Testa criação de cliente síncrono."""
         client = ClickHouseClient(mock_redis, mock_config)
 
-        with patch('src.clients.clickhouse_client.SyncClickHouseClient') as mock_client_class:
+        with patch("src.clients.clickhouse_client.SyncClickHouseClient") as mock_client_class:
             mock_instance = Mock()
             mock_client_class.return_value = mock_instance
 
@@ -460,17 +447,18 @@ class TestConnectionPooling:
 
             # Verificar parâmetros de conexão
             mock_client_class.assert_called_once_with(
-                host=mock_config['clickhouse_host'],
-                port=mock_config['clickhouse_port'],
-                user=mock_config['clickhouse_user'],
-                password=mock_config['clickhouse_password'],
-                database=mock_config['clickhouse_database'],
+                host=mock_config["clickhouse_host"],
+                port=mock_config["clickhouse_port"],
+                user=mock_config["clickhouse_user"],
+                password=mock_config["clickhouse_password"],
+                database=mock_config["clickhouse_database"],
                 connect_timeout=10,
-                send_receive_timeout=client.query_timeout
+                send_receive_timeout=client.query_timeout,
             )
 
 
 # Tests - Close
+
 
 @pytest.mark.asyncio
 class TestClose:
@@ -503,6 +491,7 @@ class TestClose:
 
 # Tests de Parametrização
 
+
 @pytest.mark.asyncio
 class TestParameterization:
     """Testes de parametrização de queries."""
@@ -519,18 +508,15 @@ class TestParameterization:
         start_time = datetime(2024, 1, 1, 0, 0, 0)
         end_time = datetime(2024, 1, 2, 0, 0, 0)
 
-        await client.query_execution_timeseries(
-            start_timestamp=start_time,
-            end_timestamp=end_time
-        )
+        await client.query_execution_timeseries(start_timestamp=start_time, end_timestamp=end_time)
 
         # Verificar que execute foi chamado com parâmetros
         call_args = mock_sync_client.execute.call_args
-        assert 'start_time' in call_args[0][1]
-        assert 'end_time' in call_args[0][1]
-        assert call_args[0][1]['start_time'] == start_time
-        assert call_args[0][1]['end_time'] == end_time
+        assert "start_time" in call_args[0][1]
+        assert "end_time" in call_args[0][1]
+        assert call_args[0][1]["start_time"] == start_time
+        assert call_args[0][1]["end_time"] == end_time
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

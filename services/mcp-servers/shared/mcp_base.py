@@ -20,29 +20,25 @@ logger = structlog.get_logger(__name__)
 
 # Métricas Prometheus
 MCP_REQUESTS_TOTAL = Counter(
-    "mcp_server_requests_total",
-    "Total de requisições MCP recebidas",
-    ["method", "status"]
+    "mcp_server_requests_total", "Total de requisições MCP recebidas", ["method", "status"]
 )
 
 MCP_REQUEST_DURATION = Histogram(
     "mcp_server_request_duration_seconds",
     "Duração das requisições MCP em segundos",
     ["method"],
-    buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
+    buckets=[0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0],
 )
 
 MCP_TOOL_EXECUTIONS = Counter(
-    "mcp_tool_executions_total",
-    "Total de execuções de ferramentas MCP",
-    ["tool_name", "status"]
+    "mcp_tool_executions_total", "Total de execuções de ferramentas MCP", ["tool_name", "status"]
 )
 
 MCP_TOOL_DURATION = Histogram(
     "mcp_tool_execution_duration_seconds",
     "Duração da execução de ferramentas MCP em segundos",
     ["tool_name"],
-    buckets=[0.1, 0.5, 1.0, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0]
+    buckets=[0.1, 0.5, 1.0, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0],
 )
 
 
@@ -57,12 +53,7 @@ class BaseMCPServer(ABC):
     - Graceful shutdown
     """
 
-    def __init__(
-        self,
-        name: str,
-        version: str,
-        allowed_origins: Optional[list[str]] = None
-    ):
+    def __init__(self, name: str, version: str, allowed_origins: Optional[list[str]] = None):
         self.name = name
         self.version = version
         self.allowed_origins = allowed_origins or ["*"]
@@ -80,7 +71,7 @@ class BaseMCPServer(ABC):
                 structlog.processors.StackInfoRenderer(),
                 structlog.processors.format_exc_info,
                 structlog.processors.UnicodeDecoder(),
-                structlog.processors.JSONRenderer()
+                structlog.processors.JSONRenderer(),
             ],
             wrapper_class=structlog.stdlib.BoundLogger,
             context_class=dict,
@@ -94,34 +85,23 @@ class BaseMCPServer(ABC):
         @app.get("/health")
         async def health_check() -> dict[str, Any]:
             """Verifica se o servidor está funcionando."""
-            return {
-                "status": "healthy",
-                "service": self.name,
-                "version": self.version
-            }
+            return {"status": "healthy", "service": self.name, "version": self.version}
 
         @app.get("/ready")
         async def readiness_check() -> Response:
             """Verifica se o servidor está pronto para receber tráfego."""
             if self._is_ready:
                 return Response(
-                    content='{"status": "ready"}',
-                    media_type="application/json",
-                    status_code=200
+                    content='{"status": "ready"}', media_type="application/json", status_code=200
                 )
             return Response(
-                content='{"status": "not_ready"}',
-                media_type="application/json",
-                status_code=503
+                content='{"status": "not_ready"}', media_type="application/json", status_code=503
             )
 
         @app.get("/metrics")
         async def metrics() -> Response:
             """Expõe métricas Prometheus."""
-            return Response(
-                content=generate_latest(),
-                media_type=CONTENT_TYPE_LATEST
-            )
+            return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
     def setup_cors(self, app: FastAPI) -> None:
         """Configura CORS para aceitar requisições do MCP Tool Catalog."""
@@ -139,28 +119,19 @@ class BaseMCPServer(ABC):
 
         for sig in (signal.SIGTERM, signal.SIGINT):
             loop.add_signal_handler(
-                sig,
-                lambda s=sig: asyncio.create_task(self._handle_shutdown(s))
+                sig, lambda s=sig: asyncio.create_task(self._handle_shutdown(s))
             )
 
     async def _handle_shutdown(self, sig: signal.Signals) -> None:
         """Handler para shutdown graceful."""
-        logger.info(
-            "shutdown_signal_received",
-            signal=sig.name,
-            service=self.name
-        )
+        logger.info("shutdown_signal_received", signal=sig.name, service=self.name)
         self._is_ready = False
         self._shutdown_event.set()
 
     def set_ready(self, ready: bool = True) -> None:
         """Define o estado de readiness do servidor."""
         self._is_ready = ready
-        logger.info(
-            "readiness_state_changed",
-            ready=ready,
-            service=self.name
-        )
+        logger.info("readiness_state_changed", ready=ready, service=self.name)
 
     @property
     def is_shutting_down(self) -> bool:

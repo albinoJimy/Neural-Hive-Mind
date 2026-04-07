@@ -53,32 +53,16 @@ class MLModelValidator:
         await self.model_registry.initialize()
 
         self.duration_predictor = DurationPredictor(
-            self.config,
-            self.mongo_client,
-            self.model_registry,
-            self.metrics
+            self.config, self.mongo_client, self.model_registry, self.metrics
         )
         self.anomaly_detector = AnomalyDetector(
-            self.config,
-            self.mongo_client,
-            self.model_registry,
-            self.metrics
+            self.config, self.mongo_client, self.model_registry, self.metrics
         )
-        self.load_predictor = LoadPredictor(
-            self.config,
-            self.mongo_client,
-            None,
-            self.metrics
-        )
-        self.drift_detector = DriftDetector(
-            self.config,
-            self.mongo_client,
-            self.metrics
-        )
+        self.load_predictor = LoadPredictor(self.config, self.mongo_client, None, self.metrics)
+        self.drift_detector = DriftDetector(self.config, self.mongo_client, self.metrics)
 
         await asyncio.gather(
-            self.duration_predictor.initialize(),
-            self.anomaly_detector.initialize()
+            self.duration_predictor.initialize(), self.anomaly_detector.initialize()
         )
 
     async def check_mlflow_connection(self) -> Dict[str, Any]:
@@ -98,13 +82,14 @@ class MLModelValidator:
         try:
             models = await self.model_registry.list_models()
             in_production = [
-                m for m in models
+                m
+                for m in models
                 if m.get("current_stage") and m.get("current_stage").lower() == "production"
             ]
             return {
                 "status": "ok" if in_production else "warning",
                 "production_models": in_production,
-                "total_registered": len(models)
+                "total_registered": len(models),
             }
         except Exception as exc:
             return {"status": "error", "error": str(exc)}
@@ -122,7 +107,7 @@ class MLModelValidator:
             "estimated_duration_ms": 60000,
             "required_capabilities": ["compute", "storage"],
             "parameters": {"payload_size": 1024},
-            "sla": {"timeout_ms": 180000}
+            "sla": {"timeout_ms": 180000},
         }
 
         start = time.time()
@@ -133,7 +118,7 @@ class MLModelValidator:
                 "status": "ok" if latency_ms < 200 else "warning",
                 "prediction_ms": prediction.get("duration_ms"),
                 "confidence": prediction.get("confidence"),
-                "latency_ms": latency_ms
+                "latency_ms": latency_ms,
             }
         except Exception as exc:
             return {"status": "error", "error": str(exc)}
@@ -151,7 +136,7 @@ class MLModelValidator:
             "estimated_duration_ms": 45000,
             "required_capabilities": ["compute", "network"],
             "parameters": {"payload_size": 512},
-            "sla": {"timeout_ms": 120000}
+            "sla": {"timeout_ms": 120000},
         }
 
         try:
@@ -160,7 +145,7 @@ class MLModelValidator:
                 "status": "ok",
                 "is_anomaly": result.get("is_anomaly"),
                 "anomaly_type": result.get("anomaly_type"),
-                "anomaly_score": result.get("anomaly_score")
+                "anomaly_score": result.get("anomaly_score"),
             }
         except Exception as exc:
             return {"status": "error", "error": str(exc)}
@@ -174,17 +159,13 @@ class MLModelValidator:
             "ticket_id": "validation-load",
             "task_type": "standard_task",
             "estimated_duration_ms": 30000,
-            "required_capabilities": ["compute"]
+            "required_capabilities": ["compute"],
         }
 
         try:
             queue_ms = await self.load_predictor.predict_queue_time("validator-worker", ticket)
             load_pct = await self.load_predictor.predict_worker_load("validator-worker")
-            return {
-                "status": "ok",
-                "queue_prediction_ms": queue_ms,
-                "load_prediction": load_pct
-            }
+            return {"status": "ok", "queue_prediction_ms": queue_ms, "load_prediction": load_pct}
         except Exception as exc:
             return {"status": "error", "error": str(exc)}
 
@@ -203,7 +184,7 @@ class MLModelValidator:
                 "status": "ok",
                 "baseline_found": True,
                 "model_name": baseline.get("model_name"),
-                "timestamp": baseline.get("timestamp")
+                "timestamp": baseline.get("timestamp"),
             }
         except Exception as exc:
             return {"status": "error", "error": str(exc)}
@@ -254,7 +235,7 @@ class MLModelValidator:
                 "anomaly_detector": anomaly_status,
                 "load_predictor": load_status,
                 "feature_baseline": baseline_status,
-                "drift_detection": drift_status
+                "drift_detection": drift_status,
             }
 
             self.generate_report(results)
@@ -264,7 +245,7 @@ class MLModelValidator:
                 models_status.get("status"),
                 duration_status.get("status"),
                 anomaly_status.get("status"),
-                load_status.get("status")
+                load_status.get("status"),
             ]
 
             critical_error = any(status == "error" for status in statuses)
@@ -276,8 +257,7 @@ class MLModelValidator:
 
 def configure_logging() -> None:
     logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(name)s - %(message)s"
+        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s - %(message)s"
     )
 
 

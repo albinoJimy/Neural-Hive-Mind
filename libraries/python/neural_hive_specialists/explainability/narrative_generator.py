@@ -87,12 +87,8 @@ class NarrativeGenerator:
             return "Não foi possível gerar explicação detalhada."
 
         # Separar contribuições positivas e negativas
-        positive_features = [
-            f for f in feature_importances if f["contribution"] == "positive"
-        ]
-        negative_features = [
-            f for f in feature_importances if f["contribution"] == "negative"
-        ]
+        positive_features = [f for f in feature_importances if f["contribution"] == "positive"]
+        negative_features = [f for f in feature_importances if f["contribution"] == "negative"]
 
         # Pegar top features de cada tipo
         top_positive = positive_features[: min(top_n, len(positive_features))]
@@ -103,34 +99,26 @@ class NarrativeGenerator:
 
         # Introdução
         weight_key = "shap_value" if explanation_type == "shap" else "lime_weight"
-        narrative_parts.append(
-            f"A decisão foi baseada principalmente nos seguintes fatores:"
-        )
+        narrative_parts.append(f"A decisão foi baseada principalmente nos seguintes fatores:")
 
         # Fatores positivos
         if top_positive:
             narrative_parts.append("\n\n**Fatores que aumentaram a confiança:**")
             for i, feature in enumerate(top_positive, 1):
-                description = self._describe_feature(
-                    feature, weight_key, reasoning_links
-                )
+                description = self._describe_feature(feature, weight_key, reasoning_links)
                 narrative_parts.append(f"\n{i}. {description}")
 
         # Fatores negativos
         if top_negative:
             narrative_parts.append("\n\n**Fatores que reduziram a confiança:**")
             for i, feature in enumerate(top_negative, 1):
-                description = self._describe_feature(
-                    feature, weight_key, reasoning_links
-                )
+                description = self._describe_feature(feature, weight_key, reasoning_links)
                 narrative_parts.append(f"\n{i}. {description}")
 
         # Conclusão
         total_importance = sum(f["importance"] for f in feature_importances[:top_n])
         confidence_level = self._interpret_confidence(total_importance)
-        narrative_parts.append(
-            f"\n\nGrau de confiança da explicação: {confidence_level}."
-        )
+        narrative_parts.append(f"\n\nGrau de confiança da explicação: {confidence_level}.")
 
         return "".join(narrative_parts)
 
@@ -184,18 +172,20 @@ class NarrativeGenerator:
         else:
             impact_text = "leve impacto"
 
-        contribution = (
-            "positiva" if feature["contribution"] == "positive" else "negativa"
-        )
+        contribution = "positiva" if feature["contribution"] == "positive" else "negativa"
 
-        base_description = f"**{description.capitalize()}** (contribuição {contribution}, {impact_text})"
+        base_description = (
+            f"**{description.capitalize()}** (contribuição {contribution}, {impact_text})"
+        )
 
         # Adicionar link para reasoning_factor se disponível
         if feature_name in reasoning_links:
             link = reasoning_links[feature_name]
             factor_name = link["factor_name"]
             factor_score = link["factor_score"]
-            base_description += f" — vinculado ao fator de raciocínio '{factor_name}' (score: {factor_score:.2f})"
+            base_description += (
+                f" — vinculado ao fator de raciocínio '{factor_name}' (score: {factor_score:.2f})"
+            )
 
         return base_description
 
@@ -211,11 +201,7 @@ class NarrativeGenerator:
             Descrição qualitativa
         """
         # Features com range 0-1 (scores, weights)
-        if (
-            "score" in feature_name
-            or "weight" in feature_name
-            or "density" in feature_name
-        ):
+        if "score" in feature_name or "weight" in feature_name or "density" in feature_name:
             if value >= 0.8:
                 return "muito alta"
             elif value >= 0.6:

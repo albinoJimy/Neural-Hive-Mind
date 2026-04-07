@@ -34,6 +34,7 @@ from typing import Optional, Dict, Any
 try:
     from testcontainers.core.container import DockerContainer
     from testcontainers.core.waiting_utils import wait_for_logs
+
     TESTCONTAINERS_AVAILABLE = True
 except ImportError:
     TESTCONTAINERS_AVAILABLE = False
@@ -51,10 +52,8 @@ def is_testcontainers_available() -> bool:
 
 
 def start_opa_container(
-    image: str = 'openpolicyagent/opa:latest',
-    port: int = 8181,
-    policies_dir: Optional[str] = None
-) -> Optional['DockerContainer']:
+    image: str = "openpolicyagent/opa:latest", port: int = 8181, policies_dir: Optional[str] = None
+) -> Optional["DockerContainer"]:
     """
     Inicia container OPA real com politicas de teste.
 
@@ -79,16 +78,16 @@ def start_opa_container(
 
     container = DockerContainer(image)
     container.with_exposed_ports(port)
-    container.with_command('run --server')
+    container.with_command("run --server")
 
     if policies_dir and os.path.isdir(policies_dir):
-        container.with_volume_mapping(policies_dir, '/policies', 'ro')
-        container.with_command('run --server --bundle /policies')
+        container.with_volume_mapping(policies_dir, "/policies", "ro")
+        container.with_command("run --server --bundle /policies")
 
     container.start()
 
     # Aguardar OPA estar pronto
-    _wait_for_http(container, port, '/health')
+    _wait_for_http(container, port, "/health")
 
     return container
 
@@ -100,7 +99,7 @@ def get_opa_test_policy() -> str:
     Returns:
         String com politica Rego para testes
     """
-    return '''
+    return """
 package policy
 
 default allow = false
@@ -118,7 +117,7 @@ violations[msg] {
     input.resource == "protected"
     msg := "Cannot delete protected resources"
 }
-'''
+"""
 
 
 # ============================================
@@ -127,9 +126,8 @@ violations[msg] {
 
 
 def start_argocd_mock_container(
-    image: str = 'nginx:alpine',
-    port: int = 8080
-) -> Optional['DockerContainer']:
+    image: str = "nginx:alpine", port: int = 8080
+) -> Optional["DockerContainer"]:
     """
     Inicia container mock de ArgoCD API.
 
@@ -152,7 +150,7 @@ def start_argocd_mock_container(
         return None
 
     # Configuracao nginx para mock
-    nginx_conf = '''
+    nginx_conf = """
 server {
     listen 8080;
 
@@ -173,7 +171,7 @@ server {
         return 200 '{"status": "ok"}';
     }
 }
-'''
+"""
 
     container = DockerContainer(image)
     container.with_exposed_ports(port)
@@ -189,9 +187,8 @@ server {
 
 
 def start_gitlab_mock_container(
-    image: str = 'nginx:alpine',
-    port: int = 80
-) -> Optional['DockerContainer']:
+    image: str = "nginx:alpine", port: int = 80
+) -> Optional["DockerContainer"]:
     """
     Inicia container mock de GitLab CI API.
 
@@ -219,9 +216,8 @@ def start_gitlab_mock_container(
 
 
 def start_dind_container(
-    image: str = 'docker:dind',
-    privileged: bool = True
-) -> Optional['DockerContainer']:
+    image: str = "docker:dind", privileged: bool = True
+) -> Optional["DockerContainer"]:
     """
     Inicia container Docker-in-Docker para testes de execucao Docker.
 
@@ -245,7 +241,7 @@ def start_dind_container(
     if privileged:
         container.with_kwargs(privileged=True)
 
-    container.with_env('DOCKER_TLS_CERTDIR', '')
+    container.with_env("DOCKER_TLS_CERTDIR", "")
 
     container.start()
 
@@ -261,10 +257,7 @@ def start_dind_container(
 
 
 def _wait_for_http(
-    container: 'DockerContainer',
-    port: int,
-    path: str = '/',
-    timeout: int = 30
+    container: "DockerContainer", port: int, path: str = "/", timeout: int = 30
 ) -> bool:
     """
     Aguarda endpoint HTTP estar disponivel.
@@ -283,7 +276,7 @@ def _wait_for_http(
 
     exposed_port = container.get_exposed_port(port)
     host = container.get_container_host_ip()
-    url = f'http://{host}:{exposed_port}{path}'
+    url = f"http://{host}:{exposed_port}{path}"
 
     start_time = time.time()
     while time.time() - start_time < timeout:
@@ -298,7 +291,7 @@ def _wait_for_http(
     return False
 
 
-def get_container_url(container: 'DockerContainer', port: int) -> str:
+def get_container_url(container: "DockerContainer", port: int) -> str:
     """
     Retorna URL para acessar container.
 
@@ -311,7 +304,7 @@ def get_container_url(container: 'DockerContainer', port: int) -> str:
     """
     exposed_port = container.get_exposed_port(port)
     host = container.get_container_host_ip()
-    return f'http://{host}:{exposed_port}'
+    return f"http://{host}:{exposed_port}"
 
 
 # ============================================
@@ -333,10 +326,10 @@ def create_opa_fixture():
     """
     import pytest
 
-    @pytest.fixture(scope='module')
+    @pytest.fixture(scope="module")
     def opa_container():
         if not TESTCONTAINERS_AVAILABLE:
-            pytest.skip('testcontainers not available')
+            pytest.skip("testcontainers not available")
 
         container = start_opa_container()
         yield container
@@ -360,10 +353,10 @@ def create_dind_fixture():
     """
     import pytest
 
-    @pytest.fixture(scope='module')
+    @pytest.fixture(scope="module")
     def dind_container():
         if not TESTCONTAINERS_AVAILABLE:
-            pytest.skip('testcontainers not available')
+            pytest.skip("testcontainers not available")
 
         container = start_dind_container()
         yield container

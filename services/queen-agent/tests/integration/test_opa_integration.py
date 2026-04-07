@@ -45,16 +45,15 @@ async def test_opa_ethical_guardrails_allow(opa_client):
                 "resource_saturation": 0.5,
                 "critical_incidents": [],
                 "sla_violations": [],
-                "active_plans": []
+                "active_plans": [],
             },
             "analysis": {"metrics_snapshot": {"bias_score": 0.1}, "conflict_domains": []},
-            "reasoning_summary": "Ajuste de prioridades baseado em contexto"
+            "reasoning_summary": "Ajuste de prioridades baseado em contexto",
         }
     }
 
     result = await opa_client.evaluate_policy(
-        policy_path="neuralhive/queen/ethical_guardrails",
-        input_data=input_data
+        policy_path="neuralhive/queen/ethical_guardrails", input_data=input_data
     )
 
     assert result.get("allow") is True
@@ -75,16 +74,15 @@ async def test_opa_ethical_guardrails_deny_excessive_risk(opa_client):
                 "resource_saturation": 0.5,
                 "critical_incidents": [],
                 "sla_violations": [],
-                "active_plans": []
+                "active_plans": [],
             },
             "analysis": {"metrics_snapshot": {}, "conflict_domains": []},
-            "reasoning_summary": "Replanning"
+            "reasoning_summary": "Replanning",
         }
     }
 
     result = await opa_client.evaluate_policy(
-        policy_path="neuralhive/queen/ethical_guardrails",
-        input_data=input_data
+        policy_path="neuralhive/queen/ethical_guardrails", input_data=input_data
     )
 
     assert result.get("allow") is False
@@ -107,16 +105,15 @@ async def test_opa_ethical_guardrails_deny_low_confidence_critical(opa_client):
                 "resource_saturation": 0.5,
                 "critical_incidents": [],
                 "sla_violations": [],
-                "active_plans": []
+                "active_plans": [],
             },
             "analysis": {"metrics_snapshot": {}, "conflict_domains": []},
-            "reasoning_summary": "Test"
+            "reasoning_summary": "Test",
         }
     }
 
     result = await opa_client.evaluate_policy(
-        policy_path="neuralhive/queen/ethical_guardrails",
-        input_data=input_data
+        policy_path="neuralhive/queen/ethical_guardrails", input_data=input_data
     )
 
     violations = result.get("violations", [])
@@ -137,16 +134,15 @@ async def test_opa_ethical_guardrails_high_risk_warning(opa_client):
                 "resource_saturation": 0.5,
                 "critical_incidents": [],
                 "sla_violations": [],
-                "active_plans": []
+                "active_plans": [],
             },
             "analysis": {"metrics_snapshot": {"bias_score": 0.1}, "conflict_domains": []},
-            "reasoning_summary": "Ajuste"
+            "reasoning_summary": "Ajuste",
         }
     }
 
     result = await opa_client.evaluate_policy(
-        policy_path="neuralhive/queen/ethical_guardrails",
-        input_data=input_data
+        policy_path="neuralhive/queen/ethical_guardrails", input_data=input_data
     )
 
     assert result.get("allow") is True
@@ -168,16 +164,15 @@ async def test_opa_ethical_guardrails_resource_saturation_critical(opa_client):
                 "resource_saturation": 0.97,  # > 95%
                 "critical_incidents": [],
                 "sla_violations": [],
-                "active_plans": []
+                "active_plans": [],
             },
             "analysis": {"metrics_snapshot": {}, "conflict_domains": []},
-            "reasoning_summary": "Test"
+            "reasoning_summary": "Test",
         }
     }
 
     result = await opa_client.evaluate_policy(
-        policy_path="neuralhive/queen/ethical_guardrails",
-        input_data=input_data
+        policy_path="neuralhive/queen/ethical_guardrails", input_data=input_data
     )
 
     assert result.get("allow") is False
@@ -199,16 +194,15 @@ async def test_opa_ethical_guardrails_resource_saturation_ok_with_reallocation(o
                 "resource_saturation": 0.97,  # > 95%
                 "critical_incidents": [],
                 "sla_violations": [],
-                "active_plans": []
+                "active_plans": [],
             },
             "analysis": {"metrics_snapshot": {"bias_score": 0.1}, "conflict_domains": []},
-            "reasoning_summary": "Realocação necessária"
+            "reasoning_summary": "Realocação necessária",
         }
     }
 
     result = await opa_client.evaluate_policy(
-        policy_path="neuralhive/queen/ethical_guardrails",
-        input_data=input_data
+        policy_path="neuralhive/queen/ethical_guardrails", input_data=input_data
     )
 
     # Não deve ter violação de resource_saturation_critical

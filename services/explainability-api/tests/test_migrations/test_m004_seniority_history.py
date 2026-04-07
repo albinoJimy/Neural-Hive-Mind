@@ -25,10 +25,10 @@ class TestM004SeniorityHistory:
         mongo_client = self._create_mock_mongo_client()
 
         # Run migration
-        await upgrade(mongo_client, 'neural_hive')
+        await upgrade(mongo_client, "neural_hive")
 
         # Verify create_collection was called
-        db = mongo_client['neural_hive']
+        db = mongo_client["neural_hive"]
         db.create_collection.assert_called_once_with("seniority_history")
 
     @pytest.mark.asyncio
@@ -40,11 +40,11 @@ class TestM004SeniorityHistory:
         mongo_client = self._create_mock_mongo_client()
 
         # Run migration
-        await upgrade(mongo_client, 'neural_hive')
+        await upgrade(mongo_client, "neural_hive")
 
         # Verify indexes were created
-        db = mongo_client['neural_hive']
-        collection = db['seniority_history']
+        db = mongo_client["neural_hive"]
+        collection = db["seniority_history"]
 
         assert collection.create_index.call_count == 3
 
@@ -53,15 +53,15 @@ class TestM004SeniorityHistory:
 
         # First index: specialist_id + changed_at
         assert calls[0][0][0] == [("specialist_id", 1), ("changed_at", -1)]
-        assert calls[0][1]['name'] == "specialist_id_1_changed_at_-1"
+        assert calls[0][1]["name"] == "specialist_id_1_changed_at_-1"
 
         # Second index: domain + changed_at
         assert calls[1][0][0] == [("domain", 1), ("changed_at", -1)]
-        assert calls[1][1]['name'] == "domain_1_changed_at_-1"
+        assert calls[1][1]["name"] == "domain_1_changed_at_-1"
 
         # Third index: changed_at
         assert calls[2][0][0] == [("changed_at", 1)]
-        assert calls[2][1]['name'] == "changed_at_1"
+        assert calls[2][1]["name"] == "changed_at_1"
 
     @pytest.mark.asyncio
     async def test_m004_downgrade_drops_collection(self):
@@ -72,10 +72,10 @@ class TestM004SeniorityHistory:
         mongo_client = self._create_mock_mongo_client()
 
         # Run downgrade
-        await downgrade(mongo_client, 'neural_hive')
+        await downgrade(mongo_client, "neural_hive")
 
         # Verify drop_collection was called
-        db = mongo_client['neural_hive']
+        db = mongo_client["neural_hive"]
         db.drop_collection.assert_called_once_with("seniority_history")
 
     @pytest.mark.asyncio
@@ -87,12 +87,12 @@ class TestM004SeniorityHistory:
         mongo_client = self._create_mock_mongo_client()
 
         # Run verification
-        result = await verify_schema(mongo_client, 'neural_hive')
+        result = await verify_schema(mongo_client, "neural_hive")
 
         # Verify result structure
-        assert 'timestamp' in result
-        assert 'collection_exists' in result
-        assert 'indexes' in result
+        assert "timestamp" in result
+        assert "collection_exists" in result
+        assert "indexes" in result
 
     def _create_mock_mongo_client(self):
         """Cria mock do MongoDB client para testes."""
@@ -105,14 +105,16 @@ class TestM004SeniorityHistory:
         # Setup async mocks using AsyncMock
         db.create_collection = AsyncMock(return_value=None)
         db.drop_collection = AsyncMock(return_value=None)
-        db.list_collection_names = AsyncMock(return_value=['seniority_history'])
-        collection.create_index = AsyncMock(return_value='index_name')
-        collection.list_indexes = AsyncMock(return_value=[
-            {'name': '_id_'},
-            {'name': 'specialist_id_1_changed_at_-1'},
-            {'name': 'domain_1_changed_at_-1'},
-            {'name': 'changed_at_1'}
-        ])
+        db.list_collection_names = AsyncMock(return_value=["seniority_history"])
+        collection.create_index = AsyncMock(return_value="index_name")
+        collection.list_indexes = AsyncMock(
+            return_value=[
+                {"name": "_id_"},
+                {"name": "specialist_id_1_changed_at_-1"},
+                {"name": "domain_1_changed_at_-1"},
+                {"name": "changed_at_1"},
+            ]
+        )
 
         # Setup __getitem__ on db to return collection
         db.__getitem__.return_value = collection

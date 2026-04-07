@@ -81,22 +81,27 @@ class TestBuildMetricsCollector:
 
             # Criar arquivo com métricas existentes
             with open(storage_path, "w") as f:
-                f.write(json.dumps({
-                    "timestamp": "2026-03-12T10:00:00",
-                    "language": "python",
-                    "framework": "fastapi",
-                    "artifact_type": "microservice",
-                    "platform": "linux/amd64",
-                    "builder_type": "docker",
-                    "success": True,
-                    "duration_seconds": 120.5,
-                    "size_bytes": 1024000,
-                    "cache_hit": False,
-                    "multi_arch": False,
-                    "platforms_count": 1,
-                    "has_error": False,
-                    "error_type": None,
-                }) + "\n")
+                f.write(
+                    json.dumps(
+                        {
+                            "timestamp": "2026-03-12T10:00:00",
+                            "language": "python",
+                            "framework": "fastapi",
+                            "artifact_type": "microservice",
+                            "platform": "linux/amd64",
+                            "builder_type": "docker",
+                            "success": True,
+                            "duration_seconds": 120.5,
+                            "size_bytes": 1024000,
+                            "cache_hit": False,
+                            "multi_arch": False,
+                            "platforms_count": 1,
+                            "has_error": False,
+                            "error_type": None,
+                        }
+                    )
+                    + "\n"
+                )
 
             collector = BuildMetricsCollector(storage_path=storage_path)
 
@@ -228,10 +233,7 @@ class TestMetricsAggregation:
                 duration_seconds=duration,
             )
 
-        stats = collector.get_stats(
-            metric_type=MetricType.DURATION,
-            group_by="language"
-        )
+        stats = collector.get_stats(metric_type=MetricType.DURATION, group_by="language")
 
         assert "python" in stats
         assert "nodejs" in stats
@@ -256,8 +258,7 @@ class TestMetricsAggregation:
             )
 
         stats = collector.get_stats(
-            metric_type=MetricType.DURATION,
-            filter_by={"language": "python"}
+            metric_type=MetricType.DURATION, filter_by={"language": "python"}
         )
 
         # Python tem 3 builds: 100, 110, 120
@@ -282,10 +283,7 @@ class TestMetricsAggregation:
                 cache_hit=i < 5,
             )
 
-        stats = collector.get_stats(
-            metric_type=MetricType.CACHE_HIT,
-            group_by="language"
-        )
+        stats = collector.get_stats(metric_type=MetricType.CACHE_HIT, group_by="language")
 
         assert stats["python"].mean == 0.5  # 50% cache hit
 
@@ -306,10 +304,7 @@ class TestMetricsAggregation:
                 duration_seconds=100,
             )
 
-        stats = collector.get_stats(
-            metric_type=MetricType.SUCCESS_RATE,
-            group_by="language"
-        )
+        stats = collector.get_stats(metric_type=MetricType.SUCCESS_RATE, group_by="language")
 
         assert stats["python"].mean == 0.7  # 70% sucesso
 
@@ -323,24 +318,35 @@ class TestPerformanceComparison:
         collector.metrics.clear()  # Começar vazio
 
         collector.record_build(
-            language="python", framework="fastapi",
-            artifact_type="microservice", platform="linux/amd64",
-            builder_type="docker", success=True, duration_seconds=150,
+            language="python",
+            framework="fastapi",
+            artifact_type="microservice",
+            platform="linux/amd64",
+            builder_type="docker",
+            success=True,
+            duration_seconds=150,
         )
         collector.record_build(
-            language="python", framework="flask",
-            artifact_type="microservice", platform="linux/amd64",
-            builder_type="docker", success=True, duration_seconds=130,
+            language="python",
+            framework="flask",
+            artifact_type="microservice",
+            platform="linux/amd64",
+            builder_type="docker",
+            success=True,
+            duration_seconds=130,
         )
         collector.record_build(
-            language="go", framework="gin",
-            artifact_type="microservice", platform="linux/amd64",
-            builder_type="docker", success=True, duration_seconds=80,
+            language="go",
+            framework="gin",
+            artifact_type="microservice",
+            platform="linux/amd64",
+            builder_type="docker",
+            success=True,
+            duration_seconds=80,
         )
 
         comparison = collector.compare_performance(
-            metric_type=MetricType.DURATION,
-            dimension="language"
+            metric_type=MetricType.DURATION, dimension="language"
         )
 
         # Go deve ser mais rápido
@@ -373,8 +379,7 @@ class TestPerformanceComparison:
             )
 
         comparison = collector.compare_performance(
-            metric_type=MetricType.DURATION,
-            dimension="builder_type"
+            metric_type=MetricType.DURATION, dimension="builder_type"
         )
 
         # Docker deve ser mais rápido que Kaniko (local)

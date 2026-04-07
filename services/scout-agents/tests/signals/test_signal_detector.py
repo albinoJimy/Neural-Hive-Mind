@@ -18,6 +18,7 @@ from neural_hive_domain import UnifiedDomain
 # Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def signal_detector():
     """Instância de SignalDetector para testes."""
@@ -36,9 +37,9 @@ def high_anomaly_event():
             "error_count": 500,
             "error_rate": 0.95,
             "response_time": 5000,
-            "affected_services": ["auth", "payment", "checkout"]
+            "affected_services": ["auth", "payment", "checkout"],
         },
-        metadata={"trace_id": "trace-high-anomaly"}
+        metadata={"trace_id": "trace-high-anomaly"},
     )
 
 
@@ -51,11 +52,8 @@ def pattern_event():
         source="analytics",
         event_type="usage_metric",
         timestamp=datetime.now(timezone.utc),
-        payload={
-            "daily_users": values_with_variance[-1],
-            "trend_data": values_with_variance
-        },
-        metadata={"trace_id": "trace-pattern"}
+        payload={"daily_users": values_with_variance[-1], "trend_data": values_with_variance},
+        metadata={"trace_id": "trace-pattern"},
     )
 
 
@@ -67,16 +65,8 @@ def user_action_event():
         source="web-app",
         event_type="user_action",
         timestamp=datetime.now(timezone.utc),
-        payload={
-            "action": "purchase",
-            "amount": 150.00,
-            "item_count": 3
-        },
-        metadata={
-            "trace_id": "trace-user",
-            "user_id": "user-123",
-            "device_id": "device-456"
-        }
+        payload={"action": "purchase", "amount": 150.00, "item_count": 3},
+        metadata={"trace_id": "trace-user", "user_id": "user-123", "device_id": "device-456"},
     )
 
 
@@ -88,15 +78,8 @@ def threat_event():
         source="security-monitor",
         event_type="intrusion_attempt",
         timestamp=datetime.now(timezone.utc),
-        payload={
-            "failed_logins": 100,
-            "blocked_ips": 50,
-            "severity": "critical"
-        },
-        metadata={
-            "trace_id": "trace-threat",
-            "severity": "critical"
-        }
+        payload={"failed_logins": 100, "blocked_ips": 50, "severity": "critical"},
+        metadata={"trace_id": "trace-threat", "severity": "critical"},
     )
 
 
@@ -109,17 +92,15 @@ def trend_event():
         source="metrics",
         event_type="metric",
         timestamp=datetime.now(timezone.utc),
-        payload={
-            "values": values,
-            "mean": np.mean(values)
-        },
-        metadata={"trace_id": "trace-trend"}
+        payload={"values": values, "mean": np.mean(values)},
+        metadata={"trace_id": "trace-trend"},
     )
 
 
 # ============================================================================
 # Testes de Inicialização
 # ============================================================================
+
 
 class TestSignalDetectorInitialization:
     """Testes de inicialização do SignalDetector."""
@@ -149,6 +130,7 @@ class TestSignalDetectorInitialization:
 # Testes de Detecção de Sinais
 # ============================================================================
 
+
 class TestSignalDetection:
     """Testes do método principal de detecção."""
 
@@ -156,44 +138,72 @@ class TestSignalDetection:
     async def test_detect_returns_none_when_filtered(self, signal_detector, sample_raw_event):
         """Testa que sinal filtrado retorna None."""
         # Mock Bayesian filter para filtrar o evento
-        with patch.object(signal_detector.bayesian_filter, 'filter', return_value=(False, 0.3)):
+        with patch.object(signal_detector.bayesian_filter, "filter", return_value=(False, 0.3)):
             result = await signal_detector.detect(sample_raw_event, UnifiedDomain.BUSINESS)
             assert result is None
 
     @pytest.mark.asyncio
     async def test_detect_returns_none_when_no_signal_type(self, signal_detector, sample_raw_event):
         """Testa que sinal sem tipo detectado retorna None."""
-        with patch.object(signal_detector.bayesian_filter, 'filter', return_value=(True, 0.8)):
-            with patch.object(signal_detector, 'detect_signal_type', return_value=(None, 0.0)):
+        with patch.object(signal_detector.bayesian_filter, "filter", return_value=(True, 0.8)):
+            with patch.object(signal_detector, "detect_signal_type", return_value=(None, 0.0)):
                 result = await signal_detector.detect(sample_raw_event, UnifiedDomain.BUSINESS)
                 assert result is None
 
     @pytest.mark.asyncio
-    async def test_detect_returns_none_when_below_thresholds(self, signal_detector, sample_raw_event):
+    async def test_detect_returns_none_when_below_thresholds(
+        self, signal_detector, sample_raw_event
+    ):
         """Testa que sinal abaixo dos thresholds não é publicado."""
         mock_signal = MagicMock()
         mock_signal.should_publish.return_value = False
 
-        with patch.object(signal_detector.bayesian_filter, 'filter', return_value=(True, 0.8)):
-            with patch.object(signal_detector, 'detect_signal_type', return_value=(SignalType.TREND, 0.5)):
-                with patch.object(signal_detector, 'calculate_confidence', return_value=0.4):
-                    with patch.object(signal_detector.curiosity_scorer, 'calculate_score', return_value=0.3):
-                        with patch.object(signal_detector.curiosity_scorer, 'calculate_relevance', return_value=0.3):
-                            with patch.object(signal_detector, 'calculate_risk', return_value=0.5):
-                                result = await signal_detector.detect(sample_raw_event, UnifiedDomain.BUSINESS)
+        with patch.object(signal_detector.bayesian_filter, "filter", return_value=(True, 0.8)):
+            with patch.object(
+                signal_detector, "detect_signal_type", return_value=(SignalType.TREND, 0.5)
+            ):
+                with patch.object(signal_detector, "calculate_confidence", return_value=0.4):
+                    with patch.object(
+                        signal_detector.curiosity_scorer, "calculate_score", return_value=0.3
+                    ):
+                        with patch.object(
+                            signal_detector.curiosity_scorer,
+                            "calculate_relevance",
+                            return_value=0.3,
+                        ):
+                            with patch.object(signal_detector, "calculate_risk", return_value=0.5):
+                                result = await signal_detector.detect(
+                                    sample_raw_event, UnifiedDomain.BUSINESS
+                                )
                                 assert result is None
 
     @pytest.mark.asyncio
-    async def test_detect_returns_signal_when_all_conditions_met(self, signal_detector, sample_raw_event):
+    async def test_detect_returns_signal_when_all_conditions_met(
+        self, signal_detector, sample_raw_event
+    ):
         """Testa que sinal é detectado quando condições são satisfeitas."""
-        with patch.object(signal_detector.bayesian_filter, 'filter', return_value=(True, 0.9)):
-            with patch.object(signal_detector, 'detect_signal_type', return_value=(SignalType.ANOMALY_POSITIVE, 0.8)):
-                with patch.object(signal_detector.curiosity_scorer, 'calculate_score', return_value=0.8):
-                    with patch.object(signal_detector, 'calculate_confidence', return_value=0.8):
-                        with patch.object(signal_detector.curiosity_scorer, 'calculate_relevance', return_value=0.7):
-                            with patch.object(signal_detector, 'calculate_risk', return_value=0.3):
-                                with patch.object(signal_detector, 'requires_validation', return_value=False):
-                                    result = await signal_detector.detect(sample_raw_event, UnifiedDomain.BUSINESS)
+        with patch.object(signal_detector.bayesian_filter, "filter", return_value=(True, 0.9)):
+            with patch.object(
+                signal_detector,
+                "detect_signal_type",
+                return_value=(SignalType.ANOMALY_POSITIVE, 0.8),
+            ):
+                with patch.object(
+                    signal_detector.curiosity_scorer, "calculate_score", return_value=0.8
+                ):
+                    with patch.object(signal_detector, "calculate_confidence", return_value=0.8):
+                        with patch.object(
+                            signal_detector.curiosity_scorer,
+                            "calculate_relevance",
+                            return_value=0.7,
+                        ):
+                            with patch.object(signal_detector, "calculate_risk", return_value=0.3):
+                                with patch.object(
+                                    signal_detector, "requires_validation", return_value=False
+                                ):
+                                    result = await signal_detector.detect(
+                                        sample_raw_event, UnifiedDomain.BUSINESS
+                                    )
                                     assert result is not None
                                     assert result.signal_type == SignalType.ANOMALY_POSITIVE
 
@@ -201,6 +211,7 @@ class TestSignalDetection:
 # ============================================================================
 # Testes de Tipos de Sinal
 # ============================================================================
+
 
 class TestSignalTypeDetection:
     """Testes de detecção de tipos de sinal."""
@@ -218,7 +229,7 @@ class TestSignalTypeDetection:
         """Testa que user_action em BUSINESS é anomalia positiva."""
         # Aumentar anomalia do evento (score > 0.8)
         user_action_event.payload = {"action": "click", "amount": 100, "count": 5}
-        with patch.object(user_action_event, 'calculate_anomaly_score', return_value=0.85):
+        with patch.object(user_action_event, "calculate_anomaly_score", return_value=0.85):
             signal_type, confidence = signal_detector.detect_signal_type(
                 user_action_event, UnifiedDomain.BUSINESS
             )
@@ -228,7 +239,7 @@ class TestSignalTypeDetection:
     def test_detect_threat_in_security_domain(self, signal_detector, threat_event):
         """Testa detecção de ameaça no domínio SECURITY."""
         # SECURITY domain + anomaly score > 0.7 = THREAT
-        with patch.object(threat_event, 'calculate_anomaly_score', return_value=0.75):
+        with patch.object(threat_event, "calculate_anomaly_score", return_value=0.75):
             signal_type, confidence = signal_detector.detect_signal_type(
                 threat_event, UnifiedDomain.SECURITY
             )
@@ -242,10 +253,10 @@ class TestSignalTypeDetection:
             event_type="opportunity",
             timestamp=datetime.now(timezone.utc),
             payload={"value": 10000, "probability": 0.8},
-            metadata={"trace_id": "trace-opp"}
+            metadata={"trace_id": "trace-opp"},
         )
         # BUSINESS domain + anomaly score > 0.6 = OPPORTUNITY
-        with patch.object(event, 'calculate_anomaly_score', return_value=0.65):
+        with patch.object(event, "calculate_anomaly_score", return_value=0.65):
             signal_type, confidence = signal_detector.detect_signal_type(
                 event, UnifiedDomain.BUSINESS
             )
@@ -255,8 +266,8 @@ class TestSignalTypeDetection:
         """Testa detecção de padrão emergente."""
         # Criar features com variância alta
         features = [i * 10 + np.random.random() * 50 for i in range(20)]
-        with patch.object(pattern_event, 'extract_features', return_value=features):
-            with patch.object(signal_detector, '_detect_emerging_pattern', return_value=True):
+        with patch.object(pattern_event, "extract_features", return_value=features):
+            with patch.object(signal_detector, "_detect_emerging_pattern", return_value=True):
                 signal_type, confidence = signal_detector.detect_signal_type(
                     pattern_event, UnifiedDomain.TECHNICAL
                 )
@@ -266,8 +277,8 @@ class TestSignalTypeDetection:
         """Testa detecção de tendência."""
         # Criar features com tendência clara
         features = list(range(15))  # Tendência crescente forte
-        with patch.object(trend_event, 'extract_features', return_value=features):
-            with patch.object(signal_detector, '_detect_trend', return_value=True):
+        with patch.object(trend_event, "extract_features", return_value=features):
+            with patch.object(signal_detector, "_detect_trend", return_value=True):
                 signal_type, confidence = signal_detector.detect_signal_type(
                     trend_event, UnifiedDomain.BUSINESS
                 )
@@ -275,10 +286,10 @@ class TestSignalTypeDetection:
 
     def test_detect_no_signal_type(self, signal_detector, sample_raw_event):
         """Testa que retorna None quando nenhum tipo é detectado."""
-        with patch.object(sample_raw_event, 'calculate_anomaly_score', return_value=0.3):
-            with patch.object(sample_raw_event, 'extract_features', return_value=[0.1, 0.2, 0.3]):
-                with patch.object(signal_detector, '_detect_emerging_pattern', return_value=False):
-                    with patch.object(signal_detector, '_detect_trend', return_value=False):
+        with patch.object(sample_raw_event, "calculate_anomaly_score", return_value=0.3):
+            with patch.object(sample_raw_event, "extract_features", return_value=[0.1, 0.2, 0.3]):
+                with patch.object(signal_detector, "_detect_emerging_pattern", return_value=False):
+                    with patch.object(signal_detector, "_detect_trend", return_value=False):
                         signal_type, confidence = signal_detector.detect_signal_type(
                             sample_raw_event, UnifiedDomain.BUSINESS
                         )
@@ -289,6 +300,7 @@ class TestSignalTypeDetection:
 # ============================================================================
 # Testes de Auxiliares de Detecção
 # ============================================================================
+
 
 class TestDetectionHelpers:
     """Testes de métodos auxiliares de detecção."""
@@ -306,7 +318,7 @@ class TestDetectionHelpers:
             event_type="metric",
             timestamp=datetime.now(timezone.utc),
             payload={"cpu": 0.75, "memory": 0.60},
-            metadata={}
+            metadata={},
         )
         result = signal_detector._is_positive_anomaly(event, UnifiedDomain.INFRASTRUCTURE)
         assert result is True
@@ -361,15 +373,14 @@ class TestDetectionHelpers:
 # Testes de Cálculo de Confiança
 # ============================================================================
 
+
 class TestConfidenceCalculation:
     """Testes de cálculo de confiança."""
 
     def test_calculate_confidence_all_sources(self, signal_detector, sample_raw_event):
         """Testa cálculo combinando todas as fontes."""
         confidence = signal_detector.calculate_confidence(
-            sample_raw_event,
-            detection_confidence=0.8,
-            bayesian_posterior=0.7
+            sample_raw_event, detection_confidence=0.8, bayesian_posterior=0.7
         )
         assert 0.0 <= confidence <= 1.0
         # Deve ser ponderada: 0.5*0.8 + 0.3*0.7 + 0.2*data_quality
@@ -378,14 +389,10 @@ class TestConfidenceCalculation:
     def test_calculate_confidence_clamped(self, signal_detector, sample_raw_event):
         """Testa que confiança é limitada entre 0 e 1."""
         # Teste com valores extremos
-        confidence_high = signal_detector.calculate_confidence(
-            sample_raw_event, 1.5, 2.0
-        )
+        confidence_high = signal_detector.calculate_confidence(sample_raw_event, 1.5, 2.0)
         assert confidence_high <= 1.0
 
-        confidence_low = signal_detector.calculate_confidence(
-            sample_raw_event, -0.5, -0.3
-        )
+        confidence_low = signal_detector.calculate_confidence(sample_raw_event, -0.5, -0.3)
         assert confidence_low >= 0.0
 
     def test_assess_data_quality_full(self, signal_detector, sample_raw_event):
@@ -397,7 +404,7 @@ class TestConfidenceCalculation:
         """Testa que features aumentam qualidade."""
         # Base quality = 0.5, +0.2 payload, +0.1 metadata, +0.2 features (>10)
         # Total = 1.0, mas limitado a 1.0
-        with patch.object(sample_raw_event, 'extract_features', return_value=list(range(15))):
+        with patch.object(sample_raw_event, "extract_features", return_value=list(range(15))):
             quality = signal_detector._assess_data_quality(sample_raw_event)
             assert quality >= 0.8
 
@@ -405,6 +412,7 @@ class TestConfidenceCalculation:
 # ============================================================================
 # Testes de Cálculo de Risco
 # ============================================================================
+
 
 class TestRiskCalculation:
     """Testes de cálculo de risco."""
@@ -437,8 +445,12 @@ class TestRiskCalculation:
 
     def test_calculate_risk_domain_multiplier_infrastructure(self, signal_detector):
         """Testa multiplicador de domínio INFRASTRUCTURE."""
-        base_risk = signal_detector.calculate_risk(SignalType.PATTERN_EMERGING, UnifiedDomain.BUSINESS)
-        infra_risk = signal_detector.calculate_risk(SignalType.PATTERN_EMERGING, UnifiedDomain.INFRASTRUCTURE)
+        base_risk = signal_detector.calculate_risk(
+            SignalType.PATTERN_EMERGING, UnifiedDomain.BUSINESS
+        )
+        infra_risk = signal_detector.calculate_risk(
+            SignalType.PATTERN_EMERGING, UnifiedDomain.INFRASTRUCTURE
+        )
         assert infra_risk > base_risk
 
     def test_calculate_risk_clamped(self, signal_detector):
@@ -452,15 +464,14 @@ class TestRiskCalculation:
 # Testes de Descrição
 # ============================================================================
 
+
 class TestDescriptionGeneration:
     """Testes de geração de descrição."""
 
     def test_generate_description_anomaly_positive(self, signal_detector, sample_raw_event):
         """Testa descrição para anomalia positiva."""
         desc = signal_detector.generate_description(
-            SignalType.ANOMALY_POSITIVE,
-            sample_raw_event,
-            UnifiedDomain.BUSINESS
+            SignalType.ANOMALY_POSITIVE, sample_raw_event, UnifiedDomain.BUSINESS
         )
         assert "Anomalia positiva" in desc
         assert "BUSINESS" in desc
@@ -469,9 +480,7 @@ class TestDescriptionGeneration:
     def test_generate_description_threat(self, signal_detector, sample_raw_event):
         """Testa descrição para ameaça."""
         desc = signal_detector.generate_description(
-            SignalType.THREAT,
-            sample_raw_event,
-            UnifiedDomain.SECURITY
+            SignalType.THREAT, sample_raw_event, UnifiedDomain.SECURITY
         )
         assert "Ameaça" in desc
         assert "SECURITY" in desc
@@ -479,18 +488,14 @@ class TestDescriptionGeneration:
     def test_generate_description_opportunity(self, signal_detector, sample_raw_event):
         """Testa descrição para oportunidade."""
         desc = signal_detector.generate_description(
-            SignalType.OPPORTUNITY,
-            sample_raw_event,
-            UnifiedDomain.BUSINESS
+            SignalType.OPPORTUNITY, sample_raw_event, UnifiedDomain.BUSINESS
         )
         assert "Oportunidade" in desc
 
     def test_generate_description_unknown_type(self, signal_detector, sample_raw_event):
         """Testa descrição para tipo desconhecido."""
         desc = signal_detector.generate_description(
-            SignalType.TREND,
-            sample_raw_event,
-            UnifiedDomain.TECHNICAL
+            SignalType.TREND, sample_raw_event, UnifiedDomain.TECHNICAL
         )
         assert "Tendência" in desc or "TECHNICAL" in desc
 
@@ -498,6 +503,7 @@ class TestDescriptionGeneration:
 # ============================================================================
 # Testes de Requisição de Validação
 # ============================================================================
+
 
 class TestValidationRequirement:
     """Testes de requisição de validação."""
@@ -535,6 +541,7 @@ class TestValidationRequirement:
 # Testes de Extração de Geolocalização
 # ============================================================================
 
+
 class TestGeolocationExtraction:
     """Testes de extração de geolocalização."""
 
@@ -551,11 +558,8 @@ class TestGeolocationExtraction:
             source="mobile",
             event_type="location",
             timestamp=datetime.now(timezone.utc),
-            payload={
-                "latitude": 40.7128,
-                "longitude": -74.0060
-            },
-            metadata={}
+            payload={"latitude": 40.7128, "longitude": -74.0060},
+            metadata={},
         )
         geo = signal_detector._extract_geolocation(event)
         assert geo is not None
@@ -569,11 +573,8 @@ class TestGeolocationExtraction:
             source="mobile",
             event_type="location",
             timestamp=datetime.now(timezone.utc),
-            payload={
-                "lat": 37.7749,
-                "lon": -122.4194
-            },
-            metadata={}
+            payload={"lat": 37.7749, "lon": -122.4194},
+            metadata={},
         )
         geo = signal_detector._extract_geolocation(event)
         assert geo is not None
@@ -586,13 +587,8 @@ class TestGeolocationExtraction:
             source="mobile",
             event_type="location",
             timestamp=datetime.now(timezone.utc),
-            payload={
-                "location": {
-                    "latitude": 51.5074,
-                    "longitude": -0.1278
-                }
-            },
-            metadata={}
+            payload={"location": {"latitude": 51.5074, "longitude": -0.1278}},
+            metadata={},
         )
         geo = signal_detector._extract_geolocation(event)
         assert geo is not None
@@ -605,10 +601,8 @@ class TestGeolocationExtraction:
             source="mobile",
             event_type="location",
             timestamp=datetime.now(timezone.utc),
-            payload={
-                "coordinates": [51.5074, -0.1278]
-            },
-            metadata={}
+            payload={"coordinates": [51.5074, -0.1278]},
+            metadata={},
         )
         # Lista é verificada como objeto aninhado em Priority 3
         # mas _parse_geolocation_data trata lista
@@ -625,10 +619,8 @@ class TestGeolocationExtraction:
             source="mobile",
             event_type="location",
             timestamp=datetime.now(timezone.utc),
-            payload={
-                "position": "48.8566,2.3522"
-            },
-            metadata={}
+            payload={"position": "48.8566,2.3522"},
+            metadata={},
         )
         # String não é suportado em Priority 2 (apenas latitude/longitude numéricas)
         # Priority 3 chama _parse_geolocation_data apenas para dict
@@ -643,11 +635,8 @@ class TestGeolocationExtraction:
             source="mobile",
             event_type="location",
             timestamp=datetime.now(timezone.utc),
-            payload={
-                "latitude": 200,  # Inválido (> 90)
-                "longitude": -200  # Inválido (< -180)
-            },
-            metadata={}
+            payload={"latitude": 200, "longitude": -200},  # Inválido (> 90)  # Inválido (< -180)
+            metadata={},
         )
         geo = signal_detector._extract_geolocation(event)
         assert geo is None
@@ -661,6 +650,7 @@ class TestGeolocationExtraction:
 # ============================================================================
 # Testes de Parse de Geolocalização
 # ============================================================================
+
 
 class TestGeolocationParsing:
     """Testes de parsing de geolocalização."""
@@ -705,13 +695,16 @@ class TestGeolocationParsing:
 # Testes de Integração
 # ============================================================================
 
+
 class TestSignalDetectionIntegration:
     """Testes de integração do fluxo completo."""
 
     @pytest.mark.asyncio
-    async def test_full_detection_pipeline_positive_anomaly(self, signal_detector, user_action_event):
+    async def test_full_detection_pipeline_positive_anomaly(
+        self, signal_detector, user_action_event
+    ):
         """Testa pipeline completo com anomalia positiva."""
-        with patch.object(user_action_event, 'calculate_anomaly_score', return_value=0.85):
+        with patch.object(user_action_event, "calculate_anomaly_score", return_value=0.85):
             result = await signal_detector.detect(user_action_event, UnifiedDomain.BUSINESS)
             # Pode retornar sinal ou None dependendo dos thresholds
             if result:
@@ -720,7 +713,7 @@ class TestSignalDetectionIntegration:
     @pytest.mark.asyncio
     async def test_full_detection_pipeline_threat(self, signal_detector, threat_event):
         """Testa pipeline completo com ameaça."""
-        with patch.object(threat_event, 'calculate_anomaly_score', return_value=0.9):
+        with patch.object(threat_event, "calculate_anomaly_score", return_value=0.9):
             result = await signal_detector.detect(threat_event, UnifiedDomain.SECURITY)
             if result:
                 assert result.signal_type == SignalType.THREAT
@@ -737,7 +730,9 @@ class TestSignalDetectionIntegration:
     async def test_detection_error_handling(self, signal_detector, sample_raw_event):
         """Testa que erros são tratados gracefulmente."""
         # Forçar erro no Bayesian filter
-        with patch.object(signal_detector.bayesian_filter, 'filter', side_effect=Exception("Test error")):
+        with patch.object(
+            signal_detector.bayesian_filter, "filter", side_effect=Exception("Test error")
+        ):
             result = await signal_detector.detect(sample_raw_event, UnifiedDomain.BUSINESS)
             assert result is None  # Deve retornar None em caso de erro
 
@@ -746,44 +741,77 @@ class TestSignalDetectionIntegration:
 # Testes de Diferentes Canais
 # ============================================================================
 
+
 class TestChannelTypeHandling:
     """Testes de tipos de canal."""
 
     @pytest.mark.asyncio
     async def test_detection_with_core_channel(self, signal_detector, sample_raw_event):
         """Testa detecção com canal CORE."""
-        with patch.object(signal_detector.bayesian_filter, 'filter', return_value=(True, 0.9)):
-            with patch.object(signal_detector, 'detect_signal_type', return_value=(SignalType.TREND, 0.7)):
-                with patch.object(signal_detector.curiosity_scorer, 'calculate_score', return_value=0.8):
-                    with patch.object(signal_detector, 'calculate_confidence', return_value=0.8):
-                        with patch.object(signal_detector.curiosity_scorer, 'calculate_relevance', return_value=0.7):
-                            with patch.object(signal_detector, 'calculate_risk', return_value=0.3):
-                                result = await signal_detector.detect(sample_raw_event, UnifiedDomain.BUSINESS, ChannelType.CORE)
+        with patch.object(signal_detector.bayesian_filter, "filter", return_value=(True, 0.9)):
+            with patch.object(
+                signal_detector, "detect_signal_type", return_value=(SignalType.TREND, 0.7)
+            ):
+                with patch.object(
+                    signal_detector.curiosity_scorer, "calculate_score", return_value=0.8
+                ):
+                    with patch.object(signal_detector, "calculate_confidence", return_value=0.8):
+                        with patch.object(
+                            signal_detector.curiosity_scorer,
+                            "calculate_relevance",
+                            return_value=0.7,
+                        ):
+                            with patch.object(signal_detector, "calculate_risk", return_value=0.3):
+                                result = await signal_detector.detect(
+                                    sample_raw_event, UnifiedDomain.BUSINESS, ChannelType.CORE
+                                )
                                 if result:
                                     assert result.source.channel == ChannelType.CORE
 
     @pytest.mark.asyncio
     async def test_detection_with_web_channel(self, signal_detector, sample_raw_event):
         """Testa detecção com canal WEB."""
-        with patch.object(signal_detector.bayesian_filter, 'filter', return_value=(True, 0.9)):
-            with patch.object(signal_detector, 'detect_signal_type', return_value=(SignalType.TREND, 0.7)):
-                with patch.object(signal_detector.curiosity_scorer, 'calculate_score', return_value=0.8):
-                    with patch.object(signal_detector, 'calculate_confidence', return_value=0.8):
-                        with patch.object(signal_detector.curiosity_scorer, 'calculate_relevance', return_value=0.7):
-                            with patch.object(signal_detector, 'calculate_risk', return_value=0.3):
-                                result = await signal_detector.detect(sample_raw_event, UnifiedDomain.BUSINESS, ChannelType.WEB)
+        with patch.object(signal_detector.bayesian_filter, "filter", return_value=(True, 0.9)):
+            with patch.object(
+                signal_detector, "detect_signal_type", return_value=(SignalType.TREND, 0.7)
+            ):
+                with patch.object(
+                    signal_detector.curiosity_scorer, "calculate_score", return_value=0.8
+                ):
+                    with patch.object(signal_detector, "calculate_confidence", return_value=0.8):
+                        with patch.object(
+                            signal_detector.curiosity_scorer,
+                            "calculate_relevance",
+                            return_value=0.7,
+                        ):
+                            with patch.object(signal_detector, "calculate_risk", return_value=0.3):
+                                result = await signal_detector.detect(
+                                    sample_raw_event, UnifiedDomain.BUSINESS, ChannelType.WEB
+                                )
                                 if result:
                                     assert result.source.channel == ChannelType.WEB
 
     @pytest.mark.asyncio
     async def test_detection_with_mobile_channel(self, signal_detector, sample_raw_event_with_geo):
         """Testa detecção com canal MOBILE."""
-        with patch.object(signal_detector.bayesian_filter, 'filter', return_value=(True, 0.9)):
-            with patch.object(signal_detector, 'detect_signal_type', return_value=(SignalType.TREND, 0.7)):
-                with patch.object(signal_detector.curiosity_scorer, 'calculate_score', return_value=0.8):
-                    with patch.object(signal_detector, 'calculate_confidence', return_value=0.8):
-                        with patch.object(signal_detector.curiosity_scorer, 'calculate_relevance', return_value=0.7):
-                            with patch.object(signal_detector, 'calculate_risk', return_value=0.3):
-                                result = await signal_detector.detect(sample_raw_event_with_geo, UnifiedDomain.BEHAVIOR, ChannelType.MOBILE)
+        with patch.object(signal_detector.bayesian_filter, "filter", return_value=(True, 0.9)):
+            with patch.object(
+                signal_detector, "detect_signal_type", return_value=(SignalType.TREND, 0.7)
+            ):
+                with patch.object(
+                    signal_detector.curiosity_scorer, "calculate_score", return_value=0.8
+                ):
+                    with patch.object(signal_detector, "calculate_confidence", return_value=0.8):
+                        with patch.object(
+                            signal_detector.curiosity_scorer,
+                            "calculate_relevance",
+                            return_value=0.7,
+                        ):
+                            with patch.object(signal_detector, "calculate_risk", return_value=0.3):
+                                result = await signal_detector.detect(
+                                    sample_raw_event_with_geo,
+                                    UnifiedDomain.BEHAVIOR,
+                                    ChannelType.MOBILE,
+                                )
                                 if result:
                                     assert result.source.channel == ChannelType.MOBILE

@@ -176,21 +176,21 @@ class TestDependencyInjectionIntegration:
         mock_load_balancer.unregister_worker = AsyncMock(return_value=True)
         mock_load_balancer.update_worker_metrics = AsyncMock(return_value=True)
         mock_load_balancer.get_workers_status = AsyncMock(return_value=[])
-        mock_load_balancer.get_statistics = AsyncMock(
-            return_value={"total_workers": 0}
-        )
+        mock_load_balancer.get_statistics = AsyncMock(return_value={"total_workers": 0})
         from src.services.load_balancer import BalancingStrategy, TaskAssignment
+
         mock_load_balancer.assign_task = AsyncMock(
             return_value=TaskAssignment(
                 worker_id="worker-1",
                 strategy=BalancingStrategy.ROUND_ROBIN,
-                assigned_at=datetime.now(timezone.utc)
+                assigned_at=datetime.now(timezone.utc),
             )
         )
         mock_load_balancer.complete_task = AsyncMock(return_value=True)
 
         mock_leader_election = MagicMock(spec=LeaderElection)
         from src.services import NodeRole, ElectionState
+
         mock_leader_election.node_id = "queen-test-1"
         mock_leader_election.get_state = MagicMock(
             return_value=ElectionState(

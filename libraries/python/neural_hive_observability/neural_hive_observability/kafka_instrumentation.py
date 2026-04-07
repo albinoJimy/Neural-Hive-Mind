@@ -44,7 +44,7 @@ class InstrumentedKafkaProducer:
                 "Use init_observability() para criar a configuração corretamente."
             )
 
-        service_name = getattr(config, 'service_name', None)
+        service_name = getattr(config, "service_name", None)
         if not service_name:
             logger.error(
                 f"Tentativa de criar InstrumentedKafkaProducer com service_name inválido: "
@@ -69,7 +69,7 @@ class InstrumentedKafkaProducer:
         partition: Optional[int] = None,
         on_delivery=None,
         *args,
-        **kwargs
+        **kwargs,
     ):
         header_map = self._normalize_headers(headers)
 
@@ -112,16 +112,16 @@ class InstrumentedKafkaProducer:
             try:
                 # Build produce kwargs, only include partition if explicitly set
                 produce_kwargs = {
-                    'topic': topic,
-                    'value': value,
-                    'key': key,
-                    'headers': self._headers_dict_to_sequence(header_map),
-                    'on_delivery': on_delivery,
+                    "topic": topic,
+                    "value": value,
+                    "key": key,
+                    "headers": self._headers_dict_to_sequence(header_map),
+                    "on_delivery": on_delivery,
                 }
                 # Only add partition if it's a valid integer (not None)
                 if partition is not None:
-                    produce_kwargs['partition'] = partition
-                
+                    produce_kwargs["partition"] = partition
+
                 # Merge any additional kwargs
                 produce_kwargs.update(kwargs)
                 self._producer.produce(*args, **produce_kwargs)
@@ -186,7 +186,7 @@ class InstrumentedAIOKafkaProducer:
                 "Use init_observability() para criar a configuração corretamente."
             )
 
-        service_name = getattr(config, 'service_name', None)
+        service_name = getattr(config, "service_name", None)
         if not service_name:
             logger.error(
                 f"Tentativa de criar InstrumentedAIOKafkaProducer com service_name inválido: "
@@ -202,7 +202,15 @@ class InstrumentedAIOKafkaProducer:
         self._context_manager = ContextManager(config)
         self._tracer = get_tracer() or trace.get_tracer(__name__)
 
-    async def send(self, topic: str, value: Any = None, key: Any = None, headers: Optional[Any] = None, partition: Optional[int] = None, **kwargs):
+    async def send(
+        self,
+        topic: str,
+        value: Any = None,
+        key: Any = None,
+        headers: Optional[Any] = None,
+        partition: Optional[int] = None,
+        **kwargs,
+    ):
         header_map = self._normalize_headers(headers)
         with self._tracer.start_as_current_span(f"kafka.produce.{topic}") as span:
             correlation = get_correlation_context()
@@ -232,7 +240,7 @@ class InstrumentedAIOKafkaProducer:
                     key=key,
                     headers=self._headers_dict_to_sequence(header_map),
                     partition=partition,
-                    **kwargs
+                    **kwargs,
                 )
                 span.set_status(Status(StatusCode.OK))
                 return result
@@ -241,8 +249,18 @@ class InstrumentedAIOKafkaProducer:
                 span.set_status(Status(StatusCode.ERROR, str(exc)))
                 raise
 
-    async def send_and_wait(self, topic: str, value: Any = None, key: Any = None, headers: Optional[Any] = None, partition: Optional[int] = None, **kwargs):
-        return await self.send(topic, value=value, key=key, headers=headers, partition=partition, **kwargs)
+    async def send_and_wait(
+        self,
+        topic: str,
+        value: Any = None,
+        key: Any = None,
+        headers: Optional[Any] = None,
+        partition: Optional[int] = None,
+        **kwargs,
+    ):
+        return await self.send(
+            topic, value=value, key=key, headers=headers, partition=partition, **kwargs
+        )
 
     async def start(self):
         return await self._producer.start()
@@ -306,7 +324,7 @@ class InstrumentedAIOKafkaConsumer:
                 "Use init_observability() para criar a configuração corretamente."
             )
 
-        service_name = getattr(config, 'service_name', None)
+        service_name = getattr(config, "service_name", None)
         if not service_name:
             logger.error(
                 f"Tentativa de criar InstrumentedAIOKafkaConsumer com service_name inválido: "
@@ -390,6 +408,7 @@ def instrument_kafka_producer(producer: Any, config: ObservabilityConfig = None)
     # Se config não for fornecido, usar a configuração global
     if config is None:
         from . import _config as global_config
+
         config = global_config
         logger.debug(
             f"Config não fornecido para instrument_kafka_producer, usando config global: "
@@ -405,7 +424,7 @@ def instrument_kafka_producer(producer: Any, config: ObservabilityConfig = None)
         )
         return producer
 
-    if not getattr(config, 'service_name', None):
+    if not getattr(config, "service_name", None):
         logger.warning(
             "Config de observabilidade sem service_name válido - retornando producer sem instrumentação. "
             "Verifique se init_observability() foi chamado com service_name válido. "
@@ -465,6 +484,7 @@ def instrument_kafka_consumer(consumer: Any, config: ObservabilityConfig = None)
     # Se config não for fornecido, usar a configuração global
     if config is None:
         from . import _config as global_config
+
         config = global_config
         logger.debug(
             f"Config não fornecido para instrument_kafka_consumer, usando config global: "
@@ -480,7 +500,7 @@ def instrument_kafka_consumer(consumer: Any, config: ObservabilityConfig = None)
         )
         return consumer
 
-    if not getattr(config, 'service_name', None):
+    if not getattr(config, "service_name", None):
         logger.warning(
             "Config de observabilidade sem service_name válido - retornando consumer sem instrumentação. "
             "Verifique se init_observability() foi chamado com service_name válido. "

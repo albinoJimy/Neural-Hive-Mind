@@ -88,9 +88,7 @@ async def validate_security(
         return {"error": str(e), "validation_status": "error", "validation_id": None}
 
 
-async def scan_vulnerabilities(
-    target: str, scan_type: str = "container"
-) -> dict[str, Any]:
+async def scan_vulnerabilities(target: str, scan_type: str = "container") -> dict[str, Any]:
     """
     Escanear vulnerabilidades em uma imagem ou código.
 
@@ -107,9 +105,7 @@ async def scan_vulnerabilities(
     valid_scan_types = ["container", "code", "dependency", "filesystem", "repository"]
 
     if scan_type not in valid_scan_types:
-        raise ValueError(
-            f"scan_type must be one of: {valid_scan_types}, got: {scan_type}"
-        )
+        raise ValueError(f"scan_type must be one of: {valid_scan_types}, got: {scan_type}")
 
     # Chamar Trivy ou Guard Agent
     try:
@@ -127,7 +123,9 @@ async def scan_vulnerabilities(
             response.raise_for_status()
             result = response.json()
 
-        logger.info("trivy_scan_success", target=target, vuln_count=len(result.get("vulnerabilities", [])))
+        logger.info(
+            "trivy_scan_success", target=target, vuln_count=len(result.get("vulnerabilities", []))
+        )
 
         return result
 
@@ -192,9 +190,7 @@ async def detect_threats(event_type: str, event_data: dict[str, Any]) -> dict[st
         return {"error": str(e), "threat_found": False, "threat_id": None}
 
 
-async def check_compliance(
-    ticket_id: str, regulations: list[str] | None = None
-) -> dict[str, Any]:
+async def check_compliance(ticket_id: str, regulations: list[str] | None = None) -> dict[str, Any]:
     """
     Verificar compliance regulatório para um ticket.
 
@@ -284,9 +280,7 @@ async def remediate_issue(
     ]
 
     if remediation_type not in valid_types:
-        raise ValueError(
-            f"remediation_type must be one of: {valid_types}, got: {remediation_type}"
-        )
+        raise ValueError(f"remediation_type must be one of: {valid_types}, got: {remediation_type}")
 
     # Chamar Guard Agent para executar remediação
     try:

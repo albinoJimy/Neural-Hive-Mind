@@ -17,7 +17,7 @@ settings = get_settings()
 mcp = FastMCP(
     name="Execution MCP Server",
     version=settings.service_version,
-    instructions="Ferramentas para gerenciamento de Execution Tickets"
+    instructions="Ferramentas para gerenciamento de Execution Tickets",
 )
 
 
@@ -48,8 +48,4 @@ def get_execution_info() -> str:
 # Registrar ferramentas
 register_execution_tools(mcp)
 
-logger.info(
-    "execution_mcp_server_initialized",
-    name=mcp.name,
-    version=settings.service_version
-)
+logger.info("execution_mcp_server_initialized", name=mcp.name, version=settings.service_version)

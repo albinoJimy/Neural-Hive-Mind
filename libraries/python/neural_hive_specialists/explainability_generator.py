@@ -81,9 +81,7 @@ class ExplainabilityGenerator:
     def mongo_client(self) -> MongoClient:
         """Lazy initialization do cliente MongoDB para explicações."""
         if self._mongo_client is None:
-            self._mongo_client = MongoClient(
-                self.config.mongodb_uri, serverSelectionTimeoutMS=5000
-            )
+            self._mongo_client = MongoClient(self.config.mongodb_uri, serverSelectionTimeoutMS=5000)
         return self._mongo_client
 
     def generate(
@@ -192,9 +190,7 @@ class ExplainabilityGenerator:
                         "human_readable_summary": summary,
                         "detailed_narrative": detailed_narrative,
                         "prediction": {
-                            "confidence_score": evaluation_result.get(
-                                "confidence_score", 0.0
-                            ),
+                            "confidence_score": evaluation_result.get("confidence_score", 0.0),
                             "risk_score": evaluation_result.get("risk_score", 0.0),
                         },
                         "computation_time_ms": int((time.time() - start_time) * 1000),
@@ -202,9 +198,7 @@ class ExplainabilityGenerator:
                         if method == "shap"
                         else None,
                         "random_seed": None,
-                        "num_samples": self.config.lime_num_samples
-                        if method == "lime"
-                        else None,
+                        "num_samples": self.config.lime_num_samples if method == "lime" else None,
                     }
 
                     ledger_token = self.ledger_v2.persist(
@@ -216,9 +210,7 @@ class ExplainabilityGenerator:
                     # Adicionar token v2 aos metadados
                     metadata["explainability_token_v2"] = ledger_token
 
-                    logger.info(
-                        "Explainability persisted to ledger v2", token=ledger_token
-                    )
+                    logger.info("Explainability persisted to ledger v2", token=ledger_token)
 
                     if self._metrics:
                         self._metrics.increment_ledger_v2_persistence("success")
@@ -244,9 +236,7 @@ class ExplainabilityGenerator:
                     # Update circuit breaker state
                     self._circuit_breaker_state = "open"
                     if self._metrics:
-                        self._metrics.set_circuit_breaker_state(
-                            "explainability", "open"
-                        )
+                        self._metrics.set_circuit_breaker_state("explainability", "open")
                         self._metrics.increment_circuit_breaker_failure(
                             "explainability", "CircuitBreakerError"
                         )
@@ -264,9 +254,7 @@ class ExplainabilityGenerator:
             # Métricas de explicabilidade
             if self._metrics:
                 computation_time = time.time() - start_time
-                self._metrics.observe_explainability_computation_time(
-                    method, computation_time
-                )
+                self._metrics.observe_explainability_computation_time(method, computation_time)
                 self._metrics.increment_explainability_method_usage(method)
                 if len(feature_importances) > 0:
                     self._metrics.observe_explainability_feature_count(
@@ -284,13 +272,9 @@ class ExplainabilityGenerator:
             return explainability_token, metadata
 
         except Exception as e:
-            logger.warning(
-                "Failed to generate full explainability, using minimal", error=str(e)
-            )
+            logger.warning("Failed to generate full explainability, using minimal", error=str(e))
             if self._metrics:
-                self._metrics.increment_explainability_errors(
-                    "unknown", str(type(e).__name__)
-                )
+                self._metrics.increment_explainability_errors("unknown", str(type(e).__name__))
             return self._generate_minimal_explainability()
 
     def _generate_minimal_explainability(self) -> Tuple[str, Dict[str, Any]]:
@@ -360,13 +344,9 @@ class ExplainabilityGenerator:
             Lista de feature importances
         """
         if method == "shap":
-            return self._extract_shap_importances(
-                model, evaluation_result, cognitive_plan
-            )
+            return self._extract_shap_importances(model, evaluation_result, cognitive_plan)
         elif method == "lime":
-            return self._extract_lime_importances(
-                model, evaluation_result, cognitive_plan
-            )
+            return self._extract_lime_importances(model, evaluation_result, cognitive_plan)
         elif method == "rule_based":
             return self._extract_rule_based_importances(evaluation_result)
         else:
@@ -405,16 +385,12 @@ class ExplainabilityGenerator:
             feature_names = sorted(aggregated_features.keys())
 
             # Usar SHAPExplainer
-            shap_result = self.shap_explainer.explain(
-                model, aggregated_features, feature_names
-            )
+            shap_result = self.shap_explainer.explain(model, aggregated_features, feature_names)
 
             if "error" in shap_result:
                 error_type = shap_result.get("error", "unknown")
                 if self._metrics:
-                    self._metrics.increment_fallback_invocation(
-                        "explainability", "shap_error"
-                    )
+                    self._metrics.increment_fallback_invocation("explainability", "shap_error")
                     self._metrics.increment_explainability_errors("shap", error_type)
                 return []
 
@@ -424,9 +400,7 @@ class ExplainabilityGenerator:
         except Exception as e:
             logger.warning("Failed to extract SHAP importances", error=str(e))
             if self._metrics:
-                self._metrics.increment_fallback_invocation(
-                    "explainability", "shap_exception"
-                )
+                self._metrics.increment_fallback_invocation("explainability", "shap_exception")
                 self._metrics.increment_explainability_errors("shap", type(e).__name__)
             return []
 
@@ -448,16 +422,12 @@ class ExplainabilityGenerator:
             feature_names = sorted(aggregated_features.keys())
 
             # Usar LIMEExplainer
-            lime_result = self.lime_explainer.explain(
-                model, aggregated_features, feature_names
-            )
+            lime_result = self.lime_explainer.explain(model, aggregated_features, feature_names)
 
             if "error" in lime_result:
                 error_type = lime_result.get("error", "unknown")
                 if self._metrics:
-                    self._metrics.increment_fallback_invocation(
-                        "explainability", "lime_error"
-                    )
+                    self._metrics.increment_fallback_invocation("explainability", "lime_error")
                     self._metrics.increment_explainability_errors("lime", error_type)
                 return []
 
@@ -467,9 +437,7 @@ class ExplainabilityGenerator:
         except Exception as e:
             logger.warning("Failed to extract LIME importances", error=str(e))
             if self._metrics:
-                self._metrics.increment_fallback_invocation(
-                    "explainability", "lime_exception"
-                )
+                self._metrics.increment_fallback_invocation("explainability", "lime_exception")
                 self._metrics.increment_explainability_errors("lime", type(e).__name__)
             return []
 
@@ -485,9 +453,7 @@ class ExplainabilityGenerator:
                 {
                     "feature_name": factor.get("factor_name", "unknown"),
                     "importance": factor.get("weight", 0.0),
-                    "contribution": self._determine_contribution(
-                        factor.get("score", 0.5)
-                    ),
+                    "contribution": self._determine_contribution(factor.get("score", 0.5)),
                 }
             )
 
@@ -526,15 +492,11 @@ class ExplainabilityGenerator:
 
         return type(model).__name__
 
-    def _extract_input_features(
-        self, cognitive_plan: Dict[str, Any]
-    ) -> Dict[str, float]:
+    def _extract_input_features(self, cognitive_plan: Dict[str, Any]) -> Dict[str, float]:
         """Extrai features estruturadas do plano para persistência."""
         if self._feature_extractor:
             try:
-                features_result = self._feature_extractor.extract_features(
-                    cognitive_plan
-                )
+                features_result = self._feature_extractor.extract_features(cognitive_plan)
                 return features_result["aggregated_features"]
             except Exception as e:
                 logger.warning("Failed to extract input features", error=str(e))
@@ -564,9 +526,7 @@ class ExplainabilityGenerator:
         links = {}
 
         # Criar índice de features por nome normalizado
-        feature_index = {
-            self._normalize_name(f["feature_name"]): f for f in feature_importances
-        }
+        feature_index = {self._normalize_name(f["feature_name"]): f for f in feature_importances}
 
         # Para cada reasoning_factor, tentar encontrar feature correspondente
         for factor in reasoning_factors:
@@ -658,9 +618,7 @@ class ExplainabilityGenerator:
                 return hashlib.sha256(stats_json.encode()).hexdigest()
 
             except Exception as e:
-                logger.warning(
-                    "Failed to compute background dataset hash", error=str(e)
-                )
+                logger.warning("Failed to compute background dataset hash", error=str(e))
                 return None
         return None
 
@@ -731,28 +689,20 @@ class ExplainabilityGenerator:
             # Check if recovering from open state
             if self._was_open:
                 if self._metrics:
-                    self._metrics.increment_circuit_breaker_success_after_halfopen(
-                        "explainability"
-                    )
+                    self._metrics.increment_circuit_breaker_success_after_halfopen("explainability")
                 self._circuit_breaker_state = "closed"
                 if self._metrics:
                     self._metrics.set_circuit_breaker_state("explainability", "closed")
                 self._was_open = False
-                logger.info(
-                    "Circuit breaker recovered to closed state", client="explainability"
-                )
+                logger.info("Circuit breaker recovered to closed state", client="explainability")
 
             logger.debug("Detailed explanation persisted", token=token)
 
         except Exception as e:
             if self._metrics:
-                self._metrics.increment_circuit_breaker_failure(
-                    "explainability", type(e).__name__
-                )
+                self._metrics.increment_circuit_breaker_failure("explainability", type(e).__name__)
 
-            logger.warning(
-                "Failed to persist detailed explanation", token=token, error=str(e)
-            )
+            logger.warning("Failed to persist detailed explanation", token=token, error=str(e))
             raise
 
     def retrieve_explanation(self, token: str) -> Optional[Dict[str, Any]]:

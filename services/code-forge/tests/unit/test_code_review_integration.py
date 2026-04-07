@@ -14,7 +14,7 @@ from src.services.code_review_integration import (
     CodeReviewClient,
     CodeReviewIntegration,
     GitProvider,
-    ReviewStatus
+    ReviewStatus,
 )
 from src.types.artifact_types import ValidationResult, ValidationType, ValidationStatus
 
@@ -22,7 +22,7 @@ from src.types.artifact_types import ValidationResult, ValidationType, Validatio
 @pytest.fixture
 def mock_httpx_client():
     """Fixture para cliente HTTPX mockado."""
-    with patch('src.services.code_review_integration.httpx.AsyncClient') as mock:
+    with patch("src.services.code_review_integration.httpx.AsyncClient") as mock:
         client = AsyncMock()
         mock.return_value = client
         yield client
@@ -34,9 +34,7 @@ class TestCodeReviewClientInit:
     def test_init_github(self):
         """Testa inicialização para GitHub."""
         client = CodeReviewClient(
-            provider=GitProvider.GITHUB,
-            base_url="https://api.github.com",
-            token="test-token"
+            provider=GitProvider.GITHUB, base_url="https://api.github.com", token="test-token"
         )
 
         assert client.provider == GitProvider.GITHUB
@@ -46,9 +44,7 @@ class TestCodeReviewClientInit:
     def test_init_gitlab(self):
         """Testa inicialização para GitLab."""
         client = CodeReviewClient(
-            provider=GitProvider.GITLAB,
-            base_url="https://gitlab.com/api/v4",
-            token="test-token"
+            provider=GitProvider.GITLAB, base_url="https://gitlab.com/api/v4", token="test-token"
         )
 
         assert client.provider == GitProvider.GITLAB
@@ -57,9 +53,7 @@ class TestCodeReviewClientInit:
     def test_headers_github(self):
         """Testa headers para GitHub."""
         client = CodeReviewClient(
-            provider=GitProvider.GITHUB,
-            base_url="https://api.github.com",
-            token="test-token"
+            provider=GitProvider.GITHUB, base_url="https://api.github.com", token="test-token"
         )
 
         headers = client._get_headers()
@@ -71,9 +65,7 @@ class TestCodeReviewClientInit:
     def test_headers_gitlab(self):
         """Testa headers para GitLab."""
         client = CodeReviewClient(
-            provider=GitProvider.GITLAB,
-            base_url="https://gitlab.com",
-            token="test-token"
+            provider=GitProvider.GITLAB, base_url="https://gitlab.com", token="test-token"
         )
 
         headers = client._get_headers()
@@ -97,14 +89,12 @@ class TestGitHubPullRequests:
             "html_url": "https://github.com/owner/repo/pull/123",
             "state": "open",
             "draft": False,
-            "created_at": "2024-01-01T00:00:00Z"
+            "created_at": "2024-01-01T00:00:00Z",
         }
         mock_httpx_client.post.return_value = mock_response
 
         client = CodeReviewClient(
-            provider=GitProvider.GITHUB,
-            base_url="https://api.github.com",
-            token="test-token"
+            provider=GitProvider.GITHUB, base_url="https://api.github.com", token="test-token"
         )
 
         result = await client.create_pull_request(
@@ -112,7 +102,7 @@ class TestGitHubPullRequests:
             repo_name="repo",
             title="Test PR",
             description="Test description",
-            source_branch="feature-branch"
+            source_branch="feature-branch",
         )
 
         assert result["provider"] == "github"
@@ -130,14 +120,12 @@ class TestGitHubPullRequests:
             "html_url": "https://github.com/owner/repo/pull/124",
             "state": "open",
             "draft": False,
-            "created_at": "2024-01-01T00:00:00Z"
+            "created_at": "2024-01-01T00:00:00Z",
         }
         mock_httpx_client.post.return_value = mock_response
 
         client = CodeReviewClient(
-            provider=GitProvider.GITHUB,
-            base_url="https://api.github.com",
-            token="test-token"
+            provider=GitProvider.GITHUB, base_url="https://api.github.com", token="test-token"
         )
 
         result = await client.create_pull_request(
@@ -146,7 +134,7 @@ class TestGitHubPullRequests:
             title="PR with labels",
             description="Description",
             source_branch="branch",
-            labels=["enhancement", "automated"]
+            labels=["enhancement", "automated"],
         )
 
         assert result["pr_number"] == 124
@@ -162,14 +150,12 @@ class TestGitHubPullRequests:
             "html_url": "https://github.com/owner/repo/pull/125",
             "state": "open",
             "draft": True,
-            "created_at": "2024-01-01T00:00:00Z"
+            "created_at": "2024-01-01T00:00:00Z",
         }
         mock_httpx_client.post.return_value = mock_response
 
         client = CodeReviewClient(
-            provider=GitProvider.GITHUB,
-            base_url="https://api.github.com",
-            token="test-token"
+            provider=GitProvider.GITHUB, base_url="https://api.github.com", token="test-token"
         )
 
         result = await client.create_pull_request(
@@ -178,7 +164,7 @@ class TestGitHubPullRequests:
             title="Draft PR",
             description="Draft description",
             source_branch="draft-branch",
-            draft=True
+            draft=True,
         )
 
         assert result["draft"] is True
@@ -187,9 +173,7 @@ class TestGitHubPullRequests:
     async def test_create_pr_wrong_provider(self):
         """Testa erro ao criar PR com provider errado."""
         client = CodeReviewClient(
-            provider=GitProvider.GITLAB,
-            base_url="https://gitlab.com",
-            token="test-token"
+            provider=GitProvider.GITLAB, base_url="https://gitlab.com", token="test-token"
         )
 
         with pytest.raises(ValueError, match="only supports GitHub"):
@@ -198,7 +182,7 @@ class TestGitHubPullRequests:
                 repo_name="repo",
                 title="Test",
                 description="Test",
-                source_branch="branch"
+                source_branch="branch",
             )
 
 
@@ -216,14 +200,12 @@ class TestGitLabMergeRequests:
             "web_url": "https://gitlab.com/group/project/-/merge_requests/42",
             "state": "opened",
             "draft": False,
-            "created_at": "2024-01-01T00:00:00Z"
+            "created_at": "2024-01-01T00:00:00Z",
         }
         mock_httpx_client.post.return_value = mock_response
 
         client = CodeReviewClient(
-            provider=GitProvider.GITLAB,
-            base_url="https://gitlab.com",
-            token="test-token"
+            provider=GitProvider.GITLAB, base_url="https://gitlab.com", token="test-token"
         )
 
         result = await client.create_merge_request(
@@ -231,7 +213,7 @@ class TestGitLabMergeRequests:
             source_branch="feature-branch",
             target_branch="main",
             title="Test MR",
-            description="Test description"
+            description="Test description",
         )
 
         assert result["provider"] == "gitlab"
@@ -249,14 +231,12 @@ class TestGitLabMergeRequests:
             "web_url": "https://gitlab.com/group/project/-/merge_requests/43",
             "state": "opened",
             "draft": True,
-            "created_at": "2024-01-01T00:00:00Z"
+            "created_at": "2024-01-01T00:00:00Z",
         }
         mock_httpx_client.post.return_value = mock_response
 
         client = CodeReviewClient(
-            provider=GitProvider.GITLAB,
-            base_url="https://gitlab.com",
-            token="test-token"
+            provider=GitProvider.GITLAB, base_url="https://gitlab.com", token="test-token"
         )
 
         result = await client.create_merge_request(
@@ -264,7 +244,7 @@ class TestGitLabMergeRequests:
             source_branch="draft-branch",
             target_branch="main",
             title="Draft MR",
-            draft=True
+            draft=True,
         )
 
         assert result["draft"] is True
@@ -273,16 +253,11 @@ class TestGitLabMergeRequests:
     async def test_create_mr_wrong_provider(self):
         """Testa erro ao criar MR com provider errado."""
         client = CodeReviewClient(
-            provider=GitProvider.GITHUB,
-            base_url="https://api.github.com",
-            token="test-token"
+            provider=GitProvider.GITHUB, base_url="https://api.github.com", token="test-token"
         )
 
         with pytest.raises(ValueError, match="only supports GitLab"):
-            await client.create_merge_request(
-                project_id=123,
-                source_branch="branch"
-            )
+            await client.create_merge_request(project_id=123, source_branch="branch")
 
 
 class TestValidationComments:
@@ -291,9 +266,7 @@ class TestValidationComments:
     def test_format_validation_comment_passed(self):
         """Testa formatação de comentário com validações passadas."""
         client = CodeReviewClient(
-            provider=GitProvider.GITHUB,
-            base_url="https://api.github.com",
-            token="test-token"
+            provider=GitProvider.GITHUB, base_url="https://api.github.com", token="test-token"
         )
 
         validation_results = [
@@ -310,14 +283,11 @@ class TestValidationComments:
                 low_issues=0,
                 executed_at=None,
                 duration_ms=1000,
-                report_uri="https://sonarqube.com/report/123"
+                report_uri="https://sonarqube.com/report/123",
             )
         ]
 
-        comment = client._format_validation_comment(
-            validation_results,
-            "approved"
-        )
+        comment = client._format_validation_comment(validation_results, "approved")
 
         assert "## 🔍 Code Review" in comment
         assert "### Validation Results" in comment
@@ -327,9 +297,7 @@ class TestValidationComments:
     def test_format_validation_comment_failed(self):
         """Testa formatação de comentário com validações falhadas."""
         client = CodeReviewClient(
-            provider=GitProvider.GITHUB,
-            base_url="https://api.github.com",
-            token="test-token"
+            provider=GitProvider.GITHUB, base_url="https://api.github.com", token="test-token"
         )
 
         validation_results = [
@@ -346,14 +314,11 @@ class TestValidationComments:
                 low_issues=1,
                 executed_at=None,
                 duration_ms=2000,
-                report_uri="https://snyk.com/report/456"
+                report_uri="https://snyk.com/report/456",
             )
         ]
 
-        comment = client._format_validation_comment(
-            validation_results,
-            "changes_requested"
-        )
+        comment = client._format_validation_comment(validation_results, "changes_requested")
 
         assert "❌ **Snyk**" in comment
         assert "- Issues: 10" in comment
@@ -363,9 +328,7 @@ class TestValidationComments:
     def test_format_validation_comment_multiple(self):
         """Testa formatação com múltiplos tipos de validação."""
         client = CodeReviewClient(
-            provider=GitProvider.GITHUB,
-            base_url="https://api.github.com",
-            token="test-token"
+            provider=GitProvider.GITHUB, base_url="https://api.github.com", token="test-token"
         )
 
         validation_results = [
@@ -382,7 +345,7 @@ class TestValidationComments:
                 low_issues=0,
                 executed_at=None,
                 duration_ms=1000,
-                report_uri="https://sonarqube.com/report/1"
+                report_uri="https://sonarqube.com/report/1",
             ),
             ValidationResult(
                 validation_type=ValidationType.LICENSE_CHECK,
@@ -397,14 +360,11 @@ class TestValidationComments:
                 low_issues=0,
                 executed_at=None,
                 duration_ms=500,
-                report_uri=None
-            )
+                report_uri=None,
+            ),
         ]
 
-        comment = client._format_validation_comment(
-            validation_results,
-            "approved"
-        )
+        comment = client._format_validation_comment(validation_results, "approved")
 
         assert "#### SAST" in comment
         assert "#### LICENSE_CHECK" in comment
@@ -416,14 +376,12 @@ class TestValidationComments:
         mock_response.status_code = 201
         mock_response.json.return_value = {
             "id": 999,
-            "html_url": "https://github.com/owner/repo/pull/1#issuecomment-999"
+            "html_url": "https://github.com/owner/repo/pull/1#issuecomment-999",
         }
         mock_httpx_client.post.return_value = mock_response
 
         client = CodeReviewClient(
-            provider=GitProvider.GITHUB,
-            base_url="https://api.github.com",
-            token="test-token"
+            provider=GitProvider.GITHUB, base_url="https://api.github.com", token="test-token"
         )
 
         result = await client.add_validation_comment(
@@ -431,7 +389,7 @@ class TestValidationComments:
             repo_name="repo",
             pr_number=1,
             validation_results=[],
-            overall_status="approved"
+            overall_status="approved",
         )
 
         assert result["comment_id"] == 999
@@ -449,14 +407,12 @@ class TestReviewStatus:
             "id": 111,
             "user": {"login": "code-forge"},
             "state": "APPROVED",
-            "submitted_at": "2024-01-01T00:00:00Z"
+            "submitted_at": "2024-01-01T00:00:00Z",
         }
         mock_httpx_client.post.return_value = mock_response
 
         client = CodeReviewClient(
-            provider=GitProvider.GITHUB,
-            base_url="https://api.github.com",
-            token="test-token"
+            provider=GitProvider.GITHUB, base_url="https://api.github.com", token="test-token"
         )
 
         result = await client.set_review_status(
@@ -464,7 +420,7 @@ class TestReviewStatus:
             repo_name="repo",
             pr_number=1,
             status=ReviewStatus.APPROVED,
-            comment="LGTM! Great work."
+            comment="LGTM! Great work.",
         )
 
         assert result["state"] == "APPROVED"
@@ -479,14 +435,12 @@ class TestReviewStatus:
             "id": 112,
             "user": {"login": "code-forge"},
             "state": "CHANGES_REQUESTED",
-            "submitted_at": "2024-01-01T00:00:00Z"
+            "submitted_at": "2024-01-01T00:00:00Z",
         }
         mock_httpx_client.post.return_value = mock_response
 
         client = CodeReviewClient(
-            provider=GitProvider.GITHUB,
-            base_url="https://api.github.com",
-            token="test-token"
+            provider=GitProvider.GITHUB, base_url="https://api.github.com", token="test-token"
         )
 
         result = await client.set_review_status(
@@ -494,7 +448,7 @@ class TestReviewStatus:
             repo_name="repo",
             pr_number=1,
             status=ReviewStatus.CHANGES_REQUESTED,
-            comment="Please address the security issues."
+            comment="Please address the security issues.",
         )
 
         assert result["state"] == "CHANGES_REQUESTED"
@@ -522,7 +476,7 @@ class TestCodeReviewIntegration:
                 low_issues=0,
                 executed_at=None,
                 duration_ms=100,
-                report_uri=None
+                report_uri=None,
             )
         ]
 
@@ -549,7 +503,7 @@ class TestCodeReviewIntegration:
                 low_issues=2,
                 executed_at=None,
                 duration_ms=100,
-                report_uri=None
+                report_uri=None,
             )
         ]
 
@@ -575,7 +529,7 @@ class TestCodeReviewIntegration:
                 low_issues=0,
                 executed_at=None,
                 duration_ms=100,
-                report_uri="https://example.com/report"
+                report_uri="https://example.com/report",
             )
         ]
 
@@ -605,7 +559,7 @@ class TestCodeReviewIntegration:
                 low_issues=0,
                 executed_at=None,
                 duration_ms=100,
-                report_uri=None
+                report_uri=None,
             )
         ]
 
@@ -626,7 +580,7 @@ class TestCodeReviewIntegration:
                 low_issues=1,
                 executed_at=None,
                 duration_ms=100,
-                report_uri=None
+                report_uri=None,
             )
         ]
 
@@ -639,9 +593,7 @@ class TestEdgeCases:
     def test_empty_validation_results(self):
         """Testa com lista vazia de validações."""
         client = CodeReviewClient(
-            provider=GitProvider.GITHUB,
-            base_url="https://api.github.com",
-            token="test-token"
+            provider=GitProvider.GITHUB, base_url="https://api.github.com", token="test-token"
         )
 
         comment = client._format_validation_comment([], "commented")
@@ -652,9 +604,7 @@ class TestEdgeCases:
     async def test_close_client(self, mock_httpx_client):
         """Testa fechamento do cliente."""
         client = CodeReviewClient(
-            provider=GitProvider.GITHUB,
-            base_url="https://api.github.com",
-            token="test-token"
+            provider=GitProvider.GITHUB, base_url="https://api.github.com", token="test-token"
         )
 
         # Não deve levantar exceção

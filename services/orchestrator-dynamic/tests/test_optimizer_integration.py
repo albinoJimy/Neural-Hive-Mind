@@ -28,12 +28,12 @@ from src.scheduler.intelligent_scheduler import IntelligentScheduler
 def config():
     """Configuração para cliente gRPC."""
     return {
-        'optimizer_grpc_endpoint': 'localhost:50053',
-        'optimizer_grpc_timeout_seconds': 5,
-        'optimizer_forecast_horizon_minutes': 60,
-        'optimizer_recommendation_confidence_threshold': 0.7,
-        'optimizer_enabled': True,
-        'optimizer_fallback_on_failure': True,
+        "optimizer_grpc_endpoint": "localhost:50053",
+        "optimizer_grpc_timeout_seconds": 5,
+        "optimizer_forecast_horizon_minutes": 60,
+        "optimizer_recommendation_confidence_threshold": 0.7,
+        "optimizer_enabled": True,
+        "optimizer_fallback_on_failure": True,
     }
 
 
@@ -90,15 +90,17 @@ def mock_metrics():
 @pytest_asyncio.fixture
 async def optimizer_client(config, mock_grpc_channel, mock_grpc_stub, mock_metrics):
     """Fixture do OptimizerGrpcClient."""
-    with patch('grpc.aio.insecure_channel', return_value=mock_grpc_channel):
-        with patch('src.clients.optimizer_grpc_client.OptimizerAgentStub',
-                   return_value=mock_grpc_stub):
+    with patch("grpc.aio.insecure_channel", return_value=mock_grpc_channel):
+        with patch(
+            "src.clients.optimizer_grpc_client.OptimizerAgentStub", return_value=mock_grpc_stub
+        ):
             client = OptimizerGrpcClient(config=config, metrics=mock_metrics)
             await client.initialize()
             return client
 
 
 # ===== Testes de Conexão =====
+
 
 @pytest.mark.asyncio
 async def test_client_initialization_success(optimizer_client):
@@ -110,7 +112,7 @@ async def test_client_initialization_success(optimizer_client):
 @pytest.mark.asyncio
 async def test_client_connection_failure_fallback(config, mock_metrics):
     """Testa fallback quando conexão gRPC falha."""
-    with patch('grpc.aio.insecure_channel', side_effect=Exception("Connection refused")):
+    with patch("grpc.aio.insecure_channel", side_effect=Exception("Connection refused")):
         client = OptimizerGrpcClient(config=config, metrics=mock_metrics)
 
         # Deve inicializar mesmo com falha (fallback mode)
@@ -122,19 +124,18 @@ async def test_client_connection_failure_fallback(config, mock_metrics):
 
 # ===== Testes de Forecast Retrieval =====
 
+
 @pytest.mark.asyncio
 async def test_get_load_forecast_success(optimizer_client, mock_grpc_stub):
     """Testa recuperação de forecast de carga com sucesso."""
     forecast = await optimizer_client.get_load_forecast(
-        horizon_minutes=60,
-        task_type='processing',
-        risk_band='medium'
+        horizon_minutes=60, task_type="processing", risk_band="medium"
     )
 
-    assert forecast['predicted_volume'] == 125
-    assert forecast['confidence'] == 0.85
-    assert forecast['bottleneck_probability'] == 0.15
-    assert 'resource_demand' in forecast
+    assert forecast["predicted_volume"] == 125
+    assert forecast["confidence"] == 0.85
+    assert forecast["bottleneck_probability"] == 0.15
+    assert "resource_demand" in forecast
 
     # Verificar que gRPC stub foi chamado
     mock_grpc_stub.GetLoadForecast.assert_called_once()
@@ -144,31 +145,29 @@ async def test_get_load_forecast_success(optimizer_client, mock_grpc_stub):
 async def test_get_load_forecast_with_metadata(optimizer_client):
     """Testa que forecast inclui metadata completa."""
     forecast = await optimizer_client.get_load_forecast(
-        horizon_minutes=360,
-        task_type='analysis',
-        risk_band='high'
+        horizon_minutes=360, task_type="analysis", risk_band="high"
     )
 
-    assert 'timestamp' in forecast
-    assert 'forecast_horizon_minutes' in forecast
-    assert forecast['forecast_horizon_minutes'] == 60
+    assert "timestamp" in forecast
+    assert "forecast_horizon_minutes" in forecast
+    assert forecast["forecast_horizon_minutes"] == 60
 
 
 @pytest.mark.asyncio
 async def test_get_load_forecast_grpc_timeout(optimizer_client, mock_grpc_stub):
     """Testa timeout em chamada gRPC de forecast."""
     mock_grpc_stub.GetLoadForecast = AsyncMock(
-        side_effect=AioRpcError(code=grpc.StatusCode.DEADLINE_EXCEEDED,
-                                 initial_metadata=None,
-                                 trailing_metadata=None,
-                                 details="Timeout")
+        side_effect=AioRpcError(
+            code=grpc.StatusCode.DEADLINE_EXCEEDED,
+            initial_metadata=None,
+            trailing_metadata=None,
+            details="Timeout",
+        )
     )
 
     # Deve retornar None em caso de timeout
     forecast = await optimizer_client.get_load_forecast(
-        horizon_minutes=60,
-        task_type='processing',
-        risk_band='medium'
+        horizon_minutes=60, task_type="processing", risk_band="medium"
     )
 
     assert forecast is None
@@ -179,24 +178,25 @@ async def test_get_load_forecast_grpc_timeout(optimizer_client, mock_grpc_stub):
 
 # ===== Testes de Scheduling Recommendations =====
 
+
 @pytest.mark.asyncio
 async def test_get_scheduling_recommendation_success(optimizer_client, mock_grpc_stub):
     """Testa obtenção de recomendação de agendamento."""
     state = {
-        'current_queue_depth': 150,
-        'active_workers': 10,
-        'avg_task_duration_ms': 5000,
-        'sla_compliance_rate': 0.88,
-        'predicted_load_1h': 125
+        "current_queue_depth": 150,
+        "active_workers": 10,
+        "avg_task_duration_ms": 5000,
+        "sla_compliance_rate": 0.88,
+        "predicted_load_1h": 125,
     }
 
     recommendation = await optimizer_client.get_scheduling_recommendation(state)
 
-    assert recommendation['action'] == "INCREASE_WORKER_POOL"
-    assert recommendation['confidence'] == 0.82
-    assert 'parameters' in recommendation
-    assert recommendation['parameters']['target_workers'] == "15"
-    assert 'expected_impact' in recommendation
+    assert recommendation["action"] == "INCREASE_WORKER_POOL"
+    assert recommendation["confidence"] == 0.82
+    assert "parameters" in recommendation
+    assert recommendation["parameters"]["target_workers"] == "15"
+    assert "expected_impact" in recommendation
 
 
 @pytest.mark.asyncio
@@ -210,7 +210,7 @@ async def test_recommendation_rejected_low_confidence(optimizer_client, mock_grp
 
     mock_grpc_stub.GetSchedulingRecommendation = AsyncMock(return_value=rec_response)
 
-    state = {'current_queue_depth': 50, 'active_workers': 10}
+    state = {"current_queue_depth": 50, "active_workers": 10}
     recommendation = await optimizer_client.get_scheduling_recommendation(state)
 
     # Deve retornar None (rejeitada)
@@ -223,11 +223,11 @@ async def test_recommendation_rejected_low_confidence(optimizer_client, mock_grp
 @pytest.mark.asyncio
 async def test_recommendation_applied_successfully(optimizer_client):
     """Testa aplicação bem-sucedida de recomendação."""
-    state = {'current_queue_depth': 200, 'active_workers': 8}
+    state = {"current_queue_depth": 200, "active_workers": 8}
     recommendation = await optimizer_client.get_scheduling_recommendation(state)
 
     assert recommendation is not None
-    assert recommendation['confidence'] >= 0.7
+    assert recommendation["confidence"] >= 0.7
 
     # Métrica de aplicação incrementada
     optimizer_client.metrics.optimizer_recommendations_applied.inc.assert_called()
@@ -235,30 +235,26 @@ async def test_recommendation_applied_successfully(optimizer_client):
 
 # ===== Testes de Scheduler Integration =====
 
+
 @pytest.mark.asyncio
 async def test_scheduler_uses_predictions(config, mock_metrics):
     """Testa que scheduler usa previsões para decisões de agendamento."""
     mock_optimizer_client = AsyncMock()
-    mock_optimizer_client.get_load_forecast = AsyncMock(return_value={
-        'predicted_volume': 180,
-        'confidence': 0.88,
-        'bottleneck_probability': 0.42
-    })
+    mock_optimizer_client.get_load_forecast = AsyncMock(
+        return_value={"predicted_volume": 180, "confidence": 0.88, "bottleneck_probability": 0.42}
+    )
 
     scheduler = IntelligentScheduler(
-        optimizer_client=mock_optimizer_client,
-        config=config,
-        metrics=mock_metrics
+        optimizer_client=mock_optimizer_client, config=config, metrics=mock_metrics
     )
 
     # Scheduler deve consultar forecast ao tomar decisão
-    decision = await scheduler.make_scheduling_decision({
-        'current_queue_depth': 100,
-        'active_workers': 10
-    })
+    decision = await scheduler.make_scheduling_decision(
+        {"current_queue_depth": 100, "active_workers": 10}
+    )
 
     assert mock_optimizer_client.get_load_forecast.called
-    assert 'action' in decision
+    assert "action" in decision
 
 
 @pytest.mark.asyncio
@@ -268,62 +264,55 @@ async def test_scheduler_fallback_on_optimizer_unavailable(config, mock_metrics)
     mock_optimizer_client.get_load_forecast = AsyncMock(return_value=None)  # Indisponível
 
     scheduler = IntelligentScheduler(
-        optimizer_client=mock_optimizer_client,
-        config=config,
-        metrics=mock_metrics
+        optimizer_client=mock_optimizer_client, config=config, metrics=mock_metrics
     )
 
     # Scheduler deve usar heurística padrão
-    decision = await scheduler.make_scheduling_decision({
-        'current_queue_depth': 150,
-        'active_workers': 10
-    })
+    decision = await scheduler.make_scheduling_decision(
+        {"current_queue_depth": 150, "active_workers": 10}
+    )
 
-    assert 'action' in decision
-    assert decision['action'] is not None  # Alguma decisão foi tomada
+    assert "action" in decision
+    assert decision["action"] is not None  # Alguma decisão foi tomada
 
 
 # ===== Testes de Metadata Enrichment =====
+
 
 @pytest.mark.asyncio
 async def test_metadata_enrichment_with_optimizer_data(optimizer_client):
     """Testa enriquecimento de metadata de tickets com dados de otimização."""
     forecast = await optimizer_client.get_load_forecast(
-        horizon_minutes=60,
-        task_type='processing',
-        risk_band='high'
+        horizon_minutes=60, task_type="processing", risk_band="high"
     )
 
     # Metadata deve incluir campos para tracking
     enriched_metadata = {
-        'original_priority': 5,
-        'optimizer_predicted_load': forecast['predicted_volume'],
-        'optimizer_confidence': forecast['confidence'],
-        'optimizer_bottleneck_risk': forecast['bottleneck_probability'],
-        'optimizer_enriched_at': datetime.now(timezone.utc).isoformat()
+        "original_priority": 5,
+        "optimizer_predicted_load": forecast["predicted_volume"],
+        "optimizer_confidence": forecast["confidence"],
+        "optimizer_bottleneck_risk": forecast["bottleneck_probability"],
+        "optimizer_enriched_at": datetime.now(timezone.utc).isoformat(),
     }
 
-    assert enriched_metadata['optimizer_predicted_load'] == 125
-    assert enriched_metadata['optimizer_confidence'] == 0.85
+    assert enriched_metadata["optimizer_predicted_load"] == 125
+    assert enriched_metadata["optimizer_confidence"] == 0.85
 
 
 # ===== Testes de Cache =====
+
 
 @pytest.mark.asyncio
 async def test_forecast_cache_hit(optimizer_client, mock_grpc_stub):
     """Testa cache de previsões (não refaz chamada gRPC)."""
     # Primeira chamada
     forecast1 = await optimizer_client.get_load_forecast(
-        horizon_minutes=60,
-        task_type='processing',
-        risk_band='medium'
+        horizon_minutes=60, task_type="processing", risk_band="medium"
     )
 
     # Segunda chamada (deve usar cache)
     forecast2 = await optimizer_client.get_load_forecast(
-        horizon_minutes=60,
-        task_type='processing',
-        risk_band='medium'
+        horizon_minutes=60, task_type="processing", risk_band="medium"
     )
 
     # gRPC stub deve ser chamado apenas uma vez
@@ -337,17 +326,13 @@ async def test_forecast_cache_hit(optimizer_client, mock_grpc_stub):
 async def test_forecast_cache_expiration(optimizer_client, mock_grpc_stub):
     """Testa expiração de cache (TTL)."""
     forecast1 = await optimizer_client.get_load_forecast(
-        horizon_minutes=60,
-        task_type='processing',
-        risk_band='medium'
+        horizon_minutes=60, task_type="processing", risk_band="medium"
     )
 
     # Simular passagem de tempo (TTL expirado)
-    with patch('time.time', return_value=datetime.now(timezone.utc).timestamp() + 400):
+    with patch("time.time", return_value=datetime.now(timezone.utc).timestamp() + 400):
         forecast2 = await optimizer_client.get_load_forecast(
-            horizon_minutes=60,
-            task_type='processing',
-            risk_band='medium'
+            horizon_minutes=60, task_type="processing", risk_band="medium"
         )
 
     # gRPC stub deve ser chamado duas vezes (cache expirou)
@@ -356,13 +341,12 @@ async def test_forecast_cache_expiration(optimizer_client, mock_grpc_stub):
 
 # ===== Testes de Latência e Timeouts =====
 
+
 @pytest.mark.asyncio
 async def test_grpc_latency_metric_recorded(optimizer_client):
     """Testa que latência de chamada gRPC é registrada."""
     await optimizer_client.get_load_forecast(
-        horizon_minutes=60,
-        task_type='processing',
-        risk_band='medium'
+        horizon_minutes=60, task_type="processing", risk_band="medium"
     )
 
     # Métrica de latência deve ser observada
@@ -372,10 +356,11 @@ async def test_grpc_latency_metric_recorded(optimizer_client):
 @pytest.mark.asyncio
 async def test_grpc_timeout_configuration(config):
     """Testa que timeout gRPC é configurado corretamente."""
-    assert config['optimizer_grpc_timeout_seconds'] == 5
+    assert config["optimizer_grpc_timeout_seconds"] == 5
 
 
 # ===== Testes de Validação de Recomendações =====
+
 
 @pytest.mark.asyncio
 async def test_invalid_recommendation_rejected(optimizer_client, mock_grpc_stub):
@@ -388,23 +373,23 @@ async def test_invalid_recommendation_rejected(optimizer_client, mock_grpc_stub)
 
     mock_grpc_stub.GetSchedulingRecommendation = AsyncMock(return_value=rec_response)
 
-    state = {'current_queue_depth': 150}
+    state = {"current_queue_depth": 150}
     recommendation = await optimizer_client.get_scheduling_recommendation(state)
 
     # Deve ser rejeitada por falta de parâmetros
-    assert recommendation is None or 'parameters' not in recommendation
+    assert recommendation is None or "parameters" not in recommendation
 
 
 @pytest.mark.asyncio
 async def test_recommendation_validation_parameters(optimizer_client):
     """Testa validação de parâmetros de recomendação."""
-    state = {'current_queue_depth': 200, 'active_workers': 10}
+    state = {"current_queue_depth": 200, "active_workers": 10}
     recommendation = await optimizer_client.get_scheduling_recommendation(state)
 
     if recommendation:
         # Parâmetros devem ser válidos
-        assert 'parameters' in recommendation
-        assert isinstance(recommendation['parameters'], dict)
+        assert "parameters" in recommendation
+        assert isinstance(recommendation["parameters"], dict)
 
-        if recommendation['action'] == "INCREASE_WORKER_POOL":
-            assert 'target_workers' in recommendation['parameters']
+        if recommendation["action"] == "INCREASE_WORKER_POOL":
+            assert "target_workers" in recommendation["parameters"]

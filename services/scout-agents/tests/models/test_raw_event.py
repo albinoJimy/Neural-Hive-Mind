@@ -14,6 +14,7 @@ from src.models.raw_event import RawEvent
 # Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def basic_raw_event():
     """Evento básico para testes."""
@@ -22,12 +23,8 @@ def basic_raw_event():
         source="test-source",
         event_type="user_action",
         timestamp=datetime.now(timezone.utc),
-        payload={
-            "action": "click",
-            "value": 100,
-            "count": 5
-        },
-        metadata={"trace_id": "trace-001"}
+        payload={"action": "click", "value": 100, "count": 5},
+        metadata={"trace_id": "trace-001"},
     )
 
 
@@ -41,20 +38,13 @@ def complex_nested_event():
         timestamp=datetime.now(timezone.utc),
         payload={
             "data": {
-                "user": {
-                    "id": 123,
-                    "score": 85.5
-                },
-                "metrics": {
-                    "cpu": 75.2,
-                    "memory": 60.8,
-                    "disk": [40, 50, 60]
-                }
+                "user": {"id": 123, "score": 85.5},
+                "metrics": {"cpu": 75.2, "memory": 60.8, "disk": [40, 50, 60]},
             },
             "status": 200,
-            "timing": 123.456
+            "timing": 123.456,
         },
-        metadata={"request_id": "req-001"}
+        metadata={"request_id": "req-001"},
     )
 
 
@@ -69,9 +59,9 @@ def event_with_list_data():
         payload={
             "values": [10, 20, 30, 40, 50],
             "timestamps": [1, 2, 3, 4, 5],
-            "labels": ["a", "b", "c"]
+            "labels": ["a", "b", "c"],
         },
-        metadata={}
+        metadata={},
     )
 
 
@@ -83,18 +73,15 @@ def event_with_no_numeric_data():
         source="logs",
         event_type="message",
         timestamp=datetime.now(timezone.utc),
-        payload={
-            "message": "User logged in",
-            "level": "INFO",
-            "service": "auth-service"
-        },
-        metadata={}
+        payload={"message": "User logged in", "level": "INFO", "service": "auth-service"},
+        metadata={},
     )
 
 
 # ============================================================================
 # Testes de Criação e Validação
 # ============================================================================
+
 
 class TestRawEventCreation:
     """Testes de criação de RawEvent."""
@@ -123,7 +110,7 @@ class TestRawEventCreation:
             source="test",
             event_type="test",
             timestamp=datetime.now(timezone.utc),
-            payload={"value": 1}
+            payload={"value": 1},
         )
         assert event.metadata == {}
 
@@ -131,6 +118,7 @@ class TestRawEventCreation:
 # ============================================================================
 # Testes de Extração de Features
 # ============================================================================
+
 
 class TestFeatureExtraction:
     """Testes de extração de features."""
@@ -180,7 +168,7 @@ class TestFeatureExtraction:
             event_type="test",
             timestamp=datetime.now(timezone.utc),
             payload={"value": 1},  # Apenas 1 feature
-            metadata={}
+            metadata={},
         )
         features = event.extract_features()
         assert len(features) == 50
@@ -196,7 +184,7 @@ class TestFeatureExtraction:
             event_type="test",
             timestamp=datetime.now(timezone.utc),
             payload={"values": many_values},
-            metadata={}
+            metadata={},
         )
         features = event.extract_features()
         assert len(features) == 50  # Truncado
@@ -213,6 +201,7 @@ class TestFeatureExtraction:
 # Testes de Normalização
 # ============================================================================
 
+
 class TestNormalization:
     """Testes de normalização de eventos."""
 
@@ -224,32 +213,33 @@ class TestNormalization:
     def test_normalize_includes_all_fields(self, basic_raw_event):
         """Testa que normalize inclui todos os campos."""
         normalized = basic_raw_event.normalize()
-        assert 'event_id' in normalized
-        assert 'event_type' in normalized
-        assert 'source' in normalized
-        assert 'timestamp' in normalized
-        assert 'payload' in normalized
-        assert 'metadata' in normalized
+        assert "event_id" in normalized
+        assert "event_type" in normalized
+        assert "source" in normalized
+        assert "timestamp" in normalized
+        assert "payload" in normalized
+        assert "metadata" in normalized
 
     def test_normalize_timestamp_is_string(self, basic_raw_event):
         """Testa que timestamp é convertido para string ISO."""
         normalized = basic_raw_event.normalize()
-        assert isinstance(normalized['timestamp'], str)
+        assert isinstance(normalized["timestamp"], str)
 
     def test_normalize_preserves_payload(self, basic_raw_event):
         """Testa que payload é preservado."""
         normalized = basic_raw_event.normalize()
-        assert normalized['payload'] == basic_raw_event.payload
+        assert normalized["payload"] == basic_raw_event.payload
 
     def test_normalize_preserves_metadata(self, basic_raw_event):
         """Testa que metadados são preservados."""
         normalized = basic_raw_event.normalize()
-        assert normalized['metadata'] == basic_raw_event.metadata
+        assert normalized["metadata"] == basic_raw_event.metadata
 
 
 # ============================================================================
 # Testes de Validação
 # ============================================================================
+
 
 class TestValidation:
     """Testes de validação de eventos."""
@@ -265,7 +255,7 @@ class TestValidation:
             source="test",
             event_type="test",
             timestamp=datetime.now(timezone.utc),
-            payload={}
+            payload={},
         )
         assert event.is_valid() is False
 
@@ -276,7 +266,7 @@ class TestValidation:
             source=None,
             event_type="test",
             timestamp=datetime.now(timezone.utc),
-            payload={}
+            payload={},
         )
         # Pydantic pode converter None para string ou validar
         # Mas se for string vazia após:
@@ -286,11 +276,7 @@ class TestValidation:
     def test_is_valid_missing_timestamp(self):
         """Testa que sem timestamp é inválido."""
         event = RawEvent(
-            event_id="event-001",
-            source="test",
-            event_type="test",
-            timestamp=None,
-            payload={}
+            event_id="event-001", source="test", event_type="test", timestamp=None, payload={}
         )
         # Depende de como Pydantic lida com None
         result = event.is_valid()
@@ -303,7 +289,7 @@ class TestValidation:
             source="test",
             event_type="test",
             timestamp=datetime.now(timezone.utc),
-            payload=None
+            payload=None,
         )
         if event.payload is None:
             assert event.is_valid() is False
@@ -312,6 +298,7 @@ class TestValidation:
 # ============================================================================
 # Testes de Cálculo de Anomalia
 # ============================================================================
+
 
 class TestAnomalyScoreCalculation:
     """Testes de cálculo de score de anomalia."""
@@ -353,7 +340,7 @@ class TestAnomalyScoreCalculation:
             event_type="test",
             timestamp=datetime.now(timezone.utc),
             payload={"value": 10000},  # Valor extremo
-            metadata={}
+            metadata={},
         )
         score = event.calculate_anomaly_score(historical_mean=100, historical_std=10)
         # Z-score alto deve resultar em score próximo de 1
@@ -363,6 +350,7 @@ class TestAnomalyScoreCalculation:
 # ============================================================================
 # Testes de Casos Especiais
 # ============================================================================
+
 
 class TestSpecialCases:
     """Testes de casos especiais."""
@@ -381,9 +369,9 @@ class TestSpecialCases:
                 "boolean": True,
                 "null": None,
                 "list": [1, 2, 3],
-                "nested": {"value": 99}
+                "nested": {"value": 99},
             },
-            metadata={}
+            metadata={},
         )
         features = event.extract_features()
         # Deve extrair apenas valores numéricos
@@ -402,12 +390,8 @@ class TestSpecialCases:
             source="test",
             event_type="test",
             timestamp=datetime.now(timezone.utc),
-            payload={
-                "metric": 100.5,
-                "label": "café",
-                "emoji": "🚀"
-            },
-            metadata={}
+            payload={"metric": 100.5, "label": "café", "emoji": "🚀"},
+            metadata={},
         )
         features = event.extract_features()
         # Deve extrair apenas o valor numérico
@@ -420,18 +404,8 @@ class TestSpecialCases:
             source="test",
             event_type="test",
             timestamp=datetime.now(timezone.utc),
-            payload={
-                "level1": {
-                    "level2": {
-                        "level3": {
-                            "level4": {
-                                "value": 42
-                            }
-                        }
-                    }
-                }
-            },
-            metadata={}
+            payload={"level1": {"level2": {"level3": {"level4": {"value": 42}}}}},
+            metadata={},
         )
         features = event.extract_features()
         # max_depth=3, então level4 não deve ser extraído
@@ -445,11 +419,8 @@ class TestSpecialCases:
             source="test",
             event_type="test",
             timestamp=datetime.now(timezone.utc),
-            payload={
-                "small": 1.5e-10,
-                "large": 1.5e10
-            },
-            metadata={}
+            payload={"small": 1.5e-10, "large": 1.5e10},
+            metadata={},
         )
         features = event.extract_features()
         # Deve extrair valores
@@ -460,6 +431,7 @@ class TestSpecialCases:
 # ============================================================================
 # Testes de Imutabilidade
 # ============================================================================
+
 
 class TestImmutability:
     """Testes de comportamento de imutabilidade."""
@@ -481,6 +453,7 @@ class TestImmutability:
 # Testes de Performance
 # ============================================================================
 
+
 class TestPerformance:
     """Testes de performance."""
 
@@ -493,7 +466,7 @@ class TestPerformance:
             event_type="test",
             timestamp=datetime.now(timezone.utc),
             payload=large_payload,
-            metadata={}
+            metadata={},
         )
         features = event.extract_features()
         # Deve completar sem erro e retornar 50 features
@@ -512,7 +485,7 @@ class TestPerformance:
             event_type="test",
             timestamp=datetime.now(timezone.utc),
             payload=payload,
-            metadata={}
+            metadata={},
         )
         # Deve completar sem erro (max_depth limita iteração)
         features = event.extract_features()
@@ -522,6 +495,7 @@ class TestPerformance:
 # ============================================================================
 # Testes de Bordas
 # ============================================================================
+
 
 class TestBoundaryConditions:
     """Testes de condições de contorno."""
@@ -534,7 +508,7 @@ class TestBoundaryConditions:
             event_type="test",
             timestamp=datetime.now(timezone.utc),
             payload={},
-            metadata={}
+            metadata={},
         )
         features = event.extract_features()
         # Deve retornar features default de zeros
@@ -549,7 +523,7 @@ class TestBoundaryConditions:
             event_type="test",
             timestamp=datetime.now(timezone.utc),
             payload={"a": 0, "b": 0.0, "c": -0.0},
-            metadata={}
+            metadata={},
         )
         features = event.extract_features()
         # Deve incluir os zeros
@@ -563,7 +537,7 @@ class TestBoundaryConditions:
             event_type="test",
             timestamp=datetime.now(timezone.utc),
             payload={"negative": -100, "positive": 50},
-            metadata={}
+            metadata={},
         )
         features = event.extract_features()
         assert -100 in features
@@ -576,8 +550,8 @@ class TestBoundaryConditions:
             source="test",
             event_type="test",
             timestamp=datetime.now(timezone.utc),
-            payload={"inf": float('inf'), "ninf": float('-inf')},
-            metadata={}
+            payload={"inf": float("inf"), "ninf": float("-inf")},
+            metadata={},
         )
         # Não deve crashar
         features = event.extract_features()
@@ -590,8 +564,8 @@ class TestBoundaryConditions:
             source="test",
             event_type="test",
             timestamp=datetime.now(timezone.utc),
-            payload={"nan": float('nan')},
-            metadata={}
+            payload={"nan": float("nan")},
+            metadata={},
         )
         # Não deve crashar
         features = event.extract_features()

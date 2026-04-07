@@ -56,7 +56,7 @@ class ConnectionError(NeuralHiveError):
         port: Optional[int] = None,
         reason: Optional[str] = None,
         code: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None
+        details: Optional[Dict[str, Any]] = None,
     ):
         code = code or InfrastructureErrorCode.CONNECTION_FAILED
 
@@ -71,19 +71,11 @@ class ConnectionError(NeuralHiveError):
         if reason:
             error_details["reason"] = reason
 
-        super().__init__(
-            message=message,
-            code=code,
-            details=error_details,
-            http_status=503
-        )
+        super().__init__(message=message, code=code, details=error_details, http_status=503)
 
     @classmethod
     def service_unavailable(
-        cls,
-        service: str,
-        host: str = None,
-        port: int = None
+        cls, service: str, host: str = None, port: int = None
     ) -> "ConnectionError":
         """Erro para serviço indisponível."""
         return cls(
@@ -91,7 +83,7 @@ class ConnectionError(NeuralHiveError):
             service=service,
             host=host,
             port=port,
-            code=InfrastructureErrorCode.CONNECTION_FAILED
+            code=InfrastructureErrorCode.CONNECTION_FAILED,
         )
 
 
@@ -114,7 +106,7 @@ class TimeoutError(NeuralHiveError):
         timeout_seconds: Optional[float] = None,
         service: Optional[str] = None,
         code: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None
+        details: Optional[Dict[str, Any]] = None,
     ):
         code = code or InfrastructureErrorCode.CONNECTION_TIMEOUT
 
@@ -127,19 +119,11 @@ class TimeoutError(NeuralHiveError):
         if service:
             error_details["service"] = service
 
-        super().__init__(
-            message=message,
-            code=code,
-            details=error_details,
-            http_status=504
-        )
+        super().__init__(message=message, code=code, details=error_details, http_status=504)
 
     @classmethod
     def operation_timeout(
-        cls,
-        operation: str,
-        timeout_seconds: float,
-        service: str = None
+        cls, operation: str, timeout_seconds: float, service: str = None
     ) -> "TimeoutError":
         """Erro para operação que excedeu timeout."""
         return cls(
@@ -147,7 +131,7 @@ class TimeoutError(NeuralHiveError):
             operation=operation,
             timeout_seconds=timeout_seconds,
             service=service,
-            code=InfrastructureErrorCode.CONNECTION_TIMEOUT
+            code=InfrastructureErrorCode.CONNECTION_TIMEOUT,
         )
 
 
@@ -159,7 +143,7 @@ class DatabaseError(NeuralHiveError):
         message: str,
         query: Optional[str] = None,
         database: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None
+        details: Optional[Dict[str, Any]] = None,
     ):
         code = InfrastructureErrorCode.DATABASE_ERROR
 
@@ -171,21 +155,12 @@ class DatabaseError(NeuralHiveError):
         if database:
             error_details["database"] = database
 
-        super().__init__(
-            message=message,
-            code=code,
-            details=error_details,
-            http_status=500
-        )
+        super().__init__(message=message, code=code, details=error_details, http_status=500)
 
     @classmethod
     def query_failed(cls, query: str, reason: str, database: str = None) -> "DatabaseError":
         """Erro para query que falhou."""
-        return cls(
-            message=f"Database query failed: {reason}",
-            query=query,
-            database=database
-        )
+        return cls(message=f"Database query failed: {reason}", query=query, database=database)
 
 
 class KafkaError(NeuralHiveError):
@@ -197,7 +172,7 @@ class KafkaError(NeuralHiveError):
         topic: Optional[str] = None,
         partition: Optional[int] = None,
         code: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None
+        details: Optional[Dict[str, Any]] = None,
     ):
         code = code or InfrastructureErrorCode.KAFKA_ERROR
 
@@ -208,12 +183,7 @@ class KafkaError(NeuralHiveError):
         if partition is not None:
             error_details["partition"] = partition
 
-        super().__init__(
-            message=message,
-            code=code,
-            details=error_details,
-            http_status=500
-        )
+        super().__init__(message=message, code=code, details=error_details, http_status=500)
 
     @classmethod
     def producer_error(cls, topic: str, reason: str) -> "KafkaError":
@@ -221,7 +191,7 @@ class KafkaError(NeuralHiveError):
         return cls(
             message=f"Failed to produce message to Kafka: {reason}",
             topic=topic,
-            code=InfrastructureErrorCode.KAFKA_PRODUCER_ERROR
+            code=InfrastructureErrorCode.KAFKA_PRODUCER_ERROR,
         )
 
     @classmethod
@@ -230,5 +200,5 @@ class KafkaError(NeuralHiveError):
         return cls(
             message=f"Failed to consume message from Kafka: {reason}",
             topic=topic,
-            code=InfrastructureErrorCode.KAFKA_CONSUMER_ERROR
+            code=InfrastructureErrorCode.KAFKA_CONSUMER_ERROR,
         )

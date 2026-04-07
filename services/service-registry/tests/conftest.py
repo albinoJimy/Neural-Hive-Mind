@@ -9,7 +9,7 @@ from uuid import uuid4
 from unittest.mock import Mock, AsyncMock
 
 # Adicionar src ao path para importação
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../src"))
 
 
 @pytest.fixture
@@ -33,14 +33,11 @@ def mock_agent_info():
         metadata={"version": "1.0.0"},
         status=AgentStatus.HEALTHY,
         telemetry=AgentTelemetry(
-            success_rate=0.95,
-            avg_duration_ms=100,
-            total_executions=50,
-            failed_executions=2
+            success_rate=0.95, avg_duration_ms=100, total_executions=50, failed_executions=2
         ),
         namespace="default",
         cluster="local",
-        version="1.0.0"
+        version="1.0.0",
     )
 
 

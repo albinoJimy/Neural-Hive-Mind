@@ -50,9 +50,7 @@ class MCPClient:
         """
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.get(
-                    f"{self.server_url}/tools", headers=self.headers
-                )
+                response = await client.get(f"{self.server_url}/tools", headers=self.headers)
                 response.raise_for_status()
                 data = response.json()
                 return data.get("tools", [])

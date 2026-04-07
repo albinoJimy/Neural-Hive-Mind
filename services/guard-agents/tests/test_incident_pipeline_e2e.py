@@ -64,18 +64,22 @@ def incident_classifier(mock_mongodb_client):
 def mock_keycloak_client():
     """Mock Keycloak Admin client"""
     client = AsyncMock()
-    client.revoke_user_sessions = AsyncMock(return_value={
-        "success": True,
-        "user_id": "test-user",
-        "action": "revoke_sessions",
-        "timestamp": "2024-01-01T00:00:00Z"
-    })
-    client.disable_user = AsyncMock(return_value={
-        "success": True,
-        "user_id": "test-user",
-        "action": "disable_user",
-        "timestamp": "2024-01-01T00:00:00Z"
-    })
+    client.revoke_user_sessions = AsyncMock(
+        return_value={
+            "success": True,
+            "user_id": "test-user",
+            "action": "revoke_sessions",
+            "timestamp": "2024-01-01T00:00:00Z",
+        }
+    )
+    client.disable_user = AsyncMock(
+        return_value={
+            "success": True,
+            "user_id": "test-user",
+            "action": "disable_user",
+            "timestamp": "2024-01-01T00:00:00Z",
+        }
+    )
     return client
 
 
@@ -86,7 +90,7 @@ def policy_enforcer(mock_k8s_client, mock_redis_client, mock_keycloak_client, mo
         k8s_client=mock_k8s_client,
         redis_client=mock_redis_client,
         keycloak_client=mock_keycloak_client,
-        mongodb_client=mock_mongodb_client
+        mongodb_client=mock_mongodb_client,
     )
 
 
@@ -94,9 +98,7 @@ def policy_enforcer(mock_k8s_client, mock_redis_client, mock_keycloak_client, mo
 def remediation_coordinator(mock_k8s_client, mock_mongodb_client):
     """Fixture do RemediationCoordinator"""
     return RemediationCoordinator(
-        k8s_client=mock_k8s_client,
-        mongodb_client=mock_mongodb_client,
-        kafka_producer=None
+        k8s_client=mock_k8s_client, mongodb_client=mock_mongodb_client, kafka_producer=None
     )
 
 
@@ -106,7 +108,7 @@ def incident_orchestrator(
     incident_classifier,
     policy_enforcer,
     remediation_coordinator,
-    mock_mongodb_client
+    mock_mongodb_client,
 ):
     """Fixture do IncidentOrchestrator"""
     return IncidentOrchestrator(
@@ -115,7 +117,7 @@ def incident_orchestrator(
         policy_enforcer=policy_enforcer,
         remediation_coordinator=remediation_coordinator,
         mongodb_client=mock_mongodb_client,
-        kafka_producer=None
+        kafka_producer=None,
     )
 
 

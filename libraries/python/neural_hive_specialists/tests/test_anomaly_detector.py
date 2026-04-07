@@ -28,9 +28,7 @@ def mock_config():
         "enable_anomaly_detection": True,
         "anomaly_contamination": 0.1,
         "anomaly_n_estimators": 50,  # Reduzido para testes mais rápidos
-        "anomaly_model_path": os.path.join(
-            temp_dir, "anomaly_detector_{specialist_type}.pkl"
-        ),
+        "anomaly_model_path": os.path.join(temp_dir, "anomaly_detector_{specialist_type}.pkl"),
         "anomaly_alert_threshold": -0.3,
     }
 
@@ -132,9 +130,7 @@ class TestTrainOnHistoricalData:
         """Testa quando anomaly detection está desabilitado."""
         detector.enable_anomaly_detection = False
 
-        result = detector.train_on_historical_data(
-            [{"consensus_agreement_rate": 0.85}] * 100
-        )
+        result = detector.train_on_historical_data([{"consensus_agreement_rate": 0.85}] * 100)
 
         assert result is False
         assert detector.is_trained is False
@@ -187,9 +183,7 @@ class TestDetectAnomalies:
         assert result["severity"] in ["info", "warning"]
         assert result["anomalous_features"] == []
 
-    def test_anomalous_metrics(
-        self, detector, normal_metrics_history, anomalous_metrics
-    ):
+    def test_anomalous_metrics(self, detector, normal_metrics_history, anomalous_metrics):
         """Testa detecção com métricas anômalas."""
         # Treinar modelo
         detector.train_on_historical_data(normal_metrics_history)
@@ -244,9 +238,7 @@ class TestDetectAnomalies:
         assert result["is_anomaly"] is False
         assert result["anomaly_score"] == 0.0
 
-    def test_identify_anomalous_features(
-        self, detector, normal_metrics_history, anomalous_metrics
-    ):
+    def test_identify_anomalous_features(self, detector, normal_metrics_history, anomalous_metrics):
         """Testa identificação de features anômalas (z-score > 2)."""
         detector.train_on_historical_data(normal_metrics_history)
 
@@ -257,9 +249,7 @@ class TestDetectAnomalies:
             assert len(result["anomalous_features"]) > 0
             # Consensus agreement rate muito baixo deve ser identificado
             assert any(
-                "consensus_agreement" in f
-                or "false_positive" in f
-                or "false_negative" in f
+                "consensus_agreement" in f or "false_positive" in f or "false_negative" in f
                 for f in result["anomalous_features"]
             )
 
@@ -295,9 +285,7 @@ class TestModelPersistence:
     def test_save_and_load_model(self, detector, normal_metrics_history, mock_config):
         """Testa salvar e carregar modelo."""
         # Treinar e salvar
-        detector.train_on_historical_data(
-            normal_metrics_history, specialist_type="technical"
-        )
+        detector.train_on_historical_data(normal_metrics_history, specialist_type="technical")
 
         # Criar novo detector e carregar modelo
         new_detector = AnomalyDetector(mock_config)
@@ -318,9 +306,7 @@ class TestModelPersistence:
     def test_model_versioning(self, detector, normal_metrics_history, mock_config):
         """Testa versionamento de modelos."""
         # Treinar múltiplas vezes
-        detector.train_on_historical_data(
-            normal_metrics_history, specialist_type="technical"
-        )
+        detector.train_on_historical_data(normal_metrics_history, specialist_type="technical")
 
         base_path = (
             mock_config["anomaly_model_path"]

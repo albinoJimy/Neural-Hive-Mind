@@ -129,6 +129,7 @@ class TestExplainabilityGeneratorIntegration:
         # Configurar ambos os mocks
         import neural_hive_specialists.explainability.explainability_ledger_v2 as ledger_module
         import neural_hive_specialists.explainability_generator as gen_module
+
         gen_module.MongoClient.return_value.__getitem__.return_value = mock_db
         ledger_module.MongoClient.return_value.__getitem__.return_value = mock_db
 
@@ -210,6 +211,7 @@ class TestExplainabilityGeneratorIntegration:
         # Configurar ambos os mocks
         import neural_hive_specialists.explainability.explainability_ledger_v2 as ledger_module
         import neural_hive_specialists.explainability_generator as gen_module
+
         gen_module.MongoClient.return_value.__getitem__.return_value = mock_db
         ledger_module.MongoClient.return_value.__getitem__.return_value = mock_db
 
@@ -231,10 +233,7 @@ class TestExplainabilityGeneratorIntegration:
 
         # Se método foi SHAP/LIME e reasoning_factors estavam presentes,
         # narrativa deve mencionar vinculação (opcional, depende de match)
-        if (
-            metadata["method"] in ["shap", "lime"]
-            and len(metadata["feature_importances"]) > 0
-        ):
+        if metadata["method"] in ["shap", "lime"] and len(metadata["feature_importances"]) > 0:
             # Verificar se algum reasoning_factor foi vinculado
             # (narrativa deve conter "vinculado ao fator de raciocínio" se houve match)
             has_links = "vinculado ao fator de raciocínio" in narrative.lower()
@@ -272,6 +271,7 @@ class TestExplainabilityGeneratorIntegration:
         # Configurar ambos os mocks
         import neural_hive_specialists.explainability.explainability_ledger_v2 as ledger_module
         import neural_hive_specialists.explainability_generator as gen_module
+
         gen_module.MongoClient.return_value.__getitem__.return_value = mock_db
         ledger_module.MongoClient.return_value.__getitem__.return_value = mock_db
 
@@ -327,6 +327,7 @@ class TestExplainabilityGeneratorIntegration:
         # Configurar ambos os mocks
         import neural_hive_specialists.explainability.explainability_ledger_v2 as ledger_module
         import neural_hive_specialists.explainability_generator as gen_module
+
         gen_module.MongoClient.return_value.__getitem__.return_value = mock_db
         ledger_module.MongoClient.return_value.__getitem__.return_value = mock_db
 

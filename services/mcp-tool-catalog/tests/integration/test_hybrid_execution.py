@@ -24,6 +24,7 @@ from src.adapters.base_adapter import ExecutionResult
 # Fixtures de Mock MCP Server
 # ============================================================================
 
+
 @pytest.fixture
 def mcp_server_app():
     """
@@ -35,55 +36,54 @@ def mcp_server_app():
         try:
             data = await request.json()
         except json.JSONDecodeError:
-            return web.json_response({
-                "jsonrpc": "2.0",
-                "id": None,
-                "error": {"code": -32700, "message": "Parse error"}
-            })
+            return web.json_response(
+                {"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "Parse error"}}
+            )
 
         method = data.get("method")
         params = data.get("params", {})
         request_id = data.get("id", 1)
 
         if method == "tools/list":
-            return web.json_response({
-                "jsonrpc": "2.0",
-                "id": request_id,
-                "result": {
-                    "tools": [
-                        {
-                            "name": "trivy-scan",
-                            "description": "Security scanner",
-                            "inputSchema": {"type": "object"}
-                        }
-                    ]
+            return web.json_response(
+                {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "result": {
+                        "tools": [
+                            {
+                                "name": "trivy-scan",
+                                "description": "Security scanner",
+                                "inputSchema": {"type": "object"},
+                            }
+                        ]
+                    },
                 }
-            })
+            )
 
         elif method == "tools/call":
             tool_name = params.get("name")
             arguments = params.get("arguments", {})
 
-            return web.json_response({
+            return web.json_response(
+                {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "result": {
+                        "content": [{"type": "text", "text": f"MCP executed {tool_name}: success"}],
+                        "structuredContent": {"via": "mcp"},
+                        "isError": False,
+                    },
+                }
+            )
+
+        return web.json_response(
+            {
                 "jsonrpc": "2.0",
                 "id": request_id,
-                "result": {
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": f"MCP executed {tool_name}: success"
-                        }
-                    ],
-                    "structuredContent": {"via": "mcp"},
-                    "isError": False
-                }
-            })
-
-        return web.json_response({
-            "jsonrpc": "2.0",
-            "id": request_id,
-            "error": {"code": -32601, "message": "Method not found"}
-        })
+                "error": {"code": -32601, "message": "Method not found"},
+            }
+        )
 
     app.router.add_post("/", jsonrpc_handler)
     return app
@@ -95,10 +95,7 @@ def failing_mcp_server_app():
     app = web.Application()
 
     async def error_handler(request):
-        return web.json_response(
-            {"error": "Service Unavailable"},
-            status=503
-        )
+        return web.json_response({"error": "Service Unavailable"}, status=503)
 
     app.router.add_post("/", error_handler)
     return app
@@ -111,11 +108,7 @@ def slow_mcp_server_app():
 
     async def slow_handler(request):
         await asyncio.sleep(10)  # Muito lento
-        return web.json_response({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "result": {"slow": True}
-        })
+        return web.json_response({"jsonrpc": "2.0", "id": 1, "result": {"slow": True}})
 
     app.router.add_post("/", slow_handler)
     return app
@@ -143,6 +136,7 @@ async def slow_mcp_server(slow_mcp_server_app, aiohttp_server):
 # Fixtures de ToolDescriptor
 # ============================================================================
 
+
 @pytest.fixture
 def trivy_tool():
     """Ferramenta Trivy para testes."""
@@ -158,7 +152,7 @@ def trivy_tool():
         integration_type=IntegrationType.CONTAINER,
         authentication_method="NONE",
         is_healthy=True,
-        metadata={"docker_image": "aquasec/trivy:latest"}
+        metadata={"docker_image": "aquasec/trivy:latest"},
     )
 
 
@@ -177,13 +171,14 @@ def cli_tool():
         integration_type=IntegrationType.CLI,
         authentication_method="NONE",
         is_healthy=True,
-        metadata={"cli_command": "pytest"}
+        metadata={"cli_command": "pytest"},
     )
 
 
 # ============================================================================
 # Fixtures de ToolExecutor
 # ============================================================================
+
 
 @pytest.fixture
 def mock_metrics():
@@ -205,6 +200,7 @@ def mock_registry():
 # ============================================================================
 # Testes de Fallback MCP -> Adapter
 # ============================================================================
+
 
 class TestMCPFallback:
     """Testes de fallback de MCP para adapter."""
@@ -228,9 +224,7 @@ class TestMCPFallback:
 
         with patch("src.services.tool_executor.get_settings", return_value=settings):
             executor = ToolExecutor(
-                settings=settings,
-                metrics=mock_metrics,
-                tool_registry=mock_registry
+                settings=settings, metrics=mock_metrics, tool_registry=mock_registry
             )
 
             # Iniciar executor (vai falhar ao conectar MCP)
@@ -241,23 +235,15 @@ class TestMCPFallback:
                 success=True,
                 output="CLI adapter executed successfully",
                 execution_time_ms=1000.0,
-                exit_code=0
+                exit_code=0,
             )
 
-            with patch.object(
-                executor.cli_adapter,
-                "execute",
-                return_value=mock_result
-            ):
+            with patch.object(executor.cli_adapter, "execute", return_value=mock_result):
                 with patch.object(
-                    executor.cli_adapter,
-                    "validate_tool_availability",
-                    return_value=True
+                    executor.cli_adapter, "validate_tool_availability", return_value=True
                 ):
                     result = await executor.execute_tool(
-                        tool=cli_tool,
-                        execution_params={},
-                        context={}
+                        tool=cli_tool, execution_params={}, context={}
                     )
 
                     # Deve usar adapter como fallback
@@ -286,9 +272,7 @@ class TestMCPFallback:
 
         with patch("src.services.tool_executor.get_settings", return_value=settings):
             executor = ToolExecutor(
-                settings=settings,
-                metrics=mock_metrics,
-                tool_registry=mock_registry
+                settings=settings, metrics=mock_metrics, tool_registry=mock_registry
             )
 
             # Mockar adapter Container para sucesso
@@ -296,23 +280,15 @@ class TestMCPFallback:
                 success=True,
                 output="Container adapter: scan completed",
                 execution_time_ms=5000.0,
-                exit_code=0
+                exit_code=0,
             )
 
-            with patch.object(
-                executor.container_adapter,
-                "execute",
-                return_value=mock_result
-            ):
+            with patch.object(executor.container_adapter, "execute", return_value=mock_result):
                 with patch.object(
-                    executor.container_adapter,
-                    "validate_tool_availability",
-                    return_value=True
+                    executor.container_adapter, "validate_tool_availability", return_value=True
                 ):
                     result = await executor.execute_tool(
-                        tool=trivy_tool,
-                        execution_params={"image": "nginx:latest"},
-                        context={}
+                        tool=trivy_tool, execution_params={"image": "nginx:latest"}, context={}
                     )
 
                     # Deve usar adapter como fallback
@@ -325,6 +301,7 @@ class TestMCPFallback:
 # ============================================================================
 # Testes de Graceful Degradation
 # ============================================================================
+
 
 class TestGracefulDegradation:
     """Testes de degradacao graceful."""
@@ -344,14 +321,12 @@ class TestGracefulDegradation:
         settings.MCP_SERVER_CIRCUIT_BREAKER_TIMEOUT_SECONDS = 60
         settings.MCP_SERVERS = {
             "trivy-001": f"http://{mcp_server.host}:{mcp_server.port}",
-            "sonarqube-001": f"http://{failing_mcp_server.host}:{failing_mcp_server.port}"
+            "sonarqube-001": f"http://{failing_mcp_server.host}:{failing_mcp_server.port}",
         }
 
         with patch("src.services.tool_executor.get_settings", return_value=settings):
             executor = ToolExecutor(
-                settings=settings,
-                metrics=mock_metrics,
-                tool_registry=mock_registry
+                settings=settings, metrics=mock_metrics, tool_registry=mock_registry
             )
 
             await executor.start()
@@ -381,9 +356,7 @@ class TestGracefulDegradation:
 
         with patch("src.services.tool_executor.get_settings", return_value=settings):
             executor = ToolExecutor(
-                settings=settings,
-                metrics=mock_metrics,
-                tool_registry=mock_registry
+                settings=settings, metrics=mock_metrics, tool_registry=mock_registry
             )
 
             await executor.start()
@@ -393,25 +366,15 @@ class TestGracefulDegradation:
 
             # Mas execucao ainda funciona via adapter
             mock_result = ExecutionResult(
-                success=True,
-                output="Adapter fallback success",
-                execution_time_ms=1000.0
+                success=True, output="Adapter fallback success", execution_time_ms=1000.0
             )
 
-            with patch.object(
-                executor.container_adapter,
-                "execute",
-                return_value=mock_result
-            ):
+            with patch.object(executor.container_adapter, "execute", return_value=mock_result):
                 with patch.object(
-                    executor.container_adapter,
-                    "validate_tool_availability",
-                    return_value=True
+                    executor.container_adapter, "validate_tool_availability", return_value=True
                 ):
                     result = await executor.execute_tool(
-                        tool=trivy_tool,
-                        execution_params={},
-                        context={}
+                        tool=trivy_tool, execution_params={}, context={}
                     )
 
                     assert result.success is True
@@ -422,6 +385,7 @@ class TestGracefulDegradation:
 # ============================================================================
 # Testes de Metricas Hibridas
 # ============================================================================
+
 
 class TestHybridMetrics:
     """Testes de metricas para execucao hibrida."""
@@ -439,23 +403,17 @@ class TestHybridMetrics:
         settings.MCP_SERVER_MAX_RETRIES = 1
         settings.MCP_SERVER_CIRCUIT_BREAKER_THRESHOLD = 5
         settings.MCP_SERVER_CIRCUIT_BREAKER_TIMEOUT_SECONDS = 60
-        settings.MCP_SERVERS = {
-            "trivy-001": f"http://{mcp_server.host}:{mcp_server.port}"
-        }
+        settings.MCP_SERVERS = {"trivy-001": f"http://{mcp_server.host}:{mcp_server.port}"}
 
         with patch("src.services.tool_executor.get_settings", return_value=settings):
             executor = ToolExecutor(
-                settings=settings,
-                metrics=mock_metrics,
-                tool_registry=mock_registry
+                settings=settings, metrics=mock_metrics, tool_registry=mock_registry
             )
 
             await executor.start()
 
             result = await executor.execute_tool(
-                tool=trivy_tool,
-                execution_params={"image": "nginx:latest"},
-                context={}
+                tool=trivy_tool, execution_params={"image": "nginx:latest"}, context={}
             )
 
             # Verificar que metricas foram chamadas
@@ -485,32 +443,18 @@ class TestHybridMetrics:
 
         with patch("src.services.tool_executor.get_settings", return_value=settings):
             executor = ToolExecutor(
-                settings=settings,
-                metrics=mock_metrics,
-                tool_registry=mock_registry
+                settings=settings, metrics=mock_metrics, tool_registry=mock_registry
             )
 
             mock_result = ExecutionResult(
-                success=True,
-                output="Adapter success",
-                execution_time_ms=1000.0
+                success=True, output="Adapter success", execution_time_ms=1000.0
             )
 
-            with patch.object(
-                executor.cli_adapter,
-                "execute",
-                return_value=mock_result
-            ):
+            with patch.object(executor.cli_adapter, "execute", return_value=mock_result):
                 with patch.object(
-                    executor.cli_adapter,
-                    "validate_tool_availability",
-                    return_value=True
+                    executor.cli_adapter, "validate_tool_availability", return_value=True
                 ):
-                    await executor.execute_tool(
-                        tool=cli_tool,
-                        execution_params={},
-                        context={}
-                    )
+                    await executor.execute_tool(tool=cli_tool, execution_params={}, context={})
 
                     # Verificar metricas
                     call_args = mock_metrics.record_tool_execution.call_args
@@ -536,43 +480,29 @@ class TestHybridMetrics:
 
         with patch("src.services.tool_executor.get_settings", return_value=settings):
             executor = ToolExecutor(
-                settings=settings,
-                metrics=mock_metrics,
-                tool_registry=mock_registry
+                settings=settings, metrics=mock_metrics, tool_registry=mock_registry
             )
 
             # Mockar MCP client que falha
             from src.clients.mcp_server_client import MCPServerClient
+
             mock_client = MagicMock(spec=MCPServerClient)
             mock_client.server_url = f"http://{failing_mcp_server.host}:{failing_mcp_server.port}"
 
             from src.clients.mcp_exceptions import MCPTransportError
-            mock_client.call_tool = AsyncMock(
-                side_effect=MCPTransportError("Connection failed")
-            )
+
+            mock_client.call_tool = AsyncMock(side_effect=MCPTransportError("Connection failed"))
             executor.mcp_clients = {"trivy-001": mock_client}
 
             mock_result = ExecutionResult(
-                success=True,
-                output="Fallback success",
-                execution_time_ms=1000.0
+                success=True, output="Fallback success", execution_time_ms=1000.0
             )
 
-            with patch.object(
-                executor.container_adapter,
-                "execute",
-                return_value=mock_result
-            ):
+            with patch.object(executor.container_adapter, "execute", return_value=mock_result):
                 with patch.object(
-                    executor.container_adapter,
-                    "validate_tool_availability",
-                    return_value=True
+                    executor.container_adapter, "validate_tool_availability", return_value=True
                 ):
-                    await executor.execute_tool(
-                        tool=trivy_tool,
-                        execution_params={},
-                        context={}
-                    )
+                    await executor.execute_tool(tool=trivy_tool, execution_params={}, context={})
 
                     # Verificar que fallback foi registrado
                     mock_metrics.record_mcp_fallback.assert_called()
@@ -586,13 +516,12 @@ class TestHybridMetrics:
 # Testes de Execucao via MCP Server Real
 # ============================================================================
 
+
 class TestMCPServerExecution:
     """Testes de execucao com MCP server real (mock)."""
 
     @pytest.mark.asyncio
-    async def test_mcp_execution_success(
-        self, mcp_server, trivy_tool, mock_metrics, mock_registry
-    ):
+    async def test_mcp_execution_success(self, mcp_server, trivy_tool, mock_metrics, mock_registry):
         """Testa execucao bem-sucedida via MCP server."""
         settings = MagicMock()
         settings.TOOL_EXECUTION_TIMEOUT_SECONDS = 300
@@ -602,15 +531,11 @@ class TestMCPServerExecution:
         settings.MCP_SERVER_MAX_RETRIES = 1
         settings.MCP_SERVER_CIRCUIT_BREAKER_THRESHOLD = 5
         settings.MCP_SERVER_CIRCUIT_BREAKER_TIMEOUT_SECONDS = 60
-        settings.MCP_SERVERS = {
-            "trivy-001": f"http://{mcp_server.host}:{mcp_server.port}"
-        }
+        settings.MCP_SERVERS = {"trivy-001": f"http://{mcp_server.host}:{mcp_server.port}"}
 
         with patch("src.services.tool_executor.get_settings", return_value=settings):
             executor = ToolExecutor(
-                settings=settings,
-                metrics=mock_metrics,
-                tool_registry=mock_registry
+                settings=settings, metrics=mock_metrics, tool_registry=mock_registry
             )
 
             await executor.start()
@@ -619,9 +544,7 @@ class TestMCPServerExecution:
             assert "trivy-001" in executor.mcp_clients
 
             result = await executor.execute_tool(
-                tool=trivy_tool,
-                execution_params={"image": "nginx:latest"},
-                context={}
+                tool=trivy_tool, execution_params={"image": "nginx:latest"}, context={}
             )
 
             assert result.success is True

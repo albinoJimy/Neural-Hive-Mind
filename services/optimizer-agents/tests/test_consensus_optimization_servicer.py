@@ -117,7 +117,13 @@ class TestGetCurrentWeights:
     async def test_get_weights_from_cache(self, servicer, mock_redis_client, mock_grpc_context):
         """Testa obtenção de pesos do cache Redis."""
         cached_weights = {
-            "weights": {"technical": 0.20, "safety": 0.25, "business": 0.20, "ethical": 0.20, "legal": 0.15},
+            "weights": {
+                "technical": 0.20,
+                "safety": 0.25,
+                "business": 0.20,
+                "ethical": 0.20,
+                "legal": 0.15,
+            },
             "last_updated_at": 1699056000000,
             "optimization_id": "opt-123",
         }
@@ -139,7 +145,13 @@ class TestGetCurrentWeights:
         """Testa obtenção de pesos do MongoDB quando cache está vazio."""
         mock_redis_client.get_json.return_value = None
         mock_mongodb_client.find_one.return_value = {
-            "weights": {"technical": 0.22, "safety": 0.18, "business": 0.20, "ethical": 0.20, "legal": 0.20},
+            "weights": {
+                "technical": 0.22,
+                "safety": 0.18,
+                "business": 0.20,
+                "ethical": 0.20,
+                "legal": 0.20,
+            },
             "last_updated_at": 1699056000000,
             "optimization_id": "opt-456",
             "active": True,
@@ -179,12 +191,24 @@ class TestUpdateWeights:
     ):
         """Testa atualização bem-sucedida de pesos."""
         mock_mongodb_client.find_one.return_value = {
-            "weights": {"technical": 0.20, "safety": 0.20, "business": 0.20, "ethical": 0.20, "legal": 0.20},
+            "weights": {
+                "technical": 0.20,
+                "safety": 0.20,
+                "business": 0.20,
+                "ethical": 0.20,
+                "legal": 0.20,
+            },
             "active": True,
         }
 
         request = Mock()
-        request.weights = {"technical": 0.25, "safety": 0.20, "business": 0.20, "ethical": 0.18, "legal": 0.17}
+        request.weights = {
+            "technical": 0.25,
+            "safety": 0.20,
+            "business": 0.20,
+            "ethical": 0.18,
+            "legal": 0.17,
+        }
         request.justification = "Ajuste baseado em RL"
         request.optimization_id = "opt-789"
         request.validate_before_apply = False
@@ -205,7 +229,13 @@ class TestUpdateWeights:
         mock_mongodb_client.find_one.return_value = None
 
         request = Mock()
-        request.weights = {"technical": 0.50, "safety": 0.50, "business": 0.50, "ethical": 0.20, "legal": 0.20}
+        request.weights = {
+            "technical": 0.50,
+            "safety": 0.50,
+            "business": 0.50,
+            "ethical": 0.20,
+            "legal": 0.20,
+        }
         request.justification = "Pesos inválidos"
         request.optimization_id = "opt-invalid"
         request.validate_before_apply = True
@@ -226,7 +256,13 @@ class TestValidateWeightAdjustment:
         mock_mongodb_client.find_one.return_value = None
 
         request = Mock()
-        request.proposed_weights = {"technical": 0.20, "safety": 0.20, "business": 0.20, "ethical": 0.20, "legal": 0.20}
+        request.proposed_weights = {
+            "technical": 0.20,
+            "safety": 0.20,
+            "business": 0.20,
+            "ethical": 0.20,
+            "legal": 0.20,
+        }
 
         result = await servicer.ValidateWeightAdjustment(request, mock_grpc_context)
 
@@ -239,7 +275,13 @@ class TestValidateWeightAdjustment:
         mock_mongodb_client.find_one.return_value = None
 
         request = Mock()
-        request.proposed_weights = {"technical": 0.30, "safety": 0.30, "business": 0.30, "ethical": 0.20, "legal": 0.20}
+        request.proposed_weights = {
+            "technical": 0.30,
+            "safety": 0.30,
+            "business": 0.30,
+            "ethical": 0.20,
+            "legal": 0.20,
+        }
 
         result = await servicer.ValidateWeightAdjustment(request, mock_grpc_context)
 
@@ -247,12 +289,20 @@ class TestValidateWeightAdjustment:
         assert any("soma" in e["description"].lower() for e in result["errors"])
 
     @pytest.mark.asyncio
-    async def test_validate_weight_out_of_range(self, servicer, mock_mongodb_client, mock_grpc_context):
+    async def test_validate_weight_out_of_range(
+        self, servicer, mock_mongodb_client, mock_grpc_context
+    ):
         """Testa validação com peso fora do range."""
         mock_mongodb_client.find_one.return_value = None
 
         request = Mock()
-        request.proposed_weights = {"technical": -0.10, "safety": 0.30, "business": 0.30, "ethical": 0.25, "legal": 0.25}
+        request.proposed_weights = {
+            "technical": -0.10,
+            "safety": 0.30,
+            "business": 0.30,
+            "ethical": 0.25,
+            "legal": 0.25,
+        }
 
         result = await servicer.ValidateWeightAdjustment(request, mock_grpc_context)
 
@@ -264,12 +314,26 @@ class TestRollbackWeights:
     """Testes para RollbackWeights."""
 
     @pytest.mark.asyncio
-    async def test_rollback_success(self, servicer, mock_mongodb_client, mock_redis_client, mock_grpc_context):
+    async def test_rollback_success(
+        self, servicer, mock_mongodb_client, mock_redis_client, mock_grpc_context
+    ):
         """Testa rollback bem-sucedido."""
         mock_mongodb_client.find_one.return_value = {
             "optimization_id": "opt-123",
-            "weights_before": {"technical": 0.20, "safety": 0.20, "business": 0.20, "ethical": 0.20, "legal": 0.20},
-            "weights_after": {"technical": 0.25, "safety": 0.15, "business": 0.20, "ethical": 0.20, "legal": 0.20},
+            "weights_before": {
+                "technical": 0.20,
+                "safety": 0.20,
+                "business": 0.20,
+                "ethical": 0.20,
+                "legal": 0.20,
+            },
+            "weights_after": {
+                "technical": 0.25,
+                "safety": 0.15,
+                "business": 0.20,
+                "ethical": 0.20,
+                "legal": 0.20,
+            },
             "was_rolled_back": False,
         }
 
@@ -318,7 +382,13 @@ class TestGetConsensusMetrics:
             }
         ]
         mock_mongodb_client.find_one.return_value = {
-            "weights": {"technical": 0.20, "safety": 0.20, "business": 0.20, "ethical": 0.20, "legal": 0.20},
+            "weights": {
+                "technical": 0.20,
+                "safety": 0.20,
+                "business": 0.20,
+                "ethical": 0.20,
+                "legal": 0.20,
+            },
             "active": True,
         }
 

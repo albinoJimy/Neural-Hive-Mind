@@ -19,9 +19,7 @@ async def test_code_review_service_init():
     mock_mcp = AsyncMock()
 
     service = CodeReviewService(
-        analyst_client=mock_analyst,
-        llm_client=mock_llm,
-        mcp_client=mock_mcp
+        analyst_client=mock_analyst, llm_client=mock_llm, mcp_client=mock_mcp
     )
 
     assert service.analyst_client == mock_analyst
@@ -38,19 +36,16 @@ async def test_analyze_code_success():
     mock_llm = AsyncMock()
     mock_mcp = AsyncMock()
 
-    mock_llm.generate_code = AsyncMock(return_value={
-        "code": "Reviewed code",
-        "confidence_score": 0.85,
-        "suggestions": [
-            "Add type hints",
-            "Improve error handling"
-        ]
-    })
+    mock_llm.generate_code = AsyncMock(
+        return_value={
+            "code": "Reviewed code",
+            "confidence_score": 0.85,
+            "suggestions": ["Add type hints", "Improve error handling"],
+        }
+    )
 
     service = CodeReviewService(
-        analyst_client=mock_analyst,
-        llm_client=mock_llm,
-        mcp_client=mock_mcp
+        analyst_client=mock_analyst, llm_client=mock_llm, mcp_client=mock_mcp
     )
 
     code = """def main():
@@ -72,27 +67,20 @@ async def test_analyze_code_with_embedding():
     mock_mcp = AsyncMock()
 
     mock_analyst.get_embedding = AsyncMock(return_value=[0.1] * 512)
-    mock_analyst.find_similar_code = AsyncMock(return_value=[
-        {"code": "similar code", "similarity": 0.9}
-    ])
-    mock_llm.generate_code = AsyncMock(return_value={
-        "code": "Reviewed code",
-        "confidence_score": 0.85
-    })
+    mock_analyst.find_similar_code = AsyncMock(
+        return_value=[{"code": "similar code", "similarity": 0.9}]
+    )
+    mock_llm.generate_code = AsyncMock(
+        return_value={"code": "Reviewed code", "confidence_score": 0.85}
+    )
 
     service = CodeReviewService(
-        analyst_client=mock_analyst,
-        llm_client=mock_llm,
-        mcp_client=mock_mcp
+        analyst_client=mock_analyst, llm_client=mock_llm, mcp_client=mock_mcp
     )
 
     code = "def main(): pass"
 
-    result = await service.analyze_code(
-        code,
-        language="python",
-        use_embedding=True
-    )
+    result = await service.analyze_code(code, language="python", use_embedding=True)
 
     mock_analyst.get_embedding.assert_called_once()
     assert "confidence_score" in result
@@ -107,23 +95,21 @@ async def test_generate_review_comment():
     mock_llm = AsyncMock()
     mock_mcp = AsyncMock()
 
-    mock_llm.generate_code = AsyncMock(return_value={
-        "code": "### Review Comment\n\n**Severity**: Medium\n\n**Suggestion**: Add type hints for better clarity.",
-        "confidence_score": 0.9
-    })
+    mock_llm.generate_code = AsyncMock(
+        return_value={
+            "code": "### Review Comment\n\n**Severity**: Medium\n\n**Suggestion**: Add type hints for better clarity.",
+            "confidence_score": 0.9,
+        }
+    )
 
     service = CodeReviewService(
-        analyst_client=mock_analyst,
-        llm_client=mock_llm,
-        mcp_client=mock_mcp
+        analyst_client=mock_analyst, llm_client=mock_llm, mcp_client=mock_mcp
     )
 
     code = "def process(data): return data.upper()"
 
     result = await service.generate_review_comment(
-        code,
-        issue="Missing type hints",
-        severity="medium"
+        code, issue="Missing type hints", severity="medium"
     )
 
     assert "comment" in result
@@ -139,22 +125,18 @@ async def test_review_security_issues():
     mock_llm = AsyncMock()
     mock_mcp = AsyncMock()
 
-    mock_llm.generate_code = AsyncMock(return_value={
-        "code": "### Security Review\n\n**Issues Found**: 1\n- Hardcoded credentials detected",
-        "confidence_score": 0.95,
-        "security_issues": [
-            {
-                "severity": "high",
-                "line": 1,
-                "description": "Hardcoded password"
-            }
-        ]
-    })
+    mock_llm.generate_code = AsyncMock(
+        return_value={
+            "code": "### Security Review\n\n**Issues Found**: 1\n- Hardcoded credentials detected",
+            "confidence_score": 0.95,
+            "security_issues": [
+                {"severity": "high", "line": 1, "description": "Hardcoded password"}
+            ],
+        }
+    )
 
     service = CodeReviewService(
-        analyst_client=mock_analyst,
-        llm_client=mock_llm,
-        mcp_client=mock_mcp
+        analyst_client=mock_analyst, llm_client=mock_llm, mcp_client=mock_mcp
     )
 
     code = 'password = "admin123"  # TODO: move to env'
@@ -174,19 +156,15 @@ async def test_suggest_improvements():
     mock_llm = AsyncMock()
     mock_mcp = AsyncMock()
 
-    mock_llm.generate_code = AsyncMock(return_value={
-        "code": "improved_code",
-        "improvements": [
-            "Use list comprehension",
-            "Add docstring",
-            "Type hint return value"
-        ]
-    })
+    mock_llm.generate_code = AsyncMock(
+        return_value={
+            "code": "improved_code",
+            "improvements": ["Use list comprehension", "Add docstring", "Type hint return value"],
+        }
+    )
 
     service = CodeReviewService(
-        analyst_client=mock_analyst,
-        llm_client=mock_llm,
-        mcp_client=mock_mcp
+        analyst_client=mock_analyst, llm_client=mock_llm, mcp_client=mock_mcp
     )
 
     code = """result = []
@@ -208,17 +186,17 @@ async def test_check_code_quality():
     mock_llm = AsyncMock()
     mock_mcp = AsyncMock()
 
-    mock_llm.generate_code = AsyncMock(return_value={
-        "quality_score": 0.75,
-        "maintainability": "medium",
-        "complexity": "low",
-        "duplication": "none"
-    })
+    mock_llm.generate_code = AsyncMock(
+        return_value={
+            "quality_score": 0.75,
+            "maintainability": "medium",
+            "complexity": "low",
+            "duplication": "none",
+        }
+    )
 
     service = CodeReviewService(
-        analyst_client=mock_analyst,
-        llm_client=mock_llm,
-        mcp_client=mock_mcp
+        analyst_client=mock_analyst, llm_client=mock_llm, mcp_client=mock_mcp
     )
 
     code = "def good_function(): return 42"
@@ -238,22 +216,18 @@ async def test_analyze_with_mcp_tools():
     mock_llm = AsyncMock()
     mock_mcp = AsyncMock()
 
-    mock_mcp.request_tool_selection = AsyncMock(return_value={
-        "selected_tools": [
-            {"tool_name": "Pylint", "category": "LINTING"}
-        ]
-    })
-    mock_llm.generate_code = AsyncMock(return_value={
-        "code": "analyzed_code",
-        "mcp_feedback": [
-            {"tool": "Pylint", "message": "Consider using f-string"}
-        ]
-    })
+    mock_mcp.request_tool_selection = AsyncMock(
+        return_value={"selected_tools": [{"tool_name": "Pylint", "category": "LINTING"}]}
+    )
+    mock_llm.generate_code = AsyncMock(
+        return_value={
+            "code": "analyzed_code",
+            "mcp_feedback": [{"tool": "Pylint", "message": "Consider using f-string"}],
+        }
+    )
 
     service = CodeReviewService(
-        analyst_client=mock_analyst,
-        llm_client=mock_llm,
-        mcp_client=mock_mcp
+        analyst_client=mock_analyst, llm_client=mock_llm, mcp_client=mock_mcp
     )
 
     code = 'message = "Hello " + name'
@@ -273,21 +247,13 @@ async def test_batch_review():
     mock_llm = AsyncMock()
     mock_mcp = AsyncMock()
 
-    mock_llm.generate_code = AsyncMock(return_value={
-        "code": "reviewed",
-        "issues": 0
-    })
+    mock_llm.generate_code = AsyncMock(return_value={"code": "reviewed", "issues": 0})
 
     service = CodeReviewService(
-        analyst_client=mock_analyst,
-        llm_client=mock_llm,
-        mcp_client=mock_mcp
+        analyst_client=mock_analyst, llm_client=mock_llm, mcp_client=mock_mcp
     )
 
-    files = {
-        "file1.py": "code1",
-        "file2.py": "code2"
-    }
+    files = {"file1.py": "code1", "file2.py": "code2"}
 
     result = await service.batch_review(files)
 
@@ -303,11 +269,7 @@ async def test_review_without_llm():
     mock_analyst = AsyncMock()
     mock_mcp = AsyncMock()
 
-    service = CodeReviewService(
-        analyst_client=mock_analyst,
-        llm_client=None,
-        mcp_client=mock_mcp
-    )
+    service = CodeReviewService(analyst_client=mock_analyst, llm_client=None, mcp_client=mock_mcp)
 
     code = "def simple(): pass"
 

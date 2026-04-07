@@ -10,6 +10,7 @@ from src.clients.service_registry_client import ServiceRegistryClient
 def service_registry_host():
     """Service Registry host for integration tests."""
     import os
+
     return os.environ.get("SERVICE_REGISTRY_HOST", "localhost")
 
 
@@ -17,6 +18,7 @@ def service_registry_host():
 def service_registry_port():
     """Service Registry port for integration tests."""
     import os
+
     return int(os.environ.get("SERVICE_REGISTRY_PORT", "50051"))
 
 
@@ -28,7 +30,7 @@ async def guard_client(service_registry_host, service_registry_port):
         port=service_registry_port,
         agent_type="GUARD",
         capabilities=["security", "audit", "policy_enforcement"],
-        metadata={"version": "1.0.0", "namespace": "test"}
+        metadata={"version": "1.0.0", "namespace": "test"},
     )
     yield client
     await client.close()
@@ -87,10 +89,7 @@ async def test_deregister_guard_agent(guard_client):
 async def test_connect_to_unavailable_registry():
     """Test connection to unavailable Service Registry handles gracefully."""
     client = ServiceRegistryClient(
-        host="invalid-host",
-        port=99999,
-        agent_type="GUARD",
-        capabilities=["test"]
+        host="invalid-host", port=99999, agent_type="GUARD", capabilities=["test"]
     )
 
     # Connection should be created (lazy connection)
@@ -116,13 +115,9 @@ async def test_multiple_capabilities_registration(service_registry_host, service
             "audit",
             "policy_enforcement",
             "threat_detection",
-            "access_control"
+            "access_control",
         ],
-        metadata={
-            "version": "2.0.0",
-            "namespace": "production",
-            "cluster": "neural-hive"
-        }
+        metadata={"version": "2.0.0", "namespace": "production", "cluster": "neural-hive"},
     )
 
     await client.connect()
@@ -134,7 +129,7 @@ async def test_multiple_capabilities_registration(service_registry_host, service
         "audit",
         "policy_enforcement",
         "threat_detection",
-        "access_control"
+        "access_control",
     ]
 
     await client.close()
@@ -148,7 +143,7 @@ async def test_is_healthy_before_registration(service_registry_host, service_reg
         host=service_registry_host,
         port=service_registry_port,
         agent_type="GUARD",
-        capabilities=["test"]
+        capabilities=["test"],
     )
 
     # Not connected yet

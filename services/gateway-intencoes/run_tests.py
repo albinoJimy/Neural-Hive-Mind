@@ -35,23 +35,11 @@ def main():
         "--type",
         choices=["unit", "integration", "all"],
         default="unit",
-        help="Type of tests to run (default: unit)"
+        help="Type of tests to run (default: unit)",
     )
-    parser.add_argument(
-        "--coverage",
-        action="store_true",
-        help="Generate coverage report"
-    )
-    parser.add_argument(
-        "--parallel",
-        action="store_true",
-        help="Run tests in parallel"
-    )
-    parser.add_argument(
-        "--verbose",
-        action="store_true",
-        help="Verbose output"
-    )
+    parser.add_argument("--coverage", action="store_true", help="Generate coverage report")
+    parser.add_argument("--parallel", action="store_true", help="Run tests in parallel")
+    parser.add_argument("--verbose", action="store_true", help="Verbose output")
 
     args = parser.parse_args()
 
@@ -97,7 +85,9 @@ def main():
         run_command(["python", "-m", "black", "--check", "src", "tests"], "Code formatting check")
 
         # Import sorting
-        run_command(["python", "-m", "isort", "--check-only", "src", "tests"], "Import sorting check")
+        run_command(
+            ["python", "-m", "isort", "--check-only", "src", "tests"], "Import sorting check"
+        )
 
     return 0 if success else 1
 

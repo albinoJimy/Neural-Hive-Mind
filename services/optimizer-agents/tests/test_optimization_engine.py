@@ -66,11 +66,7 @@ class TestHypothesisGeneration:
         insight = {
             "insight_id": "test-insight-1",
             "insight_type": "OPERATIONAL_BOTTLENECK",
-            "metrics": {
-                "latency_p95": 1200,
-                "error_rate": 0.05,
-                "throughput": 100
-            },
+            "metrics": {"latency_p95": 1200, "error_rate": 0.05, "throughput": 100},
             "related_entities": [{"entity_id": "consensus-engine"}],
         }
 
@@ -79,18 +75,17 @@ class TestHypothesisGeneration:
         assert len(hypotheses) > 0
         # Para insights operacionais, deve considerar WEIGHT_RECALIBRATION ou SLO_ADJUSTMENT
         optimization_types = [h.optimization_type for h in hypotheses]
-        assert any(t in [OptimizationType.WEIGHT_RECALIBRATION, OptimizationType.SLO_ADJUSTMENT]
-                   for t in optimization_types)
+        assert any(
+            t in [OptimizationType.WEIGHT_RECALIBRATION, OptimizationType.SLO_ADJUSTMENT]
+            for t in optimization_types
+        )
 
     def test_analyze_opportunity_strategic_insight(self, optimization_engine):
         """Testa geração de hipóteses para insight estratégico."""
         insight = {
             "insight_id": "test-insight-2",
             "insight_type": "STRATEGIC_IMPROVEMENT",
-            "metrics": {
-                "compliance_rate": 0.92,
-                "cost_efficiency": 0.85
-            },
+            "metrics": {"compliance_rate": 0.92, "cost_efficiency": 0.85},
             "related_entities": [{"entity_id": "orchestrator-dynamic"}],
         }
 
@@ -99,8 +94,10 @@ class TestHypothesisGeneration:
         assert len(hypotheses) > 0
         # Para insights estratégicos, deve considerar POLICY_CHANGE ou HEURISTIC_UPDATE
         optimization_types = [h.optimization_type for h in hypotheses]
-        assert any(t in [OptimizationType.POLICY_CHANGE, OptimizationType.HEURISTIC_UPDATE]
-                   for t in optimization_types)
+        assert any(
+            t in [OptimizationType.POLICY_CHANGE, OptimizationType.HEURISTIC_UPDATE]
+            for t in optimization_types
+        )
 
     def test_analyze_opportunity_filters_infeasible_hypotheses(self, optimization_engine):
         """Testa que hipóteses inviáveis são filtradas."""
@@ -111,7 +108,7 @@ class TestHypothesisGeneration:
             "related_entities": [{"entity_id": "test-component"}],
         }
 
-        with patch.object(optimization_engine, 'generate_hypothesis') as mock_generate:
+        with patch.object(optimization_engine, "generate_hypothesis") as mock_generate:
             # Simular hipótese inviável
             mock_hypothesis = Mock()
             mock_hypothesis.validate_feasibility.return_value = False
@@ -131,7 +128,7 @@ class TestEpsilonGreedyPolicy:
         state = {"latency": 1000, "error_rate": 0.01}
 
         # Com exploration_rate = 0.2, deve explorar ~20% das vezes
-        with patch('random.random', return_value=0.1):  # < exploration_rate
+        with patch("random.random", return_value=0.1):  # < exploration_rate
             action = optimization_engine.select_action(state)
             assert action in optimization_engine.action_space
 
@@ -145,7 +142,7 @@ class TestEpsilonGreedyPolicy:
         optimization_engine.q_table[state_hash][OptimizationType.SLO_ADJUSTMENT] = 5.0
 
         # Com random > exploration_rate, deve escolher melhor ação
-        with patch('random.random', return_value=0.9):  # > exploration_rate
+        with patch("random.random", return_value=0.9):  # > exploration_rate
             action = optimization_engine.select_action(state)
             assert action == OptimizationType.WEIGHT_RECALIBRATION
 

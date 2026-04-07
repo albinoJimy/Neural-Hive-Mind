@@ -12,8 +12,17 @@ from datetime import datetime
 from src.services.approval_gate import ApprovalGate
 from src.models.pipeline_context import PipelineContext
 from src.models.execution_ticket import (
-    ExecutionTicket, TaskType, TicketStatus, Priority, RiskBand,
-    SLA, QoS, SecurityLevel, DeliveryMode, Consistency, Durability
+    ExecutionTicket,
+    TaskType,
+    TicketStatus,
+    Priority,
+    RiskBand,
+    SLA,
+    QoS,
+    SecurityLevel,
+    DeliveryMode,
+    Consistency,
+    Durability,
 )
 from src.models.artifact import CodeForgeArtifact, GenerationMethod
 from src.types.artifact_types import ArtifactCategory
@@ -32,65 +41,65 @@ class TestGetFilenameForLanguage:
             git_client=mock_git_client,
             mongodb_client=None,
             auto_approval_threshold=0.9,
-            min_quality_score=0.5
+            min_quality_score=0.5,
         )
 
     def test_python_filename(self, approval_gate):
         """Testa nome de arquivo para Python."""
-        filename = approval_gate._get_filename_for_language('python')
-        assert filename == 'main.py'
+        filename = approval_gate._get_filename_for_language("python")
+        assert filename == "main.py"
 
     def test_python_uppercase_filename(self, approval_gate):
         """Testa nome de arquivo para Python em maiusculas (nao suportado)."""
         # O metodo nao converte para minusculas, entao retorna main.PYTHON
-        filename = approval_gate._get_filename_for_language('PYTHON')
-        assert filename == 'main.PYTHON'
+        filename = approval_gate._get_filename_for_language("PYTHON")
+        assert filename == "main.PYTHON"
 
     def test_javascript_filename(self, approval_gate):
         """Testa nome de arquivo para JavaScript."""
-        filename = approval_gate._get_filename_for_language('javascript')
-        assert filename == 'index.js'
+        filename = approval_gate._get_filename_for_language("javascript")
+        assert filename == "index.js"
 
     def test_typescript_filename(self, approval_gate):
         """Testa nome de arquivo para TypeScript."""
-        filename = approval_gate._get_filename_for_language('typescript')
-        assert filename == 'index.ts'
+        filename = approval_gate._get_filename_for_language("typescript")
+        assert filename == "index.ts"
 
     def test_go_filename(self, approval_gate):
         """Testa nome de arquivo para Go."""
-        filename = approval_gate._get_filename_for_language('go')
-        assert filename == 'main.go'
+        filename = approval_gate._get_filename_for_language("go")
+        assert filename == "main.go"
 
     def test_java_filename(self, approval_gate):
         """Testa nome de arquivo para Java."""
-        filename = approval_gate._get_filename_for_language('java')
-        assert filename == 'Main.java'
+        filename = approval_gate._get_filename_for_language("java")
+        assert filename == "Main.java"
 
     def test_rust_filename(self, approval_gate):
         """Testa nome de arquivo para Rust."""
-        filename = approval_gate._get_filename_for_language('rust')
-        assert filename == 'main.rs'
+        filename = approval_gate._get_filename_for_language("rust")
+        assert filename == "main.rs"
 
     def test_ruby_filename(self, approval_gate):
         """Testa nome de arquivo para Ruby."""
-        filename = approval_gate._get_filename_for_language('ruby')
-        assert filename == 'main.rb'
+        filename = approval_gate._get_filename_for_language("ruby")
+        assert filename == "main.rb"
 
     def test_php_filename(self, approval_gate):
         """Testa nome de arquivo para PHP."""
-        filename = approval_gate._get_filename_for_language('php')
-        assert filename == 'index.php'
+        filename = approval_gate._get_filename_for_language("php")
+        assert filename == "index.php"
 
     def test_unknown_language_filename(self, approval_gate):
         """Testa nome de arquivo para linguagem desconhecida."""
-        filename = approval_gate._get_filename_for_language('unknown-lang')
-        assert filename == 'main.unknown-lang'
+        filename = approval_gate._get_filename_for_language("unknown-lang")
+        assert filename == "main.unknown-lang"
 
     def test_none_language_filename(self, approval_gate):
         """Testa nome de arquivo quando linguagem eh None."""
         # O metodo nao trata None especialmente, retorna 'main.None'
         filename = approval_gate._get_filename_for_language(None)
-        assert filename == 'main.None'
+        assert filename == "main.None"
 
 
 class TestGenerateReadme:
@@ -103,7 +112,7 @@ class TestGenerateReadme:
             git_client=mock_git_client,
             mongodb_client=None,
             auto_approval_threshold=0.9,
-            min_quality_score=0.5
+            min_quality_score=0.5,
         )
 
     @pytest.fixture
@@ -112,9 +121,9 @@ class TestGenerateReadme:
         ticket_id = str(uuid.uuid4())
         ticket = ExecutionTicket(
             ticket_id=ticket_id,
-            plan_id=f'plan-{ticket_id[:8]}',
-            intent_id=f'intent-{ticket_id[:8]}',
-            decision_id=f'decision-{ticket_id[:8]}',
+            plan_id=f"plan-{ticket_id[:8]}",
+            intent_id=f"intent-{ticket_id[:8]}",
+            decision_id=f"decision-{ticket_id[:8]}",
             correlation_id=str(uuid.uuid4()),
             trace_id=str(uuid.uuid4()),
             span_id=str(uuid.uuid4()),
@@ -123,23 +132,19 @@ class TestGenerateReadme:
             priority=Priority.NORMAL,
             risk_band=RiskBand.MEDIUM,
             parameters={
-                'service_name': 'test-service',
-                'description': 'A test service',
-                'target_repo': 'https://github.com/test/repo'
+                "service_name": "test-service",
+                "description": "A test service",
+                "target_repo": "https://github.com/test/repo",
             },
-            sla=SLA(
-                deadline=datetime.now(),
-                timeout_ms=300000,
-                max_retries=3
-            ),
+            sla=SLA(deadline=datetime.now(), timeout_ms=300000, max_retries=3),
             qos=QoS(
                 delivery_mode=DeliveryMode.AT_LEAST_ONCE,
                 consistency=Consistency.EVENTUAL,
-                durability=Durability.PERSISTENT
+                durability=Durability.PERSISTENT,
             ),
             security_level=SecurityLevel.INTERNAL,
             dependencies=[],
-            created_at=datetime.now()
+            created_at=datetime.now(),
         )
 
         context = PipelineContext(
@@ -147,24 +152,24 @@ class TestGenerateReadme:
             ticket=ticket,
             trace_id=str(uuid.uuid4()),
             span_id=str(uuid.uuid4()),
-            metadata={}
+            metadata={},
         )
 
         # Template
         template = Template(
-            template_id='microservice-python-v1',
+            template_id="microservice-python-v1",
             metadata=TemplateMetadata(
-                name='Python Microservice',
-                version='1.0.0',
-                description='Python microservice template',
-                author='Neural Hive Team',
-                tags=['microservice', 'python'],
+                name="Python Microservice",
+                version="1.0.0",
+                description="Python microservice template",
+                author="Neural Hive Team",
+                tags=["microservice", "python"],
                 language=CodeLanguage.PYTHON,
-                type=TemplateType.MICROSERVICE
+                type=TemplateType.MICROSERVICE,
             ),
             parameters=[],
-            content_path='/app/templates',
-            examples={}
+            content_path="/app/templates",
+            examples={},
         )
         context.selected_template = template
 
@@ -182,54 +187,45 @@ class TestGenerateReadme:
             trace_id=sample_context.trace_id,
             span_id=sample_context.span_id,
             artifact_type=ArtifactCategory.CODE,
-            language='python',
-            template_id='microservice-python-v1',
+            language="python",
+            template_id="microservice-python-v1",
             confidence_score=0.85,
             generation_method=GenerationMethod.TEMPLATE,
-            content_uri='mongodb://artifacts/test',
-            content_hash='abc123',
+            content_uri="mongodb://artifacts/test",
+            content_hash="abc123",
             created_at=datetime.now(),
-            metadata={}
+            metadata={},
         )
 
     def test_readme_content_structure(self, approval_gate, sample_context, sample_artifact):
         """Testa que o README tem a estrutura esperada."""
         readme = approval_gate._generate_readme(
-            sample_context,
-            sample_artifact,
-            '# Generated code',
-            auto_approved=True
+            sample_context, sample_artifact, "# Generated code", auto_approved=True
         )
 
         # Verificar secoes principais
-        assert '# test-service' in readme
-        assert '## Generated by Neural Code Forge' in readme
-        assert '## Metadata' in readme
-        assert '## Quality Score' in readme
-        assert '## Artifacts' in readme
+        assert "# test-service" in readme
+        assert "## Generated by Neural Code Forge" in readme
+        assert "## Metadata" in readme
+        assert "## Quality Score" in readme
+        assert "## Artifacts" in readme
 
     def test_readme_auto_approved_true(self, approval_gate, sample_context, sample_artifact):
         """Testa README com auto_approved=True."""
         readme = approval_gate._generate_readme(
-            sample_context,
-            sample_artifact,
-            '# Generated code',
-            auto_approved=True
+            sample_context, sample_artifact, "# Generated code", auto_approved=True
         )
 
         # O formato eh: - **Auto-Approved**: True
-        assert '**Auto-Approved**: True' in readme
+        assert "**Auto-Approved**: True" in readme
 
     def test_readme_auto_approved_false(self, approval_gate, sample_context, sample_artifact):
         """Testa README com auto_approved=False."""
         readme = approval_gate._generate_readme(
-            sample_context,
-            sample_artifact,
-            '# Generated code',
-            auto_approved=False
+            sample_context, sample_artifact, "# Generated code", auto_approved=False
         )
 
-        assert '**Auto-Approved**: False' in readme
+        assert "**Auto-Approved**: False" in readme
 
     def test_readme_with_none_created_at(self, approval_gate, sample_context):
         """Testa README quando artifact.created_at eh None (usando datetime valido)."""
@@ -243,53 +239,44 @@ class TestGenerateReadme:
             trace_id=sample_context.trace_id,
             span_id=sample_context.span_id,
             artifact_type=ArtifactCategory.CODE,
-            language='python',
-            template_id='microservice-python-v1',
+            language="python",
+            template_id="microservice-python-v1",
             confidence_score=0.85,
             generation_method=GenerationMethod.TEMPLATE,
-            content_uri='mongodb://artifacts/test',
-            content_hash='abc123',
+            content_uri="mongodb://artifacts/test",
+            content_hash="abc123",
             created_at=datetime.now(),  # Pydantic v2 requer datetime valido
-            metadata={}
+            metadata={},
         )
 
         readme = approval_gate._generate_readme(
-            sample_context,
-            artifact,
-            '# Generated code',
-            auto_approved=True
+            sample_context, artifact, "# Generated code", auto_approved=True
         )
 
         # Verificar que a data de criacao esta presente no formato ISO
-        assert 'Generated at' in readme
+        assert "Generated at" in readme
 
     def test_readme_with_none_template(self, approval_gate, sample_context, sample_artifact):
         """Testa README quando nao ha template selecionado."""
         sample_context.selected_template = None
 
         readme = approval_gate._generate_readme(
-            sample_context,
-            sample_artifact,
-            '# Generated code',
-            auto_approved=True
+            sample_context, sample_artifact, "# Generated code", auto_approved=True
         )
 
-        assert 'N/A' in readme  # Template deve ser N/A
+        assert "N/A" in readme  # Template deve ser N/A
 
     def test_readme_custom_service_name(self, approval_gate, sample_context, sample_artifact):
         """Testa README com nome de servico customizado."""
-        sample_context.ticket.parameters['service_name'] = 'my-custom-service'
-        sample_context.ticket.parameters['description'] = 'My custom description'
+        sample_context.ticket.parameters["service_name"] = "my-custom-service"
+        sample_context.ticket.parameters["description"] = "My custom description"
 
         readme = approval_gate._generate_readme(
-            sample_context,
-            sample_artifact,
-            '# Generated code',
-            auto_approved=True
+            sample_context, sample_artifact, "# Generated code", auto_approved=True
         )
 
-        assert '# my-custom-service' in readme
-        assert 'My custom description' in readme
+        assert "# my-custom-service" in readme
+        assert "My custom description" in readme
 
 
 class TestCommitAndPushEdgeCases:
@@ -302,7 +289,7 @@ class TestCommitAndPushEdgeCases:
             git_client=mock_git_client,
             mongodb_client=mock_mongodb_client,
             auto_approval_threshold=0.9,
-            min_quality_score=0.5
+            min_quality_score=0.5,
         )
 
     @pytest.fixture
@@ -312,7 +299,7 @@ class TestCommitAndPushEdgeCases:
             git_client=mock_git_client,
             mongodb_client=None,
             auto_approval_threshold=0.9,
-            min_quality_score=0.5
+            min_quality_score=0.5,
         )
 
     @pytest.fixture
@@ -321,9 +308,9 @@ class TestCommitAndPushEdgeCases:
         ticket_id = str(uuid.uuid4())
         ticket = ExecutionTicket(
             ticket_id=ticket_id,
-            plan_id=f'plan-{ticket_id[:8]}',
-            intent_id=f'intent-{ticket_id[:8]}',
-            decision_id=f'decision-{ticket_id[:8]}',
+            plan_id=f"plan-{ticket_id[:8]}",
+            intent_id=f"intent-{ticket_id[:8]}",
+            decision_id=f"decision-{ticket_id[:8]}",
             correlation_id=str(uuid.uuid4()),
             trace_id=str(uuid.uuid4()),
             span_id=str(uuid.uuid4()),
@@ -332,22 +319,18 @@ class TestCommitAndPushEdgeCases:
             priority=Priority.NORMAL,
             risk_band=RiskBand.MEDIUM,
             parameters={
-                'service_name': 'test-service',
-                'target_repo': 'https://github.com/test/repo'
+                "service_name": "test-service",
+                "target_repo": "https://github.com/test/repo",
             },
-            sla=SLA(
-                deadline=datetime.now(),
-                timeout_ms=300000,
-                max_retries=3
-            ),
+            sla=SLA(deadline=datetime.now(), timeout_ms=300000, max_retries=3),
             qos=QoS(
                 delivery_mode=DeliveryMode.AT_LEAST_ONCE,
                 consistency=Consistency.EVENTUAL,
-                durability=Durability.PERSISTENT
+                durability=Durability.PERSISTENT,
             ),
             security_level=SecurityLevel.INTERNAL,
             dependencies=[],
-            created_at=datetime.now()
+            created_at=datetime.now(),
         )
 
         context = PipelineContext(
@@ -355,7 +338,7 @@ class TestCommitAndPushEdgeCases:
             ticket=ticket,
             trace_id=str(uuid.uuid4()),
             span_id=str(uuid.uuid4()),
-            metadata={}
+            metadata={},
         )
 
         # Adicionar artifact
@@ -368,14 +351,14 @@ class TestCommitAndPushEdgeCases:
             trace_id=context.trace_id,
             span_id=context.span_id,
             artifact_type=ArtifactCategory.CODE,
-            language='python',
-            template_id='microservice-python-v1',
+            language="python",
+            template_id="microservice-python-v1",
             confidence_score=0.85,
             generation_method=GenerationMethod.TEMPLATE,
-            content_uri='mongodb://artifacts/test',
-            content_hash='abc123',
+            content_uri="mongodb://artifacts/test",
+            content_hash="abc123",
             created_at=datetime.now(),
-            metadata={}
+            metadata={},
         )
         context.add_artifact(artifact)
 
@@ -383,14 +366,11 @@ class TestCommitAndPushEdgeCases:
 
     @pytest.mark.asyncio
     async def test_commit_and_push_no_mongodb_client(
-        self,
-        approval_gate_no_mongo,
-        sample_context_with_artifact
+        self, approval_gate_no_mongo, sample_context_with_artifact
     ):
         """Testa _commit_and_push quando mongodb_client eh None."""
         result = await approval_gate_no_mongo._commit_and_push(
-            sample_context_with_artifact,
-            auto_approved=True
+            sample_context_with_artifact, auto_approved=True
         )
 
         assert result is None
@@ -402,9 +382,9 @@ class TestCommitAndPushEdgeCases:
         ticket_id = str(uuid.uuid4())
         ticket = ExecutionTicket(
             ticket_id=ticket_id,
-            plan_id=f'plan-{ticket_id[:8]}',
-            intent_id=f'intent-{ticket_id[:8]}',
-            decision_id=f'decision-{ticket_id[:8]}',
+            plan_id=f"plan-{ticket_id[:8]}",
+            intent_id=f"intent-{ticket_id[:8]}",
+            decision_id=f"decision-{ticket_id[:8]}",
             correlation_id=str(uuid.uuid4()),
             trace_id=str(uuid.uuid4()),
             span_id=str(uuid.uuid4()),
@@ -412,20 +392,16 @@ class TestCommitAndPushEdgeCases:
             status=TicketStatus.PENDING,
             priority=Priority.NORMAL,
             risk_band=RiskBand.MEDIUM,
-            parameters={'service_name': 'test-service'},
-            sla=SLA(
-                deadline=datetime.now(),
-                timeout_ms=300000,
-                max_retries=3
-            ),
+            parameters={"service_name": "test-service"},
+            sla=SLA(deadline=datetime.now(), timeout_ms=300000, max_retries=3),
             qos=QoS(
                 delivery_mode=DeliveryMode.AT_LEAST_ONCE,
                 consistency=Consistency.EVENTUAL,
-                durability=Durability.PERSISTENT
+                durability=Durability.PERSISTENT,
             ),
             security_level=SecurityLevel.INTERNAL,
             dependencies=[],
-            created_at=datetime.now()
+            created_at=datetime.now(),
         )
 
         context = PipelineContext(
@@ -433,55 +409,44 @@ class TestCommitAndPushEdgeCases:
             ticket=ticket,
             trace_id=str(uuid.uuid4()),
             span_id=str(uuid.uuid4()),
-            metadata={}
+            metadata={},
         )
 
-        result = await approval_gate_no_mongo._commit_and_push(
-            context,
-            auto_approved=True
-        )
+        result = await approval_gate_no_mongo._commit_and_push(context, auto_approved=True)
 
         assert result is None
 
     @pytest.mark.asyncio
     async def test_commit_and_push_no_target_repo(
-        self,
-        approval_gate_with_mongo,
-        sample_context_with_artifact
+        self, approval_gate_with_mongo, sample_context_with_artifact
     ):
         """Testa _commit_and_push quando target_repo nao esta definido."""
         # Remover target_repo dos parametros
-        sample_context_with_artifact.ticket.parameters.pop('target_repo', None)
+        sample_context_with_artifact.ticket.parameters.pop("target_repo", None)
 
         result = await approval_gate_with_mongo._commit_and_push(
-            sample_context_with_artifact,
-            auto_approved=True
+            sample_context_with_artifact, auto_approved=True
         )
 
         assert result is None
 
     @pytest.mark.asyncio
     async def test_commit_and_push_empty_artifact_content(
-        self,
-        approval_gate_with_mongo,
-        sample_context_with_artifact
+        self, approval_gate_with_mongo, sample_context_with_artifact
     ):
         """Testa _commit_and_push quando conteudo do artifact esta vazio."""
         # Mock get_artifact_content retornando None
         approval_gate_with_mongo.mongodb_client.get_artifact_content = AsyncMock(return_value=None)
 
         result = await approval_gate_with_mongo._commit_and_push(
-            sample_context_with_artifact,
-            auto_approved=True
+            sample_context_with_artifact, auto_approved=True
         )
 
         assert result is None
 
     @pytest.mark.asyncio
     async def test_commit_and_push_artifact_retrieval_exception(
-        self,
-        approval_gate_with_mongo,
-        sample_context_with_artifact
+        self, approval_gate_with_mongo, sample_context_with_artifact
     ):
         """Testa _commit_and_push quando recuperacao do artifact falha."""
         # Mock get_artifact_content lancando excecao
@@ -490,13 +455,12 @@ class TestCommitAndPushEdgeCases:
         )
 
         result = await approval_gate_with_mongo._commit_and_push(
-            sample_context_with_artifact,
-            auto_approved=True
+            sample_context_with_artifact, auto_approved=True
         )
 
         assert result is None
         # Verificar que metadata de erro foi adicionado
-        assert 'commit_error' in sample_context_with_artifact.metadata
+        assert "commit_error" in sample_context_with_artifact.metadata
 
 
 class TestCheckApprovalScenarios:
@@ -509,7 +473,7 @@ class TestCheckApprovalScenarios:
             git_client=mock_git_client,
             mongodb_client=mock_mongodb_client,
             auto_approval_threshold=0.9,
-            min_quality_score=0.5
+            min_quality_score=0.5,
         )
 
     @pytest.fixture
@@ -518,9 +482,9 @@ class TestCheckApprovalScenarios:
         ticket_id = str(uuid.uuid4())
         ticket = ExecutionTicket(
             ticket_id=ticket_id,
-            plan_id=f'plan-{ticket_id[:8]}',
-            intent_id=f'intent-{ticket_id[:8]}',
-            decision_id=f'decision-{ticket_id[:8]}',
+            plan_id=f"plan-{ticket_id[:8]}",
+            intent_id=f"intent-{ticket_id[:8]}",
+            decision_id=f"decision-{ticket_id[:8]}",
             correlation_id=str(uuid.uuid4()),
             trace_id=str(uuid.uuid4()),
             span_id=str(uuid.uuid4()),
@@ -529,22 +493,18 @@ class TestCheckApprovalScenarios:
             priority=Priority.NORMAL,
             risk_band=RiskBand.MEDIUM,
             parameters={
-                'service_name': 'test-service',
-                'target_repo': 'https://github.com/test/repo'
+                "service_name": "test-service",
+                "target_repo": "https://github.com/test/repo",
             },
-            sla=SLA(
-                deadline=datetime.now(),
-                timeout_ms=300000,
-                max_retries=3
-            ),
+            sla=SLA(deadline=datetime.now(), timeout_ms=300000, max_retries=3),
             qos=QoS(
                 delivery_mode=DeliveryMode.AT_LEAST_ONCE,
                 consistency=Consistency.EVENTUAL,
-                durability=Durability.PERSISTENT
+                durability=Durability.PERSISTENT,
             ),
             security_level=SecurityLevel.INTERNAL,
             dependencies=[],
-            created_at=datetime.now()
+            created_at=datetime.now(),
         )
 
         context = PipelineContext(
@@ -552,24 +512,24 @@ class TestCheckApprovalScenarios:
             ticket=ticket,
             trace_id=str(uuid.uuid4()),
             span_id=str(uuid.uuid4()),
-            metadata={}
+            metadata={},
         )
 
         # Template
         template = Template(
-            template_id='microservice-python-v1',
+            template_id="microservice-python-v1",
             metadata=TemplateMetadata(
-                name='Python Microservice',
-                version='1.0.0',
-                description='Python microservice template',
-                author='Neural Hive Team',
-                tags=['microservice', 'python'],
+                name="Python Microservice",
+                version="1.0.0",
+                description="Python microservice template",
+                author="Neural Hive Team",
+                tags=["microservice", "python"],
                 language=CodeLanguage.PYTHON,
-                type=TemplateType.MICROSERVICE
+                type=TemplateType.MICROSERVICE,
             ),
             parameters=[],
-            content_path='/app/templates',
-            examples={}
+            content_path="/app/templates",
+            examples={},
         )
         context.selected_template = template
 
@@ -582,8 +542,8 @@ class TestCheckApprovalScenarios:
 
         validation = ValidationResult(
             validation_type=ValidationType.SAST,
-            tool_name='SonarQube',
-            tool_version='10.0.0',
+            tool_name="SonarQube",
+            tool_version="10.0.0",
             status=ValidationStatus.PASSED,
             score=0.95,
             issues_count=0,
@@ -592,7 +552,7 @@ class TestCheckApprovalScenarios:
             medium_issues=0,
             low_issues=0,
             executed_at=datetime.now(),
-            duration_ms=1000
+            duration_ms=1000,
         )
         sample_context.add_validation(validation)
 
@@ -605,8 +565,8 @@ class TestCheckApprovalScenarios:
 
         validation = ValidationResult(
             validation_type=ValidationType.SAST,
-            tool_name='SonarQube',
-            tool_version='10.0.0',
+            tool_name="SonarQube",
+            tool_version="10.0.0",
             status=ValidationStatus.FAILED,
             score=0.3,
             issues_count=5,
@@ -615,18 +575,14 @@ class TestCheckApprovalScenarios:
             medium_issues=1,
             low_issues=1,
             executed_at=datetime.now(),
-            duration_ms=2000
+            duration_ms=2000,
         )
         sample_context.add_validation(validation)
 
         return sample_context
 
     @pytest.mark.asyncio
-    async def test_check_approval_manual_review_without_repo(
-        self,
-        approval_gate,
-        sample_context
-    ):
+    async def test_check_approval_manual_review_without_repo(self, approval_gate, sample_context):
         """Testa check_approval em revisao manual sem target_repo."""
         # Adicionar artifact para satisfazer condicoes
         artifact = CodeForgeArtifact(
@@ -638,30 +594,28 @@ class TestCheckApprovalScenarios:
             trace_id=sample_context.trace_id,
             span_id=sample_context.span_id,
             artifact_type=ArtifactCategory.CODE,
-            language='python',
-            template_id='microservice-python-v1',
+            language="python",
+            template_id="microservice-python-v1",
             confidence_score=0.7,
             generation_method=GenerationMethod.TEMPLATE,
-            content_uri='mongodb://artifacts/test',
-            content_hash='abc123',
+            content_uri="mongodb://artifacts/test",
+            content_hash="abc123",
             created_at=datetime.now(),
-            metadata={}
+            metadata={},
         )
         sample_context.add_artifact(artifact)
 
         # Remover target_repo para forcar manual_no_repo
-        sample_context.ticket.parameters.pop('target_repo', None)
+        sample_context.ticket.parameters.pop("target_repo", None)
 
         await approval_gate.check_approval(sample_context)
 
         # Deve ser marcado como manual_no_repo
-        assert sample_context.metadata.get('approval') == 'manual_no_repo'
+        assert sample_context.metadata.get("approval") == "manual_no_repo"
 
     @pytest.mark.asyncio
     async def test_check_approval_score_below_minimum(
-        self,
-        approval_gate,
-        context_with_critical_issue
+        self, approval_gate, context_with_critical_issue
     ):
         """Testa check_approval quando score esta abaixo do minimo."""
         # Adicionar artifact
@@ -674,21 +628,21 @@ class TestCheckApprovalScenarios:
             trace_id=context_with_critical_issue.trace_id,
             span_id=context_with_critical_issue.span_id,
             artifact_type=ArtifactCategory.CODE,
-            language='python',
-            template_id='microservice-python-v1',
+            language="python",
+            template_id="microservice-python-v1",
             confidence_score=0.3,
             generation_method=GenerationMethod.TEMPLATE,
-            content_uri='mongodb://artifacts/test',
-            content_hash='abc123',
+            content_uri="mongodb://artifacts/test",
+            content_hash="abc123",
             created_at=datetime.now(),
-            metadata={}
+            metadata={},
         )
         context_with_critical_issue.add_artifact(artifact)
 
         await approval_gate.check_approval(context_with_critical_issue)
 
         # Deve ser rejeitado
-        assert context_with_critical_issue.metadata.get('approval') == 'rejected'
+        assert context_with_critical_issue.metadata.get("approval") == "rejected"
 
 
 class TestEdgeCasesWithGenerationMethod:
@@ -701,7 +655,7 @@ class TestEdgeCasesWithGenerationMethod:
             git_client=mock_git_client,
             mongodb_client=mock_mongodb_client,
             auto_approval_threshold=0.9,
-            min_quality_score=0.5
+            min_quality_score=0.5,
         )
 
     def test_generate_readme_with_enum_generation_method(self, approval_gate):
@@ -709,9 +663,9 @@ class TestEdgeCasesWithGenerationMethod:
         ticket_id = str(uuid.uuid4())
         ticket = ExecutionTicket(
             ticket_id=ticket_id,
-            plan_id=f'plan-{ticket_id[:8]}',
-            intent_id=f'intent-{ticket_id[:8]}',
-            decision_id=f'decision-{ticket_id[:8]}',
+            plan_id=f"plan-{ticket_id[:8]}",
+            intent_id=f"intent-{ticket_id[:8]}",
+            decision_id=f"decision-{ticket_id[:8]}",
             correlation_id=str(uuid.uuid4()),
             trace_id=str(uuid.uuid4()),
             span_id=str(uuid.uuid4()),
@@ -719,20 +673,16 @@ class TestEdgeCasesWithGenerationMethod:
             status=TicketStatus.PENDING,
             priority=Priority.NORMAL,
             risk_band=RiskBand.MEDIUM,
-            parameters={'service_name': 'test-service'},
-            sla=SLA(
-                deadline=datetime.now(),
-                timeout_ms=300000,
-                max_retries=3
-            ),
+            parameters={"service_name": "test-service"},
+            sla=SLA(deadline=datetime.now(), timeout_ms=300000, max_retries=3),
             qos=QoS(
                 delivery_mode=DeliveryMode.AT_LEAST_ONCE,
                 consistency=Consistency.EVENTUAL,
-                durability=Durability.PERSISTENT
+                durability=Durability.PERSISTENT,
             ),
             security_level=SecurityLevel.INTERNAL,
             dependencies=[],
-            created_at=datetime.now()
+            created_at=datetime.now(),
         )
 
         context = PipelineContext(
@@ -740,7 +690,7 @@ class TestEdgeCasesWithGenerationMethod:
             ticket=ticket,
             trace_id=str(uuid.uuid4()),
             span_id=str(uuid.uuid4()),
-            metadata={}
+            metadata={},
         )
 
         artifact = CodeForgeArtifact(
@@ -752,23 +702,20 @@ class TestEdgeCasesWithGenerationMethod:
             trace_id=context.trace_id,
             span_id=context.span_id,
             artifact_type=ArtifactCategory.CODE,
-            language='python',
-            template_id='microservice-python-v1',
+            language="python",
+            template_id="microservice-python-v1",
             confidence_score=0.85,
             generation_method=GenerationMethod.LLM,  # Enum
-            content_uri='mongodb://artifacts/test',
-            content_hash='abc123',
+            content_uri="mongodb://artifacts/test",
+            content_hash="abc123",
             created_at=datetime.now(),
-            metadata={}
+            metadata={},
         )
 
         readme = approval_gate._generate_readme(
-            context,
-            artifact,
-            '# Generated code',
-            auto_approved=True
+            context, artifact, "# Generated code", auto_approved=True
         )
 
         # Deve conter o valor do enum
-        assert 'Generation Method' in readme
-        assert 'LLM' in readme or 'Template' in readme
+        assert "Generation Method" in readme
+        assert "LLM" in readme or "Template" in readme

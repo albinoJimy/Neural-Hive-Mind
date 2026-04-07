@@ -54,9 +54,7 @@ SERVICE_REGISTRY_HOST = os.getenv(
     "SERVICE_REGISTRY_HOST", "service-registry.neural-hive.svc.cluster.local"
 )
 SERVICE_REGISTRY_PORT = int(os.getenv("SERVICE_REGISTRY_PORT", "50051"))
-SERVICE_REGISTRY_ENABLED = (
-    os.getenv("SERVICE_REGISTRY_ENABLED", "true").lower() == "true"
-)
+SERVICE_REGISTRY_ENABLED = os.getenv("SERVICE_REGISTRY_ENABLED", "true").lower() == "true"
 
 
 class BaseSpecialist(ABC):
@@ -111,9 +109,7 @@ class BaseSpecialist(ABC):
         try:
             self.mlflow_client = MLflowClient(config, metrics=self.metrics)
         except Exception as e:
-            logger.warning(
-                "MLflow client unavailable - continuing without ML models", error=str(e)
-            )
+            logger.warning("MLflow client unavailable - continuing without ML models", error=str(e))
             self.mlflow_client = None
 
         # Inicializar ledger respeitando flags enable_ledger e ledger_required
@@ -204,9 +200,7 @@ class BaseSpecialist(ABC):
                 )
                 logger.info("Opinion cache initialized")
             except Exception as e:
-                logger.warning(
-                    "Opinion cache unavailable - continuing without cache", error=str(e)
-                )
+                logger.warning("Opinion cache unavailable - continuing without cache", error=str(e))
                 self.opinion_cache = None
 
         # Inicializar feature cache para otimização de performance
@@ -217,9 +211,7 @@ class BaseSpecialist(ABC):
                     redis_cluster_nodes=config.redis_cluster_nodes,
                     redis_password=config.redis_password,
                     redis_ssl_enabled=config.redis_ssl_enabled,
-                    cache_ttl_seconds=getattr(
-                        config, "feature_cache_ttl_seconds", 3600
-                    ),
+                    cache_ttl_seconds=getattr(config, "feature_cache_ttl_seconds", 3600),
                     specialist_type=self.specialist_type,
                 )
                 if self.feature_cache.is_connected():
@@ -229,21 +221,15 @@ class BaseSpecialist(ABC):
                     )
                 else:
                     self.feature_cache = None
-                    logger.warning(
-                        "Feature cache failed to connect - continuing without"
-                    )
+                    logger.warning("Feature cache failed to connect - continuing without")
             except Exception as e:
-                logger.warning(
-                    "Feature cache unavailable - continuing without", error=str(e)
-                )
+                logger.warning("Feature cache unavailable - continuing without", error=str(e))
                 self.feature_cache = None
 
         # Inicializar feature extractor ANTES de explainability
         self.feature_extractor = FeatureExtractor(
             config={
-                "ontology_path": config.ontology_path
-                if hasattr(config, "ontology_path")
-                else None,
+                "ontology_path": config.ontology_path if hasattr(config, "ontology_path") else None,
                 "embeddings_model": config.embeddings_model
                 if hasattr(config, "embeddings_model")
                 else "paraphrase-multilingual-MiniLM-L12-v2",
@@ -288,9 +274,7 @@ class BaseSpecialist(ABC):
 
                 # Construir EvidentlyMonitor com config dict contendo drift_reference_dataset_path
                 self.evidently_monitor = EvidentlyMonitor(
-                    {
-                        "drift_reference_dataset_path": config.drift_reference_dataset_path
-                    }
+                    {"drift_reference_dataset_path": config.drift_reference_dataset_path}
                 )
 
                 drift_alerter = DriftAlerter(config={})
@@ -349,17 +333,14 @@ class BaseSpecialist(ABC):
                     redis_password=config.redis_password,
                     redis_ssl_enabled=config.redis_ssl_enabled,
                     pheromone_ttl=getattr(config, "pheromone_ttl_seconds", 3600),
-                    pheromone_decay_rate=getattr(config, "pheromone_decay_rate", 0.1)
+                    pheromone_decay_rate=getattr(config, "pheromone_decay_rate", 0.1),
                 )
                 logger.info(
                     "PheromoneClient initialized",
                     ttl_seconds=getattr(config, "pheromone_ttl_seconds", 3600),
                 )
             except Exception as e:
-                logger.warning(
-                    "PheromoneClient unavailable - continuing without",
-                    error=str(e)
-                )
+                logger.warning("PheromoneClient unavailable - continuing without", error=str(e))
                 self.pheromone_client = None
 
         # Inicializar OpenTelemetry tracer
@@ -408,9 +389,7 @@ class BaseSpecialist(ABC):
                 try:
                     start = time.time()
                     self.model = self._load_model()
-                    span.set_attribute(
-                        "loading.time_ms", int((time.time() - start) * 1000)
-                    )
+                    span.set_attribute("loading.time_ms", int((time.time() - start) * 1000))
                     span.set_attribute("model.version", self._get_model_version())
                     span.set_status(Status(StatusCode.OK))
                 except Exception as e:
@@ -461,9 +440,7 @@ class BaseSpecialist(ABC):
                     use_gpu=self.model.use_gpu,
                 )
             except Exception as e:
-                logger.warning(
-                    "Failed to enable GPU acceleration - using CPU", error=str(e)
-                )
+                logger.warning("Failed to enable GPU acceleration - using CPU", error=str(e))
 
         # Inicializar batch evaluator para processamento otimizado
         self.batch_evaluator = None
@@ -480,9 +457,7 @@ class BaseSpecialist(ABC):
                     max_workers=getattr(config, "batch_inference_max_workers", 8),
                 )
             except Exception as e:
-                logger.warning(
-                    "Batch evaluator unavailable - continuing without", error=str(e)
-                )
+                logger.warning("Batch evaluator unavailable - continuing without", error=str(e))
                 self.batch_evaluator = None
 
         logger.info(
@@ -568,9 +543,7 @@ class BaseSpecialist(ABC):
             and self.online_learning_client.is_online_model_available()
         )
 
-        timeout_seconds = (
-            timeout_ms or self.config.model_inference_timeout_ms
-        ) / 1000.0
+        timeout_seconds = (timeout_ms or self.config.model_inference_timeout_ms) / 1000.0
 
         try:
             # Extrair features sob span dedicado
@@ -591,9 +564,7 @@ class BaseSpecialist(ABC):
                     )
 
             if self.tracer:
-                with self.tracer.start_as_current_span(
-                    "specialist.extract_features"
-                ) as span:
+                with self.tracer.start_as_current_span("specialist.extract_features") as span:
                     try:
                         start_time = time.time()
 
@@ -604,10 +575,7 @@ class BaseSpecialist(ABC):
                             span.set_attribute("cache.hit", True)
 
                             # Gerar embeddings se necessário (não cacheados)
-                            if (
-                                include_embeddings
-                                and "embedding_features" not in features
-                            ):
+                            if include_embeddings and "embedding_features" not in features:
                                 embedding_start = time.time()
                                 features[
                                     "embedding_features"
@@ -634,9 +602,7 @@ class BaseSpecialist(ABC):
                             span.set_attribute("plan.id", plan_id)
                         span.set_attribute(
                             "features.count",
-                            len(feature_vector)
-                            if hasattr(feature_vector, "__len__")
-                            else 0,
+                            len(feature_vector) if hasattr(feature_vector, "__len__") else 0,
                         )
                         span.set_attribute(
                             "extraction.time_ms", int(feature_extraction_time * 1000)
@@ -668,9 +634,7 @@ class BaseSpecialist(ABC):
                                 ) as span:
                                     span.set_attribute(
                                         "drift.threshold",
-                                        getattr(
-                                            self.drift_detector, "threshold_psi", None
-                                        ),
+                                        getattr(self.drift_detector, "threshold_psi", None),
                                     )
                                     span.set_attribute("drift.detected", False)
                                     span.set_attribute("drift.psi_score", 0.0)
@@ -743,13 +707,9 @@ class BaseSpecialist(ABC):
                 # Registrar features para monitoramento de drift
                 if self.drift_detector:
                     try:
-                        self.drift_detector.log_evaluation_features(
-                            features["aggregated_features"]
-                        )
+                        self.drift_detector.log_evaluation_features(features["aggregated_features"])
                     except Exception as e:
-                        logger.warning(
-                            "Failed to log features for drift monitoring", error=str(e)
-                        )
+                        logger.warning("Failed to log features for drift monitoring", error=str(e))
 
             # Executar inferência com timeout
             from concurrent.futures import (
@@ -807,13 +767,11 @@ class BaseSpecialist(ABC):
                         features_array = feature_df.values
 
                         # Usar predict_with_ensemble do online_learning_client
-                        ensemble_result = (
-                            self.online_learning_client.predict_with_ensemble(
-                                features=features_array,
-                                batch_model=self.model,
-                                batch_weight=self.config.batch_model_weight,
-                                online_weight=self.config.online_model_weight,
-                            )
+                        ensemble_result = self.online_learning_client.predict_with_ensemble(
+                            features=features_array,
+                            batch_model=self.model,
+                            batch_weight=self.config.batch_model_weight,
+                            online_weight=self.config.online_model_weight,
                         )
 
                         # Converter resultado do ensemble para formato esperado
@@ -894,9 +852,7 @@ class BaseSpecialist(ABC):
                     plan_id=cognitive_plan.get("plan_id"),
                     model_version=self._get_model_version(),
                     prediction_method=prediction_method,
-                    prediction=prediction.tolist()
-                    if hasattr(prediction, "tolist")
-                    else prediction,
+                    prediction=prediction.tolist() if hasattr(prediction, "tolist") else prediction,
                 )
 
                 return prediction, prediction_method
@@ -906,9 +862,7 @@ class BaseSpecialist(ABC):
                 try:
                     # Medir tempo de inferência
                     inference_start = time.time()
-                    prediction, prediction_method = future.result(
-                        timeout=timeout_seconds
-                    )
+                    prediction, prediction_method = future.result(timeout=timeout_seconds)
                     inference_duration = time.time() - inference_start
 
                     # Registrar métrica de duração de inferência
@@ -933,9 +887,7 @@ class BaseSpecialist(ABC):
                     result["metadata"]["feature_extraction_time_ms"] = int(
                         feature_extraction_time * 1000
                     )
-                    result["metadata"]["inference_duration_ms"] = int(
-                        inference_duration * 1000
-                    )
+                    result["metadata"]["inference_duration_ms"] = int(inference_duration * 1000)
                     result["metadata"][
                         "mlflow_model_signature_version"
                     ] = self.config.mlflow_model_signature_version
@@ -949,9 +901,7 @@ class BaseSpecialist(ABC):
                             if self.online_learning_client
                             else None
                         )
-                        result["metadata"][
-                            "ensemble_batch_weight"
-                        ] = self.config.batch_model_weight
+                        result["metadata"]["ensemble_batch_weight"] = self.config.batch_model_weight
                         result["metadata"][
                             "ensemble_online_weight"
                         ] = self.config.online_model_weight
@@ -996,9 +946,7 @@ class BaseSpecialist(ABC):
             return metadata.get("version", "unknown")
         return "unknown"
 
-    def _parse_model_prediction(
-        self, prediction: Any, features: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def _parse_model_prediction(self, prediction: Any, features: Dict[str, Any]) -> Dict[str, Any]:
         """
         Converte predição do modelo para formato padronizado.
 
@@ -1051,12 +999,8 @@ class BaseSpecialist(ABC):
                         prob_sum = raw_positive_prob + raw_negative_prob
                         if prob_sum > 0 and abs(prob_sum - 1.0) > 0.01:
                             # Normalizar dividindo pela soma das duas classes
-                            confidence_score = max(
-                                0.0, min(1.0, raw_positive_prob / prob_sum)
-                            )
-                            normalized_negative = max(
-                                0.0, min(1.0, raw_negative_prob / prob_sum)
-                            )
+                            confidence_score = max(0.0, min(1.0, raw_positive_prob / prob_sum))
+                            normalized_negative = max(0.0, min(1.0, raw_negative_prob / prob_sum))
                             logger.debug(
                                 "Probabilidades binarias normalizadas",
                                 plan_id=plan_id,
@@ -1152,9 +1096,7 @@ class BaseSpecialist(ABC):
                         "parse_warning"
                     ] = f"NumPy array shape não suportado: {prediction.shape}"
                     parsing_method = "numpy_array_unsupported"
-                    logger.warning(
-                        "NumPy array com shape inesperado", shape=prediction.shape
-                    )
+                    logger.warning("NumPy array com shape inesperado", shape=prediction.shape)
 
             # Caso 2: Pandas DataFrame
             elif hasattr(prediction, "iloc"):  # Pandas DataFrame ou Series
@@ -1203,13 +1145,9 @@ class BaseSpecialist(ABC):
             # Caso 4: Dicionário
             elif isinstance(prediction, dict):
                 confidence_score = float(
-                    prediction.get(
-                        "confidence_score", prediction.get("confidence", 0.5)
-                    )
+                    prediction.get("confidence_score", prediction.get("confidence", 0.5))
                 )
-                risk_score = float(
-                    prediction.get("risk_score", prediction.get("risk", 0.5))
-                )
+                risk_score = float(prediction.get("risk_score", prediction.get("risk", 0.5)))
                 parsing_method = "dict"
 
             # Caso 5: Formato desconhecido
@@ -1342,13 +1280,9 @@ class BaseSpecialist(ABC):
 
                 # Adicionar atributos finais ao root span
                 opinion = result.get("opinion", {})
-                root_span.set_attribute(
-                    "confidence.score", opinion.get("confidence_score", 0.0)
-                )
+                root_span.set_attribute("confidence.score", opinion.get("confidence_score", 0.0))
                 root_span.set_attribute("risk.score", opinion.get("risk_score", 0.0))
-                root_span.set_attribute(
-                    "recommendation", opinion.get("recommendation", "")
-                )
+                root_span.set_attribute("recommendation", opinion.get("recommendation", ""))
                 root_span.set_attribute("opinion.id", result.get("opinion_id", ""))
 
                 processing_time_ms = result.get("processing_time_ms", 0)
@@ -1371,9 +1305,7 @@ class BaseSpecialist(ABC):
                 root_span.set_status(Status(StatusCode.ERROR, str(e)))
                 raise
 
-    def _evaluate_plan_impl(
-        self, request, start_time: float, root_span
-    ) -> Dict[str, Any]:
+    def _evaluate_plan_impl(self, request, start_time: float, root_span) -> Dict[str, Any]:
         """Implementação interna de evaluate_plan."""
         plan_id = request.plan_id
         intent_id = request.intent_id
@@ -1389,14 +1321,10 @@ class BaseSpecialist(ABC):
 
             # Deserializar plano primeiro para poder normalizá-lo
             if self.tracer:
-                with self.tracer.start_as_current_span(
-                    "specialist.deserialize_plan"
-                ) as span:
+                with self.tracer.start_as_current_span("specialist.deserialize_plan") as span:
                     try:
                         cognitive_plan = self._deserialize_plan(request.cognitive_plan)
-                        span.set_attribute(
-                            "plan.version", cognitive_plan.get("version", "unknown")
-                        )
+                        span.set_attribute("plan.version", cognitive_plan.get("version", "unknown"))
                         tasks = cognitive_plan.get("tasks", [])
                         span.set_attribute("plan.tasks_count", len(tasks))
                         span.set_status(Status(StatusCode.OK))
@@ -1430,9 +1358,7 @@ class BaseSpecialist(ABC):
             if self.opinion_cache:
                 try:
                     # Extrair tenant_id do context
-                    context_dict = (
-                        dict(request.context) if hasattr(request, "context") else {}
-                    )
+                    context_dict = dict(request.context) if hasattr(request, "context") else {}
                     tenant_id = context_dict.get("tenant_id", "default")
 
                     # Serializar plano normalizado para bytes
@@ -1449,19 +1375,13 @@ class BaseSpecialist(ABC):
                     )
 
                     if self.tracer:
-                        with self.tracer.start_as_current_span(
-                            "specialist.check_cache"
-                        ) as span:
+                        with self.tracer.start_as_current_span("specialist.check_cache") as span:
                             try:
                                 start_cache = time.time()
-                                cached_opinion = self.opinion_cache.get_cached_opinion(
-                                    cache_key
-                                )
+                                cached_opinion = self.opinion_cache.get_cached_opinion(cache_key)
                                 cache_duration = time.time() - start_cache
 
-                                self.metrics.observe_cache_operation_duration(
-                                    "get", cache_duration
-                                )
+                                self.metrics.observe_cache_operation_duration("get", cache_duration)
 
                                 cache_hit = cached_opinion is not None
                                 span.set_attribute("cache.hit", cache_hit)
@@ -1473,14 +1393,10 @@ class BaseSpecialist(ABC):
                                 raise
                     else:
                         start_cache = time.time()
-                        cached_opinion = self.opinion_cache.get_cached_opinion(
-                            cache_key
-                        )
+                        cached_opinion = self.opinion_cache.get_cached_opinion(cache_key)
                         cache_duration = time.time() - start_cache
 
-                        self.metrics.observe_cache_operation_duration(
-                            "get", cache_duration
-                        )
+                        self.metrics.observe_cache_operation_duration("get", cache_duration)
 
                     if cached_opinion:
                         self.metrics.increment_cache_hit()
@@ -1527,18 +1443,14 @@ class BaseSpecialist(ABC):
                             cached_opinion["opinion"]["metadata"][
                                 "original_processing_time_ms"
                             ] = cached_opinion["processing_time_ms"]
-                            cached_opinion["processing_time_ms"] = int(
-                                processing_time * 1000
-                            )
+                            cached_opinion["processing_time_ms"] = int(processing_time * 1000)
 
                         # Preservar evaluated_at original
                         if "evaluated_at" in cached_opinion:
                             cached_opinion["opinion"]["metadata"][
                                 "evaluated_at_original"
                             ] = cached_opinion["evaluated_at"]
-                            cached_opinion[
-                                "evaluated_at"
-                            ] = datetime.now(timezone.utc).isoformat()
+                            cached_opinion["evaluated_at"] = datetime.now(timezone.utc).isoformat()
 
                         return cached_opinion
                     else:
@@ -1560,12 +1472,8 @@ class BaseSpecialist(ABC):
             if self.tracer:
                 current_span = trace.get_current_span()
                 if current_span and current_span.get_span_context().is_valid:
-                    context["trace_id"] = format(
-                        current_span.get_span_context().trace_id, "032x"
-                    )
-                    context["span_id"] = format(
-                        current_span.get_span_context().span_id, "016x"
-                    )
+                    context["trace_id"] = format(current_span.get_span_context().trace_id, "032x")
+                    context["span_id"] = format(current_span.get_span_context().span_id, "016x")
                 else:
                     # Fallback para valores do request
                     context["trace_id"] = request.trace_id
@@ -1580,9 +1488,7 @@ class BaseSpecialist(ABC):
             # Tentar inferência com modelo ML (includes feature extraction + inference)
             inference_start_time = time.time()
             if self.tracer:
-                with self.tracer.start_as_current_span(
-                    "specialist.predict_with_model"
-                ) as span:
+                with self.tracer.start_as_current_span("specialist.predict_with_model") as span:
                     try:
                         ml_result = self._predict_with_model(cognitive_plan)
                         if ml_result is not None:
@@ -1607,12 +1513,10 @@ class BaseSpecialist(ABC):
             if ml_result is not None:
                 # Record feature extraction time from ml_result metadata
                 feature_extraction_time = (
-                    ml_result.get("metadata", {}).get("feature_extraction_time_ms", 0)
-                    / 1000.0
+                    ml_result.get("metadata", {}).get("feature_extraction_time_ms", 0) / 1000.0
                 )
                 inference_only_time = (
-                    ml_result.get("metadata", {}).get("inference_duration_ms", 0)
-                    / 1000.0
+                    ml_result.get("metadata", {}).get("inference_duration_ms", 0) / 1000.0
                 )
 
                 if hasattr(self.metrics, "observe_step_duration"):
@@ -1621,9 +1525,7 @@ class BaseSpecialist(ABC):
                             "feature_extraction", feature_extraction_time
                         )
                     if inference_only_time > 0:
-                        self.metrics.observe_step_duration(
-                            "inference", inference_only_time
-                        )
+                        self.metrics.observe_step_duration("inference", inference_only_time)
 
             if ml_result is not None:
                 # Usar resultado do modelo
@@ -1637,15 +1539,9 @@ class BaseSpecialist(ABC):
                 # Registrar features para drift monitoring quando ML não executar
                 if self.drift_detector:
                     try:
-                        features = self.feature_extractor.extract_features(
-                            cognitive_plan
-                        )
-                        self.drift_detector.log_evaluation_features(
-                            features["aggregated_features"]
-                        )
-                        logger.debug(
-                            "Features logged for drift monitoring (fallback path)"
-                        )
+                        features = self.feature_extractor.extract_features(cognitive_plan)
+                        self.drift_detector.log_evaluation_features(features["aggregated_features"])
+                        logger.debug("Features logged for drift monitoring (fallback path)")
                     except Exception as e:
                         logger.warning(
                             "Failed to log features for drift monitoring on fallback",
@@ -1661,14 +1557,10 @@ class BaseSpecialist(ABC):
                             "specialist.semantic_pipeline"
                         ) as span:
                             try:
-                                evaluation_result = (
-                                    self.semantic_pipeline.evaluate_plan(
-                                        cognitive_plan, context
-                                    )
+                                evaluation_result = self.semantic_pipeline.evaluate_plan(
+                                    cognitive_plan, context
                                 )
-                                span.set_attribute(
-                                    "inference.source", "semantic_pipeline"
-                                )
+                                span.set_attribute("inference.source", "semantic_pipeline")
                                 span.set_attribute(
                                     "confidence.score",
                                     evaluation_result.get("confidence_score", 0.0),
@@ -1687,18 +1579,12 @@ class BaseSpecialist(ABC):
                     evaluation_result["confidence_score"] *= 0.8
                     evaluation_result.setdefault("metadata", {})
                     evaluation_result["metadata"]["model_source"] = "semantic_pipeline"
-                    evaluation_result["metadata"][
-                        "fallback_reason"
-                    ] = "model_unavailable"
+                    evaluation_result["metadata"]["fallback_reason"] = "model_unavailable"
                 else:
                     # Fallback para heurísticas internas do especialista
-                    logger.warning(
-                        "Falling back to specialist heuristics", plan_id=plan_id
-                    )
+                    logger.warning("Falling back to specialist heuristics", plan_id=plan_id)
                     if self.tracer:
-                        with self.tracer.start_as_current_span(
-                            "specialist.heuristics"
-                        ) as span:
+                        with self.tracer.start_as_current_span("specialist.heuristics") as span:
                             try:
                                 evaluation_result = self._evaluate_plan_internal(
                                     cognitive_plan, context
@@ -1714,23 +1600,17 @@ class BaseSpecialist(ABC):
                                 span.set_status(Status(StatusCode.ERROR, str(e)))
                                 raise
                     else:
-                        evaluation_result = self._evaluate_plan_internal(
-                            cognitive_plan, context
-                        )
+                        evaluation_result = self._evaluate_plan_internal(cognitive_plan, context)
 
                     # Calibrar confiança (reduzir em 20% para sinalizar fallback de modelo ML)
                     evaluation_result["confidence_score"] *= 0.8
                     evaluation_result.setdefault("metadata", {})
                     evaluation_result["metadata"]["model_source"] = "heuristics"
-                    evaluation_result["metadata"][
-                        "fallback_reason"
-                    ] = "model_unavailable"
+                    evaluation_result["metadata"]["fallback_reason"] = "model_unavailable"
 
             # Validar resultado
             if self.tracer:
-                with self.tracer.start_as_current_span(
-                    "specialist.validate_result"
-                ) as span:
+                with self.tracer.start_as_current_span("specialist.validate_result") as span:
                     try:
                         self._validate_evaluation_result(evaluation_result)
                         span.set_status(Status(StatusCode.OK))
@@ -1767,16 +1647,12 @@ class BaseSpecialist(ABC):
                 (
                     explainability_token,
                     explainability_metadata,
-                ) = self.explainability_gen.generate(
-                    evaluation_result, cognitive_plan, self.model
-                )
+                ) = self.explainability_gen.generate(evaluation_result, cognitive_plan, self.model)
 
             # Record post_processing step timing
             post_processing_duration = time.time() - post_processing_start
             if hasattr(self.metrics, "observe_step_duration"):
-                self.metrics.observe_step_duration(
-                    "post_processing", post_processing_duration
-                )
+                self.metrics.observe_step_duration("post_processing", post_processing_duration)
 
             # Construir parecer
             opinion = {
@@ -1809,15 +1685,11 @@ class BaseSpecialist(ABC):
             else:
                 # Passar processing_time_ms calculado para save_opinion com trace context
                 if self.ledger_client is None:
-                    logger.warning(
-                        "Ledger unavailable - opinion not persisted", plan_id=plan_id
-                    )
+                    logger.warning("Ledger unavailable - opinion not persisted", plan_id=plan_id)
                     opinion_id = "ledger-unavailable-" + str(uuid.uuid4())
                     buffered = False
                 elif self.tracer:
-                    with self.tracer.start_as_current_span(
-                        "specialist.persist_to_ledger"
-                    ) as span:
+                    with self.tracer.start_as_current_span("specialist.persist_to_ledger") as span:
                         try:
                             opinion_id = self.ledger_client.save_opinion_with_fallback(
                                 opinion,
@@ -1916,19 +1788,13 @@ class BaseSpecialist(ABC):
             # Salvar no cache se habilitado
             if self.opinion_cache and cache_key:
                 if self.tracer:
-                    with self.tracer.start_as_current_span(
-                        "specialist.cache_result"
-                    ) as span:
+                    with self.tracer.start_as_current_span("specialist.cache_result") as span:
                         try:
                             start_cache = time.time()
-                            cache_saved = self.opinion_cache.set_cached_opinion(
-                                cache_key, response
-                            )
+                            cache_saved = self.opinion_cache.set_cached_opinion(cache_key, response)
                             cache_duration = time.time() - start_cache
 
-                            self.metrics.observe_cache_operation_duration(
-                                "set", cache_duration
-                            )
+                            self.metrics.observe_cache_operation_duration("set", cache_duration)
 
                             span.set_attribute("cache.saved", cache_saved)
                             span.set_attribute("cache.key", cache_key)
@@ -1951,9 +1817,7 @@ class BaseSpecialist(ABC):
                             logger.warning("Failed to cache opinion", error=str(e))
                 else:
                     start_cache = time.time()
-                    cache_saved = self.opinion_cache.set_cached_opinion(
-                        cache_key, response
-                    )
+                    cache_saved = self.opinion_cache.set_cached_opinion(cache_key, response)
                     cache_duration = time.time() - start_cache
 
                     self.metrics.observe_cache_operation_duration("set", cache_duration)
@@ -2042,9 +1906,7 @@ class BaseSpecialist(ABC):
             )
             raise ValueError(f"Plano cognitivo com erros de validação: {e.errors()}")
         except PlanValidationError as e:
-            logger.error(
-                "Falha na validação do plano", error=str(e), error_type=type(e).__name__
-            )
+            logger.error("Falha na validação do plano", error=str(e), error_type=type(e).__name__)
             raise
         except json.JSONDecodeError as e:
             logger.error("Falha ao decodificar JSON", error=str(e))
@@ -2069,9 +1931,7 @@ class BaseSpecialist(ABC):
 
         for field in required_fields:
             if field not in result:
-                raise ValueError(
-                    f"Missing required field in evaluation result: {field}"
-                )
+                raise ValueError(f"Missing required field in evaluation result: {field}")
 
         # Validar ranges
         if not (0.0 <= result["confidence_score"] <= 1.0):
@@ -2236,16 +2096,11 @@ class BaseSpecialist(ABC):
             specialist_type=self.specialist_type,
             batch_size=len(requests),
             max_concurrency=concurrency,
-            batch_inference_enabled=getattr(
-                self.config, "enable_batch_inference", False
-            ),
+            batch_inference_enabled=getattr(self.config, "enable_batch_inference", False),
         )
 
         # Use optimized batch evaluation if enabled and available
-        if (
-            getattr(self.config, "enable_batch_inference", False)
-            and self.batch_evaluator
-        ):
+        if getattr(self.config, "enable_batch_inference", False) and self.batch_evaluator:
             try:
                 # Extract cognitive plans from requests
                 cognitive_plans = []
@@ -2294,9 +2149,9 @@ class BaseSpecialist(ABC):
                                 {
                                     "opinion": result,
                                     "plan_id": plan_id,
-                                    "processing_time_ms": result.get(
-                                        "metadata", {}
-                                    ).get("evaluation_time_ms", 0),
+                                    "processing_time_ms": result.get("metadata", {}).get(
+                                        "evaluation_time_ms", 0
+                                    ),
                                 }
                             )
 
@@ -2331,9 +2186,7 @@ class BaseSpecialist(ABC):
                             "failed": len(failed),
                             "success_rate": success_rate,
                             "duration_seconds": duration,
-                            "avg_duration_per_plan_ms": int(
-                                (duration / len(requests)) * 1000
-                            )
+                            "avg_duration_per_plan_ms": int((duration / len(requests)) * 1000)
                             if requests
                             else 0,
                             "batch_method": "optimized",
@@ -2384,9 +2237,7 @@ class BaseSpecialist(ABC):
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Separar sucessos e falhas
-        successful = [
-            r["result"] for r in results if isinstance(r, dict) and r.get("success")
-        ]
+        successful = [r["result"] for r in results if isinstance(r, dict) and r.get("success")]
         failed = [r for r in results if isinstance(r, dict) and not r.get("success")]
         exceptions = [r for r in results if isinstance(r, Exception)]
 
@@ -2458,9 +2309,7 @@ class BaseSpecialist(ABC):
         # Usar BatchEvaluator se disponível
         if self.batch_evaluator:
             try:
-                return await self.batch_evaluator.evaluate_batch(
-                    cognitive_plans, context
-                )
+                return await self.batch_evaluator.evaluate_batch(cognitive_plans, context)
             except Exception as e:
                 logger.warning(
                     "BatchEvaluator failed, falling back to sequential processing",
@@ -2517,9 +2366,7 @@ class BaseSpecialist(ABC):
         """
         start_time = time.time()
         span_context = (
-            self.tracer.start_as_current_span("specialist.warmup")
-            if self.tracer
-            else nullcontext()
+            self.tracer.start_as_current_span("specialist.warmup") if self.tracer else nullcontext()
         )
 
         logger.info(
@@ -2566,9 +2413,7 @@ class BaseSpecialist(ABC):
                 if span:
                     span.set_attribute("warmup.success", True)
                     span.set_attribute("warmup.time_ms", int(duration * 1000))
-                    span.set_attribute(
-                        "warmup.dummy_plan_id", dummy_plan.get("plan_id")
-                    )
+                    span.set_attribute("warmup.dummy_plan_id", dummy_plan.get("plan_id"))
                     span.set_status(Status(StatusCode.OK))
 
                 logger.info(
@@ -2691,9 +2536,7 @@ class BaseSpecialist(ABC):
             }
             # Incluir metadados adicionais se disponível
             if hasattr(self.compliance_layer, "get_compliance_metadata"):
-                details["compliance_layer"].update(
-                    self.compliance_layer.get_compliance_metadata()
-                )
+                details["compliance_layer"].update(self.compliance_layer.get_compliance_metadata())
         else:
             details["compliance_layer"] = {"enabled": False}
 
@@ -2705,13 +2548,9 @@ class BaseSpecialist(ABC):
         # Circuit breaker states
         circuit_breaker_states = {}
         if self.mlflow_client:
-            circuit_breaker_states[
-                "mlflow"
-            ] = self.mlflow_client.get_circuit_breaker_state()
+            circuit_breaker_states["mlflow"] = self.mlflow_client.get_circuit_breaker_state()
         if self.ledger_client:
-            circuit_breaker_states[
-                "ledger"
-            ] = self.ledger_client.get_circuit_breaker_state()
+            circuit_breaker_states["ledger"] = self.ledger_client.get_circuit_breaker_state()
         circuit_breaker_states[
             "explainability"
         ] = self.explainability_gen.get_circuit_breaker_state()
@@ -2719,9 +2558,7 @@ class BaseSpecialist(ABC):
         details["circuit_breaker_states"] = circuit_breaker_states
 
         # Verificar se algum circuit breaker está aberto
-        any_circuit_open = any(
-            state == "open" for state in circuit_breaker_states.values()
-        )
+        any_circuit_open = any(state == "open" for state in circuit_breaker_states.values())
 
         # Buffer do ledger
         if self.ledger_client:
@@ -2797,9 +2634,7 @@ class BaseSpecialist(ABC):
             "supported_domains": self.config.supported_domains,
             "supported_plan_versions": self.config.supported_plan_versions,
             "metrics": {
-                "average_processing_time_ms": metrics_summary.get(
-                    "avg_processing_time_ms", 0.0
-                ),
+                "average_processing_time_ms": metrics_summary.get("avg_processing_time_ms", 0.0),
                 "accuracy_score": metrics_summary.get("accuracy_score", 0.0),
                 "total_evaluations": metrics_summary.get("total_evaluations", 0),
                 "last_model_update": self.mlflow_client.get_last_model_update()
@@ -2839,9 +2674,7 @@ class BaseSpecialist(ABC):
                         agent_id=self._registered_agent_id,
                         error=str(e),
                     )
-            logger.info(
-                "Specialist resources closed", specialist_type=self.specialist_type
-            )
+            logger.info("Specialist resources closed", specialist_type=self.specialist_type)
         except Exception as e:
             logger.warning(
                 "Error closing specialist resources",
@@ -2918,9 +2751,7 @@ class BaseSpecialist(ABC):
         )
 
         async def _do_register():
-            client = ServiceRegistryClient(
-                host=SERVICE_REGISTRY_HOST, port=SERVICE_REGISTRY_PORT
-            )
+            client = ServiceRegistryClient(host=SERVICE_REGISTRY_HOST, port=SERVICE_REGISTRY_PORT)
             try:
                 # Construir agent_info com formato esperado pelo service-registry
                 agent_info = AgentInfo(

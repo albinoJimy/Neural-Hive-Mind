@@ -9,7 +9,7 @@ import sys
 import os
 
 # Adicionar src ao path para importação
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../src"))
 
 from models.agent import AgentType
 

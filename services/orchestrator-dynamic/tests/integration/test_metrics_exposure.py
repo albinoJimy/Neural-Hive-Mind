@@ -19,7 +19,7 @@ class TestCompensationMetricsExposure:
         metrics = get_metrics()
 
         # Verifica que a métrica existe
-        assert hasattr(metrics, 'compensation_duration_seconds')
+        assert hasattr(metrics, "compensation_duration_seconds")
         assert metrics.compensation_duration_seconds is not None
 
     def test_compensation_duration_labels(self):
@@ -30,8 +30,7 @@ class TestCompensationMetricsExposure:
 
         # Registra uma observação
         metrics.compensation_duration_seconds.labels(
-            reason='task_failed',
-            status='success'
+            reason="task_failed", status="success"
         ).observe(1.5)
 
         # Verifica que não levanta exceção com labels válidos
@@ -43,7 +42,7 @@ class TestCompensationMetricsExposure:
 
         metrics = get_metrics()
 
-        assert hasattr(metrics, 'compensations_triggered_total')
+        assert hasattr(metrics, "compensations_triggered_total")
         assert metrics.compensations_triggered_total is not None
 
 
@@ -56,7 +55,7 @@ class TestSecurityMetricsExposure:
 
         metrics = get_metrics()
 
-        assert hasattr(metrics, 'jwt_validation_failures_total')
+        assert hasattr(metrics, "jwt_validation_failures_total")
         assert metrics.jwt_validation_failures_total is not None
 
     def test_jwt_validation_failures_labels(self):
@@ -67,28 +66,23 @@ class TestSecurityMetricsExposure:
 
         # Verifica labels válidos
         metrics.jwt_validation_failures_total.labels(
-            tenant_id='test-tenant',
-            reason='expired'
+            tenant_id="test-tenant", reason="expired"
         ).inc()
 
         metrics.jwt_validation_failures_total.labels(
-            tenant_id='test-tenant',
-            reason='invalid_signature'
+            tenant_id="test-tenant", reason="invalid_signature"
         ).inc()
 
         metrics.jwt_validation_failures_total.labels(
-            tenant_id='test-tenant',
-            reason='invalid_issuer'
+            tenant_id="test-tenant", reason="invalid_issuer"
         ).inc()
 
         metrics.jwt_validation_failures_total.labels(
-            tenant_id='test-tenant',
-            reason='invalid_audience'
+            tenant_id="test-tenant", reason="invalid_audience"
         ).inc()
 
         metrics.jwt_validation_failures_total.labels(
-            tenant_id='test-tenant',
-            reason='missing_claims'
+            tenant_id="test-tenant", reason="missing_claims"
         ).inc()
 
         assert True
@@ -99,7 +93,7 @@ class TestSecurityMetricsExposure:
 
         metrics = get_metrics()
 
-        assert hasattr(metrics, 'mtls_handshake_failures_total')
+        assert hasattr(metrics, "mtls_handshake_failures_total")
         assert metrics.mtls_handshake_failures_total is not None
 
     def test_mtls_handshake_failures_labels(self):
@@ -110,23 +104,19 @@ class TestSecurityMetricsExposure:
 
         # Verifica labels válidos
         metrics.mtls_handshake_failures_total.labels(
-            service='service-registry',
-            reason='invalid_cert'
+            service="service-registry", reason="invalid_cert"
         ).inc()
 
         metrics.mtls_handshake_failures_total.labels(
-            service='execution-ticket-service',
-            reason='ca_mismatch'
+            service="execution-ticket-service", reason="ca_mismatch"
         ).inc()
 
         metrics.mtls_handshake_failures_total.labels(
-            service='worker-agents',
-            reason='expired_cert'
+            service="worker-agents", reason="expired_cert"
         ).inc()
 
         metrics.mtls_handshake_failures_total.labels(
-            service='approval-service',
-            reason='connection_error'
+            service="approval-service", reason="connection_error"
         ).inc()
 
         assert True
@@ -141,7 +131,7 @@ class TestIdempotencyMetricsExposure:
 
         metrics = get_metrics()
 
-        assert hasattr(metrics, 'duplicates_detected_total')
+        assert hasattr(metrics, "duplicates_detected_total")
         assert metrics.duplicates_detected_total is not None
 
     def test_idempotency_cache_hits_metric_exists(self):
@@ -150,7 +140,7 @@ class TestIdempotencyMetricsExposure:
 
         metrics = get_metrics()
 
-        assert hasattr(metrics, 'idempotency_cache_hits_total')
+        assert hasattr(metrics, "idempotency_cache_hits_total")
         assert metrics.idempotency_cache_hits_total is not None
 
     def test_record_duplicate_detected(self):
@@ -160,7 +150,7 @@ class TestIdempotencyMetricsExposure:
         metrics = get_metrics()
 
         # Deve incrementar ambos os contadores
-        metrics.record_duplicate_detected(component='decision_consumer')
+        metrics.record_duplicate_detected(component="decision_consumer")
 
         assert True
 
@@ -175,14 +165,12 @@ class TestRecordingMethods:
         metrics = get_metrics()
 
         # Deve ter o método
-        assert hasattr(metrics, 'record_compensation_duration')
+        assert hasattr(metrics, "record_compensation_duration")
         assert callable(metrics.record_compensation_duration)
 
         # Deve executar sem erro
         metrics.record_compensation_duration(
-            reason='task_failed',
-            status='success',
-            duration_seconds=2.5
+            reason="task_failed", status="success", duration_seconds=2.5
         )
 
     def test_record_jwt_validation_failure_method(self):
@@ -191,13 +179,10 @@ class TestRecordingMethods:
 
         metrics = get_metrics()
 
-        assert hasattr(metrics, 'record_jwt_validation_failure')
+        assert hasattr(metrics, "record_jwt_validation_failure")
         assert callable(metrics.record_jwt_validation_failure)
 
-        metrics.record_jwt_validation_failure(
-            tenant_id='tenant-abc',
-            reason='expired'
-        )
+        metrics.record_jwt_validation_failure(tenant_id="tenant-abc", reason="expired")
 
     def test_record_mtls_handshake_failure_method(self):
         """Verifica método record_mtls_handshake_failure."""
@@ -205,10 +190,7 @@ class TestRecordingMethods:
 
         metrics = get_metrics()
 
-        assert hasattr(metrics, 'record_mtls_handshake_failure')
+        assert hasattr(metrics, "record_mtls_handshake_failure")
         assert callable(metrics.record_mtls_handshake_failure)
 
-        metrics.record_mtls_handshake_failure(
-            service='service-registry',
-            reason='invalid_cert'
-        )
+        metrics.record_mtls_handshake_failure(service="service-registry", reason="invalid_cert")

@@ -34,13 +34,10 @@ class CopilotClient:
             headers = {
                 "Authorization": f"Bearer {self.settings.github_token}",
                 "Accept": "application/json",
-                "X-GitHub-Api-Version": "2022-11-28"
+                "X-GitHub-Api-Version": "2022-11-28",
             }
 
-            self._session = aiohttp.ClientSession(
-                timeout=timeout,
-                headers=headers
-            )
+            self._session = aiohttp.ClientSession(timeout=timeout, headers=headers)
         return self._session
 
     async def close(self) -> None:
@@ -66,9 +63,7 @@ class CopilotClient:
         session = await self._get_session()
 
         try:
-            async with session.get(
-                f"{self.base_url}/copilot_internal/v2/token"
-            ) as response:
+            async with session.get(f"{self.base_url}/copilot_internal/v2/token") as response:
                 if response.status == 200:
                     data = await response.json()
                     self._copilot_token = data.get("token")
@@ -77,27 +72,16 @@ class CopilotClient:
                     # Usar 50 minutos como margem de segurança
                     self._token_expires_at = time.time() + self._token_ttl - 600
 
-                    logger.info(
-                        "copilot_token_obtained",
-                        expires_at=self._token_expires_at
-                    )
+                    logger.info("copilot_token_obtained", expires_at=self._token_expires_at)
                     return self._copilot_token
                 else:
-                    logger.warning(
-                        "copilot_token_fetch_failed",
-                        status=response.status
-                    )
+                    logger.warning("copilot_token_fetch_failed", status=response.status)
                     return None
         except Exception as e:
             logger.error("copilot_token_error", error=str(e))
             return None
 
-    async def _request(
-        self,
-        endpoint: str,
-        data: dict,
-        retries: int = 3
-    ) -> dict[str, Any]:
+    async def _request(self, endpoint: str, data: dict, retries: int = 3) -> dict[str, Any]:
         """
         Executa requisição HTTP POST com retry.
 
@@ -112,7 +96,7 @@ class CopilotClient:
         if not self.is_available():
             return {
                 "error": "Copilot not configured",
-                "message": "GITHUB_TOKEN não está configurado"
+                "message": "GITHUB_TOKEN não está configurado",
             }
 
         session = await self._get_session()
@@ -124,13 +108,13 @@ class CopilotClient:
                     if response.status == 401:
                         return {
                             "error": "Authentication failed",
-                            "message": "Token GitHub inválido ou sem acesso ao Copilot"
+                            "message": "Token GitHub inválido ou sem acesso ao Copilot",
                         }
 
                     if response.status == 403:
                         return {
                             "error": "Access denied",
-                            "message": "Sem permissão para acessar o Copilot"
+                            "message": "Sem permissão para acessar o Copilot",
                         }
 
                     if response.status == 429:
@@ -144,44 +128,25 @@ class CopilotClient:
                             message = error_body.get("message", "Unknown error")
                         except Exception:
                             message = await response.text()
-                        return {
-                            "error": f"HTTP {response.status}",
-                            "message": message
-                        }
+                        return {"error": f"HTTP {response.status}", "message": message}
 
                     return await response.json()
 
             except asyncio.TimeoutError:
-                logger.warning(
-                    "copilot_request_timeout",
-                    attempt=attempt + 1
-                )
+                logger.warning("copilot_request_timeout", attempt=attempt + 1)
                 if attempt == retries - 1:
-                    return {
-                        "error": "Timeout",
-                        "message": f"Timeout após {retries} tentativas"
-                    }
+                    return {"error": "Timeout", "message": f"Timeout após {retries} tentativas"}
 
             except aiohttp.ClientError as e:
-                logger.warning(
-                    "copilot_request_error",
-                    attempt=attempt + 1,
-                    error=str(e)
-                )
+                logger.warning("copilot_request_error", attempt=attempt + 1, error=str(e))
                 if attempt == retries - 1:
-                    return {
-                        "error": "Connection error",
-                        "message": str(e)
-                    }
-                await asyncio.sleep(2 ** attempt)
+                    return {"error": "Connection error", "message": str(e)}
+                await asyncio.sleep(2**attempt)
 
         return {"error": "Unknown error"}
 
     async def generate_completion(
-        self,
-        prompt: str,
-        language: str,
-        max_tokens: int = 500
+        self, prompt: str, language: str, max_tokens: int = 500
     ) -> dict[str, Any]:
         """
         Gera código usando Copilot.
@@ -206,7 +171,7 @@ class CopilotClient:
             "temperature": 0.2,
             "top_p": 1.0,
             "n": 1,
-            "stop": ["\n\n\n", "# ---"]
+            "stop": ["\n\n\n", "# ---"],
         }
 
         result = await self._request("/copilot_internal/v2/completions", data)
@@ -216,10 +181,7 @@ class CopilotClient:
 
         choices = result.get("choices", [])
         if not choices:
-            return {
-                "error": "No completion",
-                "message": "Copilot não retornou sugestões"
-            }
+            return {"error": "No completion", "message": "Copilot não retornou sugestões"}
 
         return {
             "success": True,
@@ -227,15 +189,12 @@ class CopilotClient:
             "model": "github-copilot",
             "usage": {
                 "prompt_tokens": result.get("usage", {}).get("prompt_tokens", 0),
-                "completion_tokens": result.get("usage", {}).get("completion_tokens", 0)
-            }
+                "completion_tokens": result.get("usage", {}).get("completion_tokens", 0),
+            },
         }
 
     async def get_suggestions(
-        self,
-        code: str,
-        language: str,
-        cursor_position: int
+        self, code: str, language: str, cursor_position: int
     ) -> dict[str, Any]:
         """
         Obtém sugestões de autocomplete.
@@ -258,7 +217,7 @@ class CopilotClient:
             "max_tokens": 100,
             "temperature": 0.0,
             "n": 3,  # Solicitar múltiplas sugestões
-            "stop": ["\n\n", "```"]
+            "stop": ["\n\n", "```"],
         }
 
         result = await self._request("/copilot_internal/v2/completions", data)
@@ -268,16 +227,9 @@ class CopilotClient:
 
         choices = result.get("choices", [])
         suggestions = [
-            {
-                "text": choice.get("text", ""),
-                "index": choice.get("index", i)
-            }
+            {"text": choice.get("text", ""), "index": choice.get("index", i)}
             for i, choice in enumerate(choices)
             if choice.get("text")
         ]
 
-        return {
-            "success": True,
-            "suggestions": suggestions,
-            "model": "github-copilot"
-        }
+        return {"success": True, "suggestions": suggestions, "model": "github-copilot"}

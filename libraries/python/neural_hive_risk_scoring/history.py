@@ -21,15 +21,17 @@ logger = structlog.get_logger(__name__)
 
 class TrendDirection(str, Enum):
     """Direção da tendência de risco."""
-    IMPROVING = 'improving'  # Risco diminuindo
-    STABLE = 'stable'  # Risco estável
-    WORSENING = 'worsening'  # Risco aumentando
-    UNKNOWN = 'unknown'
+
+    IMPROVING = "improving"  # Risco diminuindo
+    STABLE = "stable"  # Risco estável
+    WORSENING = "worsening"  # Risco aumentando
+    UNKNOWN = "unknown"
 
 
 @dataclass
 class RiskSnapshot:
     """Snapshot de risco em um ponto no tempo."""
+
     timestamp: datetime
     score: float
     band: RiskBand
@@ -41,19 +43,20 @@ class RiskSnapshot:
     def to_dict(self) -> Dict:
         """Converte para dicionário."""
         return {
-            'timestamp': self.timestamp.isoformat(),
-            'score': self.score,
-            'band': self.band.value,
-            'domain': self.domain.value,
-            'entity_id': self.entity_id,
-            'factors': self.factors,
-            'metadata': self.metadata
+            "timestamp": self.timestamp.isoformat(),
+            "score": self.score,
+            "band": self.band.value,
+            "domain": self.domain.value,
+            "entity_id": self.entity_id,
+            "factors": self.factors,
+            "metadata": self.metadata,
         }
 
 
 @dataclass
 class TrendAnalysis:
     """Resultado da análise de tendência."""
+
     direction: TrendDirection
     strength: float  # 0.0 a 1.0, confiança na tendência
     start_score: float
@@ -68,6 +71,7 @@ class TrendAnalysis:
 @dataclass
 class AnomalyDetection:
     """Resultado da detecção de anomalia."""
+
     is_anomaly: bool
     score: float
     expected_range: Tuple[float, float]
@@ -79,11 +83,7 @@ class AnomalyDetection:
 class RiskHistory:
     """Gerencia histórico de avaliações de risco."""
 
-    def __init__(
-        self,
-        max_snapshots_per_entity: int = 1000,
-        retention_days: int = 90
-    ):
+    def __init__(self, max_snapshots_per_entity: int = 1000, retention_days: int = 90):
         """Inicializa gerenciador de histórico.
 
         Args:
@@ -101,10 +101,7 @@ class RiskHistory:
         self._by_time: Dict[Tuple[datetime, str], RiskSnapshot] = {}
 
     def record_assessment(
-        self,
-        assessment: RiskAssessment,
-        entity_id: str,
-        metadata: Optional[Dict] = None
+        self, assessment: RiskAssessment, entity_id: str, metadata: Optional[Dict] = None
     ) -> RiskSnapshot:
         """Registra avaliação no histórico.
 
@@ -123,7 +120,7 @@ class RiskHistory:
             domain=assessment.domain,
             entity_id=entity_id,
             factors=assessment.factors.copy(),
-            metadata=metadata or {}
+            metadata=metadata or {},
         )
 
         # Adicionar ao histórico
@@ -135,7 +132,7 @@ class RiskHistory:
 
         # Limitar tamanho
         if len(snapshots) > self.max_snapshots:
-            snapshots = snapshots[-self.max_snapshots:]
+            snapshots = snapshots[-self.max_snapshots :]
             self._history[entity_id] = snapshots
 
         # Atualizar índices
@@ -149,15 +146,13 @@ class RiskHistory:
             "risk_assessment_recorded",
             entity_id=entity_id,
             domain=assessment.domain.value,
-            score=assessment.score
+            score=assessment.score,
         )
 
         return snapshot
 
     def record_matrix(
-        self,
-        matrix: RiskMatrix,
-        metadata: Optional[Dict] = None
+        self, matrix: RiskMatrix, metadata: Optional[Dict] = None
     ) -> List[RiskSnapshot]:
         """Registra matriz de risco (múltiplos domínios).
 
@@ -172,9 +167,7 @@ class RiskHistory:
 
         for domain, assessment in matrix.assessments.items():
             snapshot = self.record_assessment(
-                assessment=assessment,
-                entity_id=matrix.entity_id,
-                metadata=metadata
+                assessment=assessment, entity_id=matrix.entity_id, metadata=metadata
             )
             snapshots.append(snapshot)
 
@@ -186,7 +179,7 @@ class RiskHistory:
         domain: Optional[UnifiedDomain] = None,
         start: Optional[datetime] = None,
         end: Optional[datetime] = None,
-        limit: Optional[int] = None
+        limit: Optional[int] = None,
     ) -> List[RiskSnapshot]:
         """Retorna histórico filtrado.
 
@@ -217,9 +210,7 @@ class RiskHistory:
         return snapshots
 
     def get_latest(
-        self,
-        entity_id: str,
-        domain: Optional[UnifiedDomain] = None
+        self, entity_id: str, domain: Optional[UnifiedDomain] = None
     ) -> Optional[RiskSnapshot]:
         """Retorna snapshot mais recente.
 
@@ -238,7 +229,7 @@ class RiskHistory:
         entity_id: str,
         domain: Optional[UnifiedDomain] = None,
         window_hours: float = 24.0,
-        min_samples: int = 3
+        min_samples: int = 3,
     ) -> Optional[TrendAnalysis]:
         """Analisa tendência de risco.
 
@@ -256,10 +247,7 @@ class RiskHistory:
         start_time = end_time - timedelta(hours=window_hours)
 
         snapshots = self.get_history(
-            entity_id=entity_id,
-            domain=domain,
-            start=start_time,
-            end=end_time
+            entity_id=entity_id, domain=domain, start=start_time, end=end_time
         )
 
         if len(snapshots) < min_samples:
@@ -267,7 +255,7 @@ class RiskHistory:
                 "insufficient_samples_for_trend",
                 entity_id=entity_id,
                 samples=len(snapshots),
-                required=min_samples
+                required=min_samples,
             )
             return None
 
@@ -301,13 +289,11 @@ class RiskHistory:
             delta_percentage=delta_percentage,
             period_hours=period_hours,
             volatility=volatility,
-            sample_count=len(scores)
+            sample_count=len(scores),
         )
 
     def _calculate_trend_direction(
-        self,
-        scores: List[float],
-        timestamps: List[datetime]
+        self, scores: List[float], timestamps: List[datetime]
     ) -> TrendDirection:
         """Calcula direção da tendência."""
         if len(scores) < 2:
@@ -337,11 +323,7 @@ class RiskHistory:
         else:
             return TrendDirection.IMPROVING  # Risco diminuindo
 
-    def _calculate_trend_strength(
-        self,
-        scores: List[float],
-        timestamps: List[datetime]
-    ) -> float:
+    def _calculate_trend_strength(self, scores: List[float], timestamps: List[datetime]) -> float:
         """Calcula força da tendência (correlação de Pearson).
 
         Returns:
@@ -381,7 +363,7 @@ class RiskHistory:
 
         mean_score = sum(scores) / len(scores)
         variance = sum((s - mean_score) ** 2 for s in scores) / len(scores)
-        std_dev = variance ** 0.5
+        std_dev = variance**0.5
 
         # Normalizar por range (scores são 0-1)
         return min(1.0, std_dev)
@@ -391,7 +373,7 @@ class RiskHistory:
         entity_id: str,
         domain: Optional[UnifiedDomain] = None,
         std_threshold: float = 2.5,
-        lookback_hours: float = 168.0  # 7 dias
+        lookback_hours: float = 168.0,  # 7 dias
     ) -> Optional[AnomalyDetection]:
         """Detecta anomalia no score mais recente.
 
@@ -409,10 +391,7 @@ class RiskHistory:
         start_time = end_time - timedelta(hours=lookback_hours)
 
         snapshots = self.get_history(
-            entity_id=entity_id,
-            domain=domain,
-            start=start_time,
-            end=end_time
+            entity_id=entity_id, domain=domain, start=start_time, end=end_time
         )
 
         if len(snapshots) < 3:
@@ -428,7 +407,7 @@ class RiskHistory:
 
         # Desvio padrão
         variance = sum((s - mean_score) ** 2 for s in scores) / len(scores)
-        std_dev = variance ** 0.5
+        std_dev = variance**0.5
 
         # Range esperado
         expected_min = max(0.0, mean_score - std_threshold * std_dev)
@@ -440,11 +419,11 @@ class RiskHistory:
 
         # Severidade baseada em desvios
         if abs(deviation_std) >= 4:
-            severity = 'high'
+            severity = "high"
         elif abs(deviation_std) >= 2.5:
-            severity = 'medium'
+            severity = "medium"
         else:
-            severity = 'low'
+            severity = "low"
 
         if is_anomaly:
             logger.warning(
@@ -453,7 +432,7 @@ class RiskHistory:
                 current_score=current.score,
                 expected_range=(expected_min, expected_max),
                 deviation_std=deviation_std,
-                severity=severity
+                severity=severity,
             )
 
         return AnomalyDetection(
@@ -462,14 +441,11 @@ class RiskHistory:
             expected_range=(expected_min, expected_max),
             deviation_std=deviation_std,
             severity=severity,
-            timestamp=current.timestamp
+            timestamp=current.timestamp,
         )
 
     def get_percentile(
-        self,
-        entity_id: str,
-        domain: Optional[UnifiedDomain] = None,
-        score: Optional[float] = None
+        self, entity_id: str, domain: Optional[UnifiedDomain] = None, score: Optional[float] = None
     ) -> float:
         """Retorna percentil de um score em relação ao histórico.
 
@@ -504,7 +480,7 @@ class RiskHistory:
         entity_id: str,
         domain: Optional[UnifiedDomain] = None,
         start: Optional[datetime] = None,
-        end: Optional[datetime] = None
+        end: Optional[datetime] = None,
     ) -> Dict:
         """Retorna estatísticas do histórico.
 
@@ -520,13 +496,7 @@ class RiskHistory:
         snapshots = self.get_history(entity_id, domain, start, end)
 
         if not snapshots:
-            return {
-                'count': 0,
-                'mean': None,
-                'min': None,
-                'max': None,
-                'std_dev': None
-            }
+            return {"count": 0, "mean": None, "min": None, "max": None, "std_dev": None}
 
         scores = [s.score for s in snapshots]
 
@@ -536,16 +506,16 @@ class RiskHistory:
 
         # Desvio padrão
         variance = sum((s - mean_score) ** 2 for s in scores) / len(scores)
-        std_dev = variance ** 0.5
+        std_dev = variance**0.5
 
         return {
-            'count': len(scores),
-            'mean': mean_score,
-            'min': min_score,
-            'max': max_score,
-            'std_dev': std_dev,
-            'first_timestamp': snapshots[0].timestamp.isoformat(),
-            'last_timestamp': snapshots[-1].timestamp.isoformat()
+            "count": len(scores),
+            "mean": mean_score,
+            "min": min_score,
+            "max": max_score,
+            "std_dev": std_dev,
+            "first_timestamp": snapshots[0].timestamp.isoformat(),
+            "last_timestamp": snapshots[-1].timestamp.isoformat(),
         }
 
     def _cleanup_old_snapshots(self, entity_id: str):
@@ -554,9 +524,7 @@ class RiskHistory:
         snapshots = self._history.get(entity_id, [])
 
         # Manter apenas snapshots recentes
-        self._history[entity_id] = [
-            s for s in snapshots if s.timestamp >= cutoff
-        ]
+        self._history[entity_id] = [s for s in snapshots if s.timestamp >= cutoff]
 
     def cleanup_all(self):
         """Limpa snapshots antigos de todas as entidades."""

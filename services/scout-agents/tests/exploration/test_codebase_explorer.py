@@ -11,7 +11,7 @@ from pathlib import Path
 from unittest.mock import Mock, MagicMock, patch
 
 # Import com skip automático se módulo não disponível
-CodebaseExplorer = pytest.importorskip('src.exploration.codebase_explorer').CodebaseExplorer
+CodebaseExplorer = pytest.importorskip("src.exploration.codebase_explorer").CodebaseExplorer
 
 
 class TestCodebaseExplorerInitialization:
@@ -27,9 +27,9 @@ class TestCodebaseExplorerInitialization:
         """Testa extensões padrão de arquivos."""
         explorer = CodebaseExplorer(root_path="/test/path")
 
-        assert '.py' in explorer.file_extensions
-        assert '.ts' in explorer.file_extensions
-        assert '.yaml' in explorer.file_extensions
+        assert ".py" in explorer.file_extensions
+        assert ".ts" in explorer.file_extensions
+        assert ".yaml" in explorer.file_extensions
 
 
 class TestParsePythonAST:
@@ -64,10 +64,10 @@ class MyClass:
         tree = explorer.parse_python_ast(code, "test.py")
 
         functions = explorer.extract_functions(tree)
-        function_names = [f['name'] for f in functions]
+        function_names = [f["name"] for f in functions]
 
-        assert 'func_one' in function_names
-        assert 'method_one' in function_names
+        assert "func_one" in function_names
+        assert "method_one" in function_names
 
     def test_parse_python_extract_classes(self, explorer):
         """Testa extração de nomes de classes."""
@@ -81,10 +81,10 @@ class OrderService:
         tree = explorer.parse_python_ast(code, "test.py")
 
         classes = explorer.extract_classes(tree)
-        class_names = [c['name'] for c in classes]
+        class_names = [c["name"] for c in classes]
 
-        assert 'UserService' in class_names
-        assert 'OrderService' in class_names
+        assert "UserService" in class_names
+        assert "OrderService" in class_names
 
     def test_parse_python_extract_decorators(self, explorer):
         """Testa extração de decorators."""
@@ -103,12 +103,12 @@ def expensive_operation():
         decorators = []
 
         for f in functions:
-            decorators.extend(f.get('decorators', []))
+            decorators.extend(f.get("decorators", []))
 
         # Verificar se decorator contém os elementos esperados
-        decorator_str = ' '.join(decorators)
-        assert 'router.get' in decorator_str
-        assert 'cache' in decorator_str
+        decorator_str = " ".join(decorators)
+        assert "router.get" in decorator_str
+        assert "cache" in decorator_str
 
     def test_parse_python_invalid_syntax(self, explorer):
         """Testa handling de sintaxe inválida."""
@@ -140,9 +140,9 @@ from .utils import helper
 
         imports = explorer.extract_imports(tree, "test.py")
 
-        assert 'os' in imports['stdlib']
-        assert 'fastapi' in imports['external'] or 'FastAPI' in imports['external']
-        assert 'helper' in imports['local']
+        assert "os" in imports["stdlib"]
+        assert "fastapi" in imports["external"] or "FastAPI" in imports["external"]
+        assert "helper" in imports["local"]
 
     def test_extract_dependencies_categorizes_correctly(self, explorer):
         """Testa categorização correta de dependências."""
@@ -156,10 +156,10 @@ from ..utils import helper
 
         imports = explorer.extract_imports(tree, "test.py")
 
-        assert 'os' in imports['stdlib']
-        assert 'fastapi' in imports['external'] or 'FastAPI' in imports['external']
-        assert 'User' in imports['local']
-        assert 'helper' in imports['local_relative']
+        assert "os" in imports["stdlib"]
+        assert "fastapi" in imports["external"] or "FastAPI" in imports["external"]
+        assert "User" in imports["local"]
+        assert "helper" in imports["local_relative"]
 
 
 class TestBuildDependencyGraph:
@@ -172,51 +172,36 @@ class TestBuildDependencyGraph:
     def test_build_graph_from_multiple_files(self, explorer):
         """Testa construção de grafo com múltiplos arquivos."""
         files = {
-            'service_a.py': {
-                'imports': {'external': ['FastAPI'], 'local': ['models']},
-                'classes': ['UserService']
+            "service_a.py": {
+                "imports": {"external": ["FastAPI"], "local": ["models"]},
+                "classes": ["UserService"],
             },
-            'service_b.py': {
-                'imports': {'local': ['service_a']},
-                'classes': ['OrderService']
-            },
-            'models.py': {
-                'imports': {'external': ['pydantic']},
-                'classes': ['User']
-            }
+            "service_b.py": {"imports": {"local": ["service_a"]}, "classes": ["OrderService"]},
+            "models.py": {"imports": {"external": ["pydantic"]}, "classes": ["User"]},
         }
 
         graph = explorer.build_dependency_graph(files)
 
         # service_b depende de service_a
-        assert 'service_b.py' in graph['edges']
-        assert 'service_a.py' in graph['edges']['service_b.py']
+        assert "service_b.py" in graph["edges"]
+        assert "service_a.py" in graph["edges"]["service_b.py"]
 
         # service_a depende de models
-        assert 'service_a.py' in graph['edges']
-        assert 'models.py' in graph['edges']['service_a.py']
+        assert "service_a.py" in graph["edges"]
+        assert "models.py" in graph["edges"]["service_a.py"]
 
     def test_build_graph_detects_circular_dependencies(self, explorer):
         """Testa detecção de dependências circulares."""
         files = {
-            'a.py': {
-                'imports': {'local': ['b']},
-                'classes': []
-            },
-            'b.py': {
-                'imports': {'local': ['c']},
-                'classes': []
-            },
-            'c.py': {
-                'imports': {'local': ['a']},
-                'classes': []
-            }
+            "a.py": {"imports": {"local": ["b"]}, "classes": []},
+            "b.py": {"imports": {"local": ["c"]}, "classes": []},
+            "c.py": {"imports": {"local": ["a"]}, "classes": []},
         }
 
         graph = explorer.build_dependency_graph(files)
 
-        assert 'circular' in graph
-        assert len(graph['circular']) > 0
+        assert "circular" in graph
+        assert len(graph["circular"]) > 0
 
 
 class TestExploreDirectory:
@@ -226,25 +211,25 @@ class TestExploreDirectory:
     def explorer(self):
         return CodebaseExplorer(root_path="/test/path")
 
-    @patch('builtins.open', create=True)
-    @patch('pathlib.Path.glob')
+    @patch("builtins.open", create=True)
+    @patch("pathlib.Path.glob")
     def test_explore_finds_python_files(self, mock_glob, mock_open, explorer):
         """Testa descoberta de arquivos Python."""
         # Criar arquivos mock que retornam conteúdo diferente
         mock_service = MagicMock()
         mock_service.is_file.return_value = True
         mock_service.read_text.return_value = "def test(): pass"
-        mock_service.__str__ = lambda self: '/test/path/service.py'
+        mock_service.__str__ = lambda self: "/test/path/service.py"
 
         mock_models = MagicMock()
         mock_models.is_file.return_value = True
         mock_models.read_text.return_value = "class Model: pass"
-        mock_models.__str__ = lambda self: '/test/path/models.py'
+        mock_models.__str__ = lambda self: "/test/path/models.py"
 
         # Configurar mock para retornar apenas para .py
         # Para .ts e .yaml retorna lista vazia
         def glob_side_effect(pattern):
-            if '*.py' in pattern:
+            if "*.py" in pattern:
                 return [mock_service, mock_models]
             return []  # Para .ts e .yaml
 
@@ -253,11 +238,11 @@ class TestExploreDirectory:
         results = explorer.explore_directory()
 
         # Deve encontrar apenas 2 arquivos Python
-        assert len(results['files_found']) == 2
-        assert '/test/path/service.py' in results['files_found']
-        assert '/test/path/models.py' in results['files_found']
+        assert len(results["files_found"]) == 2
+        assert "/test/path/service.py" in results["files_found"]
+        assert "/test/path/models.py" in results["files_found"]
 
-    @patch('pathlib.Path.glob')
+    @patch("pathlib.Path.glob")
     def test_explore_parses_found_files(self, mock_glob, explorer):
         """Testa parsing dos arquivos encontrados."""
         mock_file = MagicMock()
@@ -267,7 +252,7 @@ class TestExploreDirectory:
 
         results = explorer.explore_directory()
 
-        assert 'parsed_data' in results
+        assert "parsed_data" in results
 
 
 class TestCalculateComplexity:

@@ -24,6 +24,7 @@ from src.observability.metrics import OrchestratorMetrics
 # Fixtures
 # =============================================================================
 
+
 @pytest.fixture
 def test_drift_config():
     """Test configuration for drift detection."""
@@ -67,26 +68,26 @@ async def baseline_tickets():
         actual_duration = 57000 + (i % 100) * 100  # Range: 57000-66900, mean ~62000
         predicted_duration = 56000 + (i % 100) * 100  # Range: 56000-65900, mean ~61000
 
-        tickets.append({
-            'ticket_id': f'baseline-{i}',
-            'task_type': ['BUILD', 'TEST', 'DEPLOY'][i % 3],
-            'risk_band': ['low', 'medium', 'high'][i % 3],  # Balanced distribution (33% each)
-            'qos': {
-                'delivery_mode': 'exactly_once',
-                'consistency': 'strong',
-                'durability': 'persistent'
-            },
-            'required_capabilities': ['python'],
-            'parameters': {},
-            'estimated_duration_ms': 60000,
-            'actual_duration_ms': actual_duration,
-            'created_at': base_time + timedelta(hours=i),
-            'completed_at': base_time + timedelta(hours=i, seconds=62),
-            'status': 'completed',
-            'predictions': {
-                'duration_ms': predicted_duration
+        tickets.append(
+            {
+                "ticket_id": f"baseline-{i}",
+                "task_type": ["BUILD", "TEST", "DEPLOY"][i % 3],
+                "risk_band": ["low", "medium", "high"][i % 3],  # Balanced distribution (33% each)
+                "qos": {
+                    "delivery_mode": "exactly_once",
+                    "consistency": "strong",
+                    "durability": "persistent",
+                },
+                "required_capabilities": ["python"],
+                "parameters": {},
+                "estimated_duration_ms": 60000,
+                "actual_duration_ms": actual_duration,
+                "created_at": base_time + timedelta(hours=i),
+                "completed_at": base_time + timedelta(hours=i, seconds=62),
+                "status": "completed",
+                "predictions": {"duration_ms": predicted_duration},
             }
-        })
+        )
 
     return tickets
 
@@ -107,7 +108,7 @@ async def drifted_tickets():
     for i in range(100):
         # Shift to critical risk (80% critical vs baseline 33%)
         # This creates significant PSI for risk_weight feature
-        risk_band = 'critical' if i < 80 else ['low', 'medium'][i % 2]
+        risk_band = "critical" if i < 80 else ["low", "medium"][i % 2]
 
         # Deterministic duration values centered around 120000 (2x baseline)
         # This ensures target drift with mean shift ~93% and MAE ratio > 1.5
@@ -118,26 +119,26 @@ async def drifted_tickets():
         # drift_ratio = 55000 / 5000 = 11.0 >> 1.5 threshold
         predicted_duration = 60000 + (i % 100) * 100  # Range: 60000-69900, mean ~65000
 
-        tickets.append({
-            'ticket_id': f'drifted-{i}',
-            'task_type': 'BUILD',  # All BUILD (vs baseline mixed)
-            'risk_band': risk_band,  # Mostly critical
-            'qos': {
-                'delivery_mode': 'at_least_once',  # Changed from exactly_once
-                'consistency': 'eventual',  # Changed from strong
-                'durability': 'persistent'
-            },
-            'required_capabilities': ['python', 'docker', 'k8s'],  # More capabilities
-            'parameters': {f'k{j}': f'v{j}' for j in range(10)},  # 10 params vs 0
-            'estimated_duration_ms': 60000,
-            'actual_duration_ms': actual_duration,
-            'created_at': base_time + timedelta(hours=i),
-            'completed_at': base_time + timedelta(hours=i, seconds=120),
-            'status': 'completed',
-            'predictions': {
-                'duration_ms': predicted_duration
+        tickets.append(
+            {
+                "ticket_id": f"drifted-{i}",
+                "task_type": "BUILD",  # All BUILD (vs baseline mixed)
+                "risk_band": risk_band,  # Mostly critical
+                "qos": {
+                    "delivery_mode": "at_least_once",  # Changed from exactly_once
+                    "consistency": "eventual",  # Changed from strong
+                    "durability": "persistent",
+                },
+                "required_capabilities": ["python", "docker", "k8s"],  # More capabilities
+                "parameters": {f"k{j}": f"v{j}" for j in range(10)},  # 10 params vs 0
+                "estimated_duration_ms": 60000,
+                "actual_duration_ms": actual_duration,
+                "created_at": base_time + timedelta(hours=i),
+                "completed_at": base_time + timedelta(hours=i, seconds=120),
+                "status": "completed",
+                "predictions": {"duration_ms": predicted_duration},
             }
-        })
+        )
 
     return tickets
 
@@ -163,54 +164,54 @@ async def test_drift_detector_no_drift(test_drift_config, baseline_tickets, mock
         features = extract_ticket_features(ticket)
         for feature_name, value in features.items():
             if feature_name not in baseline_features:
-                baseline_features[feature_name] = {'values': []}
-            baseline_features[feature_name]['values'].append(value)
+                baseline_features[feature_name] = {"values": []}
+            baseline_features[feature_name]["values"].append(value)
 
-        target_values.append(ticket['actual_duration_ms'])
+        target_values.append(ticket["actual_duration_ms"])
 
     # Convert values lists to stats
     for feature_name, data in baseline_features.items():
-        values = np.array(data['values'])
+        values = np.array(data["values"])
         baseline_features[feature_name] = {
-            'values': values.tolist(),
-            'mean': float(np.mean(values)),
-            'std': float(np.std(values)),
-            'min': float(np.min(values)),
-            'max': float(np.max(values))
+            "values": values.tolist(),
+            "mean": float(np.mean(values)),
+            "std": float(np.std(values)),
+            "min": float(np.min(values)),
+            "max": float(np.max(values)),
         }
 
     baseline_doc = {
-        'timestamp': datetime.now(timezone.utc) - timedelta(days=30),
-        'model_name': 'duration-predictor',
-        'version': '1',
-        'features': baseline_features,
-        'target_distribution': {
-            'values': target_values,
-            'mean': float(np.mean(target_values)),
-            'std': float(np.std(target_values)),
-            'percentiles': {
-                'p50': float(np.percentile(target_values, 50)),
-                'p95': float(np.percentile(target_values, 95)),
-                'p99': float(np.percentile(target_values, 99))
-            }
+        "timestamp": datetime.now(timezone.utc) - timedelta(days=30),
+        "model_name": "duration-predictor",
+        "version": "1",
+        "features": baseline_features,
+        "target_distribution": {
+            "values": target_values,
+            "mean": float(np.mean(target_values)),
+            "std": float(np.std(target_values)),
+            "percentiles": {
+                "p50": float(np.percentile(target_values, 50)),
+                "p95": float(np.percentile(target_values, 95)),
+                "p99": float(np.percentile(target_values, 99)),
+            },
         },
-        'training_mae': 5000.0
+        "training_mae": 5000.0,
     }
 
     mongodb_client.ml_feature_baselines = Mock()
     mongodb_client.ml_feature_baselines.find_one = Mock(return_value=baseline_doc)
 
     detector = DriftDetector(
-        config=test_drift_config,
-        mongodb_client=mongodb_client,
-        metrics=mock_metrics
+        config=test_drift_config, mongodb_client=mongodb_client, metrics=mock_metrics
     )
 
     return detector
 
 
 @pytest_asyncio.fixture
-async def test_drift_detector_feature_drift(test_drift_config, baseline_tickets, drifted_tickets, mock_metrics):
+async def test_drift_detector_feature_drift(
+    test_drift_config, baseline_tickets, drifted_tickets, mock_metrics
+):
     """Drift detector with feature drift (PSI > 0.25)."""
     mongodb_client = Mock()
 
@@ -230,48 +231,48 @@ async def test_drift_detector_feature_drift(test_drift_config, baseline_tickets,
         features = extract_ticket_features(ticket)
         for feature_name, value in features.items():
             if feature_name not in baseline_features:
-                baseline_features[feature_name] = {'values': []}
-            baseline_features[feature_name]['values'].append(value)
+                baseline_features[feature_name] = {"values": []}
+            baseline_features[feature_name]["values"].append(value)
 
-        target_values.append(ticket['actual_duration_ms'])
+        target_values.append(ticket["actual_duration_ms"])
 
     for feature_name, data in baseline_features.items():
-        values = np.array(data['values'])
+        values = np.array(data["values"])
         baseline_features[feature_name] = {
-            'values': values.tolist(),
-            'mean': float(np.mean(values)),
-            'std': float(np.std(values)),
-            'min': float(np.min(values)),
-            'max': float(np.max(values))
+            "values": values.tolist(),
+            "mean": float(np.mean(values)),
+            "std": float(np.std(values)),
+            "min": float(np.min(values)),
+            "max": float(np.max(values)),
         }
 
     baseline_doc = {
-        'timestamp': datetime.now(timezone.utc) - timedelta(days=30),
-        'model_name': 'duration-predictor',
-        'version': '1',
-        'features': baseline_features,
-        'target_distribution': {
-            'values': target_values,
-            'mean': float(np.mean(target_values)),
-            'std': float(np.std(target_values))
+        "timestamp": datetime.now(timezone.utc) - timedelta(days=30),
+        "model_name": "duration-predictor",
+        "version": "1",
+        "features": baseline_features,
+        "target_distribution": {
+            "values": target_values,
+            "mean": float(np.mean(target_values)),
+            "std": float(np.std(target_values)),
         },
-        'training_mae': 5000.0
+        "training_mae": 5000.0,
     }
 
     mongodb_client.ml_feature_baselines = Mock()
     mongodb_client.ml_feature_baselines.find_one = Mock(return_value=baseline_doc)
 
     detector = DriftDetector(
-        config=test_drift_config,
-        mongodb_client=mongodb_client,
-        metrics=mock_metrics
+        config=test_drift_config, mongodb_client=mongodb_client, metrics=mock_metrics
     )
 
     return detector
 
 
 @pytest_asyncio.fixture
-async def test_drift_detector_prediction_drift(test_drift_config, baseline_tickets, drifted_tickets, mock_metrics):
+async def test_drift_detector_prediction_drift(
+    test_drift_config, baseline_tickets, drifted_tickets, mock_metrics
+):
     """Drift detector with prediction drift (MAE ratio > 1.5)."""
     mongodb_client = Mock()
 
@@ -283,30 +284,30 @@ async def test_drift_detector_prediction_drift(test_drift_config, baseline_ticke
 
     # Baseline with low MAE
     baseline_doc = {
-        'timestamp': datetime.now(timezone.utc) - timedelta(days=30),
-        'features': {},
-        'target_distribution': {
-            'values': [t['actual_duration_ms'] for t in baseline_tickets],
-            'mean': 62000.0,
-            'std': 5000.0
+        "timestamp": datetime.now(timezone.utc) - timedelta(days=30),
+        "features": {},
+        "target_distribution": {
+            "values": [t["actual_duration_ms"] for t in baseline_tickets],
+            "mean": 62000.0,
+            "std": 5000.0,
         },
-        'training_mae': 5000.0  # Low baseline MAE
+        "training_mae": 5000.0,  # Low baseline MAE
     }
 
     mongodb_client.ml_feature_baselines = Mock()
     mongodb_client.ml_feature_baselines.find_one = Mock(return_value=baseline_doc)
 
     detector = DriftDetector(
-        config=test_drift_config,
-        mongodb_client=mongodb_client,
-        metrics=mock_metrics
+        config=test_drift_config, mongodb_client=mongodb_client, metrics=mock_metrics
     )
 
     return detector
 
 
 @pytest_asyncio.fixture
-async def test_drift_detector_target_drift(test_drift_config, baseline_tickets, drifted_tickets, mock_metrics):
+async def test_drift_detector_target_drift(
+    test_drift_config, baseline_tickets, drifted_tickets, mock_metrics
+):
     """Drift detector with target drift (K-S test p-value < 0.05)."""
     mongodb_client = Mock()
 
@@ -318,23 +319,21 @@ async def test_drift_detector_target_drift(test_drift_config, baseline_tickets, 
 
     # Baseline with different distribution
     baseline_doc = {
-        'timestamp': datetime.now(timezone.utc) - timedelta(days=30),
-        'features': {},
-        'target_distribution': {
-            'values': [t['actual_duration_ms'] for t in baseline_tickets],  # Mean ~62k
-            'mean': 62000.0,
-            'std': 5000.0
+        "timestamp": datetime.now(timezone.utc) - timedelta(days=30),
+        "features": {},
+        "target_distribution": {
+            "values": [t["actual_duration_ms"] for t in baseline_tickets],  # Mean ~62k
+            "mean": 62000.0,
+            "std": 5000.0,
         },
-        'training_mae': 5000.0
+        "training_mae": 5000.0,
     }
 
     mongodb_client.ml_feature_baselines = Mock()
     mongodb_client.ml_feature_baselines.find_one = Mock(return_value=baseline_doc)
 
     detector = DriftDetector(
-        config=test_drift_config,
-        mongodb_client=mongodb_client,
-        metrics=mock_metrics
+        config=test_drift_config, mongodb_client=mongodb_client, metrics=mock_metrics
     )
 
     return detector
@@ -343,6 +342,7 @@ async def test_drift_detector_target_drift(test_drift_config, baseline_tickets, 
 # =============================================================================
 # Test Cases
 # =============================================================================
+
 
 def test_feature_drift_no_drift(test_drift_detector_no_drift, mock_metrics):
     """
@@ -355,11 +355,11 @@ def test_feature_drift_no_drift(test_drift_detector_no_drift, mock_metrics):
     """
     report = test_drift_detector_no_drift.run_drift_check()
 
-    assert report['overall_status'] == 'ok'
+    assert report["overall_status"] == "ok"
 
     # Check feature drift
-    if 'feature_drift' in report and report['feature_drift']:
-        psi_scores = list(report['feature_drift'].values())
+    if "feature_drift" in report and report["feature_drift"]:
+        psi_scores = list(report["feature_drift"].values())
         # Most PSI should be low (< 0.1)
         low_psi_count = sum(1 for psi in psi_scores if psi < 0.1)
         assert low_psi_count >= len(psi_scores) * 0.8  # 80% below threshold
@@ -385,25 +385,29 @@ def test_feature_drift_detected(test_drift_detector_feature_drift, mock_metrics)
     report = test_drift_detector_feature_drift.run_drift_check()
 
     # Should detect drift (distribution changed significantly)
-    assert report['overall_status'] in ['warning', 'critical'], \
-        f"Expected 'warning' or 'critical' status, got '{report['overall_status']}'"
+    assert report["overall_status"] in [
+        "warning",
+        "critical",
+    ], f"Expected 'warning' or 'critical' status, got '{report['overall_status']}'"
 
     # Feature drift must be present and have at least one PSI > 0.25
-    assert 'feature_drift' in report, "Report should contain 'feature_drift'"
-    assert report['feature_drift'], "Feature drift should not be empty"
+    assert "feature_drift" in report, "Report should contain 'feature_drift'"
+    assert report["feature_drift"], "Feature drift should not be empty"
 
-    psi_scores = report['feature_drift']
+    psi_scores = report["feature_drift"]
     max_psi = max(psi_scores.values())
 
     # At least one feature must have PSI > 0.25 (the threshold)
-    assert max_psi > 0.25, \
-        f"Expected at least one feature with PSI > 0.25, max PSI was {max_psi:.4f}. " \
+    assert max_psi > 0.25, (
+        f"Expected at least one feature with PSI > 0.25, max PSI was {max_psi:.4f}. "
         f"PSI scores: {psi_scores}"
+    )
 
     # Identify features with significant drift
     drifted_features = {k: v for k, v in psi_scores.items() if v > 0.25}
-    assert len(drifted_features) >= 1, \
-        f"Expected at least 1 feature with PSI > 0.25, found {len(drifted_features)}"
+    assert (
+        len(drifted_features) >= 1
+    ), f"Expected at least 1 feature with PSI > 0.25, found {len(drifted_features)}"
 
     # Verify metrics recorded
     assert mock_metrics.record_drift_score.called or mock_metrics.update_drift_status.called
@@ -428,26 +432,29 @@ def test_prediction_drift_detected(test_drift_detector_prediction_drift, mock_me
     report = test_drift_detector_prediction_drift.run_drift_check()
 
     # Prediction drift must be present
-    assert 'prediction_drift' in report, "Report should contain 'prediction_drift'"
+    assert "prediction_drift" in report, "Report should contain 'prediction_drift'"
 
-    drift_data = report['prediction_drift']
+    drift_data = report["prediction_drift"]
 
     # drift_ratio must be present and >= 1.5 (the threshold)
-    assert 'drift_ratio' in drift_data, \
-        f"Prediction drift should contain 'drift_ratio'. Got: {drift_data}"
+    assert (
+        "drift_ratio" in drift_data
+    ), f"Prediction drift should contain 'drift_ratio'. Got: {drift_data}"
 
-    mae_ratio = drift_data['drift_ratio']
+    mae_ratio = drift_data["drift_ratio"]
 
     # MAE ratio must exceed threshold of 1.5
-    assert mae_ratio >= 1.5, \
-        f"Expected drift_ratio >= 1.5 (threshold), got {mae_ratio:.2f}. " \
-        f"Current MAE: {drift_data.get('mae_7d') or drift_data.get('mae_3d') or drift_data.get('mae_1d')}, " \
+    assert mae_ratio >= 1.5, (
+        f"Expected drift_ratio >= 1.5 (threshold), got {mae_ratio:.2f}. "
+        f"Current MAE: {drift_data.get('mae_7d') or drift_data.get('mae_3d') or drift_data.get('mae_1d')}, "
         f"Training MAE: {drift_data.get('mae_training')}"
+    )
 
     # Status should reflect critical degradation when MAE ratio > 1.5
-    assert report['overall_status'] in ['warning', 'critical'], \
-        f"Expected 'warning' or 'critical' status with drift_ratio={mae_ratio:.2f}, " \
+    assert report["overall_status"] in ["warning", "critical"], (
+        f"Expected 'warning' or 'critical' status with drift_ratio={mae_ratio:.2f}, "
         f"got '{report['overall_status']}'"
+    )
 
 
 def test_target_drift_detected(test_drift_detector_target_drift, mock_metrics):
@@ -468,36 +475,38 @@ def test_target_drift_detected(test_drift_detector_target_drift, mock_metrics):
     report = test_drift_detector_target_drift.run_drift_check()
 
     # Target drift must be present
-    assert 'target_drift' in report, "Report should contain 'target_drift'"
+    assert "target_drift" in report, "Report should contain 'target_drift'"
 
-    target_data = report['target_drift']
+    target_data = report["target_drift"]
 
     # p_value must be present
-    assert 'p_value' in target_data, \
-        f"Target drift should contain 'p_value'. Got: {target_data}"
+    assert "p_value" in target_data, f"Target drift should contain 'p_value'. Got: {target_data}"
 
-    p_value = target_data['p_value']
+    p_value = target_data["p_value"]
 
     # p-value must be < 0.05 (the threshold) to indicate significant difference
-    assert p_value < 0.05, \
-        f"Expected p_value < 0.05 (threshold), got {p_value:.6f}. " \
-        f"This indicates the K-S test did not detect significant distribution difference. " \
+    assert p_value < 0.05, (
+        f"Expected p_value < 0.05 (threshold), got {p_value:.6f}. "
+        f"This indicates the K-S test did not detect significant distribution difference. "
         f"Baseline mean: {target_data.get('baseline_mean')}, Recent mean: {target_data.get('recent_mean')}"
+    )
 
     # Verify p_value is valid
     assert 0 <= p_value <= 1, f"p_value should be between 0 and 1, got {p_value}"
 
     # mean_shift_pct must be present and significant
-    assert 'mean_shift_pct' in target_data, \
-        f"Target drift should contain 'mean_shift_pct'. Got: {target_data}"
+    assert (
+        "mean_shift_pct" in target_data
+    ), f"Target drift should contain 'mean_shift_pct'. Got: {target_data}"
 
-    mean_shift = target_data['mean_shift_pct']
+    mean_shift = target_data["mean_shift_pct"]
     assert mean_shift is not None, "mean_shift_pct should not be None"
 
     # With baseline ~62k and drifted ~120k, expect ~93% shift
     # Allow some tolerance but it should be substantial (> 50%)
-    assert mean_shift > 50, \
-        f"Expected mean_shift_pct > 50% (baseline ~62k → drifted ~120k), got {mean_shift:.1f}%"
+    assert (
+        mean_shift > 50
+    ), f"Expected mean_shift_pct > 50% (baseline ~62k → drifted ~120k), got {mean_shift:.1f}%"
 
 
 def test_run_drift_check_mixed_scenario(test_drift_detector_feature_drift, mock_metrics):
@@ -512,14 +521,14 @@ def test_run_drift_check_mixed_scenario(test_drift_detector_feature_drift, mock_
     report = test_drift_detector_feature_drift.run_drift_check()
 
     # Verify report structure
-    assert 'timestamp' in report
-    assert 'window_days' in report
-    assert 'overall_status' in report
-    assert report['overall_status'] in ['ok', 'warning', 'critical']
+    assert "timestamp" in report
+    assert "window_days" in report
+    assert "overall_status" in report
+    assert report["overall_status"] in ["ok", "warning", "critical"]
 
     # Verify recommendations
-    assert 'recommendations' in report
-    assert isinstance(report['recommendations'], list)
+    assert "recommendations" in report
+    assert isinstance(report["recommendations"], list)
 
 
 def test_missing_baseline(test_drift_config, mock_metrics):
@@ -544,9 +553,7 @@ def test_missing_baseline(test_drift_config, mock_metrics):
     mongodb_client.ml_feature_baselines.find_one = Mock(return_value=None)
 
     detector = DriftDetector(
-        config=test_drift_config,
-        mongodb_client=mongodb_client,
-        metrics=mock_metrics
+        config=test_drift_config, mongodb_client=mongodb_client, metrics=mock_metrics
     )
 
     # Should not raise
@@ -554,7 +561,7 @@ def test_missing_baseline(test_drift_config, mock_metrics):
 
     # Should return gracefully
     assert report is not None
-    assert 'overall_status' in report
+    assert "overall_status" in report
 
 
 def test_metrics_recorded(test_drift_detector_no_drift, mock_metrics):
@@ -579,9 +586,9 @@ def test_metrics_recorded(test_drift_detector_no_drift, mock_metrics):
     for call in calls:
         args, kwargs = call
         # Should have model_name, drift_type, status
-        assert 'model_name' in kwargs or len(args) >= 1
-        assert 'drift_type' in kwargs or len(args) >= 2
-        assert 'status' in kwargs or len(args) >= 3
+        assert "model_name" in kwargs or len(args) >= 1
+        assert "drift_type" in kwargs or len(args) >= 2
+        assert "status" in kwargs or len(args) >= 3
 
 
 def test_save_feature_baseline(test_drift_config, mock_metrics):
@@ -604,19 +611,17 @@ def test_save_feature_baseline(test_drift_config, mock_metrics):
 
     # Create detector
     detector = DriftDetector(
-        config=test_drift_config,
-        mongodb_client=mock_mongodb_client,
-        metrics=mock_metrics
+        config=test_drift_config, mongodb_client=mock_mongodb_client, metrics=mock_metrics
     )
 
     # Prepare test data (100 samples)
     features_data = [
         {
-            'risk_weight': 0.5 + (i % 10) * 0.05,
-            'capabilities_count': 2 + (i % 5),
-            'parameters_count': i % 8,
-            'qos_delivery_mode': 1.0,
-            'qos_consistency': 0.8
+            "risk_weight": 0.5 + (i % 10) * 0.05,
+            "capabilities_count": 2 + (i % 5),
+            "parameters_count": i % 8,
+            "qos_delivery_mode": 1.0,
+            "qos_consistency": 0.8,
         }
         for i in range(100)
     ]
@@ -629,8 +634,8 @@ def test_save_feature_baseline(test_drift_config, mock_metrics):
         features_data=features_data,
         target_values=target_values,
         training_mae=training_mae,
-        model_name='duration-predictor',
-        version='v1.0'
+        model_name="duration-predictor",
+        version="v1.0",
     )
 
     # Verify insert_one was called
@@ -640,55 +645,55 @@ def test_save_feature_baseline(test_drift_config, mock_metrics):
     call_args = mock_mongodb_client.ml_feature_baselines.insert_one.call_args[0][0]
 
     # Verify required fields exist
-    assert 'features' in call_args, "Document should contain 'features'"
-    assert 'target_distribution' in call_args, "Document should contain 'target_distribution'"
-    assert 'training_mae' in call_args, "Document should contain 'training_mae'"
-    assert 'timestamp' in call_args, "Document should contain 'timestamp'"
-    assert 'model_name' in call_args, "Document should contain 'model_name'"
-    assert 'version' in call_args, "Document should contain 'version'"
-    assert 'sample_count' in call_args, "Document should contain 'sample_count'"
+    assert "features" in call_args, "Document should contain 'features'"
+    assert "target_distribution" in call_args, "Document should contain 'target_distribution'"
+    assert "training_mae" in call_args, "Document should contain 'training_mae'"
+    assert "timestamp" in call_args, "Document should contain 'timestamp'"
+    assert "model_name" in call_args, "Document should contain 'model_name'"
+    assert "version" in call_args, "Document should contain 'version'"
+    assert "sample_count" in call_args, "Document should contain 'sample_count'"
 
     # Verify training_mae value
-    assert call_args['training_mae'] == training_mae
+    assert call_args["training_mae"] == training_mae
 
     # Verify model metadata
-    assert call_args['model_name'] == 'duration-predictor'
-    assert call_args['version'] == 'v1.0'
-    assert call_args['sample_count'] == 100
+    assert call_args["model_name"] == "duration-predictor"
+    assert call_args["version"] == "v1.0"
+    assert call_args["sample_count"] == 100
 
     # Verify features structure
-    features = call_args['features']
-    assert 'risk_weight' in features, "Features should contain 'risk_weight'"
-    assert 'capabilities_count' in features, "Features should contain 'capabilities_count'"
+    features = call_args["features"]
+    assert "risk_weight" in features, "Features should contain 'risk_weight'"
+    assert "capabilities_count" in features, "Features should contain 'capabilities_count'"
 
     # Verify feature has correct structure
-    risk_weight_feature = features['risk_weight']
-    assert 'values' in risk_weight_feature, "Feature should have 'values'"
-    assert 'mean' in risk_weight_feature, "Feature should have 'mean'"
-    assert 'std' in risk_weight_feature, "Feature should have 'std'"
-    assert 'min' in risk_weight_feature, "Feature should have 'min'"
-    assert 'max' in risk_weight_feature, "Feature should have 'max'"
+    risk_weight_feature = features["risk_weight"]
+    assert "values" in risk_weight_feature, "Feature should have 'values'"
+    assert "mean" in risk_weight_feature, "Feature should have 'mean'"
+    assert "std" in risk_weight_feature, "Feature should have 'std'"
+    assert "min" in risk_weight_feature, "Feature should have 'min'"
+    assert "max" in risk_weight_feature, "Feature should have 'max'"
 
     # Verify values are numeric
-    assert isinstance(risk_weight_feature['mean'], float)
-    assert isinstance(risk_weight_feature['std'], float)
-    assert len(risk_weight_feature['values']) == 100
+    assert isinstance(risk_weight_feature["mean"], float)
+    assert isinstance(risk_weight_feature["std"], float)
+    assert len(risk_weight_feature["values"]) == 100
 
     # Verify target distribution
-    target_dist = call_args['target_distribution']
-    assert 'values' in target_dist, "Target should have 'values'"
-    assert 'mean' in target_dist, "Target should have 'mean'"
-    assert 'std' in target_dist, "Target should have 'std'"
-    assert 'percentiles' in target_dist, "Target should have 'percentiles'"
+    target_dist = call_args["target_distribution"]
+    assert "values" in target_dist, "Target should have 'values'"
+    assert "mean" in target_dist, "Target should have 'mean'"
+    assert "std" in target_dist, "Target should have 'std'"
+    assert "percentiles" in target_dist, "Target should have 'percentiles'"
 
     # Verify percentiles structure
-    percentiles = target_dist['percentiles']
-    assert 'p50' in percentiles, "Percentiles should have 'p50'"
-    assert 'p95' in percentiles, "Percentiles should have 'p95'"
-    assert 'p99' in percentiles, "Percentiles should have 'p99'"
+    percentiles = target_dist["percentiles"]
+    assert "p50" in percentiles, "Percentiles should have 'p50'"
+    assert "p95" in percentiles, "Percentiles should have 'p95'"
+    assert "p99" in percentiles, "Percentiles should have 'p99'"
 
     # Verify percentile values are in expected order
-    assert percentiles['p50'] <= percentiles['p95'] <= percentiles['p99']
+    assert percentiles["p50"] <= percentiles["p95"] <= percentiles["p99"]
 
 
 def test_save_feature_baseline_empty_data(test_drift_config, mock_metrics):
@@ -708,17 +713,11 @@ def test_save_feature_baseline_empty_data(test_drift_config, mock_metrics):
 
     # Create detector
     detector = DriftDetector(
-        config=test_drift_config,
-        mongodb_client=mock_mongodb_client,
-        metrics=mock_metrics
+        config=test_drift_config, mongodb_client=mock_mongodb_client, metrics=mock_metrics
     )
 
     # Execute with empty data
-    detector.save_feature_baseline(
-        features_data=[],
-        target_values=[],
-        training_mae=5000.0
-    )
+    detector.save_feature_baseline(features_data=[], target_values=[], training_mae=5000.0)
 
     # Verify insert_one was NOT called (graceful handling)
     mock_mongodb_client.ml_feature_baselines.insert_one.assert_not_called()

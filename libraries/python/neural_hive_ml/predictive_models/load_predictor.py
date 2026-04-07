@@ -24,7 +24,7 @@ class LoadPredictor(BasePredictor):
         model_registry: Optional[Any] = None,
         metrics: Optional[Any] = None,
         redis_client: Optional[Any] = None,
-        data_source: Optional[Any] = None
+        data_source: Optional[Any] = None,
     ):
         """
         Inicializa o preditor de carga.
@@ -42,10 +42,10 @@ class LoadPredictor(BasePredictor):
         """
         super().__init__(config, model_registry, metrics)
 
-        self.forecast_horizons = config.get('forecast_horizons', [60, 360, 1440])
-        self.seasonality_mode = config.get('seasonality_mode', 'additive')
-        self.cache_ttl = config.get('cache_ttl_seconds', 300)
-        self.use_synthetic_data = config.get('use_synthetic_data', False)
+        self.forecast_horizons = config.get("forecast_horizons", [60, 360, 1440])
+        self.seasonality_mode = config.get("seasonality_mode", "additive")
+        self.cache_ttl = config.get("cache_ttl_seconds", 300)
+        self.use_synthetic_data = config.get("use_synthetic_data", False)
         self.redis_client = redis_client
         self.data_source = data_source
 
@@ -73,9 +73,7 @@ class LoadPredictor(BasePredictor):
             logger.error(f"Erro ao inicializar LoadPredictor: {e}")
 
     async def predict_load(
-        self,
-        horizon_minutes: int,
-        include_confidence: bool = True
+        self, horizon_minutes: int, include_confidence: bool = True
     ) -> Dict[str, Any]:
         """
         Gera previsão de carga para horizonte especificado.
@@ -103,15 +101,11 @@ class LoadPredictor(BasePredictor):
             if horizon_minutes not in self.prophet_models:
                 # Fallback para ARIMA
                 logger.warning(
-                    f"Modelo Prophet não disponível para {horizon_minutes}m, "
-                    "usando ARIMA"
+                    f"Modelo Prophet não disponível para {horizon_minutes}m, " "usando ARIMA"
                 )
                 result = await self._predict_with_arima(horizon_minutes)
             else:
-                result = await self._predict_with_prophet(
-                    horizon_minutes,
-                    include_confidence
-                )
+                result = await self._predict_with_prophet(horizon_minutes, include_confidence)
 
             # Salva no cache
             if self.redis_client:
@@ -121,13 +115,13 @@ class LoadPredictor(BasePredictor):
 
             # Registra métricas com latência real
             # Usa latência específica do modelo se disponível, senão calcula total
-            model_latency = result.get('latency_seconds', time.time() - start_time)
+            model_latency = result.get("latency_seconds", time.time() - start_time)
             if self.metrics:
                 await self.metrics.record_load_forecast(
                     horizon_minutes=horizon_minutes,
                     status="success",
                     latency=model_latency,
-                    mape=result.get('mape', 0.0)
+                    mape=result.get("mape", 0.0),
                 )
 
             return result
@@ -140,18 +134,11 @@ class LoadPredictor(BasePredictor):
                     horizon_minutes=horizon_minutes,
                     status="error",
                     latency=latency_seconds,
-                    mape=100.0
+                    mape=100.0,
                 )
-            return {
-                "forecast": [],
-                "timestamps": [],
-                "error": str(e)
-            }
+            return {"forecast": [], "timestamps": [], "error": str(e)}
 
-    async def predict_bottlenecks(
-        self,
-        horizon_minutes: int = 360
-    ) -> List[Dict[str, Any]]:
+    async def predict_bottlenecks(self, horizon_minutes: int = 360) -> List[Dict[str, Any]]:
         """
         Identifica potenciais bottlenecks futuros.
 
@@ -164,35 +151,33 @@ class LoadPredictor(BasePredictor):
         try:
             forecast = await self.predict_load(horizon_minutes)
 
-            if 'error' in forecast:
+            if "error" in forecast:
                 return []
 
             bottlenecks = []
-            load_values = forecast.get('forecast', [])
-            timestamps = forecast.get('timestamps', [])
+            load_values = forecast.get("forecast", [])
+            timestamps = forecast.get("timestamps", [])
 
             # Define threshold para bottleneck (80% da capacidade)
             capacity_threshold = 0.8
 
             for i, (load, ts) in enumerate(zip(load_values, timestamps)):
                 if load > capacity_threshold:
-                    severity = 'HIGH' if load > 0.9 else 'MEDIUM'
+                    severity = "HIGH" if load > 0.9 else "MEDIUM"
 
                     bottleneck = {
-                        'timestamp': ts,
-                        'predicted_load': load,
-                        'severity': severity,
-                        'type': 'worker_saturation',
-                        'minutes_ahead': int((i / len(load_values)) * horizon_minutes)
+                        "timestamp": ts,
+                        "predicted_load": load,
+                        "severity": severity,
+                        "type": "worker_saturation",
+                        "minutes_ahead": int((i / len(load_values)) * horizon_minutes),
                     }
                     bottlenecks.append(bottleneck)
 
                     # Registra métrica
                     if self.metrics:
                         await self.metrics.record_bottleneck_prediction(
-                            bottleneck_type='worker_saturation',
-                            severity=severity,
-                            timestamp=ts
+                            bottleneck_type="worker_saturation", severity=severity, timestamp=ts
                         )
 
             logger.info(f"Identificados {len(bottlenecks)} bottlenecks potenciais")
@@ -203,9 +188,7 @@ class LoadPredictor(BasePredictor):
             return []
 
     async def train_model(
-        self,
-        training_window_days: int = 540,
-        training_data: Optional[List[Dict[str, Any]]] = None
+        self, training_window_days: int = 540, training_data: Optional[List[Dict[str, Any]]] = None
     ) -> Dict[str, Any]:
         """
         Treina modelos Prophet para todos os horizontes.
@@ -246,22 +229,18 @@ class LoadPredictor(BasePredictor):
                     weekly_seasonality=True,
                     yearly_seasonality=True,
                     changepoint_prior_scale=0.05,
-                    interval_width=0.95
+                    interval_width=0.95,
                 )
 
                 # Adiciona sazonalidade horária
-                model.add_seasonality(
-                    name='hourly',
-                    period=1/24,
-                    fourier_order=8
-                )
+                model.add_seasonality(name="hourly", period=1 / 24, fourier_order=8)
 
                 # Treina
                 model.fit(df)
 
                 # Avalia
                 metrics = self._evaluate_forecast(model, df, horizon)
-                all_metrics[f'{horizon}m'] = metrics
+                all_metrics[f"{horizon}m"] = metrics
 
                 # Salva no registry
                 model_name = f"load-predictor-{horizon}m"
@@ -270,11 +249,11 @@ class LoadPredictor(BasePredictor):
                     model_name=model_name,
                     metrics=metrics,
                     params={
-                        'seasonality_mode': self.seasonality_mode,
-                        'training_window_days': training_window_days,
-                        'horizon_minutes': horizon
+                        "seasonality_mode": self.seasonality_mode,
+                        "training_window_days": training_window_days,
+                        "horizon_minutes": horizon,
                     },
-                    tags={'horizon': f'{horizon}m'}
+                    tags={"horizon": f"{horizon}m"},
                 )
 
                 self.prophet_models[horizon] = model
@@ -294,10 +273,7 @@ class LoadPredictor(BasePredictor):
         """
         return np.array([])
 
-    def _prepare_timeseries_data(
-        self,
-        historical_data: List[Dict[str, Any]]
-    ) -> pd.DataFrame:
+    def _prepare_timeseries_data(self, historical_data: List[Dict[str, Any]]) -> pd.DataFrame:
         """
         Converte dados históricos para formato Prophet (ds, y).
 
@@ -309,13 +285,10 @@ class LoadPredictor(BasePredictor):
         """
         records = []
         for record in historical_data:
-            records.append({
-                'ds': pd.to_datetime(record['timestamp']),
-                'y': float(record['load'])
-            })
+            records.append({"ds": pd.to_datetime(record["timestamp"]), "y": float(record["load"])})
 
         df = pd.DataFrame(records)
-        df = df.sort_values('ds')
+        df = df.sort_values("ds")
         return df
 
     def _backfill_missing_data(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -328,16 +301,14 @@ class LoadPredictor(BasePredictor):
         Returns:
             DataFrame com gaps preenchidos
         """
-        df = df.set_index('ds')
-        df = df.asfreq('5T')  # 5 minutos
-        df['y'] = df['y'].interpolate(method='linear')
+        df = df.set_index("ds")
+        df = df.asfreq("5T")  # 5 minutos
+        df["y"] = df["y"].interpolate(method="linear")
         df = df.reset_index()
         return df
 
     async def _predict_with_prophet(
-        self,
-        horizon_minutes: int,
-        include_confidence: bool
+        self, horizon_minutes: int, include_confidence: bool
     ) -> Dict[str, Any]:
         """Gera forecast usando Prophet."""
         start_time = time.time()
@@ -345,10 +316,7 @@ class LoadPredictor(BasePredictor):
         model = self.prophet_models[horizon_minutes]
 
         # Cria dataframe de datas futuras
-        future = model.make_future_dataframe(
-            periods=horizon_minutes,
-            freq='T'  # Minutely
-        )
+        future = model.make_future_dataframe(periods=horizon_minutes, freq="T")  # Minutely
 
         # Gera forecast
         forecast = model.predict(future)
@@ -359,23 +327,20 @@ class LoadPredictor(BasePredictor):
         latency_seconds = time.time() - start_time
 
         result = {
-            'forecast': forecast['yhat'].tolist(),
-            'timestamps': forecast['ds'].dt.strftime('%Y-%m-%dT%H:%M:%S').tolist(),
-            'model_type': 'prophet',
-            'horizon_minutes': horizon_minutes,
-            'latency_seconds': latency_seconds
+            "forecast": forecast["yhat"].tolist(),
+            "timestamps": forecast["ds"].dt.strftime("%Y-%m-%dT%H:%M:%S").tolist(),
+            "model_type": "prophet",
+            "horizon_minutes": horizon_minutes,
+            "latency_seconds": latency_seconds,
         }
 
         if include_confidence:
-            result['confidence_lower'] = forecast['yhat_lower'].tolist()
-            result['confidence_upper'] = forecast['yhat_upper'].tolist()
+            result["confidence_lower"] = forecast["yhat_lower"].tolist()
+            result["confidence_upper"] = forecast["yhat_upper"].tolist()
 
         return result
 
-    async def _predict_with_arima(
-        self,
-        horizon_minutes: int
-    ) -> Dict[str, Any]:
+    async def _predict_with_arima(self, horizon_minutes: int) -> Dict[str, Any]:
         """Fallback usando ARIMA."""
         start_time = time.time()
         try:
@@ -385,23 +350,24 @@ class LoadPredictor(BasePredictor):
 
             # Auto ARIMA
             model = pm.auto_arima(
-                df['y'],
-                start_p=1, start_q=1,
-                max_p=3, max_q=3,
+                df["y"],
+                start_p=1,
+                start_q=1,
+                max_p=3,
+                max_q=3,
                 seasonal=False,
                 stepwise=True,
                 suppress_warnings=True,
-                error_action='ignore'
+                error_action="ignore",
             )
 
             # Previsão
             forecast_values, conf_int = model.predict(
-                n_periods=horizon_minutes,
-                return_conf_int=True
+                n_periods=horizon_minutes, return_conf_int=True
             )
 
             # Gera timestamps futuros
-            last_timestamp = df['ds'].max()
+            last_timestamp = df["ds"].max()
             timestamps = [
                 (last_timestamp + timedelta(minutes=i)).isoformat()
                 for i in range(1, horizon_minutes + 1)
@@ -410,30 +376,27 @@ class LoadPredictor(BasePredictor):
             latency_seconds = time.time() - start_time
 
             return {
-                'forecast': forecast_values.tolist(),
-                'timestamps': timestamps,
-                'model_type': 'arima',
-                'horizon_minutes': horizon_minutes,
-                'confidence_lower': conf_int[:, 0].tolist(),
-                'confidence_upper': conf_int[:, 1].tolist(),
-                'latency_seconds': latency_seconds
+                "forecast": forecast_values.tolist(),
+                "timestamps": timestamps,
+                "model_type": "arima",
+                "horizon_minutes": horizon_minutes,
+                "confidence_lower": conf_int[:, 0].tolist(),
+                "confidence_upper": conf_int[:, 1].tolist(),
+                "latency_seconds": latency_seconds,
             }
 
         except Exception as e:
             latency_seconds = time.time() - start_time
             logger.error(f"Erro em ARIMA fallback: {e}")
             return {
-                'forecast': [],
-                'timestamps': [],
-                'error': str(e),
-                'latency_seconds': latency_seconds
+                "forecast": [],
+                "timestamps": [],
+                "error": str(e),
+                "latency_seconds": latency_seconds,
             }
 
     def _evaluate_forecast(
-        self,
-        model: Prophet,
-        df: pd.DataFrame,
-        horizon_minutes: int
+        self, model: Prophet, df: pd.DataFrame, horizon_minutes: int
     ) -> Dict[str, float]:
         """
         Avalia acurácia do forecast usando validação cruzada.
@@ -459,24 +422,21 @@ class LoadPredictor(BasePredictor):
         # Cross-validation com unidades consistentes (dias)
         df_cv = cross_validation(
             model,
-            initial=f'{initial_days} days',
-            period=f'{period_days} days',
-            horizon=f'{horizon_days} days'
+            initial=f"{initial_days} days",
+            period=f"{period_days} days",
+            horizon=f"{horizon_days} days",
         )
 
         # Calcula métricas
         df_p = performance_metrics(df_cv)
 
         return {
-            'mae': float(df_p['mae'].mean()),
-            'mape': float(df_p['mape'].mean()),
-            'rmse': float(df_p['rmse'].mean())
+            "mae": float(df_p["mae"].mean()),
+            "mape": float(df_p["mape"].mean()),
+            "rmse": float(df_p["rmse"].mean()),
         }
 
-    async def _load_historical_data(
-        self,
-        days: int
-    ) -> List[Dict[str, Any]]:
+    async def _load_historical_data(self, days: int) -> List[Dict[str, Any]]:
         """
         Carrega dados históricos de carga de banco de dados ou gera dados sintéticos.
 
@@ -502,7 +462,7 @@ class LoadPredictor(BasePredictor):
             start_time = end_time - timedelta(days=days)
 
             # Query dados - Suporta ClickHouse ou MongoDB
-            if hasattr(self.data_source, 'query'):  # ClickHouse client
+            if hasattr(self.data_source, "query"):  # ClickHouse client
                 query = f"""
                     SELECT
                         toStartOfInterval(timestamp, INTERVAL 5 MINUTE) as time_bucket,
@@ -518,56 +478,54 @@ class LoadPredictor(BasePredictor):
                 """
 
                 result = await self.data_source.query(
-                    query,
-                    parameters={'start_time': start_time, 'end_time': end_time}
+                    query, parameters={"start_time": start_time, "end_time": end_time}
                 )
 
                 data = [
                     {
-                        'timestamp': row['time_bucket'].isoformat(),
-                        'load': float(row['ticket_count'])  # Carga = nº de tickets
+                        "timestamp": row["time_bucket"].isoformat(),
+                        "load": float(row["ticket_count"]),  # Carga = nº de tickets
                     }
                     for row in result
                 ]
 
-            elif hasattr(self.data_source, 'find'):  # MongoDB client
+            elif hasattr(self.data_source, "find"):  # MongoDB client
                 # Agregar tickets por janelas de 5 minutos
                 pipeline = [
                     {
-                        '$match': {
-                            'completed_at': {
-                                '$gte': start_time.timestamp(),
-                                '$lt': end_time.timestamp()
+                        "$match": {
+                            "completed_at": {
+                                "$gte": start_time.timestamp(),
+                                "$lt": end_time.timestamp(),
                             },
-                            'status': 'COMPLETED'
+                            "status": "COMPLETED",
                         }
                     },
                     {
-                        '$group': {
-                            '_id': {
-                                '$subtract': [
-                                    {'$toLong': {'$multiply': ['$completed_at', 1000]}},
-                                    {'$mod': [
-                                        {'$toLong': {'$multiply': ['$completed_at', 1000]}},
-                                        300000  # 5 minutos em ms
-                                    ]}
+                        "$group": {
+                            "_id": {
+                                "$subtract": [
+                                    {"$toLong": {"$multiply": ["$completed_at", 1000]}},
+                                    {
+                                        "$mod": [
+                                            {"$toLong": {"$multiply": ["$completed_at", 1000]}},
+                                            300000,  # 5 minutos em ms
+                                        ]
+                                    },
                                 ]
                             },
-                            'count': {'$sum': 1},
-                            'avg_duration': {'$avg': '$actual_duration_ms'}
+                            "count": {"$sum": 1},
+                            "avg_duration": {"$avg": "$actual_duration_ms"},
                         }
                     },
-                    {'$sort': {'_id': 1}}
+                    {"$sort": {"_id": 1}},
                 ]
 
                 cursor = self.data_source.execution_tickets.aggregate(pipeline)
                 data = []
                 async for doc in cursor:
-                    timestamp = datetime.fromtimestamp(doc['_id'] / 1000)
-                    data.append({
-                        'timestamp': timestamp.isoformat(),
-                        'load': float(doc['count'])
-                    })
+                    timestamp = datetime.fromtimestamp(doc["_id"] / 1000)
+                    data.append({"timestamp": timestamp.isoformat(), "load": float(doc["count"])})
 
             else:
                 logger.error(
@@ -577,7 +535,9 @@ class LoadPredictor(BasePredictor):
                 return self._generate_synthetic_data(days)
 
             if not data:
-                logger.warning(f"Nenhum dado encontrado para os últimos {days} dias, usando sintético")
+                logger.warning(
+                    f"Nenhum dado encontrado para os últimos {days} dias, usando sintético"
+                )
                 return self._generate_synthetic_data(days)
 
             logger.info(f"Carregados {len(data)} registros de carga dos últimos {days} dias")
@@ -608,10 +568,12 @@ class LoadPredictor(BasePredictor):
             daily_pattern = 30 * np.sin((hour - 6) * np.pi / 12)
             noise = np.random.normal(0, 5)
 
-            data.append({
-                'timestamp': timestamp.isoformat(),
-                'load': max(0, base_load + daily_pattern + noise)
-            })
+            data.append(
+                {
+                    "timestamp": timestamp.isoformat(),
+                    "load": max(0, base_load + daily_pattern + noise),
+                }
+            )
 
         return data
 
@@ -622,6 +584,7 @@ class LoadPredictor(BasePredictor):
 
         try:
             import json
+
             cached = await self.redis_client.get(key)
             if cached:
                 return json.loads(cached)
@@ -630,21 +593,14 @@ class LoadPredictor(BasePredictor):
 
         return None
 
-    async def _save_to_cache(
-        self,
-        key: str,
-        data: Dict[str, Any]
-    ) -> None:
+    async def _save_to_cache(self, key: str, data: Dict[str, Any]) -> None:
         """Salva forecast no cache Redis."""
         if not self.redis_client:
             return
 
         try:
             import json
-            await self.redis_client.setex(
-                key,
-                self.cache_ttl,
-                json.dumps(data)
-            )
+
+            await self.redis_client.setex(key, self.cache_ttl, json.dumps(data))
         except Exception as e:
             logger.error(f"Erro ao salvar cache: {e}")

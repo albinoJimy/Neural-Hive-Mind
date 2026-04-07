@@ -36,10 +36,9 @@ def mock_settings():
 def mock_load_predictor():
     """Mock do LoadPredictor."""
     predictor = AsyncMock()
-    predictor.predict_load = AsyncMock(return_value={
-        'forecast': [100, 110, 105, 120],
-        'confidence': 0.9
-    })
+    predictor.predict_load = AsyncMock(
+        return_value={"forecast": [100, 110, 105, 120], "confidence": 0.9}
+    )
     return predictor
 
 
@@ -74,7 +73,7 @@ def optimization_engine(mock_settings, mock_load_predictor, mock_mongodb_client,
         settings=mock_settings,
         load_predictor=mock_load_predictor,
         mongodb_client=mock_mongodb_client,
-        redis_client=mock_redis_client
+        redis_client=mock_redis_client,
     )
 
 
@@ -90,23 +89,25 @@ def sample_insight():
             "error_rate": 0.01,
             "slo_compliance": 0.95,
             "divergence": 0.15,
-            "confidence": 0.85
+            "confidence": 0.85,
         },
         "related_entities": [{"entity_id": "consensus-engine"}],
-        "correlation_id": "corr-001"
+        "correlation_id": "corr-001",
     }
 
 
 class TestOptimizationEngineInitialization:
     """Testes de inicialização do OptimizationEngine."""
 
-    def test_initialization_with_all_params(self, mock_settings, mock_load_predictor, mock_mongodb_client, mock_redis_client):
+    def test_initialization_with_all_params(
+        self, mock_settings, mock_load_predictor, mock_mongodb_client, mock_redis_client
+    ):
         """Testa inicialização com todos os parâmetros."""
         engine = OptimizationEngine(
             settings=mock_settings,
             load_predictor=mock_load_predictor,
             mongodb_client=mock_mongodb_client,
-            redis_client=mock_redis_client
+            redis_client=mock_redis_client,
         )
 
         assert engine.settings == mock_settings
@@ -119,7 +120,7 @@ class TestOptimizationEngineInitialization:
 
     def test_initialization_default_settings(self):
         """Testa inicialização com settings padrão."""
-        with patch('src.services.optimization_engine.get_settings') as mock_get_settings:
+        with patch("src.services.optimization_engine.get_settings") as mock_get_settings:
             mock_settings = Mock()
             mock_settings.learning_rate = 0.1
             mock_settings.exploration_rate = 0.2
@@ -151,9 +152,11 @@ class TestAnalyzeOpportunity:
         assert result == []
 
     @pytest.mark.asyncio
-    async def test_analyze_opportunity_generates_hypotheses(self, optimization_engine, sample_insight):
+    async def test_analyze_opportunity_generates_hypotheses(
+        self, optimization_engine, sample_insight
+    ):
         """Testa geração de hipóteses."""
-        with patch.object(optimization_engine, 'generate_hypothesis') as mock_generate:
+        with patch.object(optimization_engine, "generate_hypothesis") as mock_generate:
             mock_hypothesis = Mock(spec=OptimizationHypothesis)
             mock_hypothesis.validate_feasibility.return_value = True
             mock_hypothesis.optimization_type = OptimizationType.WEIGHT_RECALIBRATION
@@ -165,9 +168,11 @@ class TestAnalyzeOpportunity:
             assert mock_generate.call_count >= 0
 
     @pytest.mark.asyncio
-    async def test_analyze_opportunity_filters_infeasible_hypotheses(self, optimization_engine, sample_insight):
+    async def test_analyze_opportunity_filters_infeasible_hypotheses(
+        self, optimization_engine, sample_insight
+    ):
         """Testa filtragem de hipóteses inviáveis."""
-        with patch.object(optimization_engine, 'generate_hypothesis') as mock_generate:
+        with patch.object(optimization_engine, "generate_hypothesis") as mock_generate:
             mock_hypothesis = Mock(spec=OptimizationHypothesis)
             mock_hypothesis.validate_feasibility.return_value = False
             mock_generate.return_value = mock_hypothesis
@@ -181,7 +186,7 @@ class TestAnalyzeOpportunity:
         """Testa ações para insights operacionais."""
         sample_insight["insight_type"] = "OPERATIONAL_ANOMALY"
 
-        with patch.object(optimization_engine, 'generate_hypothesis') as mock_generate:
+        with patch.object(optimization_engine, "generate_hypothesis") as mock_generate:
             mock_hypothesis = Mock(spec=OptimizationHypothesis)
             mock_hypothesis.validate_feasibility.return_value = True
             mock_hypothesis.optimization_type = OptimizationType.WEIGHT_RECALIBRATION
@@ -197,7 +202,7 @@ class TestAnalyzeOpportunity:
         """Testa ações para insights estratégicos."""
         sample_insight["insight_type"] = "STRATEGIC"
 
-        with patch.object(optimization_engine, 'generate_hypothesis') as mock_generate:
+        with patch.object(optimization_engine, "generate_hypothesis") as mock_generate:
             mock_hypothesis = Mock(spec=OptimizationHypothesis)
             mock_hypothesis.validate_feasibility.return_value = True
             mock_hypothesis.optimization_type = OptimizationType.POLICY_CHANGE
@@ -212,7 +217,9 @@ class TestAnalyzeOpportunity:
 class TestGenerateHypothesis:
     """Testes de geração de hipóteses."""
 
-    def test_generate_hypothesis_creates_valid_hypothesis(self, optimization_engine, sample_insight):
+    def test_generate_hypothesis_creates_valid_hypothesis(
+        self, optimization_engine, sample_insight
+    ):
         """Testa criação de hipótese válida."""
         state = {"latency_p95": 200.0, "error_rate": 0.01}
         action = OptimizationType.WEIGHT_RECALIBRATION
@@ -220,14 +227,18 @@ class TestGenerateHypothesis:
         metrics = sample_insight["metrics"]
         context = sample_insight
 
-        hypothesis = optimization_engine.generate_hypothesis(state, action, component, metrics, context)
+        hypothesis = optimization_engine.generate_hypothesis(
+            state, action, component, metrics, context
+        )
 
         assert hypothesis is not None
         assert hypothesis.target_component == component
         assert hypothesis.optimization_type == action
         assert hypothesis.baseline_metrics == metrics
 
-    def test_generate_hypothesis_includes_expected_improvement(self, optimization_engine, sample_insight):
+    def test_generate_hypothesis_includes_expected_improvement(
+        self, optimization_engine, sample_insight
+    ):
         """Testa que hipótese inclui melhoria esperada."""
         state = {"latency_p95": 200.0}
         action = OptimizationType.WEIGHT_RECALIBRATION
@@ -235,9 +246,11 @@ class TestGenerateHypothesis:
         metrics = sample_insight["metrics"]
         context = sample_insight
 
-        hypothesis = optimization_engine.generate_hypothesis(state, action, component, metrics, context)
+        hypothesis = optimization_engine.generate_hypothesis(
+            state, action, component, metrics, context
+        )
 
-        assert hasattr(hypothesis, 'expected_improvement')
+        assert hasattr(hypothesis, "expected_improvement")
         assert 0.0 <= hypothesis.expected_improvement <= 1.0
 
     def test_generate_hypothesis_calculates_risk_score(self, optimization_engine, sample_insight):
@@ -248,9 +261,11 @@ class TestGenerateHypothesis:
         metrics = sample_insight["metrics"]
         context = sample_insight
 
-        hypothesis = optimization_engine.generate_hypothesis(state, action, component, metrics, context)
+        hypothesis = optimization_engine.generate_hypothesis(
+            state, action, component, metrics, context
+        )
 
-        assert hasattr(hypothesis, 'risk_score')
+        assert hasattr(hypothesis, "risk_score")
         assert 0.0 <= hypothesis.risk_score <= 1.0
 
     def test_generate_hypothesis_generates_adjustments(self, optimization_engine, sample_insight):
@@ -261,7 +276,9 @@ class TestGenerateHypothesis:
         metrics = sample_insight["metrics"]
         context = sample_insight
 
-        hypothesis = optimization_engine.generate_hypothesis(state, action, component, metrics, context)
+        hypothesis = optimization_engine.generate_hypothesis(
+            state, action, component, metrics, context
+        )
 
         assert len(hypothesis.proposed_adjustments) > 0
 
@@ -274,7 +291,9 @@ class TestGenerateHypothesis:
         metrics = sample_insight["metrics"]
         context = sample_insight
 
-        hypothesis = optimization_engine.generate_hypothesis(state, action, component, metrics, context)
+        hypothesis = optimization_engine.generate_hypothesis(
+            state, action, component, metrics, context
+        )
 
         assert hypothesis is None
 
@@ -289,8 +308,8 @@ class TestSelectAction:
         # Forçar exploração definindo exploration_rate alto
         optimization_engine.exploration_rate = 1.0
 
-        with patch('random.random', return_value=0.5):
-            with patch('random.choice') as mock_choice:
+        with patch("random.random", return_value=0.5):
+            with patch("random.choice") as mock_choice:
                 mock_choice.return_value = OptimizationType.SLO_ADJUSTMENT
 
                 action = optimization_engine.select_action(state)
@@ -310,7 +329,7 @@ class TestSelectAction:
         # Forçar exploração definindo exploration_rate zero
         optimization_engine.exploration_rate = 0.0
 
-        with patch('random.random', return_value=1.0):  # Garantir exploração
+        with patch("random.random", return_value=1.0):  # Garantir exploração
             action = optimization_engine.select_action(state)
 
             assert action == OptimizationType.WEIGHT_RECALIBRATION
@@ -322,8 +341,8 @@ class TestSelectAction:
         # Forçar exploração com Q-table vazia
         optimization_engine.exploration_rate = 0.0
 
-        with patch('random.random', return_value=1.0):
-            with patch('random.choice') as mock_choice:
+        with patch("random.random", return_value=1.0):
+            with patch("random.choice") as mock_choice:
                 mock_choice.return_value = OptimizationType.POLICY_CHANGE
 
                 action = optimization_engine.select_action(state)
@@ -460,7 +479,7 @@ class TestHelperMethods:
             "error_rate": 0.01,
             "slo_compliance": 0.95,
             "divergence": 0.15,
-            "confidence": 0.85
+            "confidence": 0.85,
         }
 
         state = optimization_engine._extract_state(metrics)
@@ -473,10 +492,7 @@ class TestHelperMethods:
 
     def test_hash_state(self, optimization_engine):
         """Testa geração de hash de estado."""
-        state = {
-            "latency_p95": 200.0,
-            "error_rate": 0.01
-        }
+        state = {"latency_p95": 200.0, "error_rate": 0.01}
 
         state_hash = optimization_engine._hash_state(state)
 
@@ -507,7 +523,9 @@ class TestHelperMethods:
             ("state3", "WEIGHT_RECALIBRATION", 0.7),
         ]
 
-        risk = optimization_engine._estimate_risk(OptimizationType.WEIGHT_RECALIBRATION, "consensus-engine")
+        risk = optimization_engine._estimate_risk(
+            OptimizationType.WEIGHT_RECALIBRATION, "consensus-engine"
+        )
 
         assert 0.0 <= risk <= 1.0
 
@@ -515,7 +533,9 @@ class TestHelperMethods:
         """Testa estimativa de risco sem histórico."""
         optimization_engine.reward_history = []
 
-        risk = optimization_engine._estimate_risk(OptimizationType.WEIGHT_RECALIBRATION, "consensus-engine")
+        risk = optimization_engine._estimate_risk(
+            OptimizationType.WEIGHT_RECALIBRATION, "consensus-engine"
+        )
 
         # Sem histórico, deve retornar risco médio (0.5)
         assert risk == 0.5
@@ -526,9 +546,7 @@ class TestHelperMethods:
         action = OptimizationType.WEIGHT_RECALIBRATION
 
         # Adicionar observações ao histórico
-        optimization_engine.reward_history = [
-            (state_hash, action.value, 0.5) for _ in range(20)
-        ]
+        optimization_engine.reward_history = [(state_hash, action.value, 0.5) for _ in range(20)]
 
         confidence = optimization_engine._calculate_confidence(state_hash, action)
 
@@ -537,11 +555,7 @@ class TestHelperMethods:
 
     def test_calculate_target_metrics(self, optimization_engine):
         """Testa cálculo de métricas alvo."""
-        baseline = {
-            "latency_p95": 200.0,
-            "error_rate": 0.05,
-            "slo_compliance": 0.90
-        }
+        baseline = {"latency_p95": 200.0, "error_rate": 0.05, "slo_compliance": 0.90}
         improvement = 0.15  # 15% de melhoria
 
         target = optimization_engine._calculate_target_metrics(baseline, improvement)
@@ -566,9 +580,7 @@ class TestHelperMethods:
     def test_generate_hypothesis_text(self, optimization_engine):
         """Testa geração de texto da hipótese."""
         text = optimization_engine._generate_hypothesis_text(
-            OptimizationType.WEIGHT_RECALIBRATION,
-            "consensus-engine",
-            0.20
+            OptimizationType.WEIGHT_RECALIBRATION, "consensus-engine", 0.20
         )
 
         assert "consensus-engine" in text
@@ -613,25 +625,25 @@ class TestIncorporateLoadForecast:
     """Testes de incorporação de previsão de carga."""
 
     @pytest.mark.asyncio
-    async def test_incorporate_load_forecast_enriches_state(self, optimization_engine, mock_load_predictor):
+    async def test_incorporate_load_forecast_enriches_state(
+        self, optimization_engine, mock_load_predictor
+    ):
         """Testa enriquecimento do estado com forecast."""
-        state = {
-            "latency_p95": 200.0,
-            "current_load": 0.5
-        }
+        state = {"latency_p95": 200.0, "current_load": 0.5}
 
-        mock_load_predictor.predict_load = AsyncMock(return_value={
-            'forecast': [0.6, 0.65, 0.7, 0.75, 0.8],
-            'confidence': 0.9
-        })
+        mock_load_predictor.predict_load = AsyncMock(
+            return_value={"forecast": [0.6, 0.65, 0.7, 0.75, 0.8], "confidence": 0.9}
+        )
 
         enriched_state = await optimization_engine._incorporate_load_forecast(state)
 
-        assert 'load_forecast' in enriched_state
-        assert enriched_state['load_forecast']['trend'] in ['increasing', 'decreasing', 'stable']
+        assert "load_forecast" in enriched_state
+        assert enriched_state["load_forecast"]["trend"] in ["increasing", "decreasing", "stable"]
 
     @pytest.mark.asyncio
-    async def test_incorporate_load_forecast_handles_error(self, optimization_engine, mock_load_predictor):
+    async def test_incorporate_load_forecast_handles_error(
+        self, optimization_engine, mock_load_predictor
+    ):
         """Testa tratamento de erro na previsão."""
         state = {"latency_p95": 200.0}
 
@@ -640,5 +652,5 @@ class TestIncorporateLoadForecast:
         enriched_state = await optimization_engine._incorporate_load_forecast(state)
 
         # Estado deve ser retornado inalterado
-        assert 'load_forecast' not in enriched_state
+        assert "load_forecast" not in enriched_state
         assert enriched_state == state

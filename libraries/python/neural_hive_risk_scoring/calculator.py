@@ -20,11 +20,11 @@ logger = structlog.get_logger(__name__)
 class AggregationStrategy:
     """Estratégias de agregação de risco."""
 
-    WEIGHTED_AVERAGE = 'weighted_average'
-    MAXIMUM = 'maximum'
-    MINIMUM = 'minimum'
-    GEOMETRIC_MEAN = 'geometric_mean'
-    HARMONIC_MEAN = 'harmonic_mean'
+    WEIGHTED_AVERAGE = "weighted_average"
+    MAXIMUM = "maximum"
+    MINIMUM = "minimum"
+    GEOMETRIC_MEAN = "geometric_mean"
+    HARMONIC_MEAN = "harmonic_mean"
 
 
 class RiskCalculator:
@@ -34,7 +34,7 @@ class RiskCalculator:
         self,
         config: RiskScoringConfig,
         aggregation_strategy: str = AggregationStrategy.WEIGHTED_AVERAGE,
-        domain_weights: Optional[Dict[str, float]] = None
+        domain_weights: Optional[Dict[str, float]] = None,
     ):
         """Inicializa calculadora de risco.
 
@@ -58,10 +58,7 @@ class RiskCalculator:
         }
 
     def calculate_aggregate_risk(
-        self,
-        assessments: List[RiskAssessment],
-        entity_id: str,
-        entity_type: str = 'plan'
+        self, assessments: List[RiskAssessment], entity_id: str, entity_type: str = "plan"
     ) -> RiskMatrix:
         """Calcula risco agregado a partir de múltiplas avaliações.
 
@@ -104,7 +101,7 @@ class RiskCalculator:
             overall_score=overall_score,
             overall_band=overall_band,
             highest_risk_domain=highest_risk_domain,
-            created_at=datetime.now(timezone.utc)
+            created_at=datetime.now(timezone.utc),
         )
 
         logger.info(
@@ -113,15 +110,12 @@ class RiskCalculator:
             entity_type=entity_type,
             overall_score=overall_score,
             overall_band=overall_band.value,
-            highest_risk_domain=highest_risk_domain.value
+            highest_risk_domain=highest_risk_domain.value,
         )
 
         return matrix
 
-    def _aggregate_scores(
-        self,
-        assessments: List[RiskAssessment]
-    ) -> Tuple[float, RiskBand]:
+    def _aggregate_scores(self, assessments: List[RiskAssessment]) -> Tuple[float, RiskBand]:
         """Agrega scores de múltiplas avaliações.
 
         Returns:
@@ -148,11 +142,7 @@ class RiskCalculator:
 
         return aggregated, band
 
-    def _weighted_average(
-        self,
-        scores: List[float],
-        domains: List[UnifiedDomain]
-    ) -> float:
+    def _weighted_average(self, scores: List[float], domains: List[UnifiedDomain]) -> float:
         """Calcula média ponderada por domínio."""
         weighted_sum = 0.0
         total_weight = 0.0
@@ -167,6 +157,7 @@ class RiskCalculator:
     def _geometric_mean(self, scores: List[float]) -> float:
         """Calcula média geométrica."""
         import math
+
         # Evitar log(0) adicionando epsilon
         epsilon = 1e-6
         adjusted_scores = [max(s, epsilon) for s in scores]
@@ -193,10 +184,7 @@ class RiskCalculator:
         else:
             return RiskBand.LOW
 
-    def _find_highest_risk_domain(
-        self,
-        assessments: List[RiskAssessment]
-    ) -> UnifiedDomain:
+    def _find_highest_risk_domain(self, assessments: List[RiskAssessment]) -> UnifiedDomain:
         """Encontra domínio com maior risco.
 
         Critério: maior score, desempate pela gravidade da band.
@@ -208,17 +196,12 @@ class RiskCalculator:
         band_order = {RiskBand.CRITICAL: 4, RiskBand.HIGH: 3, RiskBand.MEDIUM: 2, RiskBand.LOW: 1}
 
         sorted_assessments = sorted(
-            assessments,
-            key=lambda a: (a.score, band_order.get(a.band, 0)),
-            reverse=True
+            assessments, key=lambda a: (a.score, band_order.get(a.band, 0)), reverse=True
         )
 
         return sorted_assessments[0].domain
 
-    def _aggregate_factors(
-        self,
-        assessments: List[RiskAssessment]
-    ) -> Dict[str, float]:
+    def _aggregate_factors(self, assessments: List[RiskAssessment]) -> Dict[str, float]:
         """Agrega fatores individuais de todos os domínios."""
         aggregate: Dict[str, float] = {}
 
@@ -235,13 +218,10 @@ class RiskCalculator:
         assessments: List[RiskAssessment],
         overall_score: float,
         overall_band: RiskBand,
-        highest_risk_domain: UnifiedDomain
+        highest_risk_domain: UnifiedDomain,
     ) -> str:
         """Gera justificativa para risco agregado."""
-        domain_scores = [
-            f"{a.domain.value}={a.score:.2f}"
-            for a in assessments
-        ]
+        domain_scores = [f"{a.domain.value}={a.score:.2f}" for a in assessments]
 
         return (
             f"Overall risk {overall_score:.2f} ({overall_band.value}). "
@@ -258,13 +238,10 @@ class RiskCalculator:
             overall_score=0.0,
             overall_band=RiskBand.LOW,
             highest_risk_domain=UnifiedDomain.BUSINESS,
-            created_at=datetime.now(timezone.utc)
+            created_at=datetime.now(timezone.utc),
         )
 
-    def calculate_domain_contribution(
-        self,
-        matrix: RiskMatrix
-    ) -> Dict[str, Dict[str, float]]:
+    def calculate_domain_contribution(self, matrix: RiskMatrix) -> Dict[str, Dict[str, float]]:
         """Calcula contribuição de cada domínio para o risco total.
 
         Returns:
@@ -275,16 +252,15 @@ class RiskCalculator:
         for domain_value, assessment in matrix.assessments.items():
             ratio = assessment.score / matrix.overall_score if matrix.overall_score > 0 else 0
             contributions[domain_value] = {
-                'score': assessment.score,
-                'contribution_ratio': ratio,
-                'contribution_percentage': ratio * 100
+                "score": assessment.score,
+                "contribution_ratio": ratio,
+                "contribution_percentage": ratio * 100,
             }
 
         return contributions
 
     def calculate_risk_velocity(
-        self,
-        historical_scores: List[Tuple[datetime, float]]
+        self, historical_scores: List[Tuple[datetime, float]]
     ) -> Dict[str, float]:
         """Calcula velocidade de mudança do risco.
 
@@ -295,7 +271,7 @@ class RiskCalculator:
             Dict com velocity (mudança por hora), acceleration, trend_direction
         """
         if len(historical_scores) < 2:
-            return {'velocity': 0.0, 'acceleration': 0.0, 'trend_direction': 'stable'}
+            return {"velocity": 0.0, "acceleration": 0.0, "trend_direction": "stable"}
 
         # Calcular mudança absoluta entre pontos consecutivos
         deltas = []
@@ -313,7 +289,7 @@ class RiskCalculator:
                 time_deltas_hours.append(time_delta_hours)
 
         if not deltas:
-            return {'velocity': 0.0, 'acceleration': 0.0, 'trend_direction': 'stable'}
+            return {"velocity": 0.0, "acceleration": 0.0, "trend_direction": "stable"}
 
         # Velocidade média (mudança de score por hora)
         total_score_change = sum(deltas)
@@ -330,18 +306,20 @@ class RiskCalculator:
                     recent_velocities.append(deltas[i] / time_deltas_hours[i])
 
             if len(recent_velocities) >= 2:
-                acceleration = (recent_velocities[-1] - recent_velocities[0]) / len(recent_velocities)
+                acceleration = (recent_velocities[-1] - recent_velocities[0]) / len(
+                    recent_velocities
+                )
 
         # Direção da tendência
         if abs(velocity) < 0.001:
-            trend_direction = 'stable'
+            trend_direction = "stable"
         elif velocity > 0:
-            trend_direction = 'increasing'
+            trend_direction = "increasing"
         else:
-            trend_direction = 'decreasing'
+            trend_direction = "decreasing"
 
         return {
-            'velocity': velocity,
-            'acceleration': acceleration,
-            'trend_direction': trend_direction
+            "velocity": velocity,
+            "acceleration": acceleration,
+            "trend_direction": trend_direction,
         }

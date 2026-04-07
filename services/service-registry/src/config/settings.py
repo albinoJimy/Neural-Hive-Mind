@@ -69,7 +69,9 @@ class Settings(BaseSettings):
         default=None, description="Senha do Redis. Obrigatorio em producao (validacao automatica)."
     )
 
-    @field_validator("REGISTRY_REDIS_ENDPOINTS", "ETCD_ENDPOINTS", "REDIS_CLUSTER_NODES", mode="before")
+    @field_validator(
+        "REGISTRY_REDIS_ENDPOINTS", "ETCD_ENDPOINTS", "REDIS_CLUSTER_NODES", mode="before"
+    )
     @classmethod
     def parse_list_from_json_string(cls, v: Union[str, List[str], None]) -> Union[List[str], None]:
         """

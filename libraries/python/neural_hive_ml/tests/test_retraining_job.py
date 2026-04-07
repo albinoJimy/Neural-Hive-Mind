@@ -22,11 +22,9 @@ def mock_model_repo():
     mock_db = AsyncMock()
 
     repo = AsyncMock()
-    repo.get_active_model = AsyncMock(return_value={
-        "version": "v8",
-        "f1_score": 0.73,
-        "accuracy": 0.80
-    })
+    repo.get_active_model = AsyncMock(
+        return_value={"version": "v8", "f1_score": 0.73, "accuracy": 0.80}
+    )
     repo.create = AsyncMock()
     repo.promote_model = AsyncMock(return_value=True)
     repo.db = mock_db  # Adicionar db attribute
@@ -47,7 +45,7 @@ def retraining_job(mock_mlflow_client, mock_model_repo, mock_kafka_producer):
     return RetrainingJob(
         mlflow_client=mock_mlflow_client,
         model_repo=mock_model_repo,
-        kafka_producer=mock_kafka_producer
+        kafka_producer=mock_kafka_producer,
     )
 
 
@@ -59,19 +57,21 @@ class TestRetrainingJobInit:
         job = RetrainingJob(
             mlflow_client=mock_mlflow_client,
             model_repo=mock_model_repo,
-            kafka_producer=mock_kafka_producer
+            kafka_producer=mock_kafka_producer,
         )
         assert job.retrain_threshold == 100
         assert job.min_f1_improvement == 0.05
 
-    def test_init_with_custom_thresholds(self, mock_mlflow_client, mock_model_repo, mock_kafka_producer):
+    def test_init_with_custom_thresholds(
+        self, mock_mlflow_client, mock_model_repo, mock_kafka_producer
+    ):
         """Testa inicialização com thresholds customizados."""
         job = RetrainingJob(
             mlflow_client=mock_mlflow_client,
             model_repo=mock_model_repo,
             kafka_producer=mock_kafka_producer,
             retrain_threshold=200,
-            min_f1_improvement=0.10
+            min_f1_improvement=0.10,
         )
         assert job.retrain_threshold == 200
         assert job.min_f1_improvement == 0.10
@@ -103,13 +103,11 @@ class TestCheckThreshold:
 class TestExecuteRetraining:
     """Testes de execute_retraining."""
 
-    @patch('neural_hive_ml.retraining_job.subprocess.run')
+    @patch("neural_hive_ml.retraining_job.subprocess.run")
     async def test_execute_retraining_success(self, mock_run, retraining_job):
         """Testa execução de retreino com sucesso."""
         mock_run.return_value = MagicMock(
-            returncode=0,
-            stdout="F1-Score: 0.75\nAccuracy: 0.82\nVersion: v9",
-            stderr=""
+            returncode=0, stdout="F1-Score: 0.75\nAccuracy: 0.82\nVersion: v9", stderr=""
         )
 
         result = await retraining_job.execute_retraining()
@@ -118,14 +116,10 @@ class TestExecuteRetraining:
         # Versão extraída do parse ou fallback
         assert result["job_id"] is not None
 
-    @patch('neural_hive_ml.retraining_job.subprocess.run')
+    @patch("neural_hive_ml.retraining_job.subprocess.run")
     async def test_execute_retraining_failure(self, mock_run, retraining_job):
         """Testa execução de retreino com falha."""
-        mock_run.return_value = MagicMock(
-            returncode=1,
-            stdout="",
-            stderr="Training failed"
-        )
+        mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="Training failed")
 
         result = await retraining_job.execute_retraining()
 
@@ -138,15 +132,11 @@ class TestValidateModel:
 
     async def test_validate_model_improves(self, retraining_job, mock_model_repo):
         """Testa que modelo melhora o suficiente."""
-        mock_model_repo.get_active_model = AsyncMock(return_value={
-            "version": "v8",
-            "f1_score": 0.73
-        })
+        mock_model_repo.get_active_model = AsyncMock(
+            return_value={"version": "v8", "f1_score": 0.73}
+        )
 
-        new_metrics = {
-            "f1_score": 0.79,
-            "accuracy": 0.84
-        }
+        new_metrics = {"f1_score": 0.79, "accuracy": 0.84}
 
         result = await retraining_job.validate_model(new_metrics)
 
@@ -155,15 +145,11 @@ class TestValidateModel:
 
     async def test_validate_model_no_improvement(self, retraining_job, mock_model_repo):
         """Testa que modelo não melhora o suficiente."""
-        mock_model_repo.get_active_model = AsyncMock(return_value={
-            "version": "v8",
-            "f1_score": 0.73
-        })
+        mock_model_repo.get_active_model = AsyncMock(
+            return_value={"version": "v8", "f1_score": 0.73}
+        )
 
-        new_metrics = {
-            "f1_score": 0.74,
-            "accuracy": 0.81
-        }
+        new_metrics = {"f1_score": 0.74, "accuracy": 0.81}
 
         result = await retraining_job.validate_model(new_metrics)
 
@@ -173,10 +159,7 @@ class TestValidateModel:
         """Testa quando não há baseline (primeiro modelo)."""
         mock_model_repo.get_active_model = AsyncMock(return_value=None)
 
-        new_metrics = {
-            "f1_score": 0.70,
-            "accuracy": 0.80
-        }
+        new_metrics = {"f1_score": 0.70, "accuracy": 0.80}
 
         result = await retraining_job.validate_model(new_metrics)
 
@@ -191,10 +174,7 @@ class TestRegisterToMLflow:
         mock_model = MagicMock()
 
         result = await retraining_job.register_to_mlflow(
-            model=mock_model,
-            version="v9",
-            metrics={"f1_score": 0.75},
-            params={"n_estimators": 100}
+            model=mock_model, version="v9", metrics={"f1_score": 0.75}, params={"n_estimators": 100}
         )
 
         mock_mlflow_client.log_model.assert_called_once()
@@ -207,9 +187,7 @@ class TestPublishKafkaEvent:
     async def test_publish_trained_event(self, retraining_job, mock_kafka_producer):
         """Testa publicação de evento modelo treinado."""
         result = await retraining_job.publish_kafka_event(
-            event_type="model_trained",
-            version="v9",
-            f1_score=0.75
+            event_type="model_trained", version="v9", f1_score=0.75
         )
 
         mock_kafka_producer.produce_and_wait.assert_called_once()
@@ -219,19 +197,17 @@ class TestPublishKafkaEvent:
 class TestRunRetraining:
     """Testes de run_retraining (end-to-end)."""
 
-    @patch('neural_hive_ml.retraining_job.subprocess.run')
-    async def test_run_retraining_success(self, mock_run, retraining_job, mock_model_repo, mock_mlflow_client):
+    @patch("neural_hive_ml.retraining_job.subprocess.run")
+    async def test_run_retraining_success(
+        self, mock_run, retraining_job, mock_model_repo, mock_mlflow_client
+    ):
         """Testa fluxo completo de retreino com sucesso."""
         # Setup mocks
         mock_model_repo.db.specialist_feedback.count_documents = AsyncMock(return_value=150)
-        mock_model_repo.get_active_model = AsyncMock(return_value={
-            "version": "v8",
-            "f1_score": 0.70
-        })
-        mock_run.return_value = MagicMock(
-            returncode=0,
-            stdout="F1-Score: 0.78\nAccuracy: 0.85"
+        mock_model_repo.get_active_model = AsyncMock(
+            return_value={"version": "v8", "f1_score": 0.70}
         )
+        mock_run.return_value = MagicMock(returncode=0, stdout="F1-Score: 0.78\nAccuracy: 0.85")
         mock_model = MagicMock()
 
         result = await retraining_job.run_retraining(model=mock_model)
@@ -249,7 +225,7 @@ class TestGetJobStatus:
             "job_id": "retrain-123",
             "status": "completed",
             "started_at": datetime.now() - timedelta(hours=1),
-            "completed_at": datetime.now()
+            "completed_at": datetime.now(),
         }
 
         result = await retraining_job.get_job_status("retrain-123")
@@ -266,6 +242,7 @@ class TestGetJobStatus:
 # =============================================================================
 # Novos Testes para Cobertura Adicional (+10 testes)
 # =============================================================================
+
 
 class TestCountPendingSamples:
     """Testes de _count_pending_samples."""
@@ -294,9 +271,7 @@ class TestCountPendingSamples:
     async def test_count_pending_samples_with_error(self, retraining_job, mock_model_repo):
         """Testa contagem quando ocorre erro."""
         mock_db = AsyncMock()
-        mock_db.specialist_feedback.count_documents = AsyncMock(
-            side_effect=Exception("DB error")
-        )
+        mock_db.specialist_feedback.count_documents = AsyncMock(side_effect=Exception("DB error"))
         mock_model_repo.db = mock_db
 
         result = await retraining_job._count_pending_samples()
@@ -344,8 +319,10 @@ class TestParseTrainingOutput:
 class TestRunRetrainingEdgeCases:
     """Testes de edge cases para run_retraining."""
 
-    @patch('neural_hive_ml.retraining_job.subprocess.run')
-    async def test_run_retraining_insufficient_samples(self, mock_run, retraining_job, mock_model_repo):
+    @patch("neural_hive_ml.retraining_job.subprocess.run")
+    async def test_run_retraining_insufficient_samples(
+        self, mock_run, retraining_job, mock_model_repo
+    ):
         """Testa retreino quando não há samples suficientes."""
         mock_model_repo.count_pending_samples = AsyncMock(return_value=50)
 
@@ -354,18 +331,16 @@ class TestRunRetrainingEdgeCases:
         assert result["success"] is False
         assert "Insufficient samples" in result.get("reason", "")
 
-    @patch('neural_hive_ml.retraining_job.subprocess.run')
-    async def test_run_retraining_force_mode(self, mock_run, retraining_job, mock_model_repo, mock_mlflow_client):
+    @patch("neural_hive_ml.retraining_job.subprocess.run")
+    async def test_run_retraining_force_mode(
+        self, mock_run, retraining_job, mock_model_repo, mock_mlflow_client
+    ):
         """Testa retreino forçado (ignora threshold)."""
         # Setup mocks
-        mock_model_repo.get_active_model = AsyncMock(return_value={
-            "version": "v8",
-            "f1_score": 0.70
-        })
-        mock_run.return_value = MagicMock(
-            returncode=0,
-            stdout="F1-Score: 0.75\nAccuracy: 0.82"
+        mock_model_repo.get_active_model = AsyncMock(
+            return_value={"version": "v8", "f1_score": 0.70}
         )
+        mock_run.return_value = MagicMock(returncode=0, stdout="F1-Score: 0.75\nAccuracy: 0.82")
         mock_model = MagicMock()
 
         # force=True deve ignorar verificação de threshold
@@ -383,7 +358,7 @@ class TestRegisterToMLflowWithFeatureImportance:
         feature_importance = {
             "confidence": 0.6147,
             "rf_ml_risk": 0.2221,
-            "rf_ml_confidence": 0.1632
+            "rf_ml_confidence": 0.1632,
         }
 
         result = await retraining_job.register_to_mlflow(
@@ -392,7 +367,7 @@ class TestRegisterToMLflowWithFeatureImportance:
             metrics={"f1_score": 0.75},
             params={},
             feature_importance=feature_importance,
-            n_samples=500
+            n_samples=500,
         )
 
         assert result["success"] is True
@@ -406,10 +381,7 @@ class TestPublishKafkaEventErrorHandling:
         """Testa publicação quando não há producer."""
         retraining_job.kafka_producer = None
 
-        result = await retraining_job.publish_kafka_event(
-            event_type="model_trained",
-            version="v9"
-        )
+        result = await retraining_job.publish_kafka_event(event_type="model_trained", version="v9")
 
         # Deve retornar False mas não lançar erro
         assert result is False
@@ -420,10 +392,7 @@ class TestPublishKafkaEventErrorHandling:
             side_effect=Exception("Kafka connection error")
         )
 
-        result = await retraining_job.publish_kafka_event(
-            event_type="model_trained",
-            version="v9"
-        )
+        result = await retraining_job.publish_kafka_event(event_type="model_trained", version="v9")
 
         # Deve retornar False em caso de erro
         assert result is False

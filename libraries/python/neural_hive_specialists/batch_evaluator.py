@@ -22,9 +22,7 @@ logger = structlog.get_logger(__name__)
 class BatchEvaluator:
     """Avalia múltiplos planos em batch."""
 
-    def __init__(
-        self, specialist: "BaseSpecialist", batch_size: int = 32, max_workers: int = 8
-    ):
+    def __init__(self, specialist: "BaseSpecialist", batch_size: int = 32, max_workers: int = 8):
         """
         Inicializa batch evaluator.
 
@@ -88,9 +86,7 @@ class BatchEvaluator:
             for i, (plan, features, prediction) in enumerate(
                 zip(cognitive_plans, features_batch, predictions_batch)
             ):
-                result = self._post_process_prediction(
-                    plan, features, prediction, context or {}
-                )
+                result = self._post_process_prediction(plan, features, prediction, context or {})
                 results.append(result)
 
             duration = time.time() - start_time
@@ -151,8 +147,10 @@ class BatchEvaluator:
                     if cached:
                         # Ainda precisa gerar embeddings se necessário
                         if self.specialist.model and "embedding_features" not in cached:
-                            embedding_features = self.specialist.feature_extractor._extract_embedding_features(
-                                plan.get("tasks", [])
+                            embedding_features = (
+                                self.specialist.feature_extractor._extract_embedding_features(
+                                    plan.get("tasks", [])
+                                )
                             )
                             cached["embedding_features"] = embedding_features
                         return cached
@@ -186,8 +184,7 @@ class BatchEvaluator:
         # Extrair features em paralelo usando ThreadPoolExecutor
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             futures = [
-                loop.run_in_executor(executor, _extract_single, plan)
-                for plan in cognitive_plans
+                loop.run_in_executor(executor, _extract_single, plan) for plan in cognitive_plans
             ]
             features_batch = await asyncio.gather(*futures)
 
@@ -233,10 +230,7 @@ class BatchEvaluator:
         # Construir DataFrame batch com schema consistente
         if feature_names:
             batch_df = pd.DataFrame(
-                [
-                    {name: fd.get(name, 0.0) for name in feature_names}
-                    for fd in valid_features
-                ]
+                [{name: fd.get(name, 0.0) for name in feature_names} for fd in valid_features]
             )
         else:
             batch_df = pd.DataFrame(valid_features)
@@ -251,9 +245,7 @@ class BatchEvaluator:
                 else:
                     return self.specialist.model.predict(batch_df)
             except Exception as e:
-                logger.error(
-                    "batch_inference_failed", error=str(e), batch_size=len(batch_df)
-                )
+                logger.error("batch_inference_failed", error=str(e), batch_size=len(batch_df))
                 return None
 
         with ThreadPoolExecutor(max_workers=1) as executor:
@@ -266,9 +258,7 @@ class BatchEvaluator:
         results = [None] * len(features_batch)
         for i, valid_idx in enumerate(valid_indices):
             if i < len(predictions):
-                results[valid_idx] = predictions[
-                    i : i + 1
-                ]  # Manter shape [1, n_classes]
+                results[valid_idx] = predictions[i : i + 1]  # Manter shape [1, n_classes]
 
         return results
 
@@ -298,9 +288,7 @@ class BatchEvaluator:
             logger.debug(
                 "batch_using_fallback",
                 plan_id=plan_id,
-                reason="prediction_unavailable"
-                if prediction is None
-                else "feature_error",
+                reason="prediction_unavailable" if prediction is None else "feature_error",
             )
             try:
                 result = self.specialist._evaluate_plan_internal(plan, context)

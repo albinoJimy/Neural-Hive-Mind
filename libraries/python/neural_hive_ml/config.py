@@ -11,16 +11,12 @@ class MLflowSettings(BaseSettings):
 
     model_config = ConfigDict(env_prefix="MLFLOW_", env_file=".env")
 
-    tracking_uri: str = Field(
-        default="http://localhost:5000", description="URI do servidor MLflow"
-    )
+    tracking_uri: str = Field(default="http://localhost:5000", description="URI do servidor MLflow")
     experiment_prefix: str = Field(
         default="approval-models", description="Prefixo para nomes de experimentos"
     )
     enabled: bool = Field(default=True, description="Se MLflow está habilitado")
-    async_logging: bool = Field(
-        default=True, description="Se logging assíncrono está habilitado"
-    )
+    async_logging: bool = Field(default=True, description="Se logging assíncrono está habilitado")
 
 
 class OnlineLearningSettings(BaseSettings):
@@ -28,9 +24,7 @@ class OnlineLearningSettings(BaseSettings):
 
     model_config = ConfigDict(env_prefix="ONLINE_LEARNING_", env_file=".env")
 
-    retrain_threshold: int = Field(
-        default=100, description="Mínimo de novos samples para retreino"
-    )
+    retrain_threshold: int = Field(default=100, description="Mínimo de novos samples para retreino")
     retrain_interval_hours: int = Field(
         default=24, description="Intervalo mínimo entre retreinos (horas)"
     )

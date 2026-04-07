@@ -22,10 +22,7 @@ settings = get_settings()
 
 
 async def make_decision(
-    event_type: str,
-    source_id: str,
-    trigger_data: dict[str, Any],
-    priority: str = "normal"
+    event_type: str, source_id: str, trigger_data: dict[str, Any], priority: str = "normal"
 ) -> dict[str, Any]:
     """
     Tomar decisão estratégica baseada em evento trigger.
@@ -40,10 +37,7 @@ async def make_decision(
         Dicionário com decisão estratégica
     """
     logger.info(
-        "make_decision_called",
-        event_type=event_type,
-        source_id=source_id,
-        priority=priority
+        "make_decision_called", event_type=event_type, source_id=source_id, priority=priority
     )
 
     # Validar event_type
@@ -52,13 +46,12 @@ async def make_decision(
         "telemetry",
         "critical_incident",
         "sla_violation",
-        "resource_saturation"
+        "resource_saturation",
     ]
 
     if event_type not in valid_event_types:
         raise ValueError(
-            f"Invalid event_type: {event_type}. "
-            f"Must be one of: {', '.join(valid_event_types)}"
+            f"Invalid event_type: {event_type}. " f"Must be one of: {', '.join(valid_event_types)}"
         )
 
     # Chamar Queen Agent via gRPC
@@ -68,8 +61,7 @@ async def make_decision(
 
 
 async def arbitrate_conflict(
-    decisions: list[dict[str, Any]],
-    conflict_description: str | None = None
+    decisions: list[dict[str, Any]], conflict_description: str | None = None
 ) -> dict[str, Any]:
     """
     Arbitrar conflito entre decisões de múltiplos especialistas.
@@ -84,7 +76,7 @@ async def arbitrate_conflict(
     logger.info(
         "arbitrate_conflict_called",
         decisions_count=len(decisions),
-        has_description=conflict_description is not None
+        has_description=conflict_description is not None,
     )
 
     if len(decisions) < 2:
@@ -101,7 +93,7 @@ async def replan_workflow(
     reason: str,
     trigger_type: str = "STRATEGIC",
     preserve_progress: bool = True,
-    priority: int = 5
+    priority: int = 5,
 ) -> dict[str, Any]:
     """
     Acionar replanejamento de um workflow/plano cognitivo.
@@ -116,12 +108,7 @@ async def replan_workflow(
     Returns:
         Dicionário com resultado do replanejamento
     """
-    logger.info(
-        "replan_workflow_called",
-        plan_id=plan_id,
-        reason=reason,
-        trigger_type=trigger_type
-    )
+    logger.info("replan_workflow_called", plan_id=plan_id, reason=reason, trigger_type=trigger_type)
 
     # Chamar Queen Agent para replanejamento
     replanning_result = await _call_queen_agent_replanning(
@@ -136,7 +123,7 @@ async def approve_exception(
     justification: str,
     risk_score: float,
     requested_by: str,
-    expires_at: str | None = None
+    expires_at: str | None = None,
 ) -> dict[str, Any]:
     """
     Aprovar exceção à política (ex: bypass de guardrail).
@@ -155,7 +142,7 @@ async def approve_exception(
         "approve_exception_called",
         exception_request_id=exception_request_id,
         requested_by=requested_by,
-        risk_score=risk_score
+        risk_score=risk_score,
     )
 
     # Validar risk_score
@@ -175,7 +162,7 @@ async def adjust_qos(
     adjustment_type: str,
     new_priority: int | None = None,
     reason: str | None = None,
-    duration_seconds: int | None = None
+    duration_seconds: int | None = None,
 ) -> dict[str, Any]:
     """
     Ajustar QoS (Quality of Service) de um workflow.
@@ -191,11 +178,7 @@ async def adjust_qos(
     Returns:
         Dicionário com resultado do ajuste
     """
-    logger.info(
-        "adjust_qos_called",
-        workflow_id=workflow_id,
-        adjustment_type=adjustment_type
-    )
+    logger.info("adjust_qos_called", workflow_id=workflow_id, adjustment_type=adjustment_type)
 
     # Validar adjustment_type
     valid_types = [
@@ -203,7 +186,7 @@ async def adjust_qos(
         "decrease_priority",
         "pause_execution",
         "resume_execution",
-        "allocate_resources"
+        "allocate_resources",
     ]
 
     if adjustment_type not in valid_types:
@@ -222,10 +205,9 @@ async def adjust_qos(
 
 # ============ Helper Functions ============
 
+
 async def _call_queen_agent_decision(
-    event_type: str,
-    source_id: str,
-    trigger_data: dict[str, Any]
+    event_type: str, source_id: str, trigger_data: dict[str, Any]
 ) -> dict[str, Any]:
     """Chamar Queen Agent para tomada de decisão estratégica."""
     try:
@@ -234,14 +216,14 @@ async def _call_queen_agent_decision(
             "event_type": event_type,
             "source_id": source_id,
             "trigger_data": trigger_data,
-            "timestamp": int(datetime.now().timestamp() * 1000)
+            "timestamp": int(datetime.now().timestamp() * 1000),
         }
 
         # Chamar via HTTP/gRPC
         async with httpx.AsyncClient(timeout=settings.decision_timeout) as client:
             response = await client.post(
                 f"http://{settings.queen_agent_host}:{settings.queen_agent_port}/api/v1/decisions",
-                json=payload
+                json=payload,
             )
             response.raise_for_status()
             result = response.json()
@@ -249,7 +231,7 @@ async def _call_queen_agent_decision(
         logger.info(
             "queen_agent_decision_success",
             decision_id=result.get("decision_id"),
-            decision_type=result.get("decision_type")
+            decision_type=result.get("decision_type"),
         )
 
         return result
@@ -259,20 +241,15 @@ async def _call_queen_agent_decision(
         return {
             "error": f"HTTP error: {e.response.status_code}",
             "decision_id": None,
-            "decision_type": "ERROR"
+            "decision_type": "ERROR",
         }
     except Exception as e:
         logger.exception("queen_agent_decision_failed", error=str(e))
-        return {
-            "error": str(e),
-            "decision_id": None,
-            "decision_type": "ERROR"
-        }
+        return {"error": str(e), "decision_id": None, "decision_type": "ERROR"}
 
 
 async def _call_queen_agent_arbitration(
-    decisions: list[dict[str, Any]],
-    conflict_description: str | None
+    decisions: list[dict[str, Any]], conflict_description: str | None
 ) -> dict[str, Any]:
     """Chamar Queen Agent para arbitragem de conflito."""
     try:
@@ -280,13 +257,13 @@ async def _call_queen_agent_arbitration(
         payload = {
             "decisions": decisions,
             "conflict_description": conflict_description,
-            "timestamp": int(datetime.now().timestamp() * 1000)
+            "timestamp": int(datetime.now().timestamp() * 1000),
         }
 
         async with httpx.AsyncClient(timeout=settings.decision_timeout) as client:
             response = await client.post(
                 f"http://{settings.queen_agent_host}:{settings.queen_agent_port}/api/v1/conflicts/arbitrate",
-                json=payload
+                json=payload,
             )
             response.raise_for_status()
             result = response.json()
@@ -294,7 +271,7 @@ async def _call_queen_agent_arbitration(
         logger.info(
             "queen_agent_arbitration_success",
             conflict_id=result.get("conflict_id"),
-            resolution_strategy=result.get("resolution_strategy")
+            resolution_strategy=result.get("resolution_strategy"),
         )
 
         return result
@@ -304,23 +281,15 @@ async def _call_queen_agent_arbitration(
         return {
             "error": f"HTTP error: {e.response.status_code}",
             "conflict_id": None,
-            "resolution_strategy": "ERROR"
+            "resolution_strategy": "ERROR",
         }
     except Exception as e:
         logger.exception("queen_agent_arbitration_failed", error=str(e))
-        return {
-            "error": str(e),
-            "conflict_id": None,
-            "resolution_strategy": "ERROR"
-        }
+        return {"error": str(e), "conflict_id": None, "resolution_strategy": "ERROR"}
 
 
 async def _call_queen_agent_replanning(
-    plan_id: str,
-    reason: str,
-    trigger_type: str,
-    preserve_progress: bool,
-    priority: int
+    plan_id: str, reason: str, trigger_type: str, preserve_progress: bool, priority: int
 ) -> dict[str, Any]:
     """Chamar Queen Agent para replanejamento."""
     try:
@@ -330,13 +299,13 @@ async def _call_queen_agent_replanning(
             "reason": reason,
             "trigger_type": trigger_type,
             "preserve_progress": preserve_progress,
-            "priority": priority
+            "priority": priority,
         }
 
         async with httpx.AsyncClient(timeout=settings.decision_timeout) as client:
             response = await client.post(
                 f"http://{settings.queen_agent_host}:{settings.queen_agent_port}/api/v1/replanning/trigger",
-                json=payload
+                json=payload,
             )
             response.raise_for_status()
             result = response.json()
@@ -344,7 +313,7 @@ async def _call_queen_agent_replanning(
         logger.info(
             "queen_agent_replanning_success",
             plan_id=plan_id,
-            replanning_id=result.get("replanning_id")
+            replanning_id=result.get("replanning_id"),
         )
 
         return result
@@ -354,15 +323,11 @@ async def _call_queen_agent_replanning(
         return {
             "error": f"HTTP error: {e.response.status_code}",
             "replanning_id": None,
-            "success": False
+            "success": False,
         }
     except Exception as e:
         logger.exception("queen_agent_replanning_failed", error=str(e))
-        return {
-            "error": str(e),
-            "replanning_id": None,
-            "success": False
-        }
+        return {"error": str(e), "replanning_id": None, "success": False}
 
 
 async def _call_queen_agent_exception_approval(
@@ -370,7 +335,7 @@ async def _call_queen_agent_exception_approval(
     justification: str,
     risk_score: float,
     requested_by: str,
-    expires_at: str | None
+    expires_at: str | None,
 ) -> dict[str, Any]:
     """Chamar Queen Agent para aprovação de exceção."""
     try:
@@ -380,13 +345,13 @@ async def _call_queen_agent_exception_approval(
             "justification": justification,
             "risk_score": risk_score,
             "requested_by": requested_by,
-            "expires_at": expires_at
+            "expires_at": expires_at,
         }
 
         async with httpx.AsyncClient(timeout=settings.decision_timeout) as client:
             response = await client.post(
                 f"http://{settings.queen_agent_host}:{settings.queen_agent_port}/api/v1/exceptions/approve",
-                json=payload
+                json=payload,
             )
             response.raise_for_status()
             result = response.json()
@@ -394,23 +359,19 @@ async def _call_queen_agent_exception_approval(
         logger.info(
             "queen_agent_exception_approval_success",
             exception_request_id=exception_request_id,
-            approved=result.get("approved", False)
+            approved=result.get("approved", False),
         )
 
         return result
 
     except httpx.HTTPStatusError as e:
-        logger.error("queen_agent_exception_approval_http_error", status_code=e.response.status_code)
-        return {
-            "error": f"HTTP error: {e.response.status_code}",
-            "approved": False
-        }
+        logger.error(
+            "queen_agent_exception_approval_http_error", status_code=e.response.status_code
+        )
+        return {"error": f"HTTP error: {e.response.status_code}", "approved": False}
     except Exception as e:
         logger.exception("queen_agent_exception_approval_failed", error=str(e))
-        return {
-            "error": str(e),
-            "approved": False
-        }
+        return {"error": str(e), "approved": False}
 
 
 async def _call_queen_agent_qos_adjustment(
@@ -418,7 +379,7 @@ async def _call_queen_agent_qos_adjustment(
     adjustment_type: str,
     new_priority: int | None,
     reason: str | None,
-    duration_seconds: int | None
+    duration_seconds: int | None,
 ) -> dict[str, Any]:
     """Chamar Queen Agent para ajuste de QoS."""
     try:
@@ -428,13 +389,13 @@ async def _call_queen_agent_qos_adjustment(
             "adjustment_type": adjustment_type,
             "new_priority": new_priority,
             "reason": reason,
-            "duration_seconds": duration_seconds
+            "duration_seconds": duration_seconds,
         }
 
         async with httpx.AsyncClient(timeout=settings.decision_timeout) as client:
             response = await client.post(
                 f"http://{settings.queen_agent_host}:{settings.queen_agent_port}/api/v1/qos/adjust",
-                json=payload
+                json=payload,
             )
             response.raise_for_status()
             result = response.json()
@@ -442,28 +403,20 @@ async def _call_queen_agent_qos_adjustment(
         logger.info(
             "queen_agent_qos_adjustment_success",
             workflow_id=workflow_id,
-            adjustment_type=adjustment_type
+            adjustment_type=adjustment_type,
         )
 
         return result
 
     except httpx.HTTPStatusError as e:
         logger.error("queen_agent_qos_adjustment_http_error", status_code=e.response.status_code)
-        return {
-            "error": f"HTTP error: {e.response.status_code}",
-            "success": False
-        }
+        return {"error": f"HTTP error: {e.response.status_code}", "success": False}
     except Exception as e:
         logger.exception("queen_agent_qos_adjustment_failed", error=str(e))
-        return {
-            "error": str(e),
-            "success": False
-        }
+        return {"error": str(e), "success": False}
 
 
-async def health_check(
-    include_services: bool = False
-) -> dict[str, Any]:
+async def health_check(include_services: bool = False) -> dict[str, Any]:
     """
     Verifica saúde do Queen MCP Server e suas dependências.
 
@@ -473,10 +426,7 @@ async def health_check(
     Returns:
         Dicionário com status de saúde dos componentes
     """
-    logger.info(
-        "health_check_called",
-        include_services=include_services
-    )
+    logger.info("health_check_called", include_services=include_services)
 
     import socket
     from datetime import datetime
@@ -486,9 +436,7 @@ async def health_check(
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "version": settings.service_version,
-        "components": {
-            "mcp_server": "healthy"
-        }
+        "components": {"mcp_server": "healthy"},
     }
 
     # Verificar conexão com Queen Agent se solicitado
@@ -501,7 +449,9 @@ async def health_check(
 
             if result == 0:
                 status["components"]["queen_agent"] = "healthy"
-                status["queen_agent_connection"] = f"{settings.queen_agent_host}:{settings.queen_agent_port}"
+                status[
+                    "queen_agent_connection"
+                ] = f"{settings.queen_agent_host}:{settings.queen_agent_port}"
             else:
                 status["components"]["queen_agent"] = "unreachable"
                 status["status"] = "degraded"

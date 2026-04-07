@@ -65,9 +65,7 @@ class LoadPredictorWrapper:
         self.logger = logger.bind(component="load_predictor_wrapper")
 
         # Cache TTL
-        self.cache_ttl = getattr(
-            config, "load_predictor_cache_ttl_seconds", 300
-        )
+        self.cache_ttl = getattr(config, "load_predictor_cache_ttl_seconds", 300)
 
         # Horizontes configurados
         self.forecast_horizons = getattr(
@@ -95,7 +93,7 @@ class LoadPredictorWrapper:
                 "forecast": [],
                 "timestamps": [],
                 "model_type": "disabled",
-                "status": "disabled"
+                "status": "disabled",
             }
 
         start_time = time.time()
@@ -122,8 +120,7 @@ class LoadPredictorWrapper:
             self.logger.debug("load_forecast_cache_miss", horizon_minutes=horizon_minutes)
 
             result = await self.predictor.predict_load(
-                horizon_minutes=horizon_minutes,
-                include_confidence=include_confidence
+                horizon_minutes=horizon_minutes, include_confidence=include_confidence
             )
 
             # Salvar no cache
@@ -131,11 +128,7 @@ class LoadPredictorWrapper:
                 from src.clients.redis_client import redis_setex_safe
 
                 try:
-                    await redis_setex_safe(
-                        cache_key,
-                        self.cache_ttl,
-                        json.dumps(result)
-                    )
+                    await redis_setex_safe(cache_key, self.cache_ttl, json.dumps(result))
                 except Exception as e:
                     self.logger.warning("cache_save_error", error=str(e))
 
@@ -143,8 +136,7 @@ class LoadPredictorWrapper:
             latency_seconds = time.time() - start_time
             if self.metrics:
                 self.metrics.record_load_forecast_latency(
-                    latency_seconds=latency_seconds,
-                    horizon_minutes=horizon_minutes
+                    latency_seconds=latency_seconds, horizon_minutes=horizon_minutes
                 )
 
                 mape = result.get("mape", 0.0)
@@ -163,26 +155,22 @@ class LoadPredictorWrapper:
                 "load_forecast_error",
                 horizon_minutes=horizon_minutes,
                 error=str(e),
-                latency_seconds=latency_seconds
+                latency_seconds=latency_seconds,
             )
 
             # Retornar resposta de erro gracefully
             if self.metrics:
-                self.metrics.record_load_forecast_error(
-                    error_type=type(e).__name__
-                )
+                self.metrics.record_load_forecast_error(error_type=type(e).__name__)
 
             return {
                 "forecast": [],
                 "timestamps": [],
                 "error": str(e),
                 "model_type": "error",
-                "latency_seconds": latency_seconds
+                "latency_seconds": latency_seconds,
             }
 
-    async def predict_bottlenecks(
-        self, horizon_minutes: int = 360
-    ) -> list[dict[str, Any]]:
+    async def predict_bottlenecks(self, horizon_minutes: int = 360) -> list[dict[str, Any]]:
         """
         Identifica potenciais bottlenecks futuros.
 
@@ -196,31 +184,22 @@ class LoadPredictorWrapper:
             return []
 
         try:
-            bottlenecks = await self.predictor.predict_bottlenecks(
-                horizon_minutes=horizon_minutes
-            )
+            bottlenecks = await self.predictor.predict_bottlenecks(horizon_minutes=horizon_minutes)
 
             # Registrar métricas de bottlenecks
             if self.metrics and bottlenecks:
-                high_severity = sum(
-                    1 for b in bottlenecks if b.get("severity") == "HIGH"
-                )
-                medium_severity = sum(
-                    1 for b in bottlenecks if b.get("severity") == "MEDIUM"
-                )
+                high_severity = sum(1 for b in bottlenecks if b.get("severity") == "HIGH")
+                medium_severity = sum(1 for b in bottlenecks if b.get("severity") == "MEDIUM")
 
                 self.metrics.record_bottlenecks_detected(
-                    high_severity=high_severity,
-                    medium_severity=medium_severity
+                    high_severity=high_severity, medium_severity=medium_severity
                 )
 
             return bottlenecks
 
         except Exception as e:
             self.logger.error(
-                "bottleneck_prediction_error",
-                horizon_minutes=horizon_minutes,
-                error=str(e)
+                "bottleneck_prediction_error", horizon_minutes=horizon_minutes, error=str(e)
             )
             return []
 
@@ -297,9 +276,7 @@ class LoadPredictorFactory:
         self.logger = logger.bind(component="load_predictor_factory")
 
         # Verifica se LoadPredictor está habilitado
-        self.enabled = getattr(
-            config, "load_predictor_enabled", False
-        )
+        self.enabled = getattr(config, "load_predictor_enabled", False)
 
         # Verifica se neural_hive_ml está disponível
         self.ml_available = ML_AVAILABLE and self.enabled
@@ -324,9 +301,7 @@ class LoadPredictorFactory:
         # Se desabilitado ou ML não disponível, retornar wrapper desabilitado
         if not self.enabled or not self.ml_available:
             self.logger.info(
-                "load_predictor_disabled",
-                enabled=self.enabled,
-                ml_available=self.ml_available
+                "load_predictor_disabled", enabled=self.enabled, ml_available=self.ml_available
             )
 
             self._wrapper = LoadPredictorWrapper(
@@ -334,7 +309,7 @@ class LoadPredictorFactory:
                 config=self.config,
                 redis_client=self.redis_client,
                 metrics=self.metrics,
-                enabled=False
+                enabled=False,
             )
 
             return self._wrapper
@@ -348,7 +323,7 @@ class LoadPredictorFactory:
                 model_registry=None,  # Opcional: MLflow client
                 metrics=self._wrap_metrics(),
                 redis_client=self.redis_client,
-                data_source=self.mongodb_client
+                data_source=self.mongodb_client,
             )
 
             self._wrapper = LoadPredictorWrapper(
@@ -356,22 +331,20 @@ class LoadPredictorFactory:
                 config=self.config,
                 redis_client=self.redis_client,
                 metrics=self.metrics,
-                enabled=True
+                enabled=True,
             )
 
             self.logger.info(
                 "load_predictor_created",
                 enabled=True,
-                forecast_horizons=self.config.load_predictor_forecast_horizons
+                forecast_horizons=self.config.load_predictor_forecast_horizons,
             )
 
             return self._wrapper
 
         except Exception as e:
             self.logger.error(
-                "load_predictor_creation_failed",
-                error=str(e),
-                error_type=type(e).__name__
+                "load_predictor_creation_failed", error=str(e), error_type=type(e).__name__
             )
 
             # Fallback: retornar wrapper desabilitado
@@ -380,7 +353,7 @@ class LoadPredictorFactory:
                 config=self.config,
                 redis_client=self.redis_client,
                 metrics=self.metrics,
-                enabled=False
+                enabled=False,
             )
 
             return self._wrapper
@@ -400,9 +373,7 @@ class LoadPredictorFactory:
             self.logger.info("load_predictor_initialized")
         except Exception as e:
             self.logger.error(
-                "load_predictor_init_failed",
-                error=str(e),
-                error_type=type(e).__name__
+                "load_predictor_init_failed", error=str(e), error_type=type(e).__name__
             )
             raise
 
@@ -418,12 +389,9 @@ class LoadPredictorFactory:
                 self.config, "load_predictor_forecast_horizons", [60, 360, 1440]
             ),
             "seasonality_mode": "additive",
-            "cache_ttl_seconds": getattr(
-                self.config, "load_predictor_cache_ttl_seconds", 300
-            ),
-            "use_synthetic_data": getattr(
-                self.config, "environment", "development"
-            ) in ["development", "test", "local"]
+            "cache_ttl_seconds": getattr(self.config, "load_predictor_cache_ttl_seconds", 300),
+            "use_synthetic_data": getattr(self.config, "environment", "development")
+            in ["development", "test", "local"],
         }
 
     def _wrap_metrics(self) -> Any:
@@ -436,6 +404,7 @@ class LoadPredictorFactory:
         Returns:
             Objeto com interface compatível
         """
+
         class MetricsAdapter:
             """Adapter para métricas do LoadPredictor."""
 
@@ -448,31 +417,21 @@ class LoadPredictorFactory:
                     self.metrics.record_load_forecast_cache_hit(hit=hit)
 
             async def record_load_forecast(
-                self,
-                horizon_minutes: int,
-                status: str,
-                latency: float,
-                mape: float = 0.0
+                self, horizon_minutes: int, status: str, latency: float, mape: float = 0.0
             ) -> None:
                 """Registra forecast."""
                 if self.metrics:
                     if status == "success":
                         self.metrics.record_load_forecast_latency(
-                            latency_seconds=latency,
-                            horizon_minutes=horizon_minutes
+                            latency_seconds=latency, horizon_minutes=horizon_minutes
                         )
                         if mape > 0:
                             self.metrics.record_load_forecast_mape(mape=mape)
                     else:
-                        self.metrics.record_load_forecast_error(
-                            error_type=status
-                        )
+                        self.metrics.record_load_forecast_error(error_type=status)
 
             async def record_bottleneck_prediction(
-                self,
-                bottleneck_type: str,
-                severity: str,
-                timestamp: str
+                self, bottleneck_type: str, severity: str, timestamp: str
             ) -> None:
                 """Registra predição de bottleneck."""
                 # Métricas de bottlenecks são registradas pelo wrapper

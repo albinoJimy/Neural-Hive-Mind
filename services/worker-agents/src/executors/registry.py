@@ -1,4 +1,3 @@
-
 import structlog
 
 from .base_executor import BaseTaskExecutor

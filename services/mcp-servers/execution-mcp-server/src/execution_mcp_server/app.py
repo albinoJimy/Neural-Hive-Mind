@@ -37,9 +37,7 @@ class ExecutionMCPServer(BaseMCPServer):
 
 # Instância do servidor
 server = ExecutionMCPServer(
-    name=settings.service_name,
-    version=settings.service_version,
-    allowed_origins=["*"]
+    name=settings.service_name, version=settings.service_version, allowed_origins=["*"]
 )
 
 
@@ -49,11 +47,7 @@ async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:  # noqa: ARG001
     # Startup
     await server.initialize()
     server.set_ready(True)
-    logger.info(
-        "execution_mcp_server_started",
-        host="0.0.0.0",
-        port=settings.port
-    )
+    logger.info("execution_mcp_server_started", host="0.0.0.0", port=settings.port)
 
     yield
 
@@ -68,7 +62,7 @@ app = FastAPI(
     title="Execution MCP Server",
     version=settings.service_version,
     description="Servidor MCP para gerenciamento de Execution Tickets",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Configurar CORS e health checks
@@ -93,7 +87,7 @@ def main() -> None:
             structlog.stdlib.add_logger_name,
             structlog.stdlib.add_log_level,
             structlog.processors.TimeStamper(fmt="iso"),
-            structlog.processors.JSONRenderer()
+            structlog.processors.JSONRenderer(),
         ],
         wrapper_class=structlog.stdlib.BoundLogger,
         context_class=dict,
@@ -106,7 +100,7 @@ def main() -> None:
         host="0.0.0.0",
         port=settings.port,
         log_level=settings.log_level.lower(),
-        access_log=True
+        access_log=True,
     )
 
 

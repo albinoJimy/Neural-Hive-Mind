@@ -16,8 +16,8 @@ if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
 # Mock de dependências problemáticas antes de importar
-sys.modules['neural_hive_security'] = MagicMock()
-sys.modules['neural_hive_security.cors'] = MagicMock()
+sys.modules["neural_hive_security"] = MagicMock()
+sys.modules["neural_hive_security.cors"] = MagicMock()
 
 
 @pytest.fixture
@@ -39,8 +39,8 @@ def sample_cognitive_plan():
         "status": "PENDING",
         "tasks": [
             {"task_id": "task-1", "action": "query", "collection": "users"},
-            {"task_id": "task-2", "action": "transform", "spec": "json_schema"}
-        ]
+            {"task_id": "task-2", "action": "transform", "spec": "json_schema"},
+        ],
     }
 
 
@@ -51,7 +51,7 @@ def sample_consolidated_decision():
         "decision_id": "decision-456",
         "consensus_type": "UNANIMOUS",
         "approval": True,
-        "confidence": 0.95
+        "confidence": 0.95,
     }
 
 
@@ -72,14 +72,16 @@ class TestCreateTemporalWorkflow:
     """Testes de criação de workflow Temporal."""
 
     @pytest.mark.asyncio
-    async def test_create_temporal_workflow(self, mock_temporal_client, sample_cognitive_plan, sample_consolidated_decision):
+    async def test_create_temporal_workflow(
+        self, mock_temporal_client, sample_cognitive_plan, sample_consolidated_decision
+    ):
         """Deve criar workflow Temporal com sucesso."""
         from src.workflows.orchestration_workflow import OrchestrationWorkflow
 
         # Input data para o workflow
         input_data = {
             "cognitive_plan": sample_cognitive_plan,
-            "consolidated_decision": sample_consolidated_decision
+            "consolidated_decision": sample_consolidated_decision,
         }
 
         # Mock do workflow handle
@@ -93,20 +95,22 @@ class TestCreateTemporalWorkflow:
             args=[input_data],
             id=f"orchestration-{sample_cognitive_plan['plan_id']}",
             task_queue="orchestration-task-queue",
-            execution_timeout=timedelta(seconds=300)
+            execution_timeout=timedelta(seconds=300),
         )
 
         assert result is not None
         mock_temporal_client.start_workflow.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_initialize_workflow_with_plan(self, mock_temporal_client, sample_cognitive_plan, sample_consolidated_decision):
+    async def test_initialize_workflow_with_plan(
+        self, mock_temporal_client, sample_cognitive_plan, sample_consolidated_decision
+    ):
         """Deve inicializar workflow com plano cognitivo."""
         from src.workflows.orchestration_workflow import OrchestrationWorkflow
 
         input_data = {
             "cognitive_plan": sample_cognitive_plan,
-            "consolidated_decision": sample_consolidated_decision
+            "consolidated_decision": sample_consolidated_decision,
         }
 
         workflow_handle = AsyncMock()
@@ -117,7 +121,7 @@ class TestCreateTemporalWorkflow:
             OrchestrationWorkflow.run,
             args=[input_data],
             id=f"orchestration-{sample_cognitive_plan['plan_id']}",
-            task_queue="orchestration-task-queue"
+            task_queue="orchestration-task-queue",
         )
 
         assert result.id == f"orchestration-{sample_cognitive_plan['plan_id']}"
@@ -140,7 +144,7 @@ class TestWorkflowConfiguration:
         retry_policy = RetryPolicy(
             maximum_attempts=mock_config.temporal_max_retry_attempts,
             initial_interval=timedelta(seconds=1),
-            backoff_coefficient=2.0
+            backoff_coefficient=2.0,
         )
 
         assert retry_policy.maximum_attempts == 3

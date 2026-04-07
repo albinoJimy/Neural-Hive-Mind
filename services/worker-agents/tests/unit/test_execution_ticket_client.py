@@ -12,7 +12,7 @@ import jwt
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / 'src'))
+sys.path.insert(0, str(ROOT / "src"))
 
 from clients.execution_ticket_client import ExecutionTicketClient  # noqa: E402
 
@@ -21,9 +21,9 @@ from clients.execution_ticket_client import ExecutionTicketClient  # noqa: E402
 def config():
     """Configuração básica para testes."""
     return SimpleNamespace(
-        execution_ticket_service_url='http://localhost:8080',
+        execution_ticket_service_url="http://localhost:8080",
         ticket_api_timeout_seconds=30,
-        service_version='1.0.0',
+        service_version="1.0.0",
     )
 
 
@@ -39,8 +39,8 @@ def mock_metrics():
 def create_jwt_token(exp_offset_seconds: int) -> str:
     """Cria token JWT com expiração relativa ao tempo atual."""
     exp = int(time.time()) + exp_offset_seconds
-    payload = {'sub': 'test-ticket', 'exp': exp, 'iat': int(time.time())}
-    return jwt.encode(payload, 'secret', algorithm='HS256')
+    payload = {"sub": "test-ticket", "exp": exp, "iat": int(time.time())}
+    return jwt.encode(payload, "secret", algorithm="HS256")
 
 
 class TestIsTokenExpired:
@@ -67,13 +67,13 @@ class TestIsTokenExpired:
     def test_malformed_token(self, config):
         """Token malformado deve ser considerado expirado."""
         client = ExecutionTicketClient(config)
-        assert client._is_token_expired('invalid-token') is True
+        assert client._is_token_expired("invalid-token") is True
 
     def test_token_without_exp_claim(self, config):
         """Token sem claim 'exp' deve ser considerado expirado."""
         client = ExecutionTicketClient(config)
-        payload = {'sub': 'test-ticket', 'iat': int(time.time())}
-        token = jwt.encode(payload, 'secret', algorithm='HS256')
+        payload = {"sub": "test-ticket", "iat": int(time.time())}
+        token = jwt.encode(payload, "secret", algorithm="HS256")
         assert client._is_token_expired(token) is True
 
 
@@ -87,9 +87,9 @@ class TestGetTicketToken:
         client.client = MagicMock()
 
         valid_token = create_jwt_token(3600)
-        client._token_cache['ticket-123'] = {'access_token': valid_token}
+        client._token_cache["ticket-123"] = {"access_token": valid_token}
 
-        result = await client.get_ticket_token('ticket-123')
+        result = await client.get_ticket_token("ticket-123")
 
         assert result == valid_token
         client.client.get.assert_not_called()
@@ -102,16 +102,16 @@ class TestGetTicketToken:
         new_token = create_jwt_token(3600)
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {'access_token': new_token}
+        mock_response.json.return_value = {"access_token": new_token}
         mock_response.raise_for_status = MagicMock()
 
         client.client = MagicMock()
         client.client.get = AsyncMock(return_value=mock_response)
 
-        result = await client.get_ticket_token('ticket-456')
+        result = await client.get_ticket_token("ticket-456")
 
         assert result == new_token
-        assert 'ticket-456' in client._token_cache
+        assert "ticket-456" in client._token_cache
         mock_metrics.ticket_tokens_obtained_total.inc.assert_called_once()
 
     @pytest.mark.asyncio
@@ -122,20 +122,20 @@ class TestGetTicketToken:
         expired_token = create_jwt_token(-60)
         new_token = create_jwt_token(3600)
 
-        client._token_cache['ticket-789'] = {'access_token': expired_token}
+        client._token_cache["ticket-789"] = {"access_token": expired_token}
 
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {'access_token': new_token}
+        mock_response.json.return_value = {"access_token": new_token}
         mock_response.raise_for_status = MagicMock()
 
         client.client = MagicMock()
         client.client.get = AsyncMock(return_value=mock_response)
 
-        result = await client.get_ticket_token('ticket-789')
+        result = await client.get_ticket_token("ticket-789")
 
         assert result == new_token
-        assert client._token_cache['ticket-789']['access_token'] == new_token
+        assert client._token_cache["ticket-789"]["access_token"] == new_token
 
     @pytest.mark.asyncio
     async def test_fetches_new_token_when_cached_malformed(self, config, mock_metrics):
@@ -143,16 +143,16 @@ class TestGetTicketToken:
         client = ExecutionTicketClient(config, metrics=mock_metrics)
 
         new_token = create_jwt_token(3600)
-        client._token_cache['ticket-abc'] = {'access_token': 'malformed-token'}
+        client._token_cache["ticket-abc"] = {"access_token": "malformed-token"}
 
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {'access_token': new_token}
+        mock_response.json.return_value = {"access_token": new_token}
         mock_response.raise_for_status = MagicMock()
 
         client.client = MagicMock()
         client.client.get = AsyncMock(return_value=mock_response)
 
-        result = await client.get_ticket_token('ticket-abc')
+        result = await client.get_ticket_token("ticket-abc")
 
         assert result == new_token

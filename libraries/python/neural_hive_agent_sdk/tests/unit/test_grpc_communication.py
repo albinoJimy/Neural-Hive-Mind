@@ -55,7 +55,9 @@ class TestGrpcSendRequest:
     async def test_send_register_request(self, grpc_config, mock_channel):
         """Testa envio de requisição de registro."""
         # Quando proto não disponível, usa fallback mock
-        with patch("neural_hive_agent_sdk.client.grpc.aio.insecure_channel", return_value=mock_channel):
+        with patch(
+            "neural_hive_agent_sdk.client.grpc.aio.insecure_channel", return_value=mock_channel
+        ):
             client = AgentClient(config=grpc_config)
 
             agent_id = await client.register(
@@ -71,7 +73,9 @@ class TestGrpcSendRequest:
     @pytest.mark.asyncio
     async def test_send_request_succeeds(self, grpc_config, mock_channel):
         """Testa que requisição tem sucesso."""
-        with patch("neural_hive_agent_sdk.client.grpc.aio.insecure_channel", return_value=mock_channel):
+        with patch(
+            "neural_hive_agent_sdk.client.grpc.aio.insecure_channel", return_value=mock_channel
+        ):
             client = AgentClient(config=grpc_config)
 
             agent_id = await client.register(
@@ -85,10 +89,17 @@ class TestGrpcSendRequest:
     @pytest.mark.asyncio
     async def test_send_request_with_different_types(self, grpc_config, mock_channel):
         """Testa envio com diferentes tipos de agente."""
-        with patch("neural_hive_agent_sdk.client.grpc.aio.insecure_channel", return_value=mock_channel):
+        with patch(
+            "neural_hive_agent_sdk.client.grpc.aio.insecure_channel", return_value=mock_channel
+        ):
             client = AgentClient(config=grpc_config)
 
-            for agent_type in [AgentType.WORKER, AgentType.SCOUT, AgentType.GUARD, AgentType.ANALYST]:
+            for agent_type in [
+                AgentType.WORKER,
+                AgentType.SCOUT,
+                AgentType.GUARD,
+                AgentType.ANALYST,
+            ]:
                 client.agent_id = None
                 client.registration_token = None
 
@@ -111,7 +122,9 @@ class TestGrpcReceiveResponse:
     @pytest.mark.asyncio
     async def test_receive_register_response_fields(self, grpc_config, mock_channel):
         """Testa extração de campos da resposta de registro."""
-        with patch("neural_hive_agent_sdk.client.grpc.aio.insecure_channel", return_value=mock_channel):
+        with patch(
+            "neural_hive_agent_sdk.client.grpc.aio.insecure_channel", return_value=mock_channel
+        ):
             client = AgentClient(config=grpc_config)
 
             agent_id = await client.register(
@@ -127,7 +140,9 @@ class TestGrpcReceiveResponse:
     @pytest.mark.asyncio
     async def test_response_includes_token(self, grpc_config, mock_channel):
         """Testa que resposta inclui token de registro."""
-        with patch("neural_hive_agent_sdk.client.grpc.aio.insecure_channel", return_value=mock_channel):
+        with patch(
+            "neural_hive_agent_sdk.client.grpc.aio.insecure_channel", return_value=mock_channel
+        ):
             client = AgentClient(config=grpc_config)
 
             await client.register(
@@ -153,7 +168,9 @@ class TestGrpcDeadline:
         """Testa que configuração de timeout é usada."""
         grpc_config.GRPC_TIMEOUT_SECONDS = 10
 
-        with patch("neural_hive_agent_sdk.client.grpc.aio.insecure_channel", return_value=mock_channel):
+        with patch(
+            "neural_hive_agent_sdk.client.grpc.aio.insecure_channel", return_value=mock_channel
+        ):
             client = AgentClient(config=grpc_config)
 
             # Deve usar timeout configurado
@@ -170,7 +187,9 @@ class TestGrpcDeadline:
         slow_channel = MagicMock()
         slow_channel.channel_ready = AsyncMock()
 
-        with patch("neural_hive_agent_sdk.client.grpc.aio.insecure_channel", return_value=slow_channel):
+        with patch(
+            "neural_hive_agent_sdk.client.grpc.aio.insecure_channel", return_value=slow_channel
+        ):
             client = AgentClient(config=grpc_config)
 
             await client.register(
@@ -192,7 +211,9 @@ class TestGrpcMetadata:
     @pytest.mark.asyncio
     async def test_metadata_passed_to_register(self, grpc_config, mock_channel):
         """Testa que metadados são passados para registro."""
-        with patch("neural_hive_agent_sdk.client.grpc.aio.insecure_channel", return_value=mock_channel):
+        with patch(
+            "neural_hive_agent_sdk.client.grpc.aio.insecure_channel", return_value=mock_channel
+        ):
             client = AgentClient(config=grpc_config)
 
             custom_metadata = {
@@ -211,7 +232,9 @@ class TestGrpcMetadata:
     @pytest.mark.asyncio
     async def test_default_metadata_included(self, grpc_config, mock_channel):
         """Testa que metadados padrão são incluídos."""
-        with patch("neural_hive_agent_sdk.client.grpc.aio.insecure_channel", return_value=mock_channel):
+        with patch(
+            "neural_hive_agent_sdk.client.grpc.aio.insecure_channel", return_value=mock_channel
+        ):
             client = AgentClient(config=grpc_config)
 
             agent_id = await client.register(
@@ -237,7 +260,9 @@ class TestGrpcChannel:
         channel.channel_ready = AsyncMock()
         channel.close = AsyncMock()
 
-        with patch("neural_hive_agent_sdk.client.grpc.aio.insecure_channel", return_value=channel) as mock_create:
+        with patch(
+            "neural_hive_agent_sdk.client.grpc.aio.insecure_channel", return_value=channel
+        ) as mock_create:
             client = AgentClient(config=grpc_config)
 
             await client.register(
@@ -255,7 +280,9 @@ class TestGrpcChannel:
     @pytest.mark.asyncio
     async def test_channel_closed_on_deregister(self, grpc_config, mock_channel):
         """Testa que canal é fechado no deregister."""
-        with patch("neural_hive_agent_sdk.client.grpc.aio.insecure_channel", return_value=mock_channel):
+        with patch(
+            "neural_hive_agent_sdk.client.grpc.aio.insecure_channel", return_value=mock_channel
+        ):
             client = AgentClient(config=grpc_config)
 
             await client.register(
@@ -316,7 +343,9 @@ class TestGrpcCompression:
     @pytest.mark.asyncio
     async def test_large_payload_handled(self, grpc_config, mock_channel):
         """Testa que payload grande é manipulado."""
-        with patch("neural_hive_agent_sdk.client.grpc.aio.insecure_channel", return_value=mock_channel):
+        with patch(
+            "neural_hive_agent_sdk.client.grpc.aio.insecure_channel", return_value=mock_channel
+        ):
             client = AgentClient(config=grpc_config)
 
             # Enviar lista grande de capabilities

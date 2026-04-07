@@ -35,11 +35,8 @@ def sample_features():
     """Features de exemplo para cache"""
     return {
         "plan_id": "test-plan-123",
-        "metadata": {
-            "num_tasks": 5,
-            "priority_score": 0.7
-        },
-        "computation_status": "completed"
+        "metadata": {"num_tasks": 5, "priority_score": 0.7},
+        "computation_status": "completed",
     }
 
 
@@ -63,14 +60,16 @@ class TestInitialize:
     @pytest.mark.asyncio
     async def test_initialize_success(self, cache_service):
         """Testa inicialização bem-sucedida"""
-        with patch('src.services.cache_service.HAS_AIOREDIS', True):
+        with patch("src.services.cache_service.HAS_AIOREDIS", True):
             # Mock redis
             mock_redis = MagicMock()
             mock_redis.ping = AsyncMock(return_value=True)
             mock_pool = MagicMock()
 
-            with patch('src.services.cache_service.aioredis.ConnectionPool', return_value=mock_pool):
-                with patch('src.services.cache_service.aioredis.Redis', return_value=mock_redis):
+            with patch(
+                "src.services.cache_service.aioredis.ConnectionPool", return_value=mock_pool
+            ):
+                with patch("src.services.cache_service.aioredis.Redis", return_value=mock_redis):
                     await cache_service.initialize()
 
                     assert cache_service._is_connected is True
@@ -79,7 +78,7 @@ class TestInitialize:
     @pytest.mark.asyncio
     async def test_initialize_without_aioredis(self, cache_service):
         """Testa inicialização sem aioredis instalado"""
-        with patch('src.services.cache_service.HAS_AIOREDIS', False):
+        with patch("src.services.cache_service.HAS_AIOREDIS", False):
             await cache_service.initialize()
 
             assert cache_service._is_connected is False
@@ -96,7 +95,7 @@ class TestGet:
         cache_service._redis = mock_redis
         cache_service._is_connected = True
 
-        with patch('src.services.cache_service.json.loads', return_value=sample_features):
+        with patch("src.services.cache_service.json.loads", return_value=sample_features):
             result = await cache_service.get("test-plan-123")
 
             assert result == sample_features
@@ -167,7 +166,7 @@ class TestSet:
         # Verifica que TTL customizado foi usado
         call_args = mock_redis.setex.call_args
         # setex é chamado com (key, ttl, value) ou argumentos nomeados
-        ttl_arg = call_args[0][1] if len(call_args[0]) > 1 else call_args[1].get('ttl')
+        ttl_arg = call_args[0][1] if len(call_args[0]) > 1 else call_args[1].get("ttl")
         assert ttl_arg == custom_ttl
 
     @pytest.mark.asyncio
@@ -187,12 +186,12 @@ class TestSet:
         cache_service._redis = mock_redis
         cache_service._is_connected = True
 
-        with patch('src.services.cache_service.json.dumps') as mock_dumps:
+        with patch("src.services.cache_service.json.dumps") as mock_dumps:
             await cache_service.set("test-plan-123", sample_features)
 
             # Verifica que _cached_at foi adicionado antes de serializar
             call_args = mock_dumps.call_args
-            assert '_cached_at' in call_args[0][0]
+            assert "_cached_at" in call_args[0][0]
 
 
 class TestDelete:

@@ -192,9 +192,7 @@ async def test_scout_analyze_structure_e2e_success(mcp_orchestrator, mock_scout_
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_optimizer_suggest_refactors_e2e_success(
-    mcp_orchestrator, mock_optimizer_client
-):
+async def test_optimizer_suggest_refactors_e2e_success(mcp_orchestrator, mock_optimizer_client):
     """
     Teste E2E: Optimizer MCP suggest_refactors com sucesso.
     Valida sugestões de refatoração.
@@ -238,9 +236,7 @@ async def test_optimizer_suggest_refactors_e2e_success(
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_optimizer_analyze_performance_e2e_success(
-    mcp_orchestrator, mock_optimizer_client
-):
+async def test_optimizer_analyze_performance_e2e_success(mcp_orchestrator, mock_optimizer_client):
     """
     Teste E2E: Optimizer MCP analyze_performance com sucesso.
     Valida análise de performance de código.
@@ -278,9 +274,7 @@ async def test_optimizer_analyze_performance_e2e_success(
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_optimizer_optimize_queries_e2e_success(
-    mcp_orchestrator, mock_optimizer_client
-):
+async def test_optimizer_optimize_queries_e2e_success(mcp_orchestrator, mock_optimizer_client):
     """
     Teste E2E: Optimizer MCP optimize_queries com sucesso.
     Valida otimização de queries MongoDB.
@@ -303,9 +297,7 @@ async def test_optimizer_optimize_queries_e2e_success(
             {
                 "server": "optimizer",
                 "tool_name": "optimize_queries",
-                "params": {
-                    "queries": ["db.users.find({age: {$gt: 25}}).sort({name: 1})"]
-                },
+                "params": {"queries": ["db.users.find({age: {$gt: 25}}).sort({name: 1})"]},
             },
         ]
     )
@@ -532,9 +524,7 @@ async def test_sdk_client_execute_tool_e2e():
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_full_workflow_e2e(
-    mcp_orchestrator, mock_scout_client, mock_optimizer_client
-):
+async def test_full_workflow_e2e(mcp_orchestrator, mock_scout_client, mock_optimizer_client):
     """
     Teste E2E: fluxo completo multi-step.
     1. Listar arquivos (Scout)

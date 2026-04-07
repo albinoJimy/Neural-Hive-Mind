@@ -278,6 +278,7 @@ class TestGlobalRegistry:
         """Testa None quando registro global não inicializado."""
         # Limpar registro global se existir
         import neural_hive_resilience.registry as reg_module
+
         reg_module._global_registry = None
 
         registry = get_global_registry()

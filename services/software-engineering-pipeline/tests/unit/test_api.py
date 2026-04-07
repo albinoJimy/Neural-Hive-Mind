@@ -213,9 +213,7 @@ class TestPipelineRunsRouter:
         )
         monkeypatch.setattr("src.api.routers.pipeline_runs.repo", mock_pipeline_repo)
 
-        response = client.get(
-            "/api/v1/pipelines/repositories/github.com/org/repo/stats"
-        )
+        response = client.get("/api/v1/pipelines/repositories/github.com/org/repo/stats")
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -307,9 +305,7 @@ class TestAnomaliesRouter:
         )
         monkeypatch.setattr("src.api.routers.anomalies.repo", mock_anomaly_repo)
 
-        response = client.get(
-            "/api/v1/anomalies/repositories/github.com/org/repo/unresolved"
-        )
+        response = client.get("/api/v1/anomalies/repositories/github.com/org/repo/unresolved")
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -349,9 +345,7 @@ class TestInsightsRouter:
         monkeypatch.setattr(insights, "run_repo", mock_pipeline_repo)
         monkeypatch.setattr(insights, "anomaly_repo", mock_anomaly_repo)
 
-        response = client.get(
-            "/api/v1/insights/repositories/github.com/org/repo/health"
-        )
+        response = client.get("/api/v1/insights/repositories/github.com/org/repo/health")
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()

@@ -100,10 +100,7 @@ def test_init_with_ledger_client():
     """Testa inicialização com ledger client."""
     mock_ledger = AsyncMock()
 
-    alerter = DriftAlerter(
-        {"alertmanager_url": "http://test"},
-        ledger_client=mock_ledger
-    )
+    alerter = DriftAlerter({"alertmanager_url": "http://test"}, ledger_client=mock_ledger)
 
     assert alerter.ledger_client is mock_ledger
 
@@ -120,10 +117,7 @@ def test_init_with_both_config_names():
     assert alerter2.enabled is True
 
     # drift_alert_enabled tem prioridade se ambos presentes
-    alerter3 = DriftAlerter({
-        "drift_alert_enabled": True,
-        "enable_drift_alerts": False
-    })
+    alerter3 = DriftAlerter({"drift_alert_enabled": True, "enable_drift_alerts": False})
     assert alerter3.enabled is True  # drift_alert_enabled tem prioridade
 
 
@@ -131,16 +125,13 @@ def test_init_with_both_config_names():
 def test_webhook_url_fallback():
     """Testa fallback para webhook_url."""
     # drift_alert_webhook tem prioridade
-    alerter1 = DriftAlerter({
-        "drift_alert_webhook": "http://webhook1",
-        "slack_webhook_url": "http://webhook2"
-    })
+    alerter1 = DriftAlerter(
+        {"drift_alert_webhook": "http://webhook1", "slack_webhook_url": "http://webhook2"}
+    )
     assert alerter1.webhook_url == "http://webhook1"
 
     # Fallback para slack_webhook_url
-    alerter2 = DriftAlerter({
-        "slack_webhook_url": "http://webhook2"
-    })
+    alerter2 = DriftAlerter({"slack_webhook_url": "http://webhook2"})
     assert alerter2.webhook_url == "http://webhook2"
 
 
@@ -149,10 +140,7 @@ def test_webhook_url_fallback():
 async def test_send_alert_data_structure():
     """Testa estrutura de dados do alerta."""
     # Precisa passar URLs para que os métodos sejam chamados
-    alerter = DriftAlerter({
-        "alertmanager_url": "http://test",
-        "slack_webhook_url": "http://slack"
-    })
+    alerter = DriftAlerter({"alertmanager_url": "http://test", "slack_webhook_url": "http://slack"})
     alerter._send_to_alertmanager = AsyncMock()
     alerter._send_to_slack = AsyncMock()
 
@@ -170,9 +158,7 @@ async def test_send_alert_data_structure():
 @pytest.mark.asyncio
 async def test_send_alert_limits_features():
     """Testa que alerta limita features a 10."""
-    alerter = DriftAlerter({
-        "alertmanager_url": "http://test"
-    })
+    alerter = DriftAlerter({"alertmanager_url": "http://test"})
     alerter._send_to_alertmanager = AsyncMock()
 
     # Criar 15 features

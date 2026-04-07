@@ -33,9 +33,7 @@ def register_sonarqube_tools(mcp: FastMCP) -> None:
     """Registra ferramentas SonarQube no servidor MCP."""
 
     @mcp.tool()
-    async def get_quality_gate(
-        project_key: str
-    ) -> dict[str, Any]:
+    async def get_quality_gate(project_key: str) -> dict[str, Any]:
         """
         Obtém status do Quality Gate para um projeto SonarQube.
 
@@ -57,7 +55,7 @@ def register_sonarqube_tools(mcp: FastMCP) -> None:
                 "project_key": project_key,
                 "error": result.get("error"),
                 "message": result.get("message"),
-                "duration_seconds": duration
+                "duration_seconds": duration,
             }
 
         project_status = result.get("projectStatus", {})
@@ -65,26 +63,28 @@ def register_sonarqube_tools(mcp: FastMCP) -> None:
 
         conditions = []
         for condition in project_status.get("conditions", []):
-            conditions.append({
-                "metric": condition.get("metricKey"),
-                "status": condition.get("status"),
-                "value": condition.get("actualValue"),
-                "threshold": condition.get("errorThreshold")
-            })
+            conditions.append(
+                {
+                    "metric": condition.get("metricKey"),
+                    "status": condition.get("status"),
+                    "value": condition.get("actualValue"),
+                    "threshold": condition.get("errorThreshold"),
+                }
+            )
 
         return {
             "success": True,
             "project_key": project_key,
             "status": status,
             "conditions": conditions,
-            "duration_seconds": duration
+            "duration_seconds": duration,
         }
 
     @mcp.tool()
     async def get_issues(
         project_key: str,
         severity: str = "MAJOR,CRITICAL,BLOCKER",
-        issue_type: str = "BUG,VULNERABILITY,CODE_SMELL"
+        issue_type: str = "BUG,VULNERABILITY,CODE_SMELL",
     ) -> dict[str, Any]:
         """
         Busca issues de código para um projeto SonarQube.
@@ -101,9 +101,7 @@ def register_sonarqube_tools(mcp: FastMCP) -> None:
         client = get_client()
 
         result = await client.search_issues(
-            project_key=project_key,
-            severities=severity,
-            types=issue_type
+            project_key=project_key, severities=severity, types=issue_type
         )
         duration = time.time() - start_time
 
@@ -113,22 +111,24 @@ def register_sonarqube_tools(mcp: FastMCP) -> None:
                 "project_key": project_key,
                 "error": result.get("error"),
                 "message": result.get("message"),
-                "duration_seconds": duration
+                "duration_seconds": duration,
             }
 
         issues = []
         for issue in result.get("issues", []):
-            issues.append({
-                "key": issue.get("key"),
-                "severity": issue.get("severity"),
-                "type": issue.get("type"),
-                "message": issue.get("message"),
-                "component": issue.get("component"),
-                "line": issue.get("line"),
-                "status": issue.get("status"),
-                "effort": issue.get("effort"),
-                "tags": issue.get("tags", [])
-            })
+            issues.append(
+                {
+                    "key": issue.get("key"),
+                    "severity": issue.get("severity"),
+                    "type": issue.get("type"),
+                    "message": issue.get("message"),
+                    "component": issue.get("component"),
+                    "line": issue.get("line"),
+                    "status": issue.get("status"),
+                    "effort": issue.get("effort"),
+                    "tags": issue.get("tags", []),
+                }
+            )
 
         # Contar por severidade
         severity_counts: dict[str, int] = {}
@@ -149,13 +149,13 @@ def register_sonarqube_tools(mcp: FastMCP) -> None:
             "severity_counts": severity_counts,
             "type_counts": type_counts,
             "issues": issues[:50],  # Limitar a 50 issues no retorno
-            "duration_seconds": duration
+            "duration_seconds": duration,
         }
 
     @mcp.tool()
     async def get_metrics(
         project_key: str,
-        metrics: str = "bugs,vulnerabilities,code_smells,coverage,duplicated_lines_density,ncloc"
+        metrics: str = "bugs,vulnerabilities,code_smells,coverage,duplicated_lines_density,ncloc",
     ) -> dict[str, Any]:
         """
         Obtém métricas de qualidade de código para um projeto.
@@ -170,10 +170,7 @@ def register_sonarqube_tools(mcp: FastMCP) -> None:
         start_time = time.time()
         client = get_client()
 
-        result = await client.get_component_measures(
-            project_key=project_key,
-            metrics=metrics
-        )
+        result = await client.get_component_measures(project_key=project_key, metrics=metrics)
         duration = time.time() - start_time
 
         if "error" in result:
@@ -182,7 +179,7 @@ def register_sonarqube_tools(mcp: FastMCP) -> None:
                 "project_key": project_key,
                 "error": result.get("error"),
                 "message": result.get("message"),
-                "duration_seconds": duration
+                "duration_seconds": duration,
             }
 
         component = result.get("component", {})
@@ -208,14 +205,11 @@ def register_sonarqube_tools(mcp: FastMCP) -> None:
             "project_key": project_key,
             "component_name": component.get("name"),
             "measures": measures,
-            "duration_seconds": duration
+            "duration_seconds": duration,
         }
 
     @mcp.tool()
-    async def wait_for_analysis(
-        task_id: str,
-        timeout_seconds: int = 300
-    ) -> dict[str, Any]:
+    async def wait_for_analysis(task_id: str, timeout_seconds: int = 300) -> dict[str, Any]:
         """
         Aguarda conclusão de uma análise SonarQube.
 
@@ -234,9 +228,7 @@ def register_sonarqube_tools(mcp: FastMCP) -> None:
         max_attempts = timeout_seconds // poll_interval
 
         result = await client.wait_for_analysis(
-            task_id=task_id,
-            poll_interval=poll_interval,
-            max_attempts=max_attempts
+            task_id=task_id, poll_interval=poll_interval, max_attempts=max_attempts
         )
         duration = time.time() - start_time
 
@@ -246,7 +238,7 @@ def register_sonarqube_tools(mcp: FastMCP) -> None:
                 "task_id": task_id,
                 "error": result.get("error"),
                 "message": result.get("message"),
-                "duration_seconds": duration
+                "duration_seconds": duration,
             }
 
         task = result.get("task", {})
@@ -258,5 +250,5 @@ def register_sonarqube_tools(mcp: FastMCP) -> None:
             "component_key": task.get("componentKey"),
             "analysis_id": task.get("analysisId"),
             "execution_time_ms": task.get("executionTimeMs"),
-            "duration_seconds": duration
+            "duration_seconds": duration,
         }

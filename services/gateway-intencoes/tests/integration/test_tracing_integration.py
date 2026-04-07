@@ -6,12 +6,13 @@ from fastapi.testclient import TestClient
 
 import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
+
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
 
 # Regex para validação de formatos hexadecimais
-TRACE_ID_PATTERN = re.compile(r'^[0-9a-f]{32}$')
-SPAN_ID_PATTERN = re.compile(r'^[0-9a-f]{16}$')
+TRACE_ID_PATTERN = re.compile(r"^[0-9a-f]{32}$")
+SPAN_ID_PATTERN = re.compile(r"^[0-9a-f]{16}$")
 
 
 @pytest.fixture
@@ -24,24 +25,14 @@ def mock_pipelines_and_producer():
         classification="request",
         confidence=0.88,
         processed_text="teste de intenção processada",
-        entities=[
-            Entity(
-                entity_type="ACTION",
-                value="teste",
-                confidence=0.9,
-                start=0,
-                end=5
-            )
-        ],
+        entities=[Entity(entity_type="ACTION", value="teste", confidence=0.9, start=0, end=5)],
         keywords=["teste", "intenção"],
-        processing_time_ms=80.0
+        processing_time_ms=80.0,
     )
 
-    with patch('main.nlu_pipeline') as mock_nlu, \
-         patch('main.kafka_producer') as mock_kafka, \
-         patch('main.redis_client') as mock_redis, \
-         patch('main.health_manager') as mock_health:
-
+    with patch("main.nlu_pipeline") as mock_nlu, patch("main.kafka_producer") as mock_kafka, patch(
+        "main.redis_client"
+    ) as mock_redis, patch("main.health_manager") as mock_health:
         mock_nlu.process = AsyncMock(return_value=nlu_result)
         mock_nlu.is_ready.return_value = True
         mock_nlu.confidence_threshold = 0.75
@@ -55,12 +46,7 @@ def mock_pipelines_and_producer():
         mock_health.check_all = AsyncMock(return_value={"status": "healthy", "checks": {}})
         mock_health.get_overall_status.return_value = "healthy"
 
-        yield {
-            'nlu': mock_nlu,
-            'kafka': mock_kafka,
-            'redis': mock_redis,
-            'health': mock_health
-        }
+        yield {"nlu": mock_nlu, "kafka": mock_kafka, "redis": mock_redis, "health": mock_health}
 
 
 @pytest.fixture
@@ -73,24 +59,21 @@ def mock_voice_pipelines(mock_pipelines_and_producer):
         confidence=0.95,
         language="pt-BR",
         duration=2.5,
-        processing_time_ms=150.0
+        processing_time_ms=150.0,
     )
 
-    with patch('main.asr_pipeline') as mock_asr:
+    with patch("main.asr_pipeline") as mock_asr:
         mock_asr.process = AsyncMock(return_value=asr_result)
         mock_asr.is_ready.return_value = True
 
-        yield {
-            **mock_pipelines_and_producer,
-            'asr': mock_asr
-        }
+        yield {**mock_pipelines_and_producer, "asr": mock_asr}
 
 
 @pytest.fixture
 def test_client():
     """Cliente de teste FastAPI"""
     # Patch settings antes de importar app
-    with patch('main.settings') as mock_settings:
+    with patch("main.settings") as mock_settings:
         mock_settings.environment = "test"
         mock_settings.token_validation_enabled = False
         mock_settings.otel_enabled = False
@@ -101,6 +84,7 @@ def test_client():
         mock_settings.redis_default_ttl = 3600
 
         from main import app
+
         client = TestClient(app, raise_server_exceptions=False)
         yield client
 
@@ -116,15 +100,12 @@ class TestTracingIntegration:
         mock_trace_id = "4bf92f3577b34da6a3ce929d0e0e4736"
         mock_span_id = "00f067aa0ba902b7"
 
-        with patch('main.get_current_trace_id', return_value=mock_trace_id), \
-             patch('main.get_current_span_id', return_value=mock_span_id):
-
+        with patch("main.get_current_trace_id", return_value=mock_trace_id), patch(
+            "main.get_current_span_id", return_value=mock_span_id
+        ):
             response = test_client.post(
                 "/intentions",
-                json={
-                    "text": "Preciso de ajuda com meu projeto",
-                    "language": "pt-BR"
-                }
+                json={"text": "Preciso de ajuda com meu projeto", "language": "pt-BR"},
             )
 
             # Verificar resposta
@@ -147,15 +128,12 @@ class TestTracingIntegration:
         self, test_client, mock_pipelines_and_producer
     ):
         """Verifica se traceId e spanId são null quando tracing está desabilitado"""
-        with patch('main.get_current_trace_id', return_value=None), \
-             patch('main.get_current_span_id', return_value=None):
-
+        with patch("main.get_current_trace_id", return_value=None), patch(
+            "main.get_current_span_id", return_value=None
+        ):
             response = test_client.post(
                 "/intentions",
-                json={
-                    "text": "Preciso de ajuda com meu projeto",
-                    "language": "pt-BR"
-                }
+                json={"text": "Preciso de ajuda com meu projeto", "language": "pt-BR"},
             )
 
             # Verificar resposta
@@ -177,16 +155,16 @@ class TestTracingIntegration:
         mock_trace_id = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6"
         mock_span_id = "1234567890abcdef"
 
-        with patch('main.get_current_trace_id', return_value=mock_trace_id), \
-             patch('main.get_current_span_id', return_value=mock_span_id):
-
+        with patch("main.get_current_trace_id", return_value=mock_trace_id), patch(
+            "main.get_current_span_id", return_value=mock_span_id
+        ):
             # Criar arquivo de áudio fake
             audio_content = b"fake-audio-content-for-test"
 
             response = test_client.post(
                 "/intentions/voice",
                 files={"audio_file": ("test.wav", audio_content, "audio/wav")},
-                data={"language": "pt-BR"}
+                data={"language": "pt-BR"},
             )
 
             # Verificar resposta
@@ -209,16 +187,16 @@ class TestTracingIntegration:
         self, test_client, mock_voice_pipelines
     ):
         """Verifica se traceId e spanId são null para voz quando tracing está desabilitado"""
-        with patch('main.get_current_trace_id', return_value=None), \
-             patch('main.get_current_span_id', return_value=None):
-
+        with patch("main.get_current_trace_id", return_value=None), patch(
+            "main.get_current_span_id", return_value=None
+        ):
             # Criar arquivo de áudio fake
             audio_content = b"fake-audio-content-for-test"
 
             response = test_client.post(
                 "/intentions/voice",
                 files={"audio_file": ("test.wav", audio_content, "audio/wav")},
-                data={"language": "pt-BR"}
+                data={"language": "pt-BR"},
             )
 
             # Verificar resposta
@@ -240,15 +218,11 @@ class TestTracingIntegration:
         # Span ID válido: 16 caracteres hexadecimais
         valid_span_id = "0123456789abcdef"
 
-        with patch('main.get_current_trace_id', return_value=valid_trace_id), \
-             patch('main.get_current_span_id', return_value=valid_span_id):
-
+        with patch("main.get_current_trace_id", return_value=valid_trace_id), patch(
+            "main.get_current_span_id", return_value=valid_span_id
+        ):
             response = test_client.post(
-                "/intentions",
-                json={
-                    "text": "Teste de formato de trace",
-                    "language": "pt-BR"
-                }
+                "/intentions", json={"text": "Teste de formato de trace", "language": "pt-BR"}
             )
 
             assert response.status_code == 200
@@ -256,26 +230,22 @@ class TestTracingIntegration:
 
             # Trace ID deve ter exatamente 32 caracteres hexadecimais
             assert len(data["traceId"]) == 32
-            assert all(c in '0123456789abcdef' for c in data["traceId"])
+            assert all(c in "0123456789abcdef" for c in data["traceId"])
 
             # Span ID deve ter exatamente 16 caracteres hexadecimais
             assert len(data["spanId"]) == 16
-            assert all(c in '0123456789abcdef' for c in data["spanId"])
+            assert all(c in "0123456789abcdef" for c in data["spanId"])
 
     def test_response_structure_with_trace_ids(self, test_client, mock_pipelines_and_producer):
         """Verifica estrutura completa da resposta incluindo trace IDs"""
         mock_trace_id = "aaaabbbbccccddddeeeeffffgggghhhi"[:32]  # 32 chars
         mock_span_id = "1111222233334444"  # 16 chars
 
-        with patch('main.get_current_trace_id', return_value=mock_trace_id), \
-             patch('main.get_current_span_id', return_value=mock_span_id):
-
+        with patch("main.get_current_trace_id", return_value=mock_trace_id), patch(
+            "main.get_current_span_id", return_value=mock_span_id
+        ):
             response = test_client.post(
-                "/intentions",
-                json={
-                    "text": "Verificar estrutura da resposta",
-                    "language": "pt-BR"
-                }
+                "/intentions", json={"text": "Verificar estrutura da resposta", "language": "pt-BR"}
             )
 
             assert response.status_code == 200

@@ -53,7 +53,7 @@ def tenant_configs_file():
         },
     }
 
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
         json.dump(tenant_configs, f)
         temp_path = f.name
 
@@ -61,6 +61,7 @@ def tenant_configs_file():
 
     # Cleanup
     import os
+
     try:
         os.unlink(temp_path)
     except:

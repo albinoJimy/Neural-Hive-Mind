@@ -17,9 +17,7 @@ logger = structlog.get_logger()
 class AuthInterceptor(grpc.ServerInterceptor):
     """Interceptor para validação de JWT em requisições gRPC."""
 
-    def __init__(
-        self, config: SpecialistConfig, metrics: Optional[SpecialistMetrics] = None
-    ):
+    def __init__(self, config: SpecialistConfig, metrics: Optional[SpecialistMetrics] = None):
         self.config = config
         self.metrics = metrics
         self.jwt_secret = config.jwt_secret_key
@@ -48,9 +46,7 @@ class AuthInterceptor(grpc.ServerInterceptor):
 
         # Verificar se é endpoint público (comparar path completo ou nome do método)
         if full_method in self.public_endpoints or method_name in self.public_endpoints:
-            logger.debug(
-                "Public endpoint accessed, skipping authentication", method=full_method
-            )
+            logger.debug("Public endpoint accessed, skipping authentication", method=full_method)
             # Registrar bypass na métrica unificada
             if self.metrics:
                 self.metrics.increment_auth_request(full_method, "bypassed")
@@ -58,9 +54,7 @@ class AuthInterceptor(grpc.ServerInterceptor):
 
         # Verificar se autenticação está habilitada
         if not self.config.enable_jwt_auth:
-            logger.warning(
-                "JWT authentication disabled, allowing request", method=full_method
-            )
+            logger.warning("JWT authentication disabled, allowing request", method=full_method)
             return continuation(handler_call_details)
 
         # Extrair token do metadata
@@ -135,9 +129,7 @@ class AuthInterceptor(grpc.ServerInterceptor):
             )
             if self.metrics:
                 self.metrics.increment_auth_request(full_method, "success")
-                self.metrics.increment_auth_success(
-                    payload.get("service_type", "unknown")
-                )
+                self.metrics.increment_auth_success(payload.get("service_type", "unknown"))
 
             # Adicionar payload ao metadata (via continuation modificado)
             # Nota: No gRPC síncrono, não podemos modificar invocation_metadata diretamente
@@ -179,9 +171,7 @@ class AuthInterceptor(grpc.ServerInterceptor):
                 f"Invalid token: {str(e)}",
             )
 
-    def _create_abort_handler(
-        self, handler: Any, code: grpc.StatusCode, details: str
-    ) -> Any:
+    def _create_abort_handler(self, handler: Any, code: grpc.StatusCode, details: str) -> Any:
         """
         Cria handler de abort apropriado baseado no tipo de RPC.
 
@@ -257,9 +247,7 @@ class AuthInterceptor(grpc.ServerInterceptor):
         # Verificar se service_type está presente
         service_type = payload.get("service_type")
         if not service_type:
-            logger.warning(
-                "Missing service_type claim in JWT", subject=payload.get("sub")
-            )
+            logger.warning("Missing service_type claim in JWT", subject=payload.get("sub"))
             return False
 
         # Extrair nome do método do path completo

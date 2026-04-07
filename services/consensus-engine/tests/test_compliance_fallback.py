@@ -15,14 +15,14 @@ def _build_config(
     max_divergence=0.25,
     high_risk=0.7,
     critical_risk=0.9,
-    require_unanimous=True
+    require_unanimous=True,
 ):
     return SimpleNamespace(
         min_confidence_score=min_confidence,
         max_divergence_threshold=max_divergence,
         high_risk_threshold=high_risk,
         critical_risk_threshold=critical_risk,
-        require_unanimous_for_critical=require_unanimous
+        require_unanimous_for_critical=require_unanimous,
     )
 
 
@@ -31,7 +31,7 @@ def _opinion(
     confidence,
     model_source="ml_model",
     explain_method="shap",
-    recommendation="approve"
+    recommendation="approve",
 ):
     return {
         "specialist_type": specialist_type,

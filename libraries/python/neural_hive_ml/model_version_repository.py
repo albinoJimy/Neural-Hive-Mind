@@ -170,14 +170,10 @@ class ModelVersionRepository:
         Returns:
             True se atualizou, False se não encontrou
         """
-        result = await self.collection.update_one(
-            {"version": version}, {"$set": kwargs}
-        )
+        result = await self.collection.update_one({"version": version}, {"$set": kwargs})
         return result.modified_count > 0
 
-    async def update_drift_metrics(
-        self, version: str, drift_metrics: Dict[str, Any]
-    ) -> bool:
+    async def update_drift_metrics(self, version: str, drift_metrics: Dict[str, Any]) -> bool:
         """
         Atualiza métricas de drift de um modelo.
 
@@ -273,9 +269,7 @@ class ModelVersionRepository:
             logger.info(f"ModelVersion {version} deletado")
         return result.deleted_count > 0
 
-    async def get_model_history(
-        self, limit: int = 10, offset: int = 0
-    ) -> List[Dict[str, Any]]:
+    async def get_model_history(self, limit: int = 10, offset: int = 0) -> List[Dict[str, Any]]:
         """
         Busca histórico de versões de modelos.
 
@@ -317,7 +311,5 @@ class ModelVersionRepository:
         Returns:
             Documento mais recente do estágio ou None
         """
-        doc = await self.collection.find_one(
-            {"stage": stage}, sort=[("created_at", -1)]
-        )
+        doc = await self.collection.find_one({"stage": stage}, sort=[("created_at", -1)])
         return doc

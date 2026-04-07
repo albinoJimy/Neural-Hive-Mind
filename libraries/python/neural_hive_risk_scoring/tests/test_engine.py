@@ -429,11 +429,7 @@ class TestRiskScoringEngineMetricsIntegration:
     def test_score_clipping(self, engine):
         """Testa que scores são limitados entre 0 e 1."""
         # Criar entidade que normalmente daria score > 1
-        entity = {
-            "priority": "critical",
-            "estimated_cost": 9999999,
-            "complexity": "very_high"
-        }
+        entity = {"priority": "critical", "estimated_cost": 9999999, "complexity": "very_high"}
 
         assessment = engine.score(entity, UnifiedDomain.BUSINESS)
 
@@ -494,9 +490,24 @@ class TestRiskScoringEngineMetricsIntegration:
         expected_factors_by_domain = {
             UnifiedDomain.BUSINESS: ["priority", "cost", "kpi_alignment", "complexity"],
             UnifiedDomain.TECHNICAL: ["code_quality", "performance", "scalability", "dependencies"],
-            UnifiedDomain.SECURITY: ["security_level", "pii_exposure", "authentication", "encryption"],
-            UnifiedDomain.OPERATIONAL: ["availability", "reliability", "maintainability", "observability"],
-            UnifiedDomain.COMPLIANCE: ["regulatory", "audit_trail", "data_retention", "policy_adherence"]
+            UnifiedDomain.SECURITY: [
+                "security_level",
+                "pii_exposure",
+                "authentication",
+                "encryption",
+            ],
+            UnifiedDomain.OPERATIONAL: [
+                "availability",
+                "reliability",
+                "maintainability",
+                "observability",
+            ],
+            UnifiedDomain.COMPLIANCE: [
+                "regulatory",
+                "audit_trail",
+                "data_retention",
+                "policy_adherence",
+            ],
         }
 
         for domain, expected_factors in expected_factors_by_domain.items():
@@ -529,11 +540,7 @@ class TestRiskScoringEngineMetricsIntegration:
 
     def test_score_consistency(self, engine):
         """Testa consistência de score para mesma entidade."""
-        entity = {
-            "id": "consistent-test",
-            "priority": "high",
-            "estimated_cost": 50000
-        }
+        entity = {"id": "consistent-test", "priority": "high", "estimated_cost": 50000}
 
         assessment1 = engine.score(entity, UnifiedDomain.BUSINESS)
         assessment2 = engine.score(entity, UnifiedDomain.BUSINESS)

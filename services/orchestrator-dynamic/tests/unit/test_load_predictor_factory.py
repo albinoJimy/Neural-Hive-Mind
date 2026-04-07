@@ -16,7 +16,9 @@ from src.observability.metrics import OrchestratorMetrics
 class MockLoadPredictor:
     """Mock do LoadPredictor de neural_hive_ml."""
 
-    def __init__(self, config, model_registry=None, metrics=None, redis_client=None, data_source=None):
+    def __init__(
+        self, config, model_registry=None, metrics=None, redis_client=None, data_source=None
+    ):
         self.config = config
         self.model_registry = model_registry
         self.metrics = metrics
@@ -35,7 +37,7 @@ class MockLoadPredictor:
             "timestamps": ["2026-04-05T10:00:00", "2026-04-05T10:01:00", "2026-04-05T10:02:00"],
             "model_type": "prophet",
             "horizon_minutes": horizon_minutes,
-            "mape": 5.2
+            "mape": 5.2,
         }
 
     async def predict_bottlenecks(self, horizon_minutes=360):
@@ -95,7 +97,7 @@ class TestLoadPredictorFactory:
                     config=mock_config,
                     redis_client=mock_redis,
                     mongodb_client=mock_mongodb,
-                    metrics=mock_metrics
+                    metrics=mock_metrics,
                 )
 
                 predictor = await factory.create_load_predictor()
@@ -115,7 +117,7 @@ class TestLoadPredictorFactory:
             config=mock_config,
             redis_client=mock_redis,
             mongodb_client=mock_mongodb,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
 
         predictor = await factory.create_load_predictor()
@@ -133,7 +135,7 @@ class TestLoadPredictorFactory:
                 config=mock_config,
                 redis_client=mock_redis,
                 mongodb_client=mock_mongodb,
-                metrics=mock_metrics
+                metrics=mock_metrics,
             )
 
             predictor = await factory.create_load_predictor()
@@ -153,7 +155,7 @@ class TestLoadPredictorFactory:
                     config=mock_config,
                     redis_client=mock_redis,
                     mongodb_client=mock_mongodb,
-                    metrics=mock_metrics
+                    metrics=mock_metrics,
                 )
 
                 # Criar predictor primeiro
@@ -183,7 +185,7 @@ class TestLoadPredictorWrapper:
                     config=mock_config,
                     redis_client=mock_redis,
                     mongodb_client=mock_mongodb,
-                    metrics=mock_metrics
+                    metrics=mock_metrics,
                 )
 
                 wrapper = await factory.create_load_predictor()
@@ -206,7 +208,7 @@ class TestLoadPredictorWrapper:
                     config=mock_config,
                     redis_client=mock_redis,
                     mongodb_client=mock_mongodb,
-                    metrics=mock_metrics
+                    metrics=mock_metrics,
                 )
 
                 wrapper = await factory.create_load_predictor()
@@ -228,7 +230,7 @@ class TestLoadPredictorWrapper:
             config=mock_config,
             redis_client=mock_redis,
             mongodb_client=mock_mongodb,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
 
         wrapper = await factory.create_load_predictor()
@@ -249,7 +251,7 @@ class TestLoadPredictorWrapper:
                     config=mock_config,
                     redis_client=mock_redis,
                     mongodb_client=mock_mongodb,
-                    metrics=mock_metrics
+                    metrics=mock_metrics,
                 )
 
                 wrapper = await factory.create_load_predictor()
@@ -287,7 +289,7 @@ class TestLoadPredictorWrapper:
                     config=mock_config,
                     redis_client=mock_redis,
                     mongodb_client=mock_mongodb,
-                    metrics=mock_metrics
+                    metrics=mock_metrics,
                 )
 
                 wrapper = await factory.create_load_predictor()
@@ -309,7 +311,7 @@ class TestLoadPredictorWrapper:
                     config=mock_config,
                     redis_client=mock_redis,
                     mongodb_client=mock_mongodb,
-                    metrics=mock_metrics
+                    metrics=mock_metrics,
                 )
 
                 wrapper = await factory.create_load_predictor()
@@ -340,16 +342,18 @@ class TestLoadPredictorWrapper:
             async def predict_bottlenecks(self, *args, **kwargs):
                 return [
                     {"severity": "HIGH", "predicted_load": 0.85},
-                    {"severity": "MEDIUM", "predicted_load": 0.75}
+                    {"severity": "MEDIUM", "predicted_load": 0.75},
                 ]
 
-        with patch("src.ml.load_predictor_factory.CentralLoadPredictor", LoadPredictorWithBottlenecks):
+        with patch(
+            "src.ml.load_predictor_factory.CentralLoadPredictor", LoadPredictorWithBottlenecks
+        ):
             with patch("src.ml.load_predictor_factory.ML_AVAILABLE", True):
                 factory = LoadPredictorFactory(
                     config=mock_config,
                     redis_client=mock_redis,
                     mongodb_client=mock_mongodb,
-                    metrics=mock_metrics
+                    metrics=mock_metrics,
                 )
 
                 wrapper = await factory.create_load_predictor()
@@ -357,8 +361,7 @@ class TestLoadPredictorWrapper:
 
                 # Verificar registro de métricas
                 mock_metrics.record_bottlenecks_detected.assert_called_once_with(
-                    high_severity=1,
-                    medium_severity=1
+                    high_severity=1, medium_severity=1
                 )
 
 
@@ -373,7 +376,7 @@ class TestLoadPredictorWrapperCache:
                 "forecast": [0.5, 0.6],
                 "timestamps": ["2026-04-05T10:00:00", "2026-04-05T10:01:00"],
                 "model_type": "prophet",
-                "horizon_minutes": 60
+                "horizon_minutes": 60,
             }
 
             mock_load_predictor = AsyncMock()
@@ -381,8 +384,7 @@ class TestLoadPredictorWrapperCache:
             mock_load_predictor.predict_bottlenecks = AsyncMock(return_value=[])
 
             with patch(
-                "src.ml.load_predictor_factory.LoadPredictor",
-                return_value=mock_load_predictor
+                "src.ml.load_predictor_factory.LoadPredictor", return_value=mock_load_predictor
             ):
                 mock_redis.get.return_value = None  # Cache miss
 
@@ -390,7 +392,7 @@ class TestLoadPredictorWrapperCache:
                     config=mock_config,
                     redis_client=mock_redis,
                     mongodb_client=mock_mongodb,
-                    metrics=mock_metrics
+                    metrics=mock_metrics,
                 )
 
                 wrapper = await factory.create_load_predictor()
@@ -403,23 +405,20 @@ class TestLoadPredictorWrapperCache:
                 assert call_args[0][1] == 300  # TTL
 
     @pytest.mark.asyncio
-    async def test_cache_invalidation(
-        self, mock_config, mock_redis, mock_metrics, mock_mongodb
-    ):
+    async def test_cache_invalidation(self, mock_config, mock_redis, mock_metrics, mock_mongodb):
         """Testa invalidação de cache."""
         with patch("src.ml.load_predictor_factory.ML_AVAILABLE", True):
             mock_load_predictor = AsyncMock()
             mock_load_predictor.predict_bottlenecks = AsyncMock(return_value=[])
 
             with patch(
-                "src.ml.load_predictor_factory.LoadPredictor",
-                return_value=mock_load_predictor
+                "src.ml.load_predictor_factory.LoadPredictor", return_value=mock_load_predictor
             ):
                 factory = LoadPredictorFactory(
                     config=mock_config,
                     redis_client=mock_redis,
                     mongodb_client=mock_mongodb,
-                    metrics=mock_metrics
+                    metrics=mock_metrics,
                 )
 
                 wrapper = await factory.create_load_predictor()
@@ -438,14 +437,13 @@ class TestLoadPredictorWrapperCache:
             mock_load_predictor.predict_bottlenecks = AsyncMock(return_value=[])
 
             with patch(
-                "src.ml.load_predictor_factory.LoadPredictor",
-                return_value=mock_load_predictor
+                "src.ml.load_predictor_factory.LoadPredictor", return_value=mock_load_predictor
             ):
                 factory = LoadPredictorFactory(
                     config=mock_config,
                     redis_client=mock_redis,
                     mongodb_client=mock_mongodb,
-                    metrics=mock_metrics
+                    metrics=mock_metrics,
                 )
 
                 wrapper = await factory.create_load_predictor()
@@ -455,7 +453,7 @@ class TestLoadPredictorWrapperCache:
                 expected_calls = [
                     (("load_forecast:60m",),),
                     (("load_forecast:360m",),),
-                    (("load_forecast:1440m",),)
+                    (("load_forecast:1440m",),),
                 ]
                 actual_calls = [call[0] for call in mock_redis.delete.call_args_list]
 

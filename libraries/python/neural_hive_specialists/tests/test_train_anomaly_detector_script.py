@@ -9,23 +9,24 @@ from datetime import datetime
 # Adicionar diretório de scripts ao path
 sys.path.insert(
     0,
-    os.path.join(
-        os.path.dirname(__file__), "..", "scripts"
-    ),
+    os.path.join(os.path.dirname(__file__), "..", "scripts"),
 )
 
 
 class TestLoadConfig:
     """Testes para load_config."""
 
-    @patch.dict(os.environ, {
-        "CLICKHOUSE_URI": "clickhouse://localhost:9000",
-        "CLICKHOUSE_DATABASE": "neural_hive",
-        "ANOMALY_CONTAMINATION": "0.15",
-        "ANOMALY_N_ESTIMATORS": "150",
-        "ANOMALY_MODEL_PATH": "/models/anomaly_{specialist_type}.pkl",
-        "ANOMALY_TRAINING_WINDOW_DAYS": "45",
-    })
+    @patch.dict(
+        os.environ,
+        {
+            "CLICKHOUSE_URI": "clickhouse://localhost:9000",
+            "CLICKHOUSE_DATABASE": "neural_hive",
+            "ANOMALY_CONTAMINATION": "0.15",
+            "ANOMALY_N_ESTIMATORS": "150",
+            "ANOMALY_MODEL_PATH": "/models/anomaly_{specialist_type}.pkl",
+            "ANOMALY_TRAINING_WINDOW_DAYS": "45",
+        },
+    )
     def test_load_config_from_env(self):
         """Testa carregamento de config das variáveis de ambiente."""
         # Importar após mock de environment

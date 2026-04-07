@@ -1,6 +1,7 @@
 """Producer Kafka para eventos de otimização."""
 import json
 from datetime import datetime, timezone
+
 UTC = timezone.utc  # type: ignore
 
 from aiokafka import AIOKafkaProducer

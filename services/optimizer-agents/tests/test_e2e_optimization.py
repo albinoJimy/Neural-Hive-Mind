@@ -39,7 +39,14 @@ class TestE2ETicketToRecommendation:
         analyzer = AnalyzerFactory.create_for_database("mongodb")
         context = {
             "pipeline": [
-                {"$lookup": {"from": "profiles", "localField": "user_id", "foreignField": "_id", "as": "profile"}},
+                {
+                    "$lookup": {
+                        "from": "profiles",
+                        "localField": "user_id",
+                        "foreignField": "_id",
+                        "as": "profile",
+                    }
+                },
                 {"$sort": {"created_at": -1}},
             ],
             "collection": "users",
@@ -108,10 +115,12 @@ def complex_function(data):
 
         # Executar análise
         analyzer = AnalyzerFactory.create_for_database("code")
-        result = await analyzer.analyze({
-            "code": ticket_event["tasks"][0]["code"],
-            "file_path": ticket_event["tasks"][0]["file_path"],
-        })
+        result = await analyzer.analyze(
+            {
+                "code": ticket_event["tasks"][0]["code"],
+                "file_path": ticket_event["tasks"][0]["file_path"],
+            }
+        )
 
         # Deve analisar a função
         assert result.metrics["analyzed_functions"] >= 1
@@ -161,19 +170,21 @@ class TestE2EApproveApplyValidate:
         """Testa fluxo de aprovação de recomendação."""
         # Mock repository
         mock_repo = MagicMock()
-        mock_repo.get_by_id = AsyncMock(return_value={
-            "id": "rec-001",
-            "ticket_id": "ticket-001",
-            "workflow_id": "workflow-001",
-            "status": "pending",
-            "recommendations": [
-                {
-                    "id": "rec-001-1",
-                    "type": "reduce_complexity",
-                    "status": "pending",
-                }
-            ],
-        })
+        mock_repo.get_by_id = AsyncMock(
+            return_value={
+                "id": "rec-001",
+                "ticket_id": "ticket-001",
+                "workflow_id": "workflow-001",
+                "status": "pending",
+                "recommendations": [
+                    {
+                        "id": "rec-001-1",
+                        "type": "reduce_complexity",
+                        "status": "pending",
+                    }
+                ],
+            }
+        )
         mock_repo.update_status = AsyncMock(return_value=True)
 
         # Aprovar recomendação
@@ -348,15 +359,19 @@ class TestE2EMultiDatabaseWorkflow:
             analyzer = AnalyzerFactory.create_for_database(db_type)
 
             if db_type == "code":
-                result = await analyzer.analyze({
-                    "code": task.get("code"),
-                    "file_path": task.get("file_path"),
-                })
+                result = await analyzer.analyze(
+                    {
+                        "code": task.get("code"),
+                        "file_path": task.get("file_path"),
+                    }
+                )
             else:
-                result = await analyzer.analyze({
-                    "query": task.get("query"),
-                    "collection": task.get("collection"),
-                })
+                result = await analyzer.analyze(
+                    {
+                        "query": task.get("query"),
+                        "collection": task.get("collection"),
+                    }
+                )
 
             all_issues.extend(result.issues)
 
@@ -380,7 +395,7 @@ class TestE2EMultiDatabaseWorkflow:
                     "issue": "Missing index on user_id",
                     "impact_score": 0.8,
                 }
-            ]
+            ],
         }
 
         recommendations = [

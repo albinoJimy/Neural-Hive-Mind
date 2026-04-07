@@ -29,7 +29,7 @@ class TestObservabilityConfig:
             service_name="test-service",
             service_version="1.0.0",
             neural_hive_component="gateway",
-            neural_hive_layer="experiencia"
+            neural_hive_layer="experiencia",
         )
 
         assert config.service_name == "test-service"
@@ -40,14 +40,11 @@ class TestObservabilityConfig:
 
     def test_config_env_overrides(self):
         """Testa overrides de variáveis de ambiente."""
-        with patch.dict('os.environ', {
-            'NEURAL_HIVE_COMPONENT': 'test-component',
-            'LOG_LEVEL': 'DEBUG'
-        }):
+        with patch.dict(
+            "os.environ", {"NEURAL_HIVE_COMPONENT": "test-component", "LOG_LEVEL": "DEBUG"}
+        ):
             config = ObservabilityConfig(
-                service_name="test-service",
-                neural_hive_component="original",
-                log_level="INFO"
+                service_name="test-service", neural_hive_component="original", log_level="INFO"
             )
 
             assert config.neural_hive_component == "test-component"
@@ -55,10 +52,7 @@ class TestObservabilityConfig:
 
     def test_config_tls_defaults(self):
         """Testa valores padrão de configuração TLS."""
-        config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test"
-        )
+        config = ObservabilityConfig(service_name="test-service", neural_hive_component="test")
 
         assert config.otel_tls_enabled is False
         assert config.otel_tls_cert_path is None
@@ -68,92 +62,69 @@ class TestObservabilityConfig:
 
     def test_config_tls_from_env(self):
         """Testa configuração TLS via variáveis de ambiente."""
-        with patch.dict('os.environ', {
-            'OTEL_EXPORTER_TLS_ENABLED': 'true',
-            'OTEL_EXPORTER_TLS_CERT_PATH': '/etc/tls/cert.pem',
-            'OTEL_EXPORTER_TLS_KEY_PATH': '/etc/tls/key.pem',
-            'OTEL_EXPORTER_TLS_CA_CERT_PATH': '/etc/tls/ca.crt',
-            'OTEL_EXPORTER_TLS_INSECURE_SKIP_VERIFY': 'false'
-        }):
-            config = ObservabilityConfig(
-                service_name="test-service",
-                neural_hive_component="test"
-            )
+        with patch.dict(
+            "os.environ",
+            {
+                "OTEL_EXPORTER_TLS_ENABLED": "true",
+                "OTEL_EXPORTER_TLS_CERT_PATH": "/etc/tls/cert.pem",
+                "OTEL_EXPORTER_TLS_KEY_PATH": "/etc/tls/key.pem",
+                "OTEL_EXPORTER_TLS_CA_CERT_PATH": "/etc/tls/ca.crt",
+                "OTEL_EXPORTER_TLS_INSECURE_SKIP_VERIFY": "false",
+            },
+        ):
+            config = ObservabilityConfig(service_name="test-service", neural_hive_component="test")
 
             assert config.otel_tls_enabled is True
-            assert config.otel_tls_cert_path == '/etc/tls/cert.pem'
-            assert config.otel_tls_key_path == '/etc/tls/key.pem'
-            assert config.otel_tls_ca_cert_path == '/etc/tls/ca.crt'
+            assert config.otel_tls_cert_path == "/etc/tls/cert.pem"
+            assert config.otel_tls_key_path == "/etc/tls/key.pem"
+            assert config.otel_tls_ca_cert_path == "/etc/tls/ca.crt"
             assert config.otel_tls_insecure_skip_verify is False
 
     def test_config_tls_boolean_conversion(self):
         """Testa conversão de boolean para TLS enabled."""
-        with patch.dict('os.environ', {
-            'OTEL_EXPORTER_TLS_ENABLED': '1'
-        }):
-            config = ObservabilityConfig(
-                service_name="test-service",
-                neural_hive_component="test"
-            )
+        with patch.dict("os.environ", {"OTEL_EXPORTER_TLS_ENABLED": "1"}):
+            config = ObservabilityConfig(service_name="test-service", neural_hive_component="test")
             assert config.otel_tls_enabled is True
 
-        with patch.dict('os.environ', {
-            'OTEL_EXPORTER_TLS_ENABLED': 'yes'
-        }):
-            config = ObservabilityConfig(
-                service_name="test-service",
-                neural_hive_component="test"
-            )
+        with patch.dict("os.environ", {"OTEL_EXPORTER_TLS_ENABLED": "yes"}):
+            config = ObservabilityConfig(service_name="test-service", neural_hive_component="test")
             assert config.otel_tls_enabled is True
 
-        with patch.dict('os.environ', {
-            'OTEL_EXPORTER_TLS_ENABLED': 'false'
-        }):
-            config = ObservabilityConfig(
-                service_name="test-service",
-                neural_hive_component="test"
-            )
+        with patch.dict("os.environ", {"OTEL_EXPORTER_TLS_ENABLED": "false"}):
+            config = ObservabilityConfig(service_name="test-service", neural_hive_component="test")
             assert config.otel_tls_enabled is False
 
     def test_config_otel_exporter_certificate_env(self):
         """Testa OTEL_EXPORTER_CERTIFICATE como alias para CA cert path."""
-        with patch.dict('os.environ', {
-            'OTEL_EXPORTER_CERTIFICATE': '/etc/tls/ca.crt'
-        }):
-            config = ObservabilityConfig(
-                service_name="test-service",
-                neural_hive_component="test"
-            )
+        with patch.dict("os.environ", {"OTEL_EXPORTER_CERTIFICATE": "/etc/tls/ca.crt"}):
+            config = ObservabilityConfig(service_name="test-service", neural_hive_component="test")
             # OTEL_EXPORTER_CERTIFICATE should be aliased to otel_tls_ca_cert_path
-            assert config.otel_exporter_certificate == '/etc/tls/ca.crt'
-            assert config.otel_tls_ca_cert_path == '/etc/tls/ca.crt'
+            assert config.otel_exporter_certificate == "/etc/tls/ca.crt"
+            assert config.otel_tls_ca_cert_path == "/etc/tls/ca.crt"
 
     def test_config_otel_exporter_certificate_priority(self):
         """Testa que OTEL_EXPORTER_TLS_CA_CERT_PATH tem prioridade sobre OTEL_EXPORTER_CERTIFICATE."""
-        with patch.dict('os.environ', {
-            'OTEL_EXPORTER_TLS_CA_CERT_PATH': '/etc/tls/priority-ca.crt',
-            'OTEL_EXPORTER_CERTIFICATE': '/etc/tls/fallback-ca.crt'
-        }):
-            config = ObservabilityConfig(
-                service_name="test-service",
-                neural_hive_component="test"
-            )
+        with patch.dict(
+            "os.environ",
+            {
+                "OTEL_EXPORTER_TLS_CA_CERT_PATH": "/etc/tls/priority-ca.crt",
+                "OTEL_EXPORTER_CERTIFICATE": "/etc/tls/fallback-ca.crt",
+            },
+        ):
+            config = ObservabilityConfig(service_name="test-service", neural_hive_component="test")
             # TLS_CA_CERT_PATH should have priority
-            assert config.otel_tls_ca_cert_path == '/etc/tls/priority-ca.crt'
+            assert config.otel_tls_ca_cert_path == "/etc/tls/priority-ca.crt"
             # But the alias still has its value
-            assert config.otel_exporter_certificate == '/etc/tls/fallback-ca.crt'
+            assert config.otel_exporter_certificate == "/etc/tls/fallback-ca.crt"
 
     def test_config_otel_exporter_certificate_fallback(self):
         """Testa que OTEL_EXPORTER_CERTIFICATE funciona como fallback."""
-        with patch.dict('os.environ', {
-            'OTEL_EXPORTER_CERTIFICATE': '/etc/tls/ca.crt'
-        }, clear=False):
-            config = ObservabilityConfig(
-                service_name="test-service",
-                neural_hive_component="test"
-            )
+        with patch.dict(
+            "os.environ", {"OTEL_EXPORTER_CERTIFICATE": "/etc/tls/ca.crt"}, clear=False
+        ):
+            config = ObservabilityConfig(service_name="test-service", neural_hive_component="test")
             # When TLS_CA_CERT_PATH is not set, OTEL_EXPORTER_CERTIFICATE should be used
-            assert config.otel_tls_ca_cert_path == '/etc/tls/ca.crt'
+            assert config.otel_tls_ca_cert_path == "/etc/tls/ca.crt"
 
 
 class TestInitObservability:
@@ -166,7 +137,7 @@ class TestInitObservability:
             service_version="1.0.0",
             neural_hive_component="gateway",
             neural_hive_layer="experiencia",
-            enable_health_checks=True
+            enable_health_checks=True,
         )
 
         config = get_config()
@@ -187,7 +158,7 @@ class TestMetrics:
         config = ObservabilityConfig(
             service_name="test-service",
             neural_hive_component="gateway",
-            neural_hive_layer="experiencia"
+            neural_hive_layer="experiencia",
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -202,7 +173,7 @@ class TestMetrics:
         config = ObservabilityConfig(
             service_name="test-service",
             neural_hive_component="gateway",
-            neural_hive_layer="experiencia"
+            neural_hive_layer="experiencia",
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -227,7 +198,7 @@ class TestMetrics:
         config = ObservabilityConfig(
             service_name="test-service",
             neural_hive_component="gateway",
-            neural_hive_layer="experiencia"
+            neural_hive_layer="experiencia",
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -253,7 +224,7 @@ class TestHealthChecker:
         config = ObservabilityConfig(
             service_name="test-service",
             neural_hive_component="gateway",
-            neural_hive_layer="experiencia"
+            neural_hive_layer="experiencia",
         )
 
         health_checker = HealthChecker(config)
@@ -266,7 +237,7 @@ class TestHealthChecker:
         assert results["memory"].status in [
             HealthStatus.HEALTHY,
             HealthStatus.DEGRADED,
-            HealthStatus.UNHEALTHY
+            HealthStatus.UNHEALTHY,
         ]
 
     @pytest.mark.asyncio
@@ -277,15 +248,13 @@ class TestHealthChecker:
         class TestHealthCheck(HealthCheck):
             async def check(self):
                 return HealthCheckResult(
-                    name=self.name,
-                    status=HealthStatus.HEALTHY,
-                    message="Test OK"
+                    name=self.name, status=HealthStatus.HEALTHY, message="Test OK"
                 )
 
         config = ObservabilityConfig(
             service_name="test-service",
             neural_hive_component="gateway",
-            neural_hive_layer="experiencia"
+            neural_hive_layer="experiencia",
         )
 
         health_checker = HealthChecker(config)
@@ -309,8 +278,9 @@ class TestTracing:
         mock_config.neural_hive_layer = "test-layer"
         mock_config.neural_hive_domain = None
 
-        with patch('neural_hive_observability.tracing._tracer') as mock_tracer, \
-             patch('neural_hive_observability.tracing._config', mock_config):
+        with patch("neural_hive_observability.tracing._tracer") as mock_tracer, patch(
+            "neural_hive_observability.tracing._config", mock_config
+        ):
             mock_span = Mock()
             mock_tracer.start_as_current_span.return_value.__enter__.return_value = mock_span
 
@@ -331,8 +301,9 @@ class TestTracing:
         mock_config.neural_hive_layer = "test-layer"
         mock_config.neural_hive_domain = None
 
-        with patch('neural_hive_observability.tracing._tracer') as mock_tracer, \
-             patch('neural_hive_observability.tracing._config', mock_config):
+        with patch("neural_hive_observability.tracing._tracer") as mock_tracer, patch(
+            "neural_hive_observability.tracing._config", mock_config
+        ):
             mock_span = Mock()
             mock_tracer.start_as_current_span.return_value.__enter__.return_value = mock_span
 
@@ -354,7 +325,7 @@ class TestContextManager:
         config = ObservabilityConfig(
             service_name="test-service",
             neural_hive_component="gateway",
-            neural_hive_layer="experiencia"
+            neural_hive_layer="experiencia",
         )
 
         context_manager = ContextManager(config)
@@ -365,15 +336,13 @@ class TestContextManager:
         config = ObservabilityConfig(
             service_name="test-service",
             neural_hive_component="gateway",
-            neural_hive_layer="experiencia"
+            neural_hive_layer="experiencia",
         )
 
         context_manager = ContextManager(config)
 
         with context_manager.correlation_context(
-            intent_id="test-intent-123",
-            plan_id="test-plan-456",
-            user_id="user-789"
+            intent_id="test-intent-123", plan_id="test-plan-456", user_id="user-789"
         ):
             correlation = context_manager.get_current_correlation()
 
@@ -386,7 +355,7 @@ class TestContextManager:
         config = ObservabilityConfig(
             service_name="test-service",
             neural_hive_component="gateway",
-            neural_hive_layer="experiencia"
+            neural_hive_layer="experiencia",
         )
 
         context_manager = ContextManager(config)
@@ -414,7 +383,7 @@ class TestIntegration:
             neural_hive_component="test-gateway",
             neural_hive_layer="experiencia",
             prometheus_port=0,  # Não iniciar servidor HTTP
-            enable_health_checks=True
+            enable_health_checks=True,
         )
 
         # Verificar componentes
@@ -452,7 +421,7 @@ class TestIntegration:
         # Inicializar observabilidade primeiro
         init_observability(
             service_name="attribute-error-prevention-test",
-            prometheus_port=0  # Não iniciar servidor HTTP
+            prometheus_port=0,  # Não iniciar servidor HTTP
         )
 
         # Criar mock de producer
@@ -508,7 +477,7 @@ class TestIntegration:
         init_observability(
             service_name="context-manager-availability-test",
             neural_hive_component="test-component",
-            prometheus_port=0  # Não iniciar servidor HTTP
+            prometheus_port=0,  # Não iniciar servidor HTTP
         )
 
         # Obter config (sempre disponível após init_observability)

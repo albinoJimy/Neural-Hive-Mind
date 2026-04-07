@@ -25,12 +25,12 @@ class TestFluxClientInitialization:
         """Deve inicializar cliente com sucesso."""
         from src.clients.flux_client import FluxClient
 
-        client = FluxClient(namespace='flux-system')
+        client = FluxClient(namespace="flux-system")
 
-        with patch('src.clients.flux_client.config') as mock_config:
+        with patch("src.clients.flux_client.config") as mock_config:
             mock_config.load_incluster_config = MagicMock()
 
-            with patch('src.clients.flux_client.client') as mock_client:
+            with patch("src.clients.flux_client.client") as mock_client:
                 mock_client.CustomObjectsApi = MagicMock()
                 mock_client.ApiClient = MagicMock()
 
@@ -43,10 +43,10 @@ class TestFluxClientInitialization:
         """Deve levantar erro quando kubernetes-asyncio nao instalado."""
         from src.clients.flux_client import FluxClient, FluxAPIError
 
-        client = FluxClient(namespace='flux-system')
+        client = FluxClient(namespace="flux-system")
 
-        with patch.dict('sys.modules', {'kubernetes_asyncio': None}):
-            with patch('builtins.__import__', side_effect=ImportError):
+        with patch.dict("sys.modules", {"kubernetes_asyncio": None}):
+            with patch("builtins.__import__", side_effect=ImportError):
                 # O erro vai ser de ImportError dentro do initialize
                 pass
 
@@ -58,53 +58,52 @@ class TestFluxClientCreateKustomization:
     async def test_create_kustomization_success(self):
         """Deve criar Kustomization com sucesso."""
         from src.clients.flux_client import (
-            FluxClient, KustomizationRequest, KustomizationMetadata,
-            KustomizationSpec, SourceReference
+            FluxClient,
+            KustomizationRequest,
+            KustomizationMetadata,
+            KustomizationSpec,
+            SourceReference,
         )
 
-        client = FluxClient(namespace='flux-system')
+        client = FluxClient(namespace="flux-system")
         client._initialized = True
         client._api = AsyncMock()
         client._api.create_namespaced_custom_object = AsyncMock()
 
         request = KustomizationRequest(
-            metadata=KustomizationMetadata(
-                name='test-app',
-                namespace='flux-system'
-            ),
+            metadata=KustomizationMetadata(name="test-app", namespace="flux-system"),
             spec=KustomizationSpec(
-                interval='5m',
-                path='./deploy',
-                sourceRef=SourceReference(
-                    kind='GitRepository',
-                    name='test-repo'
-                )
-            )
+                interval="5m",
+                path="./deploy",
+                sourceRef=SourceReference(kind="GitRepository", name="test-repo"),
+            ),
         )
 
         name = await client.create_kustomization(request)
 
-        assert name == 'test-app'
+        assert name == "test-app"
         client._api.create_namespaced_custom_object.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_create_kustomization_not_initialized(self):
         """Deve levantar erro quando nao inicializado."""
         from src.clients.flux_client import (
-            FluxClient, FluxAPIError, KustomizationRequest,
-            KustomizationMetadata, KustomizationSpec, SourceReference
+            FluxClient,
+            FluxAPIError,
+            KustomizationRequest,
+            KustomizationMetadata,
+            KustomizationSpec,
+            SourceReference,
         )
 
-        client = FluxClient(namespace='flux-system')
+        client = FluxClient(namespace="flux-system")
 
         request = KustomizationRequest(
-            metadata=KustomizationMetadata(name='test-app'),
-            spec=KustomizationSpec(
-                sourceRef=SourceReference(kind='GitRepository', name='test')
-            )
+            metadata=KustomizationMetadata(name="test-app"),
+            spec=KustomizationSpec(sourceRef=SourceReference(kind="GitRepository", name="test")),
         )
 
-        with pytest.raises(FluxAPIError, match='nao inicializado'):
+        with pytest.raises(FluxAPIError, match="nao inicializado"):
             await client.create_kustomization(request)
 
 
@@ -116,54 +115,58 @@ class TestFluxClientStatus:
         """Deve obter status ready."""
         from src.clients.flux_client import FluxClient
 
-        client = FluxClient(namespace='flux-system')
+        client = FluxClient(namespace="flux-system")
         client._initialized = True
         client._api = AsyncMock()
-        client._api.get_namespaced_custom_object = AsyncMock(return_value={
-            'metadata': {'name': 'test-app', 'namespace': 'flux-system'},
-            'status': {
-                'conditions': [
-                    {
-                        'type': 'Ready',
-                        'status': 'True',
-                        'reason': 'ReconciliationSucceeded',
-                        'message': 'Applied revision: main@sha1:abc123'
-                    }
-                ],
-                'lastAppliedRevision': 'main@sha1:abc123',
-                'lastAttemptedRevision': 'main@sha1:abc123'
+        client._api.get_namespaced_custom_object = AsyncMock(
+            return_value={
+                "metadata": {"name": "test-app", "namespace": "flux-system"},
+                "status": {
+                    "conditions": [
+                        {
+                            "type": "Ready",
+                            "status": "True",
+                            "reason": "ReconciliationSucceeded",
+                            "message": "Applied revision: main@sha1:abc123",
+                        }
+                    ],
+                    "lastAppliedRevision": "main@sha1:abc123",
+                    "lastAttemptedRevision": "main@sha1:abc123",
+                },
             }
-        })
+        )
 
-        status = await client.get_kustomization_status('test-app')
+        status = await client.get_kustomization_status("test-app")
 
-        assert status.name == 'test-app'
+        assert status.name == "test-app"
         assert status.ready is True
-        assert status.lastAppliedRevision == 'main@sha1:abc123'
+        assert status.lastAppliedRevision == "main@sha1:abc123"
 
     @pytest.mark.asyncio
     async def test_get_kustomization_status_not_ready(self):
         """Deve obter status nao ready."""
         from src.clients.flux_client import FluxClient
 
-        client = FluxClient(namespace='flux-system')
+        client = FluxClient(namespace="flux-system")
         client._initialized = True
         client._api = AsyncMock()
-        client._api.get_namespaced_custom_object = AsyncMock(return_value={
-            'metadata': {'name': 'test-app'},
-            'status': {
-                'conditions': [
-                    {
-                        'type': 'Ready',
-                        'status': 'False',
-                        'reason': 'ReconciliationFailed',
-                        'message': 'Validation failed'
-                    }
-                ]
+        client._api.get_namespaced_custom_object = AsyncMock(
+            return_value={
+                "metadata": {"name": "test-app"},
+                "status": {
+                    "conditions": [
+                        {
+                            "type": "Ready",
+                            "status": "False",
+                            "reason": "ReconciliationFailed",
+                            "message": "Validation failed",
+                        }
+                    ]
+                },
             }
-        })
+        )
 
-        status = await client.get_kustomization_status('test-app')
+        status = await client.get_kustomization_status("test-app")
 
         assert status.ready is False
 
@@ -176,25 +179,19 @@ class TestFluxClientWaitForReady:
         """Deve aguardar Kustomization ficar ready."""
         from src.clients.flux_client import FluxClient, KustomizationStatus, Condition
 
-        client = FluxClient(namespace='flux-system')
+        client = FluxClient(namespace="flux-system")
         client._initialized = True
 
-        with patch.object(client, 'get_kustomization_status') as mock_get:
+        with patch.object(client, "get_kustomization_status") as mock_get:
             mock_get.return_value = KustomizationStatus(
-                name='test-app',
-                namespace='flux-system',
+                name="test-app",
+                namespace="flux-system",
                 ready=True,
-                conditions=[
-                    Condition(type='Ready', status='True', reason='Succeeded')
-                ],
-                lastAppliedRevision='main@sha1:abc123'
+                conditions=[Condition(type="Ready", status="True", reason="Succeeded")],
+                lastAppliedRevision="main@sha1:abc123",
             )
 
-            status = await client.wait_for_ready(
-                name='test-app',
-                poll_interval=0.1,
-                timeout=5
-            )
+            status = await client.wait_for_ready(name="test-app", poll_interval=0.1, timeout=5)
 
             assert status.ready is True
 
@@ -202,60 +199,51 @@ class TestFluxClientWaitForReady:
     async def test_wait_for_ready_timeout(self):
         """Deve levantar timeout."""
         from src.clients.flux_client import (
-            FluxClient, FluxTimeoutError, KustomizationStatus, Condition
+            FluxClient,
+            FluxTimeoutError,
+            KustomizationStatus,
+            Condition,
         )
 
-        client = FluxClient(namespace='flux-system')
+        client = FluxClient(namespace="flux-system")
         client._initialized = True
 
-        with patch.object(client, 'get_kustomization_status') as mock_get:
+        with patch.object(client, "get_kustomization_status") as mock_get:
             mock_get.return_value = KustomizationStatus(
-                name='test-app',
-                namespace='flux-system',
+                name="test-app",
+                namespace="flux-system",
                 ready=False,
-                conditions=[
-                    Condition(type='Ready', status='Unknown', reason='Progressing')
-                ]
+                conditions=[Condition(type="Ready", status="Unknown", reason="Progressing")],
             )
 
             with pytest.raises(FluxTimeoutError):
-                await client.wait_for_ready(
-                    name='test-app',
-                    poll_interval=0.1,
-                    timeout=0.3
-                )
+                await client.wait_for_ready(name="test-app", poll_interval=0.1, timeout=0.3)
 
     @pytest.mark.asyncio
     async def test_wait_for_ready_failed(self):
         """Deve levantar erro quando Kustomization falha."""
-        from src.clients.flux_client import (
-            FluxClient, FluxAPIError, KustomizationStatus, Condition
-        )
+        from src.clients.flux_client import FluxClient, FluxAPIError, KustomizationStatus, Condition
 
-        client = FluxClient(namespace='flux-system')
+        client = FluxClient(namespace="flux-system")
         client._initialized = True
 
-        with patch.object(client, 'get_kustomization_status') as mock_get:
+        with patch.object(client, "get_kustomization_status") as mock_get:
             mock_get.return_value = KustomizationStatus(
-                name='test-app',
-                namespace='flux-system',
+                name="test-app",
+                namespace="flux-system",
                 ready=False,
                 conditions=[
                     Condition(
-                        type='Ready',
-                        status='False',
-                        reason='ReconciliationFailed',
-                        message='Validation failed'
+                        type="Ready",
+                        status="False",
+                        reason="ReconciliationFailed",
+                        message="Validation failed",
                     )
-                ]
+                ],
             )
 
-            with pytest.raises(FluxAPIError, match='falhou'):
-                await client.wait_for_ready(
-                    name='test-app',
-                    poll_interval=0.1,
-                    timeout=5
-                )
+            with pytest.raises(FluxAPIError, match="falhou"):
+                await client.wait_for_ready(name="test-app", poll_interval=0.1, timeout=5)
 
 
 class TestFluxClientReconcile:
@@ -266,15 +254,15 @@ class TestFluxClientReconcile:
         """Deve forcar reconciliacao."""
         from src.clients.flux_client import FluxClient
 
-        client = FluxClient(namespace='flux-system')
+        client = FluxClient(namespace="flux-system")
         client._initialized = True
         client._api = AsyncMock()
         client._api.patch_namespaced_custom_object = AsyncMock(return_value={})
 
-        result = await client.reconcile_kustomization('test-app')
+        result = await client.reconcile_kustomization("test-app")
 
-        assert result['name'] == 'test-app'
-        assert 'reconcileRequestedAt' in result
+        assert result["name"] == "test-app"
+        assert "reconcileRequestedAt" in result
         client._api.patch_namespaced_custom_object.assert_called_once()
 
 
@@ -286,12 +274,12 @@ class TestFluxClientDelete:
         """Deve deletar Kustomization."""
         from src.clients.flux_client import FluxClient
 
-        client = FluxClient(namespace='flux-system')
+        client = FluxClient(namespace="flux-system")
         client._initialized = True
         client._api = AsyncMock()
         client._api.delete_namespaced_custom_object = AsyncMock()
 
-        result = await client.delete_kustomization('test-app')
+        result = await client.delete_kustomization("test-app")
 
         assert result is True
         client._api.delete_namespaced_custom_object.assert_called_once()
@@ -301,16 +289,16 @@ class TestFluxClientDelete:
         """Deve retornar True quando nao encontrado."""
         from src.clients.flux_client import FluxClient
 
-        client = FluxClient(namespace='flux-system')
+        client = FluxClient(namespace="flux-system")
         client._initialized = True
         client._api = AsyncMock()
 
         # Simular erro 404
-        error = Exception('Not found')
+        error = Exception("Not found")
         error.status = 404
         client._api.delete_namespaced_custom_object = AsyncMock(side_effect=error)
 
-        result = await client.delete_kustomization('test-app')
+        result = await client.delete_kustomization("test-app")
 
         assert result is True
 
@@ -323,34 +311,34 @@ class TestFluxClientList:
         """Deve listar Kustomizations."""
         from src.clients.flux_client import FluxClient
 
-        client = FluxClient(namespace='flux-system')
+        client = FluxClient(namespace="flux-system")
         client._initialized = True
         client._api = AsyncMock()
-        client._api.list_namespaced_custom_object = AsyncMock(return_value={
-            'items': [
-                {
-                    'metadata': {'name': 'app-1', 'namespace': 'flux-system'},
-                    'status': {
-                        'conditions': [
-                            {'type': 'Ready', 'status': 'True', 'reason': 'Succeeded'}
-                        ]
-                    }
-                },
-                {
-                    'metadata': {'name': 'app-2', 'namespace': 'flux-system'},
-                    'status': {
-                        'conditions': [
-                            {'type': 'Ready', 'status': 'False', 'reason': 'Failed'}
-                        ]
-                    }
-                }
-            ]
-        })
+        client._api.list_namespaced_custom_object = AsyncMock(
+            return_value={
+                "items": [
+                    {
+                        "metadata": {"name": "app-1", "namespace": "flux-system"},
+                        "status": {
+                            "conditions": [
+                                {"type": "Ready", "status": "True", "reason": "Succeeded"}
+                            ]
+                        },
+                    },
+                    {
+                        "metadata": {"name": "app-2", "namespace": "flux-system"},
+                        "status": {
+                            "conditions": [{"type": "Ready", "status": "False", "reason": "Failed"}]
+                        },
+                    },
+                ]
+            }
+        )
 
-        kustomizations = await client.list_kustomizations(namespace='flux-system')
+        kustomizations = await client.list_kustomizations(namespace="flux-system")
 
         assert len(kustomizations) == 2
-        assert kustomizations[0].name == 'app-1'
+        assert kustomizations[0].name == "app-1"
         assert kustomizations[0].ready is True
         assert kustomizations[1].ready is False
 
@@ -359,16 +347,13 @@ class TestFluxClientList:
         """Deve listar Kustomizations com label selector."""
         from src.clients.flux_client import FluxClient
 
-        client = FluxClient(namespace='flux-system')
+        client = FluxClient(namespace="flux-system")
         client._initialized = True
         client._api = AsyncMock()
-        client._api.list_namespaced_custom_object = AsyncMock(return_value={'items': []})
+        client._api.list_namespaced_custom_object = AsyncMock(return_value={"items": []})
 
-        await client.list_kustomizations(
-            namespace='flux-system',
-            label_selector='app=test'
-        )
+        await client.list_kustomizations(namespace="flux-system", label_selector="app=test")
 
         client._api.list_namespaced_custom_object.assert_called_once()
         call_args = client._api.list_namespaced_custom_object.call_args
-        assert call_args.kwargs.get('label_selector') == 'app=test'
+        assert call_args.kwargs.get("label_selector") == "app=test"

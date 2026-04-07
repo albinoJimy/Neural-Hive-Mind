@@ -13,7 +13,7 @@ from src.models.security_validation import (
     ValidationStatus,
     ValidatorType,
     ViolationType,
-    Severity
+    Severity,
 )
 
 
@@ -83,7 +83,7 @@ def mock_clients(
     mock_trivy_client,
     mock_redis_client,
     mock_mongodb_client,
-    mock_settings
+    mock_settings,
 ):
     """Fixture com todos os clients mockados."""
     return {
@@ -93,7 +93,7 @@ def mock_clients(
         "trivy_client": mock_trivy_client,
         "redis_client": mock_redis_client,
         "mongodb_client": mock_mongodb_client,
-        "settings": mock_settings
+        "settings": mock_settings,
     }
 
 
@@ -109,11 +109,8 @@ def sample_ticket():
         "security_level": "INTERNAL",
         "service_account": "default",
         "namespace": "default",
-        "parameters": {
-            "repo": "test-repo",
-            "branch": "main"
-        },
-        "required_capabilities": []
+        "parameters": {"repo": "test-repo", "branch": "main"},
+        "required_capabilities": [],
     }
 
 
@@ -134,13 +131,9 @@ async def test_validate_ticket_approved(mock_clients, sample_ticket):
 async def test_validate_ticket_rejected_secrets(mock_clients, sample_ticket):
     """Testa validação de ticket com secrets expostos -> REJECTED."""
     # Configurar Trivy para detectar secrets
-    mock_clients["trivy_client"].scan_parameters = AsyncMock(return_value=[
-        {
-            "type": "aws-access-key",
-            "match": "AKIA...",
-            "line": 1
-        }
-    ])
+    mock_clients["trivy_client"].scan_parameters = AsyncMock(
+        return_value=[{"type": "aws-access-key", "match": "AKIA...", "line": 1}]
+    )
 
     validator = SecurityValidator(**mock_clients)
     validation = await validator.validate_ticket(sample_ticket)
@@ -161,39 +154,34 @@ async def test_validate_ticket_rejected_rbac(mock_clients, sample_ticket):
     validation = await validator.validate_ticket(sample_ticket)
 
     # Deve detectar privilege escalation
-    assert any(
-        v.violation_type == ViolationType.RBAC_VIOLATION
-        for v in validation.violations
-    )
+    assert any(v.violation_type == ViolationType.RBAC_VIOLATION for v in validation.violations)
 
 
 @pytest.mark.asyncio
 async def test_validate_ticket_requires_approval(mock_clients, sample_ticket):
     """Testa validação de ticket com risk_score > 0.8 -> REQUIRES_APPROVAL."""
     # Configurar OPA para negar
-    mock_clients["opa_client"].evaluate_policy = AsyncMock(return_value={
-        "allowed": False,
-        "reason": "Deploy em produção requer aprovação"
-    })
+    mock_clients["opa_client"].evaluate_policy = AsyncMock(
+        return_value={"allowed": False, "reason": "Deploy em produção requer aprovação"}
+    )
 
     validator = SecurityValidator(**mock_clients)
     validation = await validator.validate_ticket(sample_ticket)
 
     # Deve ter violação de policy
-    assert any(
-        v.violation_type == ViolationType.POLICY_VIOLATION
-        for v in validation.violations
-    )
+    assert any(v.violation_type == ViolationType.POLICY_VIOLATION for v in validation.violations)
 
 
 @pytest.mark.asyncio
 async def test_validate_opa_policies(mock_clients, sample_ticket):
     """Testa validação OPA com policy negada."""
-    mock_clients["opa_client"].evaluate_policy = AsyncMock(return_value={
-        "allowed": False,
-        "reason": "Política violada",
-        "remediation": "Ajustar configuração"
-    })
+    mock_clients["opa_client"].evaluate_policy = AsyncMock(
+        return_value={
+            "allowed": False,
+            "reason": "Política violada",
+            "remediation": "Ajustar configuração",
+        }
+    )
 
     validator = SecurityValidator(**mock_clients)
     violations = await validator._validate_opa_policies(sample_ticket)
@@ -206,18 +194,16 @@ async def test_validate_opa_policies(mock_clients, sample_ticket):
 @pytest.mark.asyncio
 async def test_scan_secrets_detected(mock_clients, sample_ticket):
     """Testa detecção de AWS credentials pelo Trivy."""
-    mock_clients["trivy_client"].scan_parameters = AsyncMock(return_value=[
-        {
-            "type": "aws-access-key",
-            "match": "AKIAIOSFODNN7EXAMPLE",
-            "line": 10
-        },
-        {
-            "type": "aws-secret-key",
-            "match": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
-            "line": 11
-        }
-    ])
+    mock_clients["trivy_client"].scan_parameters = AsyncMock(
+        return_value=[
+            {"type": "aws-access-key", "match": "AKIAIOSFODNN7EXAMPLE", "line": 10},
+            {
+                "type": "aws-secret-key",
+                "match": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+                "line": 11,
+            },
+        ]
+    )
 
     validator = SecurityValidator(**mock_clients)
     violations = await validator._scan_secrets(sample_ticket)
@@ -236,10 +222,7 @@ async def test_validate_rbac_privilege_escalation(mock_clients, sample_ticket):
     violations = await validator._validate_rbac(sample_ticket)
 
     # Deve detectar privilege escalation
-    assert any(
-        "escalação de privilégios" in v.description.lower()
-        for v in violations
-    )
+    assert any("escalação de privilégios" in v.description.lower() for v in violations)
 
 
 @pytest.mark.asyncio
@@ -260,7 +243,7 @@ async def test_calculate_risk_assessment(mock_clients):
             severity=Severity.CRITICAL,
             description="Test",
             remediation_suggestion="Test",
-            detected_by="Test"
+            detected_by="Test",
         )
     ]
     risk = await validator._calculate_risk_assessment(violations, {})
@@ -290,4 +273,7 @@ async def test_graceful_degradation_trivy_down(mock_clients, sample_ticket):
 
     # Deve completar sem erro
     assert validation is not None
-    assert validation.validation_status in [ValidationStatus.APPROVED, ValidationStatus.REQUIRES_APPROVAL]
+    assert validation.validation_status in [
+        ValidationStatus.APPROVED,
+        ValidationStatus.REQUIRES_APPROVAL,
+    ]

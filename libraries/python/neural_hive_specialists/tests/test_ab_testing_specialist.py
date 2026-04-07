@@ -73,9 +73,7 @@ def ab_test_config():
 @pytest.fixture
 def mock_mlflow_client():
     """Mock do MLflowClient."""
-    with patch(
-        "neural_hive_specialists.mlflow_client.MLflowClient"
-    ) as mock_client:
+    with patch("neural_hive_specialists.mlflow_client.MLflowClient") as mock_client:
         client_instance = MagicMock()
 
         # Mock load_model para retornar modelos mock
@@ -102,18 +100,26 @@ def mock_mlflow_client():
 def ab_testing_specialist(ab_test_config, mock_mlflow_client):
     """Instância de ABTestingSpecialist configurada."""
     # Mockar métodos abstratos
-    with patch("neural_hive_specialists.ab_testing_specialist.ABTestingSpecialist._get_specialist_type", return_value="technical"), \
-         patch("neural_hive_specialists.ab_testing_specialist.ABTestingSpecialist._evaluate_plan_internal", return_value={
-             "recommendation": "approve",
-             "confidence_score": 0.8,
-             "risk_score": 0.2,
-             "reasoning_summary": "AB test",
-             "reasoning_factors": [],
-             "suggested_mitigations": [],
-         }), \
-         patch("neural_hive_specialists.base_specialist.FeatureStore", return_value=None), \
-         patch("neural_hive_specialists.base_specialist.OpinionCache", return_value=None), \
-         patch("neural_hive_specialists.base_specialist.FeatureCache", return_value=None):
+    with patch(
+        "neural_hive_specialists.ab_testing_specialist.ABTestingSpecialist._get_specialist_type",
+        return_value="technical",
+    ), patch(
+        "neural_hive_specialists.ab_testing_specialist.ABTestingSpecialist._evaluate_plan_internal",
+        return_value={
+            "recommendation": "approve",
+            "confidence_score": 0.8,
+            "risk_score": 0.2,
+            "reasoning_summary": "AB test",
+            "reasoning_factors": [],
+            "suggested_mitigations": [],
+        },
+    ), patch(
+        "neural_hive_specialists.base_specialist.FeatureStore", return_value=None
+    ), patch(
+        "neural_hive_specialists.base_specialist.OpinionCache", return_value=None
+    ), patch(
+        "neural_hive_specialists.base_specialist.FeatureCache", return_value=None
+    ):
         specialist = ConcreteABTestingSpecialist(config=ab_test_config)
         specialist.mlflow_client = mock_mlflow_client
 
@@ -170,9 +176,7 @@ class TestABTestingSpecialistLoading:
             "run_id": "run-challenger",
         }
 
-    def test_fallback_to_single_model_when_model_b_fails(
-        self, ab_test_config, mock_mlflow_client
-    ):
+    def test_fallback_to_single_model_when_model_b_fails(self, ab_test_config, mock_mlflow_client):
         """Testa fallback para modelo único quando modelo B falha."""
 
         # Fazer modelo B falhar
@@ -184,18 +188,26 @@ class TestABTestingSpecialistLoading:
 
         mock_mlflow_client.load_model = Mock(side_effect=failing_load_model)
 
-        with patch("neural_hive_specialists.ab_testing_specialist.ABTestingSpecialist._get_specialist_type", return_value="technical"), \
-             patch("neural_hive_specialists.ab_testing_specialist.ABTestingSpecialist._evaluate_plan_internal", return_value={
-                 "recommendation": "approve",
-                 "confidence_score": 0.8,
-                 "risk_score": 0.2,
-                 "reasoning_summary": "AB test",
-                 "reasoning_factors": [],
-                 "suggested_mitigations": [],
-             }), \
-             patch("neural_hive_specialists.base_specialist.FeatureStore", return_value=None), \
-             patch("neural_hive_specialists.base_specialist.OpinionCache", return_value=None), \
-             patch("neural_hive_specialists.base_specialist.FeatureCache", return_value=None):
+        with patch(
+            "neural_hive_specialists.ab_testing_specialist.ABTestingSpecialist._get_specialist_type",
+            return_value="technical",
+        ), patch(
+            "neural_hive_specialists.ab_testing_specialist.ABTestingSpecialist._evaluate_plan_internal",
+            return_value={
+                "recommendation": "approve",
+                "confidence_score": 0.8,
+                "risk_score": 0.2,
+                "reasoning_summary": "AB test",
+                "reasoning_factors": [],
+                "suggested_mitigations": [],
+            },
+        ), patch(
+            "neural_hive_specialists.base_specialist.FeatureStore", return_value=None
+        ), patch(
+            "neural_hive_specialists.base_specialist.OpinionCache", return_value=None
+        ), patch(
+            "neural_hive_specialists.base_specialist.FeatureCache", return_value=None
+        ):
             specialist = ConcreteABTestingSpecialist(config=ab_test_config)
             specialist.mlflow_client = mock_mlflow_client
 
@@ -215,15 +227,9 @@ class TestVariantSelection:
         intent_id = "test-intent-456"
 
         # Executar seleção múltiplas vezes
-        variant1, _ = ab_testing_specialist._select_model_for_request(
-            plan_id, intent_id
-        )
-        variant2, _ = ab_testing_specialist._select_model_for_request(
-            plan_id, intent_id
-        )
-        variant3, _ = ab_testing_specialist._select_model_for_request(
-            plan_id, intent_id
-        )
+        variant1, _ = ab_testing_specialist._select_model_for_request(plan_id, intent_id)
+        variant2, _ = ab_testing_specialist._select_model_for_request(plan_id, intent_id)
+        variant3, _ = ab_testing_specialist._select_model_for_request(plan_id, intent_id)
 
         # Deve retornar sempre a mesma variante
         assert variant1 == variant2 == variant3
@@ -271,9 +277,7 @@ class TestVariantSelection:
         # Remover modelo B
         ab_testing_specialist.model_b = None
 
-        variant, model = ab_testing_specialist._select_model_for_request(
-            "test-plan", ""
-        )
+        variant, model = ab_testing_specialist._select_model_for_request("test-plan", "")
 
         assert variant == "model_a"
         assert model == ab_testing_specialist.model_a
@@ -285,9 +289,7 @@ class TestABTestingPrediction:
     def test_prediction_includes_variant_metadata(self, ab_testing_specialist):
         """Testa que predição inclui metadados de variante."""
         # Mock super()._predict_with_model
-        with patch.object(
-            ABTestingSpecialist.__bases__[0], "_predict_with_model"
-        ) as mock_predict:
+        with patch.object(ABTestingSpecialist.__bases__[0], "_predict_with_model") as mock_predict:
             mock_predict.return_value = {
                 "confidence_score": 0.8,
                 "risk_score": 0.2,
@@ -315,9 +317,7 @@ class TestABTestingPrediction:
 
     def test_metrics_published_after_prediction(self, ab_testing_specialist):
         """Testa que métricas são publicadas após predição."""
-        with patch.object(
-            ABTestingSpecialist.__bases__[0], "_predict_with_model"
-        ) as mock_predict:
+        with patch.object(ABTestingSpecialist.__bases__[0], "_predict_with_model") as mock_predict:
             mock_predict.return_value = {
                 "confidence_score": 0.8,
                 "risk_score": 0.2,
@@ -399,8 +399,8 @@ class TestABTestStatistics:
         ab_testing_specialist.metrics.ab_test_variant_confidence_score.labels = Mock(
             side_effect=mock_histogram
         )
-        ab_testing_specialist.metrics.ab_test_variant_processing_time_seconds.labels = (
-            Mock(side_effect=mock_histogram)
+        ab_testing_specialist.metrics.ab_test_variant_processing_time_seconds.labels = Mock(
+            side_effect=mock_histogram
         )
 
         # Mock agreement
@@ -442,9 +442,7 @@ class TestABTestStatistics:
         assert stats["model_b"]["sample_size"] == 45
         assert stats["model_b"]["avg_confidence"] == 0.8  # 36/45
 
-    def test_statistical_significance_with_sufficient_samples(
-        self, ab_testing_specialist
-    ):
+    def test_statistical_significance_with_sufficient_samples(self, ab_testing_specialist):
         """Testa cálculo de significância estatística com amostras suficientes."""
 
         # Mock para amostras suficientes (>30 cada)
@@ -467,8 +465,8 @@ class TestABTestStatistics:
         ab_testing_specialist.metrics.ab_test_variant_confidence_score.labels = Mock(
             side_effect=mock_histogram
         )
-        ab_testing_specialist.metrics.ab_test_variant_processing_time_seconds.labels = (
-            Mock(side_effect=mock_histogram)
+        ab_testing_specialist.metrics.ab_test_variant_processing_time_seconds.labels = Mock(
+            side_effect=mock_histogram
         )
 
         # Mock agreement
@@ -520,12 +518,10 @@ class TestABTestStatistics:
                 _count=MagicMock(get=Mock(return_value=10)),
             )
         )
-        ab_testing_specialist.metrics.ab_test_variant_processing_time_seconds.labels = (
-            Mock(
-                return_value=MagicMock(
-                    _sum=MagicMock(get=Mock(return_value=5.0)),
-                    _count=MagicMock(get=Mock(return_value=10)),
-                )
+        ab_testing_specialist.metrics.ab_test_variant_processing_time_seconds.labels = Mock(
+            return_value=MagicMock(
+                _sum=MagicMock(get=Mock(return_value=5.0)),
+                _count=MagicMock(get=Mock(return_value=10)),
             )
         )
         ab_testing_specialist.metrics.ab_test_variant_consensus_agreement.labels = Mock(
@@ -546,9 +542,7 @@ class TestABTestingErrorHandling:
 
     def test_missing_plan_id_generates_temporary_id(self, ab_testing_specialist):
         """Testa que plan_id temporário é gerado quando faltando."""
-        with patch.object(
-            ABTestingSpecialist.__bases__[0], "_predict_with_model"
-        ) as mock_predict:
+        with patch.object(ABTestingSpecialist.__bases__[0], "_predict_with_model") as mock_predict:
             mock_predict.return_value = {
                 "confidence_score": 0.8,
                 "recommendation": "approve",
@@ -581,9 +575,7 @@ class TestABTestingIntegration:
 
     def test_full_ab_testing_flow(self, ab_testing_specialist):
         """Testa fluxo completo de A/B testing."""
-        with patch.object(
-            ABTestingSpecialist.__bases__[0], "_predict_with_model"
-        ) as mock_predict:
+        with patch.object(ABTestingSpecialist.__bases__[0], "_predict_with_model") as mock_predict:
             mock_predict.return_value = {
                 "confidence_score": 0.85,
                 "risk_score": 0.15,

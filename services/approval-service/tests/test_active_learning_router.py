@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 import asyncio
 
 # Import com skip automático se módulo não disponível
-router = pytest.importorskip('src.api.routers.active_learning').router
+router = pytest.importorskip("src.api.routers.active_learning").router
 
 
 class TestMetricsEndpoint:
@@ -24,26 +24,24 @@ class TestMetricsEndpoint:
         """Mock do DatasetBalanceAnalyzer."""
         # Criar um mock com model_dump() funcional
         metrics_data = {
-            'total_feedbacks': 484,
-            'balance': {
-                'approve': {'count': 450, 'percentage': 93.0, 'gap': 0.0},
-                'reject': {'count': 34, 'percentage': 7.0, 'gap': 26.0}
+            "total_feedbacks": 484,
+            "balance": {
+                "approve": {"count": 450, "percentage": 93.0, "gap": 0.0},
+                "reject": {"count": 34, "percentage": 7.0, "gap": 26.0},
             },
-            'confidence_distribution': {
-                'low': {'count': 242, 'percentage': 50.0},
-                'medium': {'count': 242, 'percentage': 50.0},
-                'high': {'count': 0, 'percentage': 0.0}
+            "confidence_distribution": {
+                "low": {"count": 242, "percentage": 50.0},
+                "medium": {"count": 242, "percentage": 50.0},
+                "high": {"count": 0, "percentage": 0.0},
             },
-            'domain_distribution': {
-                'technical': {'count': 120, 'percentage': 24.8},
-                'security': {'count': 15, 'percentage': 3.1, 'gap': 16.9}
+            "domain_distribution": {
+                "technical": {"count": 120, "percentage": 24.8},
+                "security": {"count": 15, "percentage": 3.1, "gap": 16.9},
             },
-            'semantic_features_count': 46,
-            'semantic_features_percentage': 9.5,
-            'priority_recommendations': [
-                {'type': 'class', 'value': 'reject', 'gap': 26.0}
-            ],
-            'last_updated': datetime.now(timezone.utc).isoformat()
+            "semantic_features_count": 46,
+            "semantic_features_percentage": 9.5,
+            "priority_recommendations": [{"type": "class", "value": "reject", "gap": 26.0}],
+            "last_updated": datetime.now(timezone.utc).isoformat(),
         }
 
         analyzer = MagicMock()
@@ -58,12 +56,10 @@ class TestMetricsEndpoint:
         return analyzer
 
     @pytest.mark.asyncio
-    async def test_get_metrics_returns_balance_metrics(
-        self,
-        mock_balance_analyzer
-    ):
+    async def test_get_metrics_returns_balance_metrics(self, mock_balance_analyzer):
         """Testa que retorna métricas de balanceamento."""
         from fastapi import FastAPI
+
         app = FastAPI()
         app.include_router(router)
 
@@ -71,36 +67,34 @@ class TestMetricsEndpoint:
         app.state.balance_analyzer = mock_balance_analyzer
 
         client = testclient.TestClient(app)
-        response = client.get('/api/v1/active-learning/metrics')
+        response = client.get("/api/v1/active-learning/metrics")
 
         assert response.status_code == 200
         data = response.json()
 
-        assert data['total_feedbacks'] == 484
-        assert 'balance' in data
-        assert 'confidence_distribution' in data
-        assert 'domain_distribution' in data
-        assert data['semantic_features_count'] == 46
+        assert data["total_feedbacks"] == 484
+        assert "balance" in data
+        assert "confidence_distribution" in data
+        assert "domain_distribution" in data
+        assert data["semantic_features_count"] == 46
 
     @pytest.mark.asyncio
-    async def test_get_metrics_includes_priority_recommendations(
-        self,
-        mock_balance_analyzer
-    ):
+    async def test_get_metrics_includes_priority_recommendations(self, mock_balance_analyzer):
         """Testa que inclui recomendações de prioridade."""
         from fastapi import FastAPI
+
         app = FastAPI()
         app.include_router(router)
         app.state.balance_analyzer = mock_balance_analyzer
 
         client = testclient.TestClient(app)
-        response = client.get('/api/v1/active-learning/metrics')
+        response = client.get("/api/v1/active-learning/metrics")
 
         assert response.status_code == 200
         data = response.json()
 
-        assert 'priority_recommendations' in data
-        assert len(data['priority_recommendations']) > 0
+        assert "priority_recommendations" in data
+        assert len(data["priority_recommendations"]) > 0
 
 
 class TestQueueEndpoint:
@@ -113,76 +107,70 @@ class TestQueueEndpoint:
         queue.get_queue_size.return_value = 12
         queue.get_pending_cases.return_value = [
             {
-                'queue_id': 'queue-1',
-                'plan_id': 'plan-1',
-                'intent_preview': 'Implementar...',
-                'information_value': 0.85,
-                'priority_reason': 'alta incerteza',
-                'status': 'pending'
+                "queue_id": "queue-1",
+                "plan_id": "plan-1",
+                "intent_preview": "Implementar...",
+                "information_value": 0.85,
+                "priority_reason": "alta incerteza",
+                "status": "pending",
             },
             {
-                'queue_id': 'queue-2',
-                'plan_id': 'plan-2',
-                'intent_preview': 'Adicionar...',
-                'information_value': 0.72,
-                'priority_reason': 'domínio raro',
-                'status': 'pending'
-            }
+                "queue_id": "queue-2",
+                "plan_id": "plan-2",
+                "intent_preview": "Adicionar...",
+                "information_value": 0.72,
+                "priority_reason": "domínio raro",
+                "status": "pending",
+            },
         ]
         return queue
 
     @pytest.mark.asyncio
-    async def test_get_queue_returns_pending_cases(
-        self,
-        mock_feedback_queue
-    ):
+    async def test_get_queue_returns_pending_cases(self, mock_feedback_queue):
         """Testa que retorna casos pendentes da fila."""
         from fastapi import FastAPI
+
         app = FastAPI()
         app.include_router(router)
         app.state.feedback_queue = mock_feedback_queue
 
         client = testclient.TestClient(app)
-        response = client.get('/api/v1/active-learning/queue')
+        response = client.get("/api/v1/active-learning/queue")
 
         assert response.status_code == 200
         data = response.json()
 
-        assert data['queue_size'] == 12
-        assert 'cases' in data
-        assert len(data['cases']) == 2
-        assert data['cases'][0]['queue_id'] == 'queue-1'
+        assert data["queue_size"] == 12
+        assert "cases" in data
+        assert len(data["cases"]) == 2
+        assert data["cases"][0]["queue_id"] == "queue-1"
 
     @pytest.mark.asyncio
-    async def test_get_queue_respects_limit_parameter(
-        self,
-        mock_feedback_queue
-    ):
+    async def test_get_queue_respects_limit_parameter(self, mock_feedback_queue):
         """Testa que respeita parâmetro limit."""
         from fastapi import FastAPI
+
         app = FastAPI()
         app.include_router(router)
         app.state.feedback_queue = mock_feedback_queue
 
         client = testclient.TestClient(app)
-        response = client.get('/api/v1/active-learning/queue?limit=5')
+        response = client.get("/api/v1/active-learning/queue?limit=5")
 
         assert response.status_code == 200
         mock_feedback_queue.get_pending_cases.assert_called_once_with(limit=5)
 
     @pytest.mark.asyncio
-    async def test_get_queue_filters_by_status(
-        self,
-        mock_feedback_queue
-    ):
+    async def test_get_queue_filters_by_status(self, mock_feedback_queue):
         """Testa filtro por status."""
         from fastapi import FastAPI
+
         app = FastAPI()
         app.include_router(router)
         app.state.feedback_queue = mock_feedback_queue
 
         client = testclient.TestClient(app)
-        response = client.get('/api/v1/active-learning/queue?status=pending')
+        response = client.get("/api/v1/active-learning/queue?status=pending")
 
         assert response.status_code == 200
 
@@ -195,36 +183,33 @@ class TestClaimEndpoint:
         """Mock do PriorityFeedbackQueue."""
         queue = MagicMock()
         queue.claim_case.return_value = {
-            'queue_id': 'queue-1',
-            'status': 'in_review',
-            'assigned_to': 'user@example.com',
-            'claimed_at': datetime.now(timezone.utc),
-            'expires_at': datetime.now(timezone.utc)
+            "queue_id": "queue-1",
+            "status": "in_review",
+            "assigned_to": "user@example.com",
+            "claimed_at": datetime.now(timezone.utc),
+            "expires_at": datetime.now(timezone.utc),
         }
         return queue
 
     @pytest.mark.asyncio
-    async def test_claim_case_success(
-        self,
-        mock_feedback_queue
-    ):
+    async def test_claim_case_success(self, mock_feedback_queue):
         """Testa claim bem-sucedido."""
         from fastapi import FastAPI
+
         app = FastAPI()
         app.include_router(router)
         app.state.feedback_queue = mock_feedback_queue
 
         client = testclient.TestClient(app)
         response = client.post(
-            '/api/v1/active-learning/queue-1/claim',
-            json={'assigned_to': 'user@example.com'}
+            "/api/v1/active-learning/queue-1/claim", json={"assigned_to": "user@example.com"}
         )
 
         assert response.status_code == 200
         data = response.json()
 
-        assert data['queue_id'] == 'queue-1'
-        assert data['status'] == 'in_review'
+        assert data["queue_id"] == "queue-1"
+        assert data["status"] == "in_review"
 
     @pytest.mark.asyncio
     async def test_claim_case_not_found(self, mock_feedback_queue):
@@ -232,14 +217,14 @@ class TestClaimEndpoint:
         mock_feedback_queue.claim_case.return_value = None
 
         from fastapi import FastAPI
+
         app = FastAPI()
         app.include_router(router)
         app.state.feedback_queue = mock_feedback_queue
 
         client = testclient.TestClient(app)
         response = client.post(
-            '/api/v1/active-learning/nonexistent/claim',
-            json={'assigned_to': 'user@example.com'}
+            "/api/v1/active-learning/nonexistent/claim", json={"assigned_to": "user@example.com"}
         )
 
         assert response.status_code == 404
@@ -253,67 +238,63 @@ class TestFeedbackEndpoint:
         """Mock do PriorityFeedbackQueue."""
         queue = MagicMock()
         queue.mark_feedback_submitted.return_value = {
-            'queue_id': 'queue-1',
-            'status': 'completed',
-            'feedback_id': 'feedback-1'
+            "queue_id": "queue-1",
+            "status": "completed",
+            "feedback_id": "feedback-1",
         }
         # Mock collection para find_one
         mock_collection = MagicMock()
-        mock_collection.find_one.return_value = {'plan_id': 'plan-1'}
+        mock_collection.find_one.return_value = {"plan_id": "plan-1"}
         queue.collection = mock_collection
         return queue
 
     @pytest.mark.asyncio
-    async def test_submit_feedback_success(
-        self,
-        mock_feedback_queue
-    ):
+    async def test_submit_feedback_success(self, mock_feedback_queue):
         """Testa submissão de feedback bem-sucedida."""
         from fastapi import FastAPI
+
         app = FastAPI()
         app.include_router(router)
         app.state.feedback_queue = mock_feedback_queue
         # Mock feedback_collector
         mock_feedback_collector = MagicMock()
-        mock_feedback_collector.submit_feedback.return_value = 'feedback-1'
+        mock_feedback_collector.submit_feedback.return_value = "feedback-1"
         app.state.feedback_collector = mock_feedback_collector
 
         client = testclient.TestClient(app)
         response = client.post(
-            '/api/v1/active-learning/queue-1/feedback',
+            "/api/v1/active-learning/queue-1/feedback",
             json={
-                'human_recommendation': 'reject',
-                'human_rating': 0.2,
-                'feedback_notes': 'Análise incompleta',
-                'submitted_by': 'user@example.com'
-            }
+                "human_recommendation": "reject",
+                "human_rating": 0.2,
+                "feedback_notes": "Análise incompleta",
+                "submitted_by": "user@example.com",
+            },
         )
 
         assert response.status_code == 200
         data = response.json()
 
-        assert data['queue_id'] == 'queue-1'
-        assert data['feedback_id'] == 'feedback-1'
+        assert data["queue_id"] == "queue-1"
+        assert data["feedback_id"] == "feedback-1"
 
     @pytest.mark.asyncio
-    async def test_submit_feedback_validates_rating_range(
-        self,
-        mock_feedback_queue
-    ):
+    async def test_submit_feedback_validates_rating_range(self, mock_feedback_queue):
         """Testa validação do rating (0-1)."""
         from fastapi import FastAPI
+
         app = FastAPI()
         app.include_router(router)
         app.state.feedback_queue = mock_feedback_queue
 
         client = testclient.TestClient(app)
         response = client.post(
-            '/api/v1/active-learning/queue-1/feedback',
+            "/api/v1/active-learning/queue-1/feedback",
             json={
-                'human_recommendation': 'approve',
-                'human_rating': 1.5,  # Inválido
-                'submitted_by': 'user@example.com'
-            }
+                "human_recommendation": "approve",
+                "human_rating": 1.5,  # Inválido
+                "submitted_by": "user@example.com",
+            },
         )
 
         assert response.status_code == 422  # Validation error
@@ -326,21 +307,19 @@ class TestReleaseEndpoint:
     async def test_release_case_success(self):
         """Testa liberação bem-sucedida."""
         mock_queue = MagicMock()
-        mock_queue.release_case.return_value = {
-            'queue_id': 'queue-1',
-            'status': 'pending'
-        }
+        mock_queue.release_case.return_value = {"queue_id": "queue-1", "status": "pending"}
 
         from fastapi import FastAPI
+
         app = FastAPI()
         app.include_router(router)
         app.state.feedback_queue = mock_queue
 
         client = testclient.TestClient(app)
-        response = client.post('/api/v1/active-learning/queue-1/release')
+        response = client.post("/api/v1/active-learning/queue-1/release")
 
         assert response.status_code == 200
         data = response.json()
 
-        assert data['queue_id'] == 'queue-1'
-        assert data['status'] == 'pending'
+        assert data["queue_id"] == "queue-1"
+        assert data["status"] == "pending"

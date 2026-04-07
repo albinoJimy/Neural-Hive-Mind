@@ -18,7 +18,7 @@ def mock_scout_responses():
                 "file": "big_class.py",
                 "methods": list(range(20)),  # 20 methods - SRP violation
                 "if_statements": 12,
-                "switch_statements": 0
+                "switch_statements": 0,
             }
         ],
         "insights": {
@@ -29,20 +29,20 @@ def mock_scout_responses():
                 {
                     "file": "child.py",
                     "method": "process",
-                    "overrides_method_without_calling_super": True
+                    "overrides_method_without_calling_super": True,
                 }
             ],
-            "interfaces": [
-                {"name": "HugeInterface", "file": "huge.py", "method_count": 15}
-            ],
+            "interfaces": [{"name": "HugeInterface", "file": "huge.py", "method_count": 15}],
             "dependencies": [
-                {"name": "ConcreteClass", "file": "dep.py", "is_concrete": True, "is_interface": False}
-            ]
+                {
+                    "name": "ConcreteClass",
+                    "file": "dep.py",
+                    "is_concrete": True,
+                    "is_interface": False,
+                }
+            ],
         },
-        "duplication": {
-            "percentage": 15.5,
-            "duplicated_lines": 450
-        }
+        "duplication": {"percentage": 15.5, "duplicated_lines": 450},
     }
 
 
@@ -54,7 +54,7 @@ def mock_opa_responses():
             "type": "architecture",
             "severity": "medium",
             "location": "app.py",
-            "description": "Diretório src/ não segue estrutura padrão"
+            "description": "Diretório src/ não segue estrutura padrão",
         }
     ]
 
@@ -64,9 +64,15 @@ def engine(mock_scout_responses, mock_opa_responses):
     """Engine com clientes mockados."""
     engine_instance = ValidateEngine()
     # Mock dos métodos do cliente Scout
-    engine_instance.scout_client.get_patterns = AsyncMock(return_value=mock_scout_responses["patterns"])
-    engine_instance.scout_client.get_insights = AsyncMock(return_value=mock_scout_responses["insights"])
-    engine_instance.scout_client.check_duplication = AsyncMock(return_value=mock_scout_responses["duplication"])
+    engine_instance.scout_client.get_patterns = AsyncMock(
+        return_value=mock_scout_responses["patterns"]
+    )
+    engine_instance.scout_client.get_insights = AsyncMock(
+        return_value=mock_scout_responses["insights"]
+    )
+    engine_instance.scout_client.check_duplication = AsyncMock(
+        return_value=mock_scout_responses["duplication"]
+    )
     # Mock do cliente OPA
     engine_instance.opa_client.check_architecture_rules = AsyncMock(return_value=mock_opa_responses)
     return engine_instance

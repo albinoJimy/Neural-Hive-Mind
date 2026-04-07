@@ -7,6 +7,7 @@ o PVCManager cria dinamicamente um PersistentVolumeClaim para armazenar o contex
 
 import logging
 from datetime import timezone
+
 UTC = timezone.utc  # type: ignore
 from uuid import uuid4
 
@@ -136,10 +137,7 @@ class PVCManager:
         return f"kaniko-build-{uuid4().hex[:8]}"
 
     def create_pvc_for_build(
-        self,
-        build_id: str,
-        size_gb: int,
-        access_mode: str = "ReadWriteOnce"
+        self, build_id: str, size_gb: int, access_mode: str = "ReadWriteOnce"
     ) -> V1PersistentVolumeClaim:
         """
         Cria PVC para armazenar contexto de build.
@@ -163,36 +161,23 @@ class PVCManager:
             "metadata": {
                 "name": pvc_name,
                 "namespace": self.namespace,
-                "labels": {
-                    "app": "kaniko",
-                    "build-id": build_id,
-                    "temporary": "true"
-                },
-                "annotations": {
-                    "cleanup-after": "build-complete"
-                }
+                "labels": {"app": "kaniko", "build-id": build_id, "temporary": "true"},
+                "annotations": {"cleanup-after": "build-complete"},
             },
             "spec": {
                 "accessModes": [access_mode],
-                "resources": {
-                    "requests": {
-                        "storage": f"{size_gb}Gi"
-                    }
-                },
-                "storageClassName": self.storage_class if self.storage_class else None
-            }
+                "resources": {"requests": {"storage": f"{size_gb}Gi"}},
+                "storageClassName": self.storage_class if self.storage_class else None,
+            },
         }
 
         client = self._get_k8s_client()
 
         try:
             pvc = client.create_namespaced_persistent_volume_claim(
-                namespace=self.namespace,
-                body=pvc_spec
+                namespace=self.namespace, body=pvc_spec
             )
-            logger.info(
-                f"pvc_created: {pvc_name}, size_gb={size_gb}, access_mode={access_mode}"
-            )
+            logger.info(f"pvc_created: {pvc_name}, size_gb={size_gb}, access_mode={access_mode}")
             return pvc
         except ApiException as e:
             logger.error(f"pvc_creation_failed: {pvc_name}, error: {e}")
@@ -227,9 +212,7 @@ class PVCManager:
             # Primeiro, tentar deletar o PVC
             policy = {"foregroundPolicy": "Foreground"}
             client.delete_namespaced_persistent_volume_claim(
-                namespace=self.namespace,
-                name=pvc_name,
-                body=policy
+                namespace=self.namespace, name=pvc_name, body=policy
             )
             logger.info(f"pvc_deleted: {pvc_name}")
             return True
@@ -258,8 +241,7 @@ class PVCManager:
                 label_selector += f",build-id={build_id}"
 
             pvcs = client.list_namespaced_persistent_volume_claim(
-                namespace=self.namespace,
-                label_selector=label_selector
+                namespace=self.namespace, label_selector=label_selector
             )
 
             logger.info("pvcs_listed", count=len(pvcs.items), build_id=build_id or "all")
@@ -288,8 +270,7 @@ class PVCManager:
         try:
             label_selector = "app=kaniko,temporary=true"
             pvcs = client.list_namespaced_persistent_volume_claim(
-                namespace=self.namespace,
-                label_selector=label_selector
+                namespace=self.namespace, label_selector=label_selector
             )
 
             deleted_count = 0
@@ -301,16 +282,16 @@ class PVCManager:
                     policy = {"foregroundPolicy": "Foreground"}
                     try:
                         client.delete_namespaced_persistent_volume_claim(
-                            namespace=self.namespace,
-                            name=pvc.metadata.name,
-                            body=policy
+                            namespace=self.namespace, name=pvc.metadata.name, body=policy
                         )
                         deleted_count += 1
                         logger.info(f"old_pvc_deleted: {pvc.metadata.name}")
                     except ApiException as e:
                         logger.warning(f"old_pvc_deletion_failed: {pvc.metadata.name}, error: {e}")
 
-            logger.info(f"build_pvcs_cleanup_complete: deleted={deleted_count}, older_than_hours={older_than_hours}")
+            logger.info(
+                f"build_pvcs_cleanup_complete: deleted={deleted_count}, older_than_hours={older_than_hours}"
+            )
             return deleted_count
         except ApiException as e:
             logger.error(f"cleanup_pvcs_failed: {e}")
@@ -322,7 +303,7 @@ def detect_large_context_and_create_pvc(
     build_context: str,
     build_id: str,
     namespace: str = "default",
-    storage_class: str | None = None
+    storage_class: str | None = None,
 ) -> tuple[bool, str | None, int | None]:
     """
     Detecta contexto grande e cria PVC se necessário.
@@ -400,7 +381,4 @@ def get_pvc_mount_spec(pvc_name: str) -> dict:
     manager = PVCManager()
     mount_path = manager.get_pvc_mount_path(pvc_name)
 
-    return {
-        "name": pvc_name,
-        "mountPath": mount_path
-    }
+    return {"name": pvc_name, "mountPath": mount_path}

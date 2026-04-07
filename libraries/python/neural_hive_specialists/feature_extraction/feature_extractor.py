@@ -46,9 +46,7 @@ class FeatureExtractor:
         # Inicializar componentes
         # Inicializar embeddings generator primeiro
         self.embeddings_generator = EmbeddingsGenerator(
-            model_name=self.config.get(
-                "embeddings_model", "paraphrase-multilingual-MiniLM-L12-v2"
-            ),
+            model_name=self.config.get("embeddings_model", "paraphrase-multilingual-MiniLM-L12-v2"),
             cache_size=self.config.get("embedding_cache_size", 1000),
             batch_size=self.config.get("embedding_batch_size", 32),
             metrics=metrics,
@@ -60,9 +58,7 @@ class FeatureExtractor:
         self.ontology_mapper = OntologyMapper(
             ontology_path=self.config.get("ontology_path"),
             embeddings_generator=self.embeddings_generator,
-            semantic_similarity_threshold=self.config.get(
-                "semantic_similarity_threshold", 0.7
-            ),
+            semantic_similarity_threshold=self.config.get("semantic_similarity_threshold", 0.7),
         )
 
         self.graph_analyzer = GraphAnalyzer()
@@ -111,9 +107,7 @@ class FeatureExtractor:
             embedding_features = self._extract_embedding_features(tasks)
         else:
             embedding_features = {}
-            logger.debug(
-                "Skipping embedding extraction", plan_id=cognitive_plan.get("plan_id")
-            )
+            logger.debug("Skipping embedding extraction", plan_id=cognitive_plan.get("plan_id"))
 
         # 5. Agregar features para modelo
         aggregated_features = self._aggregate_features(
@@ -127,9 +121,7 @@ class FeatureExtractor:
         )
         try:
             if self.metrics:
-                self.metrics.observe_feature_extraction_duration(
-                    time.time() - start_time
-                )
+                self.metrics.observe_feature_extraction_duration(time.time() - start_time)
         except Exception as e:
             logger.warning("feature_extraction_metrics_failed", error=str(e))
 
@@ -141,9 +133,7 @@ class FeatureExtractor:
             "aggregated_features": aggregated_features,
         }
 
-    def _extract_metadata_features(
-        self, cognitive_plan: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def _extract_metadata_features(self, cognitive_plan: Dict[str, Any]) -> Dict[str, Any]:
         """Extrai features de metadados básicos."""
         import random
 
@@ -152,9 +142,7 @@ class FeatureExtractor:
         # Mapear prioridade para numérico com variação para evitar valores estáticos
         # Isso melhora a diversidade do dataset de treinamento
         priority_map = {"low": 0.25, "normal": 0.5, "high": 0.75, "critical": 1.0}
-        base_priority = priority_map.get(
-            cognitive_plan.get("original_priority", "normal"), 0.5
-        )
+        base_priority = priority_map.get(cognitive_plan.get("original_priority", "normal"), 0.5)
 
         # Adicionar jitter de ±0.1 para criar variação nos dados de treinamento
         # Mantém dentro dos limites [0.0, 1.0]
@@ -169,9 +157,7 @@ class FeatureExtractor:
             "priority_score": priority_score,
             "total_duration_ms": total_duration_ms,
             "avg_duration_ms": total_duration_ms / len(tasks) if tasks else 0,
-            "has_risk_score": 1.0
-            if cognitive_plan.get("risk_score") is not None
-            else 0.0,
+            "has_risk_score": 1.0 if cognitive_plan.get("risk_score") is not None else 0.0,
             "risk_score": cognitive_plan.get("risk_score", 0.5),
             "complexity_score": cognitive_plan.get("complexity_score", 0.5),
         }
@@ -190,13 +176,9 @@ class FeatureExtractor:
 
         features = {
             "domain_id": taxonomy_entry["id"] if taxonomy_entry else "UNKNOWN",
-            "domain_risk_weight": taxonomy_entry.get("risk_weight", 0.5)
-            if taxonomy_entry
-            else 0.5,
+            "domain_risk_weight": taxonomy_entry.get("risk_weight", 0.5) if taxonomy_entry else 0.5,
             "unified_domain": unified_domain,
-            "unified_domain_value": unified_domain.value
-            if unified_domain
-            else "UNKNOWN",
+            "unified_domain_value": unified_domain.value if unified_domain else "UNKNOWN",
         }
 
         if unified_domain:
@@ -228,9 +210,7 @@ class FeatureExtractor:
         features["avg_pattern_quality"] = (
             np.mean([p["quality_score"] for p in patterns]) if patterns else 0.5
         )
-        features["total_anti_pattern_penalty"] = sum(
-            [ap["penalty"] for ap in anti_patterns]
-        )
+        features["total_anti_pattern_penalty"] = sum([ap["penalty"] for ap in anti_patterns])
 
         return features
 
@@ -248,15 +228,11 @@ class FeatureExtractor:
         graph_features["has_bottlenecks"] = 1.0 if bottlenecks else 0.0
 
         # Calcular complexidade
-        graph_features[
-            "graph_complexity_score"
-        ] = self.graph_analyzer.calculate_complexity_score()
+        graph_features["graph_complexity_score"] = self.graph_analyzer.calculate_complexity_score()
 
         return graph_features
 
-    def _extract_embedding_features(
-        self, tasks: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+    def _extract_embedding_features(self, tasks: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Extrai features de embeddings semânticos."""
         # Gerar embeddings de tarefas
         task_embeddings = self.embeddings_generator.generate_task_embeddings(tasks)
@@ -310,18 +286,14 @@ class FeatureExtractor:
         Returns:
             Array numpy com features agregadas
         """
-        features = self.extract_features(
-            cognitive_plan, include_embeddings=include_embeddings
-        )
+        features = self.extract_features(cognitive_plan, include_embeddings=include_embeddings)
         aggregated = features["aggregated_features"]
 
         # Ordenar features por chave para consistência
         sorted_keys = sorted(aggregated.keys())
         feature_vector = np.array([aggregated[key] for key in sorted_keys])
 
-        logger.debug(
-            "Feature vector generated", shape=feature_vector.shape, features=sorted_keys
-        )
+        logger.debug("Feature vector generated", shape=feature_vector.shape, features=sorted_keys)
 
         return feature_vector
 
@@ -350,9 +322,7 @@ class FeatureExtractor:
             "original_priority": "normal",
         }
 
-        features = self.extract_features(
-            dummy_plan, include_embeddings=include_embeddings
-        )
+        features = self.extract_features(dummy_plan, include_embeddings=include_embeddings)
         aggregated = features["aggregated_features"]
 
         return sorted(aggregated.keys())

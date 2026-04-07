@@ -19,6 +19,7 @@ from src.adapters.rest_adapter import RESTAdapter
 # Fixtures de Mock HTTP Server
 # ============================================================================
 
+
 @pytest.fixture
 def sonarqube_mock_app():
     """Mock da API SonarQube."""
@@ -27,38 +28,35 @@ def sonarqube_mock_app():
     async def analyze_handler(request):
         auth_header = request.headers.get("Authorization")
         if not auth_header or not auth_header.startswith("Bearer "):
-            return web.json_response(
-                {"error": "Unauthorized"},
-                status=401
-            )
+            return web.json_response({"error": "Unauthorized"}, status=401)
 
         body = await request.json()
-        return web.json_response({
-            "taskId": "AXd9_xyz123",
-            "status": "SUCCESS",
-            "project": body.get("projectKey"),
-            "qualityGate": "OK",
-            "issues": {
-                "bugs": 0,
-                "vulnerabilities": 2,
-                "codeSmells": 15
+        return web.json_response(
+            {
+                "taskId": "AXd9_xyz123",
+                "status": "SUCCESS",
+                "project": body.get("projectKey"),
+                "qualityGate": "OK",
+                "issues": {"bugs": 0, "vulnerabilities": 2, "codeSmells": 15},
             }
-        })
+        )
 
     async def issues_handler(request):
         project = request.query.get("componentKeys", "unknown")
-        return web.json_response({
-            "total": 17,
-            "issues": [
-                {
-                    "key": "issue-1",
-                    "severity": "MAJOR",
-                    "type": "CODE_SMELL",
-                    "component": project
-                }
-            ],
-            "paging": {"pageIndex": 1, "pageSize": 100, "total": 17}
-        })
+        return web.json_response(
+            {
+                "total": 17,
+                "issues": [
+                    {
+                        "key": "issue-1",
+                        "severity": "MAJOR",
+                        "type": "CODE_SMELL",
+                        "component": project,
+                    }
+                ],
+                "paging": {"pageIndex": 1, "pageSize": 100, "total": 17},
+            }
+        )
 
     async def health_handler(request):
         return web.json_response({"status": "UP"})
@@ -77,24 +75,25 @@ def snyk_mock_app():
 
     async def test_handler(request):
         body = await request.json()
-        return web.json_response({
-            "ok": True,
-            "issues": {
-                "vulnerabilities": [],
-                "licenses": []
-            },
-            "dependencyCount": 42,
-            "packageManager": "pip",
-            "summary": body.get("targetFile", "requirements.txt")
-        })
+        return web.json_response(
+            {
+                "ok": True,
+                "issues": {"vulnerabilities": [], "licenses": []},
+                "dependencyCount": 42,
+                "packageManager": "pip",
+                "summary": body.get("targetFile", "requirements.txt"),
+            }
+        )
 
     async def projects_handler(request):
-        return web.json_response({
-            "projects": [
-                {"id": "proj-1", "name": "my-project"},
-                {"id": "proj-2", "name": "another-project"}
-            ]
-        })
+        return web.json_response(
+            {
+                "projects": [
+                    {"id": "proj-1", "name": "my-project"},
+                    {"id": "proj-2", "name": "another-project"},
+                ]
+            }
+        )
 
     app.router.add_post("/v1/test", test_handler)
     app.router.add_get("/v1/org/{orgId}/projects", projects_handler)
@@ -109,24 +108,28 @@ def checkmarx_mock_app():
 
     async def scan_handler(request):
         body = await request.json()
-        return web.json_response({
-            "id": "scan-123",
-            "status": "Completed",
-            "projectName": body.get("projectName"),
-            "highVulnerabilities": 0,
-            "mediumVulnerabilities": 3,
-            "lowVulnerabilities": 12
-        })
+        return web.json_response(
+            {
+                "id": "scan-123",
+                "status": "Completed",
+                "projectName": body.get("projectName"),
+                "highVulnerabilities": 0,
+                "mediumVulnerabilities": 3,
+                "lowVulnerabilities": 12,
+            }
+        )
 
     async def results_handler(request):
         scan_id = request.match_info.get("scanId")
-        return web.json_response({
-            "scanId": scan_id,
-            "results": [
-                {"severity": "Medium", "name": "SQL Injection Risk"},
-                {"severity": "Low", "name": "Unused Variable"}
-            ]
-        })
+        return web.json_response(
+            {
+                "scanId": scan_id,
+                "results": [
+                    {"severity": "Medium", "name": "SQL Injection Risk"},
+                    {"severity": "Low", "name": "Unused Variable"},
+                ],
+            }
+        )
 
     app.router.add_post("/api/scans", scan_handler)
     app.router.add_get("/api/scans/{scanId}/results", results_handler)
@@ -156,6 +159,7 @@ async def checkmarx_server(checkmarx_mock_app, aiohttp_server):
 # Testes de Integracao com SonarQube Mock
 # ============================================================================
 
+
 class TestSonarQubeIntegration:
     """Testes de integracao com API SonarQube."""
 
@@ -168,13 +172,8 @@ class TestSonarQubeIntegration:
             tool_id="sonarqube-001",
             tool_name="sonarqube",
             command=f"http://{sonarqube_server.host}:{sonarqube_server.port}/api/analysis",
-            parameters={
-                "body": {"projectKey": "my-project:main"}
-            },
-            context={
-                "http_method": "POST",
-                "auth_token": "sonar-token-123"
-            }
+            parameters={"body": {"projectKey": "my-project:main"}},
+            context={"http_method": "POST", "auth_token": "sonar-token-123"},
         )
 
         assert result.success is True
@@ -193,7 +192,7 @@ class TestSonarQubeIntegration:
             tool_name="sonarqube",
             command=f"http://{sonarqube_server.host}:{sonarqube_server.port}/api/analysis",
             parameters={"body": {"projectKey": "test"}},
-            context={"http_method": "POST"}  # Sem auth_token
+            context={"http_method": "POST"},  # Sem auth_token
         )
 
         assert result.success is False
@@ -208,10 +207,8 @@ class TestSonarQubeIntegration:
             tool_id="sonarqube-issues",
             tool_name="sonarqube",
             command=f"http://{sonarqube_server.host}:{sonarqube_server.port}/api/issues/search",
-            parameters={
-                "query": {"componentKeys": "my-project"}
-            },
-            context={"http_method": "GET"}
+            parameters={"query": {"componentKeys": "my-project"}},
+            context={"http_method": "GET"},
         )
 
         assert result.success is True
@@ -229,7 +226,7 @@ class TestSonarQubeIntegration:
             tool_name="sonarqube",
             command=f"http://{sonarqube_server.host}:{sonarqube_server.port}/api/system/health",
             parameters={"query": {}},
-            context={"http_method": "GET"}
+            context={"http_method": "GET"},
         )
 
         assert result.success is True
@@ -240,6 +237,7 @@ class TestSonarQubeIntegration:
 # ============================================================================
 # Testes de Integracao com Snyk Mock
 # ============================================================================
+
 
 class TestSnykIntegration:
     """Testes de integracao com API Snyk."""
@@ -253,10 +251,8 @@ class TestSnykIntegration:
             tool_id="snyk-001",
             tool_name="snyk",
             command=f"http://{snyk_server.host}:{snyk_server.port}/v1/test",
-            parameters={
-                "body": {"targetFile": "requirements.txt"}
-            },
-            context={"http_method": "POST"}
+            parameters={"body": {"targetFile": "requirements.txt"}},
+            context={"http_method": "POST"},
         )
 
         assert result.success is True
@@ -274,7 +270,7 @@ class TestSnykIntegration:
             tool_name="snyk",
             command=f"http://{snyk_server.host}:{snyk_server.port}/v1/org/my-org/projects",
             parameters={"query": {}},
-            context={"http_method": "GET"}
+            context={"http_method": "GET"},
         )
 
         assert result.success is True
@@ -285,6 +281,7 @@ class TestSnykIntegration:
 # ============================================================================
 # Testes de Integracao com Checkmarx Mock
 # ============================================================================
+
 
 class TestCheckmarxIntegration:
     """Testes de integracao com API Checkmarx."""
@@ -298,10 +295,8 @@ class TestCheckmarxIntegration:
             tool_id="checkmarx-001",
             tool_name="checkmarx",
             command=f"http://{checkmarx_server.host}:{checkmarx_server.port}/api/scans",
-            parameters={
-                "body": {"projectName": "my-project"}
-            },
-            context={"http_method": "POST"}
+            parameters={"body": {"projectName": "my-project"}},
+            context={"http_method": "POST"},
         )
 
         assert result.success is True
@@ -319,7 +314,7 @@ class TestCheckmarxIntegration:
             tool_name="checkmarx",
             command=f"http://{checkmarx_server.host}:{checkmarx_server.port}/api/scans/scan-123/results",
             parameters={"query": {}},
-            context={"http_method": "GET"}
+            context={"http_method": "GET"},
         )
 
         assert result.success is True
@@ -331,6 +326,7 @@ class TestCheckmarxIntegration:
 # ============================================================================
 # Testes de Retry com Mock Server
 # ============================================================================
+
 
 class TestRetryWithRealServer:
     """Testes de retry com servidor real."""
@@ -344,10 +340,7 @@ class TestRetryWithRealServer:
         async def flaky_handler(request):
             app["request_count"] += 1
             if app["request_count"] < 3:
-                return web.json_response(
-                    {"error": "Temporary failure"},
-                    status=500
-                )
+                return web.json_response({"error": "Temporary failure"}, status=500)
             return web.json_response({"success": True})
 
         app.router.add_get("/flaky", flaky_handler)
@@ -364,7 +357,7 @@ class TestRetryWithRealServer:
             tool_name="flaky",
             command=f"http://{server.host}:{server.port}/flaky",
             parameters={"query": {}},
-            context={"http_method": "GET"}
+            context={"http_method": "GET"},
         )
 
         assert result.success is True
@@ -374,6 +367,7 @@ class TestRetryWithRealServer:
 # ============================================================================
 # Testes de Timeout com Mock Server
 # ============================================================================
+
 
 class TestTimeoutWithRealServer:
     """Testes de timeout com servidor real."""
@@ -401,7 +395,7 @@ class TestTimeoutWithRealServer:
             tool_name="slow",
             command=f"http://{server.host}:{server.port}/slow",
             parameters={"query": {}},
-            context={"http_method": "GET"}
+            context={"http_method": "GET"},
         )
 
         assert result.success is False

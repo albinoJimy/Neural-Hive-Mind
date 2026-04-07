@@ -17,6 +17,7 @@ from aiohttp import web
 # MCP Server Mock Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def mcp_server_state():
     """Estado compartilhado do MCP Server mock."""
@@ -32,51 +33,40 @@ def mcp_server_state():
                 "description": "Container vulnerability scanner",
                 "inputSchema": {
                     "type": "object",
-                    "properties": {
-                        "target": {"type": "string", "description": "Image to scan"}
-                    },
-                    "required": ["target"]
-                }
+                    "properties": {"target": {"type": "string", "description": "Image to scan"}},
+                    "required": ["target"],
+                },
             },
             {
                 "name": "sonarqube-analyze",
                 "description": "Code quality analysis",
                 "inputSchema": {
                     "type": "object",
-                    "properties": {
-                        "projectKey": {"type": "string"},
-                        "branch": {"type": "string"}
-                    },
-                    "required": ["projectKey"]
-                }
+                    "properties": {"projectKey": {"type": "string"}, "branch": {"type": "string"}},
+                    "required": ["projectKey"],
+                },
             },
             {
                 "name": "snyk-test",
                 "description": "Dependency vulnerability testing",
                 "inputSchema": {
                     "type": "object",
-                    "properties": {
-                        "targetFile": {"type": "string"}
-                    },
-                    "required": ["targetFile"]
-                }
-            }
+                    "properties": {"targetFile": {"type": "string"}},
+                    "required": ["targetFile"],
+                },
+            },
         ],
         "tool_results": {
             "trivy-scan": {
                 "vulnerabilities": [],
-                "summary": {"critical": 0, "high": 0, "medium": 2, "low": 5}
+                "summary": {"critical": 0, "high": 0, "medium": 2, "low": 5},
             },
             "sonarqube-analyze": {
                 "qualityGate": "OK",
-                "issues": {"bugs": 0, "vulnerabilities": 1, "codeSmells": 10}
+                "issues": {"bugs": 0, "vulnerabilities": 1, "codeSmells": 10},
             },
-            "snyk-test": {
-                "ok": True,
-                "vulnerabilities": [],
-                "dependencyCount": 42
-            }
-        }
+            "snyk-test": {"ok": True, "vulnerabilities": [], "dependencyCount": 42},
+        },
     }
 
 
@@ -94,19 +84,21 @@ def mcp_server_app(mcp_server_state):
             body = await request.json()
             state["last_request"] = body
         except Exception:
-            return web.json_response({
-                "jsonrpc": "2.0",
-                "error": {"code": -32700, "message": "Parse error"},
-                "id": None
-            }, status=400)
+            return web.json_response(
+                {"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": None},
+                status=400,
+            )
 
         # Modo de falha
         if state["fail_mode"]:
-            return web.json_response({
-                "jsonrpc": "2.0",
-                "error": {"code": -32000, "message": "Server error (fail mode)"},
-                "id": body.get("id")
-            }, status=500)
+            return web.json_response(
+                {
+                    "jsonrpc": "2.0",
+                    "error": {"code": -32000, "message": "Server error (fail mode)"},
+                    "id": body.get("id"),
+                },
+                status=500,
+            )
 
         # Modo lento
         if state["slow_mode"]:
@@ -121,7 +113,7 @@ def mcp_server_app(mcp_server_state):
             result = {
                 "protocolVersion": "2024-11-05",
                 "serverInfo": {"name": "mock-mcp-server", "version": "1.0.0"},
-                "capabilities": {"tools": {"listChanged": True}}
+                "capabilities": {"tools": {"listChanged": True}},
             }
         elif method == "tools/list":
             result = {"tools": state["tools"]}
@@ -134,39 +126,32 @@ def mcp_server_app(mcp_server_state):
                 tool_result["_arguments"] = arguments
                 result = {
                     "content": [{"type": "text", "text": json.dumps(tool_result)}],
-                    "isError": False
+                    "isError": False,
                 }
             else:
                 result = {
                     "content": [{"type": "text", "text": f"Unknown tool: {tool_name}"}],
-                    "isError": True
+                    "isError": True,
                 }
         elif method == "notifications/initialized":
-            return web.json_response({
-                "jsonrpc": "2.0",
-                "result": {},
-                "id": request_id
-            })
+            return web.json_response({"jsonrpc": "2.0", "result": {}, "id": request_id})
         else:
-            return web.json_response({
-                "jsonrpc": "2.0",
-                "error": {"code": -32601, "message": f"Method not found: {method}"},
-                "id": request_id
-            })
+            return web.json_response(
+                {
+                    "jsonrpc": "2.0",
+                    "error": {"code": -32601, "message": f"Method not found: {method}"},
+                    "id": request_id,
+                }
+            )
 
-        return web.json_response({
-            "jsonrpc": "2.0",
-            "result": result,
-            "id": request_id
-        })
+        return web.json_response({"jsonrpc": "2.0", "result": result, "id": request_id})
 
     async def handle_health(request):
         """Health check endpoint."""
         if mcp_server_state["healthy"]:
-            return web.json_response({
-                "status": "healthy",
-                "requests": mcp_server_state["request_count"]
-            })
+            return web.json_response(
+                {"status": "healthy", "requests": mcp_server_state["request_count"]}
+            )
         return web.json_response({"status": "unhealthy"}, status=503)
 
     async def handle_control(request):
@@ -195,12 +180,17 @@ def mcp_server_app(mcp_server_state):
         elif action == "get_stats":
             return web.json_response(mcp_server_state)
 
-        return web.json_response({"status": "ok", "state": {
-            "healthy": mcp_server_state["healthy"],
-            "slow_mode": mcp_server_state["slow_mode"],
-            "fail_mode": mcp_server_state["fail_mode"],
-            "request_count": mcp_server_state["request_count"]
-        }})
+        return web.json_response(
+            {
+                "status": "ok",
+                "state": {
+                    "healthy": mcp_server_state["healthy"],
+                    "slow_mode": mcp_server_state["slow_mode"],
+                    "fail_mode": mcp_server_state["fail_mode"],
+                    "request_count": mcp_server_state["request_count"],
+                },
+            }
+        )
 
     app.router.add_post("/", handle_jsonrpc)
     app.router.add_post("/jsonrpc", handle_jsonrpc)
@@ -220,22 +210,24 @@ async def mcp_server(mcp_server_app, aiohttp_server):
 # Failing MCP Server Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def failing_mcp_server_app():
     """MCP Server que sempre falha."""
     app = web.Application()
 
     async def always_fail(request):
-        return web.json_response({
-            "jsonrpc": "2.0",
-            "error": {"code": -32000, "message": "Server unavailable"},
-            "id": None
-        }, status=503)
+        return web.json_response(
+            {
+                "jsonrpc": "2.0",
+                "error": {"code": -32000, "message": "Server unavailable"},
+                "id": None,
+            },
+            status=503,
+        )
 
     app.router.add_post("/", always_fail)
-    app.router.add_get("/health", lambda r: web.json_response(
-        {"status": "unhealthy"}, status=503
-    ))
+    app.router.add_get("/health", lambda r: web.json_response({"status": "unhealthy"}, status=503))
 
     return app
 
@@ -250,6 +242,7 @@ async def failing_mcp_server(failing_mcp_server_app, aiohttp_server):
 # Flaky MCP Server Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def flaky_mcp_server_app():
     """MCP Server que falha intermitentemente."""
@@ -259,18 +252,23 @@ def flaky_mcp_server_app():
     async def flaky_handler(request):
         app["request_count"] += 1
         if app["request_count"] <= 2:
-            return web.json_response({
-                "jsonrpc": "2.0",
-                "error": {"code": -32000, "message": "Temporary failure"},
-                "id": None
-            }, status=500)
+            return web.json_response(
+                {
+                    "jsonrpc": "2.0",
+                    "error": {"code": -32000, "message": "Temporary failure"},
+                    "id": None,
+                },
+                status=500,
+            )
 
         body = await request.json()
-        return web.json_response({
-            "jsonrpc": "2.0",
-            "result": {"success": True, "attempt": app["request_count"]},
-            "id": body.get("id")
-        })
+        return web.json_response(
+            {
+                "jsonrpc": "2.0",
+                "result": {"success": True, "attempt": app["request_count"]},
+                "id": body.get("id"),
+            }
+        )
 
     async def reset(request):
         app["request_count"] = 0
@@ -292,6 +290,7 @@ async def flaky_mcp_server(flaky_mcp_server_app, aiohttp_server):
 # E2E Test Helpers
 # ============================================================================
 
+
 @pytest.fixture
 def mcp_jsonrpc_request():
     """Helper para criar requisicoes JSON-RPC."""
@@ -299,12 +298,7 @@ def mcp_jsonrpc_request():
 
     def make_request(method: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
         request_id[0] += 1
-        return {
-            "jsonrpc": "2.0",
-            "method": method,
-            "params": params or {},
-            "id": request_id[0]
-        }
+        return {"jsonrpc": "2.0", "method": method, "params": params or {}, "id": request_id[0]}
 
     return make_request
 
@@ -312,6 +306,7 @@ def mcp_jsonrpc_request():
 @pytest.fixture
 def assert_mcp_response():
     """Helper para validar respostas JSON-RPC."""
+
     def validate(response: Dict[str, Any], expected_id: int = None):
         assert response.get("jsonrpc") == "2.0"
         assert "result" in response or "error" in response

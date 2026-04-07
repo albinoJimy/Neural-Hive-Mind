@@ -40,7 +40,7 @@ def extract_context_from_headers(headers):
         headers_dict = {}
         for key, value in headers:
             if isinstance(value, bytes):
-                value = value.decode('utf-8')
+                value = value.decode("utf-8")
             headers_dict[key] = value
 
     token = None
@@ -108,7 +108,7 @@ class ContextManager:
         user_id: Optional[str] = None,
         domain: Optional[str] = None,
         channel: Optional[str] = None,
-        **additional_context
+        **additional_context,
     ):
         """
         Context manager para correlação distribuída.
@@ -212,13 +212,13 @@ class ContextManager:
 
         # Adicionar identificação do serviço (se config disponível e valores válidos)
         # Validação defensiva usando hasattr() e getattr() para prevenir AttributeError
-        if self.config and hasattr(self.config, 'service_name'):
-            service_name = getattr(self.config, 'service_name', None)
+        if self.config and hasattr(self.config, "service_name"):
+            service_name = getattr(self.config, "service_name", None)
             if service_name:
                 new_headers["x-neural-hive-source"] = service_name
 
-        if self.config and hasattr(self.config, 'neural_hive_component'):
-            component = getattr(self.config, 'neural_hive_component', None)
+        if self.config and hasattr(self.config, "neural_hive_component"):
+            component = getattr(self.config, "neural_hive_component", None)
             if component:
                 new_headers["X-Neural-Hive-Component"] = component
 
@@ -278,7 +278,9 @@ class ContextManager:
             return headers
 
         # Converter para formato string temporariamente
-        str_headers = {k: v.decode() if isinstance(v, bytes) else str(v) for k, v in headers.items()}
+        str_headers = {
+            k: v.decode() if isinstance(v, bytes) else str(v) for k, v in headers.items()
+        }
 
         # Injetar contexto (agora com validação defensiva em inject_http_headers)
         injected_headers = self.inject_http_headers(str_headers)
@@ -320,7 +322,7 @@ class ContextManager:
         intent_id: Optional[str] = None,
         plan_id: Optional[str] = None,
         operation: Optional[str] = None,
-        **additional_context
+        **additional_context,
     ) -> "ChildContext":
         """
         Cria contexto filho para operação específica.
@@ -339,7 +341,7 @@ class ContextManager:
             intent_id=intent_id,
             plan_id=plan_id,
             operation=operation,
-            additional_context=additional_context
+            additional_context=additional_context,
         )
 
     def get_intent_id(self) -> Optional[str]:
@@ -377,7 +379,7 @@ class ChildContext:
         intent_id: Optional[str] = None,
         plan_id: Optional[str] = None,
         operation: Optional[str] = None,
-        additional_context: Optional[Dict[str, Any]] = None
+        additional_context: Optional[Dict[str, Any]] = None,
     ):
         """
         Inicializa contexto filho.
@@ -429,6 +431,7 @@ class ChildContext:
 
 
 # Funções utilitárias para compatibilidade e uso direto
+
 
 def extract_context_from_metadata(metadata: Dict[str, str]) -> Optional[Dict[str, str]]:
     """

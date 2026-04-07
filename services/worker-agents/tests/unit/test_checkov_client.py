@@ -73,7 +73,8 @@ class TestCheckovClientScan:
         with tempfile.TemporaryDirectory() as tmpdir:
             # Create a dummy Terraform file
             tf_file = Path(tmpdir) / "main.tf"
-            tf_file.write_text("""
+            tf_file.write_text(
+                """
 resource "aws_s3_bucket" "example" {
   bucket = "my-test-bucket"
 }
@@ -81,12 +82,16 @@ resource "aws_s3_bucket" "example" {
 resource "aws_s3_bucket" "example2" {
   bucket = "another-test-bucket"
 }
-""")
+"""
+            )
 
-            with patch.object(client, '_verify_checkov_installed', return_value='Checkov v2.3.0'):
-                with patch('asyncio.create_subprocess_exec', return_value=AsyncMock(
-                    communicate=lambda timeout: (b'{"summary": {"passed": true}}', b'')
-                )):
+            with patch.object(client, "_verify_checkov_installed", return_value="Checkov v2.3.0"):
+                with patch(
+                    "asyncio.create_subprocess_exec",
+                    return_value=AsyncMock(
+                        communicate=lambda timeout: (b'{"summary": {"passed": true}}', b"")
+                    ),
+                ):
                     report = await client.scan_iac(str(tf_file))
 
         assert report.passed is True
@@ -98,11 +103,11 @@ resource "aws_s3_bucket" "example2" {
         """Deve retornar erro quando diretorio nao existe."""
         client = CheckovClient()
 
-        report = await client.scan_iac('/nonexistent/directory')
+        report = await client.scan_iac("/nonexistent/directory")
 
         assert report.passed is False
         assert report.error is not None
-        assert 'not found' in report.error.lower()
+        assert "not found" in report.error.lower()
 
     @pytest.mark.asyncio
     async def test_scan_iac_timeout(self):
@@ -110,16 +115,16 @@ resource "aws_s3_bucket" "example2" {
         client = CheckovClient(timeout=1)
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            with patch.object(client, '_verify_checkov_installed', return_value='Checkov v2.3.0'):
+            with patch.object(client, "_verify_checkov_installed", return_value="Checkov v2.3.0"):
                 # Mock timeout
                 async def mock_sleep(*args, **kwargs):
                     await asyncio.sleep(2)
 
-                with patch('asyncio.sleep', side_effect=mock_sleep):
+                with patch("asyncio.sleep", side_effect=mock_sleep):
                     report = await client.scan_iac(tmpdir)
 
         assert report.passed is False
-        assert 'timeout' in report.error.lower()
+        assert "timeout" in report.error.lower()
 
     @pytest.mark.asyncio
     async def test_scan_iac_with_framework(self):
@@ -130,11 +135,14 @@ resource "aws_s3_bucket" "example2" {
             tf_file = Path(tmpdir) / "main.tf"
             tf_file.write_text('resource "aws_s3_bucket" "example" {}')
 
-            with patch.object(client, '_verify_checkov_installed', return_value='Checkov v2.3.0'):
-                with patch('asyncio.create_subprocess_exec', return_value=AsyncMock(
-                    communicate=lambda timeout: (b'{"summary": {"passed": true}}', b'')
-                )):
-                    report = await client.scan_iac(tmpdir, framework='terraform')
+            with patch.object(client, "_verify_checkov_installed", return_value="Checkov v2.3.0"):
+                with patch(
+                    "asyncio.create_subprocess_exec",
+                    return_value=AsyncMock(
+                        communicate=lambda timeout: (b'{"summary": {"passed": true}}', b"")
+                    ),
+                ):
+                    report = await client.scan_iac(tmpdir, framework="terraform")
 
         assert report.passed is True
 
@@ -147,20 +155,21 @@ class TestCheckovClientVersion:
         """Deve retornar versao quando Checkov instalado."""
         client = CheckovClient()
 
-        with patch('asyncio.create_subprocess_exec', return_value=AsyncMock(
-            communicate=lambda timeout: (b'Checkov v2.3.45\n', b'')
-        )):
+        with patch(
+            "asyncio.create_subprocess_exec",
+            return_value=AsyncMock(communicate=lambda timeout: (b"Checkov v2.3.45\n", b"")),
+        ):
             version = await client._verify_checkov_installed()
 
-        assert 'Checkov' in version
-        assert '2.3' in version
+        assert "Checkov" in version
+        assert "2.3" in version
 
     @pytest.mark.asyncio
     async def test_verify_checkov_not_installed(self):
         """Deve levantar erro quando Checkov nao instalado."""
         client = CheckovClient()
 
-        with patch('asyncio.create_subprocess_exec', side_effect=FileNotFoundError):
+        with patch("asyncio.create_subprocess_exec", side_effect=FileNotFoundError):
             with pytest.raises(CheckovNotFoundError):
                 await client._verify_checkov_installed()
 
@@ -172,15 +181,15 @@ class TestCheckovReport:
         """Deve criar report corretamente."""
         findings = [
             CheckovFinding(
-                check_id='CKV_AWS_1',
-                check_name='S3 Bucket Encryption',
+                check_id="CKV_AWS_1",
+                check_name="S3 Bucket Encryption",
                 severity=CheckovSeverity.HIGH,
-                category='aws',
-                resource='aws_s3_bucket.example',
-                file_path='main.tf',
+                category="aws",
+                resource="aws_s3_bucket.example",
+                file_path="main.tf",
                 file_line_range=(5, 8),
-                description='S3 bucket not encrypted',
-                pass_or_fail='fail',
+                description="S3 bucket not encrypted",
+                pass_or_fail="fail",
                 code='resource "aws_s3_bucket" "example" { ... }',
             )
         ]
@@ -191,7 +200,7 @@ class TestCheckovReport:
             skipped=0,
             parsing_errors=0,
             total=1,
-            severity_counts={'HIGH': 1},
+            severity_counts={"HIGH": 1},
         )
 
         report = CheckovReport(
@@ -199,14 +208,14 @@ class TestCheckovReport:
             findings=findings,
             summary=summary,
             duration_seconds=45.5,
-            logs=['Scanning...', 'Complete'],
+            logs=["Scanning...", "Complete"],
             exit_code=1,
         )
 
         assert report.passed is False
         assert len(report.findings) == 1
         assert report.summary.total == 1
-        assert report.summary.severity_counts['HIGH'] == 1
+        assert report.summary.severity_counts["HIGH"] == 1
 
     def test_checkov_report_passed(self):
         """Deve criar report passed."""
@@ -214,11 +223,15 @@ class TestCheckovReport:
             passed=True,
             findings=[],
             summary=CheckovSummary(
-                passed=True, failed=0, skipped=0, parsing_errors=0, total=0,
+                passed=True,
+                failed=0,
+                skipped=0,
+                parsing_errors=0,
+                total=0,
                 severity_counts={},
             ),
             duration_seconds=10.0,
-            logs=['No issues found'],
+            logs=["No issues found"],
             exit_code=0,
         )
 
@@ -232,16 +245,20 @@ class TestCheckovReport:
             passed=False,
             findings=[],
             summary=CheckovSummary(
-                passed=False, failed=0, skipped=0, parsing_errors=0, total=0,
+                passed=False,
+                failed=0,
+                skipped=0,
+                parsing_errors=0,
+                total=0,
                 severity_counts={},
             ),
             duration_seconds=0,
-            logs=['Scan error'],
+            logs=["Scan error"],
             exit_code=1,
-            error='Checkov timeout',
+            error="Checkov timeout",
         )
 
-        assert report.error == 'Checkov timeout'
+        assert report.error == "Checkov timeout"
 
 
 class TestCheckovFinding:
@@ -250,39 +267,39 @@ class TestCheckovFinding:
     def test_finding_creation(self):
         """Deve criar finding com todos os campos."""
         finding = CheckovFinding(
-            check_id='CKV_AWS_1',
-            check_name='S3 Bucket Server-Side Encryption',
+            check_id="CKV_AWS_1",
+            check_name="S3 Bucket Server-Side Encryption",
             severity=CheckovSeverity.CRITICAL,
-            category='aws_security',
-            resource='aws_s3_bucket.my_bucket',
-            file_path='terraform/s3.tf',
+            category="aws_security",
+            resource="aws_s3_bucket.my_bucket",
+            file_path="terraform/s3.tf",
             file_line_range=(10, 15),
-            description='S3 bucket lacks server-side encryption',
-            pass_or_fail='fail',
+            description="S3 bucket lacks server-side encryption",
+            pass_or_fail="fail",
             code='resource "aws_s3_bucket" "my_bucket" {}',
         )
 
-        assert finding.check_id == 'CKV_AWS_1'
+        assert finding.check_id == "CKV_AWS_1"
         assert finding.severity == CheckovSeverity.CRITICAL
-        assert finding.file_path == 'terraform/s3.tf'
+        assert finding.file_path == "terraform/s3.tf"
         assert finding.file_line_range == (10, 15)
 
     def test_finding_minimal(self):
         """Deve criar finding com campos minimos."""
         finding = CheckovFinding(
-            check_id='CKV2_AWS_1',
-            check_name='Some Check',
+            check_id="CKV2_AWS_1",
+            check_name="Some Check",
             severity=CheckovSeverity.MEDIUM,
-            category='general',
-            resource='unknown',
-            file_path='unknown.tf',
+            category="general",
+            resource="unknown",
+            file_path="unknown.tf",
             file_line_range=None,
-            description='A finding',
-            pass_or_fail='warn',
+            description="A finding",
+            pass_or_fail="warn",
             code=None,
         )
 
-        assert finding.check_id == 'CKV2_AWS_1'
+        assert finding.check_id == "CKV2_AWS_1"
         assert finding.file_line_range is None
 
 

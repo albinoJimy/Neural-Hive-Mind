@@ -15,6 +15,7 @@ class TestNLPProcessorExtractKeywords:
     def nlp_processor(self):
         """Fixture que cria NLPProcessor sem Redis"""
         from src.services.nlp_processor import NLPProcessor
+
         processor = NLPProcessor(redis_client=None)
         return processor
 
@@ -34,7 +35,10 @@ class TestNLPProcessorExtractKeywords:
         assert len(keywords) > 0
         # Verificar que palavras relevantes foram extraídas
         keywords_lower = [k.lower() for k in keywords]
-        assert any(k in keywords_lower for k in ['api', 'rest', 'produto', 'operação', 'crud', 'criar', 'gerenciar'])
+        assert any(
+            k in keywords_lower
+            for k in ["api", "rest", "produto", "operação", "crud", "criar", "gerenciar"]
+        )
 
     @pytest.mark.asyncio
     async def test_extract_keywords_english(self, initialized_nlp_processor):
@@ -46,7 +50,10 @@ class TestNLPProcessorExtractKeywords:
         assert len(keywords) > 0
         # Verificar que palavras relevantes foram extraídas
         keywords_lower = [k.lower() for k in keywords]
-        assert any(k in keywords_lower for k in ['graphql', 'api', 'user', 'management', 'authentication', 'build'])
+        assert any(
+            k in keywords_lower
+            for k in ["graphql", "api", "user", "management", "authentication", "build"]
+        )
 
     @pytest.mark.asyncio
     async def test_extract_keywords_respects_max_limit(self, initialized_nlp_processor):
@@ -78,6 +85,7 @@ class TestNLPProcessorExtractObjectives:
     def nlp_processor(self):
         """Fixture que cria NLPProcessor sem Redis"""
         from src.services.nlp_processor import NLPProcessor
+
         processor = NLPProcessor(redis_client=None)
         return processor
 
@@ -93,7 +101,7 @@ class TestNLPProcessorExtractObjectives:
         text = "Criar novo endpoint REST para cadastro de usuários"
         objectives = initialized_nlp_processor.extract_objectives(text)
 
-        assert 'create' in objectives
+        assert "create" in objectives
 
     @pytest.mark.asyncio
     async def test_extract_objectives_update(self, initialized_nlp_processor):
@@ -101,7 +109,7 @@ class TestNLPProcessorExtractObjectives:
         text = "Atualizar configurações do sistema de cache"
         objectives = initialized_nlp_processor.extract_objectives(text)
 
-        assert 'update' in objectives
+        assert "update" in objectives
 
     @pytest.mark.asyncio
     async def test_extract_objectives_delete(self, initialized_nlp_processor):
@@ -109,7 +117,7 @@ class TestNLPProcessorExtractObjectives:
         text = "Remover registros antigos da base de dados"
         objectives = initialized_nlp_processor.extract_objectives(text)
 
-        assert 'delete' in objectives
+        assert "delete" in objectives
 
     @pytest.mark.asyncio
     async def test_extract_objectives_query(self, initialized_nlp_processor):
@@ -117,7 +125,7 @@ class TestNLPProcessorExtractObjectives:
         text = "Buscar todos os pedidos do último mês"
         objectives = initialized_nlp_processor.extract_objectives(text)
 
-        assert 'query' in objectives
+        assert "query" in objectives
 
     @pytest.mark.asyncio
     async def test_extract_objectives_transform(self, initialized_nlp_processor):
@@ -125,7 +133,7 @@ class TestNLPProcessorExtractObjectives:
         text = "Converter dados CSV para formato JSON"
         objectives = initialized_nlp_processor.extract_objectives(text)
 
-        assert 'transform' in objectives
+        assert "transform" in objectives
 
     @pytest.mark.asyncio
     async def test_extract_objectives_multiple(self, initialized_nlp_processor):
@@ -133,8 +141,8 @@ class TestNLPProcessorExtractObjectives:
         text = "Atualizar os registros e depois deletar os duplicados"
         objectives = initialized_nlp_processor.extract_objectives(text)
 
-        assert 'update' in objectives
-        assert 'delete' in objectives
+        assert "update" in objectives
+        assert "delete" in objectives
 
     @pytest.mark.asyncio
     async def test_extract_objectives_fallback_to_query(self, initialized_nlp_processor):
@@ -144,7 +152,7 @@ class TestNLPProcessorExtractObjectives:
 
         # Deve ter pelo menos um objective (fallback para query)
         assert len(objectives) > 0
-        assert 'query' in objectives
+        assert "query" in objectives
 
     def test_extract_objectives_fallback_without_initialization(self, nlp_processor):
         """Testa fallback heurístico quando NLP não está inicializado"""
@@ -152,7 +160,7 @@ class TestNLPProcessorExtractObjectives:
         objectives = nlp_processor.extract_objectives(text)
 
         assert isinstance(objectives, list)
-        assert 'create' in objectives
+        assert "create" in objectives
 
 
 class TestNLPProcessorExtractEntities:
@@ -162,6 +170,7 @@ class TestNLPProcessorExtractEntities:
     def nlp_processor(self):
         """Fixture que cria NLPProcessor sem Redis"""
         from src.services.nlp_processor import NLPProcessor
+
         processor = NLPProcessor(redis_client=None)
         return processor
 
@@ -178,8 +187,8 @@ class TestNLPProcessorExtractEntities:
         entities = initialized_nlp_processor.extract_entities_advanced(text)
 
         # Verificar que tecnologias foram identificadas
-        tech_values = [e['value'] for e in entities if e['type'] == 'TECHNOLOGY']
-        assert any(t in ['REST', 'FastAPI', 'MongoDB'] for t in tech_values)
+        tech_values = [e["value"] for e in entities if e["type"] == "TECHNOLOGY"]
+        assert any(t in ["REST", "FastAPI", "MongoDB"] for t in tech_values)
 
     @pytest.mark.asyncio
     async def test_extract_entities_resource(self, initialized_nlp_processor):
@@ -191,9 +200,9 @@ class TestNLPProcessorExtractEntities:
         # Verificar estrutura das entidades
         if entities:
             entity = entities[0]
-            assert 'type' in entity
-            assert 'value' in entity
-            assert 'confidence' in entity
+            assert "type" in entity
+            assert "value" in entity
+            assert "confidence" in entity
 
     @pytest.mark.asyncio
     async def test_extract_entities_empty_text(self, initialized_nlp_processor):
@@ -216,6 +225,7 @@ class TestNLPProcessorLanguageDetection:
     def nlp_processor(self):
         """Fixture que cria NLPProcessor"""
         from src.services.nlp_processor import NLPProcessor
+
         return NLPProcessor(redis_client=None)
 
     @pytest.fixture
@@ -229,14 +239,14 @@ class TestNLPProcessorLanguageDetection:
         """Testa detecção de português"""
         text = "Criar uma API para gerenciar os usuários do sistema"
         lang = initialized_nlp_processor._detect_language(text)
-        assert lang == 'pt'
+        assert lang == "pt"
 
     @pytest.mark.asyncio
     async def test_detect_english(self, initialized_nlp_processor):
         """Testa detecção de inglês"""
         text = "Create an API to manage the users of the system"
         lang = initialized_nlp_processor._detect_language(text)
-        assert lang == 'en'
+        assert lang == "en"
 
 
 class TestNLPProcessorCache:
@@ -254,26 +264,27 @@ class TestNLPProcessorCache:
     def nlp_processor_with_cache(self, mock_redis_client):
         """Fixture que cria NLPProcessor com mock de Redis"""
         from src.services.nlp_processor import NLPProcessor
+
         return NLPProcessor(redis_client=mock_redis_client)
 
     def test_generate_cache_key(self, nlp_processor_with_cache):
         """Testa geração de chave de cache"""
-        key = nlp_processor_with_cache._generate_cache_key('keywords', 'test text')
+        key = nlp_processor_with_cache._generate_cache_key("keywords", "test text")
 
-        assert key.startswith('nlp:keywords:')
-        assert len(key) > len('nlp:keywords:')
+        assert key.startswith("nlp:keywords:")
+        assert len(key) > len("nlp:keywords:")
 
     def test_generate_cache_key_deterministic(self, nlp_processor_with_cache):
         """Testa que mesma entrada gera mesma chave"""
-        key1 = nlp_processor_with_cache._generate_cache_key('keywords', 'test text')
-        key2 = nlp_processor_with_cache._generate_cache_key('keywords', 'test text')
+        key1 = nlp_processor_with_cache._generate_cache_key("keywords", "test text")
+        key2 = nlp_processor_with_cache._generate_cache_key("keywords", "test text")
 
         assert key1 == key2
 
     def test_generate_cache_key_different_operations(self, nlp_processor_with_cache):
         """Testa que operações diferentes geram chaves diferentes"""
-        key1 = nlp_processor_with_cache._generate_cache_key('keywords', 'test text')
-        key2 = nlp_processor_with_cache._generate_cache_key('objectives', 'test text')
+        key1 = nlp_processor_with_cache._generate_cache_key("keywords", "test text")
+        key2 = nlp_processor_with_cache._generate_cache_key("objectives", "test text")
 
         assert key1 != key2
 
@@ -285,6 +296,7 @@ class TestNLPProcessorInitialization:
     def nlp_processor(self):
         """Fixture que cria NLPProcessor"""
         from src.services.nlp_processor import NLPProcessor
+
         return NLPProcessor(redis_client=None)
 
     def test_is_ready_before_initialization(self, nlp_processor):

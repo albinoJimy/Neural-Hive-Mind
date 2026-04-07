@@ -18,7 +18,7 @@ from neural_hive_specialists.proto_gen import specialist_pb2
 def test_evaluate_plan_full_opinion_structure(grpc_stub, sample_cognitive_plan):
     """Valida estrutura completa de SpecialistOpinion incluindo campos novos."""
     cognitive_plan_json = json.dumps(sample_cognitive_plan)
-    cognitive_plan_bytes = cognitive_plan_json.encode('utf-8')
+    cognitive_plan_bytes = cognitive_plan_json.encode("utf-8")
 
     request = specialist_pb2.EvaluatePlanRequest(
         plan_id=sample_cognitive_plan["plan_id"],
@@ -63,7 +63,7 @@ def test_evaluate_plan_full_opinion_structure(grpc_stub, sample_cognitive_plan):
 def test_evaluate_plan_explainability_structure(grpc_stub, sample_cognitive_plan):
     """Valida estrutura de explainability no opinion."""
     cognitive_plan_json = json.dumps(sample_cognitive_plan)
-    cognitive_plan_bytes = cognitive_plan_json.encode('utf-8')
+    cognitive_plan_bytes = cognitive_plan_json.encode("utf-8")
 
     request = specialist_pb2.EvaluatePlanRequest(
         plan_id=sample_cognitive_plan["plan_id"],
@@ -111,7 +111,7 @@ def test_evaluate_plan_explainability_structure(grpc_stub, sample_cognitive_plan
 def test_evaluate_plan_reasoning_factors_validation(grpc_stub, sample_cognitive_plan):
     """Valida estrutura e valores de reasoning_factors."""
     cognitive_plan_json = json.dumps(sample_cognitive_plan)
-    cognitive_plan_bytes = cognitive_plan_json.encode('utf-8')
+    cognitive_plan_bytes = cognitive_plan_json.encode("utf-8")
 
     request = specialist_pb2.EvaluatePlanRequest(
         plan_id=sample_cognitive_plan["plan_id"],
@@ -140,7 +140,7 @@ def test_evaluate_plan_reasoning_factors_validation(grpc_stub, sample_cognitive_
 def test_evaluate_plan_mitigations_validation(grpc_stub, sample_cognitive_plan):
     """Valida estrutura e valores de mitigations."""
     cognitive_plan_json = json.dumps(sample_cognitive_plan)
-    cognitive_plan_bytes = cognitive_plan_json.encode('utf-8')
+    cognitive_plan_bytes = cognitive_plan_json.encode("utf-8")
 
     request = specialist_pb2.EvaluatePlanRequest(
         plan_id=sample_cognitive_plan["plan_id"],
@@ -265,7 +265,7 @@ def test_evaluate_plan_request_all_fields(grpc_stub, sample_cognitive_plan):
     correlation_id = f"corr-{uuid.uuid4()}"
 
     cognitive_plan_json = json.dumps(sample_cognitive_plan)
-    cognitive_plan_bytes = cognitive_plan_json.encode('utf-8')
+    cognitive_plan_bytes = cognitive_plan_json.encode("utf-8")
 
     # Criar request com todos os campos
     request = specialist_pb2.EvaluatePlanRequest(
@@ -293,7 +293,7 @@ def test_evaluate_plan_request_all_fields(grpc_stub, sample_cognitive_plan):
 def test_evaluate_plan_context_propagation(grpc_stub, sample_cognitive_plan):
     """Valida que contexto adicional é propagado corretamente."""
     cognitive_plan_json = json.dumps(sample_cognitive_plan)
-    cognitive_plan_bytes = cognitive_plan_json.encode('utf-8')
+    cognitive_plan_bytes = cognitive_plan_json.encode("utf-8")
 
     context_data = {
         "tenant_id": "tenant-123",
@@ -320,7 +320,7 @@ def test_evaluate_plan_timestamp_validity(grpc_stub, sample_cognitive_plan):
     import time
 
     cognitive_plan_json = json.dumps(sample_cognitive_plan)
-    cognitive_plan_bytes = cognitive_plan_json.encode('utf-8')
+    cognitive_plan_bytes = cognitive_plan_json.encode("utf-8")
 
     before_time = time.time()
 
@@ -347,7 +347,7 @@ def test_evaluate_plan_timestamp_validity(grpc_stub, sample_cognitive_plan):
 def test_evaluate_plan_response_metadata(grpc_stub, sample_cognitive_plan):
     """Valida metadados da resposta."""
     cognitive_plan_json = json.dumps(sample_cognitive_plan)
-    cognitive_plan_bytes = cognitive_plan_json.encode('utf-8')
+    cognitive_plan_bytes = cognitive_plan_json.encode("utf-8")
 
     request = specialist_pb2.EvaluatePlanRequest(
         plan_id=sample_cognitive_plan["plan_id"],
@@ -381,7 +381,7 @@ def test_evaluate_plan_error_handling_empty_plan(grpc_stub):
         "tasks": [],
     }
 
-    cognitive_plan_bytes = json.dumps(empty_plan).encode('utf-8')
+    cognitive_plan_bytes = json.dumps(empty_plan).encode("utf-8")
 
     request = specialist_pb2.EvaluatePlanRequest(
         plan_id=empty_plan["plan_id"],
@@ -421,7 +421,7 @@ def test_evaluate_plan_error_handling_malformed_json(grpc_stub):
 def test_grpc_interceptor_metadata_propagation(grpc_stub, sample_cognitive_plan):
     """Valida que metadados gRPC são propagados através de interceptors."""
     cognitive_plan_json = json.dumps(sample_cognitive_plan)
-    cognitive_plan_bytes = cognitive_plan_json.encode('utf-8')
+    cognitive_plan_bytes = cognitive_plan_json.encode("utf-8")
 
     request = specialist_pb2.EvaluatePlanRequest(
         plan_id=sample_cognitive_plan["plan_id"],
@@ -447,7 +447,7 @@ def test_grpc_interceptor_metadata_propagation(grpc_stub, sample_cognitive_plan)
 def test_multiple_sequential_requests(grpc_stub, sample_cognitive_plan):
     """Valida que múltiplas requisições sequenciais funcionam corretamente."""
     cognitive_plan_json = json.dumps(sample_cognitive_plan)
-    cognitive_plan_bytes = cognitive_plan_json.encode('utf-8')
+    cognitive_plan_bytes = cognitive_plan_json.encode("utf-8")
 
     responses = []
     for i in range(5):
@@ -476,7 +476,7 @@ def test_multiple_sequential_requests(grpc_stub, sample_cognitive_plan):
 def test_response_size_limits(grpc_stub, sample_cognitive_plan):
     """Valida que tamanho da resposta está dentro dos limites gRPC."""
     cognitive_plan_json = json.dumps(sample_cognitive_plan)
-    cognitive_plan_bytes = cognitive_plan_json.encode('utf-8')
+    cognitive_plan_bytes = cognitive_plan_json.encode("utf-8")
 
     request = specialist_pb2.EvaluatePlanRequest(
         plan_id=sample_cognitive_plan["plan_id"],
@@ -502,7 +502,7 @@ def test_plan_version_compatibility(grpc_stub, sample_cognitive_plan):
         plan["version"] = version
         plan["plan_id"] = f"plan-{version}"
 
-        cognitive_plan_bytes = json.dumps(plan).encode('utf-8')
+        cognitive_plan_bytes = json.dumps(plan).encode("utf-8")
 
         request = specialist_pb2.EvaluatePlanRequest(
             plan_id=plan["plan_id"],
@@ -519,7 +519,7 @@ def test_plan_version_compatibility(grpc_stub, sample_cognitive_plan):
 def test_timeout_handling(grpc_stub, sample_cognitive_plan):
     """Valida que timeout é respeitado."""
     cognitive_plan_json = json.dumps(sample_cognitive_plan)
-    cognitive_plan_bytes = cognitive_plan_json.encode('utf-8')
+    cognitive_plan_bytes = cognitive_plan_json.encode("utf-8")
 
     request = specialist_pb2.EvaluatePlanRequest(
         plan_id=sample_cognitive_plan["plan_id"],

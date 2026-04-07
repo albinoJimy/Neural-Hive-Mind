@@ -8,11 +8,7 @@ Os testes de integração com Kubernetes requerem cluster real.
 import pytest
 from unittest.mock import Mock, patch
 
-from src.services.container_builder import (
-    ContainerBuilder,
-    BuilderType,
-    BuildResult
-)
+from src.services.container_builder import ContainerBuilder, BuilderType, BuildResult
 
 
 class TestKanikoBuilderBasics:
@@ -20,18 +16,15 @@ class TestKanikoBuilderBasics:
 
     def test_kaniko_builder_instantiation(self):
         """Testa criação do builder Kaniko."""
-        builder = ContainerBuilder(
-            builder_type=BuilderType.KANIKO,
-            timeout_seconds=300
-        )
+        builder = ContainerBuilder(builder_type=BuilderType.KANIKO, timeout_seconds=300)
         assert builder.builder_type == BuilderType.KANIKO
         assert builder.timeout_seconds == 300
 
     def test_kaniko_builder_has_build_method(self):
         """Verifica que o builder tem o método de build."""
         builder = ContainerBuilder(builder_type=BuilderType.KANIKO)
-        assert hasattr(builder, 'build_container')
-        assert hasattr(builder, '_build_with_kaniko')
+        assert hasattr(builder, "build_container")
+        assert hasattr(builder, "_build_with_kaniko")
 
 
 class TestKanikoDigestParsing:
@@ -68,7 +61,9 @@ INFO003 No digest info
         builder = ContainerBuilder(builder_type=BuilderType.KANIKO)
 
         # Formato correto
-        logs_correct = "Built image with digest sha256:abc123def4567890123456789012345678901234567890abcd"
+        logs_correct = (
+            "Built image with digest sha256:abc123def4567890123456789012345678901234567890abcd"
+        )
         digest = builder._parse_kaniko_digest(logs_correct)
         assert digest is not None
         assert digest.startswith("sha256:")
@@ -111,6 +106,7 @@ class TestKanikoIntegration:
         """Verifica se o cliente Kubernetes está instalado."""
         try:
             import kubernetes
+
             assert kubernetes.__version__ is not None
         except ImportError:
             pytest.skip("kubernetes package not installed")
@@ -119,6 +115,7 @@ class TestKanikoIntegration:
         """Verifica se o cluster Kubernetes é acessível."""
         try:
             from kubernetes import client, config
+
             config.load_kube_config()
             v1 = client.CoreV1Api()
             v1.list_namespace()
@@ -130,6 +127,7 @@ class TestKanikoIntegration:
         """Verifica se o namespace docker-build existe."""
         try:
             from kubernetes import client, config
+
             config.load_kube_config()
             v1 = client.CoreV1Api()
             ns = v1.read_namespace(name="docker-build")
@@ -147,7 +145,7 @@ class TestKanikoBuildResult:
             success=True,
             image_digest="sha256:abc123",
             image_tag="myapp:1.0.0",
-            duration_seconds=120.5
+            duration_seconds=120.5,
         )
 
         assert result.success is True
@@ -158,9 +156,7 @@ class TestKanikoBuildResult:
     def test_build_result_failure_structure(self):
         """Testa estrutura do resultado de falha."""
         result = BuildResult(
-            success=False,
-            error_message="Build failed: step 5",
-            duration_seconds=45.0
+            success=False, error_message="Build failed: step 5", duration_seconds=45.0
         )
 
         assert result.success is False

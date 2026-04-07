@@ -42,6 +42,7 @@ from src.sla.sla_monitor import SLAMonitor
 # FIXTURES
 # ============================================================================
 
+
 @pytest.fixture
 def real_config() -> OrchestratorSettings:
     """
@@ -55,12 +56,12 @@ def real_config() -> OrchestratorSettings:
     """
     config = OrchestratorSettings(
         sla_management_enabled=True,
-        sla_management_host=os.getenv('SLA_MANAGEMENT_HOST', 'localhost'),
-        sla_management_port=int(os.getenv('SLA_MANAGEMENT_PORT', '8000')),
+        sla_management_host=os.getenv("SLA_MANAGEMENT_HOST", "localhost"),
+        sla_management_port=int(os.getenv("SLA_MANAGEMENT_PORT", "8000")),
         sla_management_timeout_seconds=10,
-        redis_host=os.getenv('REDIS_HOST', 'localhost'),
-        redis_port=int(os.getenv('REDIS_PORT', '6379')),
-        kafka_bootstrap_servers=os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092')
+        redis_host=os.getenv("REDIS_HOST", "localhost"),
+        redis_port=int(os.getenv("REDIS_PORT", "6379")),
+        kafka_bootstrap_servers=os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"),
     )
     return config
 
@@ -93,7 +94,7 @@ async def real_redis(real_config: OrchestratorSettings) -> Optional[aioredis.Red
         redis_client = await aioredis.from_url(
             f"redis://{real_config.redis_host}:{real_config.redis_port}",
             decode_responses=True,
-            socket_connect_timeout=5
+            socket_connect_timeout=5,
         )
         # Teste de ping
         await redis_client.ping()
@@ -112,8 +113,7 @@ async def real_kafka_producer(real_config: OrchestratorSettings):
     """
     try:
         producer_client = KafkaProducerClient(
-            bootstrap_servers=real_config.kafka_bootstrap_servers,
-            client_id='test-sla-integration'
+            bootstrap_servers=real_config.kafka_bootstrap_servers, client_id="test-sla-integration"
         )
         await producer_client.initialize()
 
@@ -134,10 +134,13 @@ def real_metrics() -> OrchestratorMetrics:
 # TESTES
 # ============================================================================
 
+
 @pytest.mark.real_integration
 @pytest.mark.asyncio
 @pytest.mark.slow
-async def test_fetch_real_budget_from_api(real_config: OrchestratorSettings, real_redis, real_metrics):
+async def test_fetch_real_budget_from_api(
+    real_config: OrchestratorSettings, real_redis, real_metrics
+):
     """
     Teste 1: Verificar que SLAMonitor pode buscar budget do SLA Management System real.
 
@@ -152,21 +155,23 @@ async def test_fetch_real_budget_from_api(real_config: OrchestratorSettings, rea
 
     try:
         # Buscar budget do serviço
-        budget_data = await sla_monitor.get_service_budget('orchestrator-dynamic')
+        budget_data = await sla_monitor.get_service_budget("orchestrator-dynamic")
 
         # Validações
         assert budget_data is not None, "Budget data não deve ser None"
-        assert 'error_budget_remaining' in budget_data, "Deve ter 'error_budget_remaining'"
-        assert 'status' in budget_data, "Deve ter 'status'"
-        assert 'burn_rates' in budget_data, "Deve ter 'burn_rates'"
+        assert "error_budget_remaining" in budget_data, "Deve ter 'error_budget_remaining'"
+        assert "status" in budget_data, "Deve ter 'status'"
+        assert "burn_rates" in budget_data, "Deve ter 'burn_rates'"
 
         # Validar valores
-        budget_remaining = budget_data['error_budget_remaining']
-        assert 0.0 <= budget_remaining <= 1.0, f"Budget deve estar entre 0-1, got {budget_remaining}"
+        budget_remaining = budget_data["error_budget_remaining"]
+        assert (
+            0.0 <= budget_remaining <= 1.0
+        ), f"Budget deve estar entre 0-1, got {budget_remaining}"
 
         # Validar status
-        status = budget_data['status']
-        valid_statuses = ['HEALTHY', 'WARNING', 'CRITICAL', 'EXHAUSTED']
+        status = budget_data["status"]
+        valid_statuses = ["HEALTHY", "WARNING", "CRITICAL", "EXHAUSTED"]
         assert status in valid_statuses, f"Status deve ser um de {valid_statuses}, got {status}"
 
         print(f"✓ Budget fetched: {budget_remaining*100:.1f}%, status: {status}")
@@ -178,7 +183,9 @@ async def test_fetch_real_budget_from_api(real_config: OrchestratorSettings, rea
 @pytest.mark.real_integration
 @pytest.mark.asyncio
 @pytest.mark.slow
-async def test_check_budget_threshold_real(real_config: OrchestratorSettings, real_redis, real_metrics):
+async def test_check_budget_threshold_real(
+    real_config: OrchestratorSettings, real_redis, real_metrics
+):
     """
     Teste 2: Verificar checking de threshold de budget com dados reais.
 
@@ -193,18 +200,17 @@ async def test_check_budget_threshold_real(real_config: OrchestratorSettings, re
     try:
         # Verificar threshold de 20%
         is_critical, budget_data = await sla_monitor.check_budget_threshold(
-            service_name='orchestrator-dynamic',
-            threshold=0.2
+            service_name="orchestrator-dynamic", threshold=0.2
         )
 
         # Validações
         assert isinstance(is_critical, bool), "is_critical deve ser bool"
 
         if budget_data:
-            assert 'error_budget_remaining' in budget_data
-            assert 'status' in budget_data
+            assert "error_budget_remaining" in budget_data
+            assert "status" in budget_data
 
-            budget_remaining = budget_data['error_budget_remaining']
+            budget_remaining = budget_data["error_budget_remaining"]
             print(f"✓ Budget check: {budget_remaining*100:.1f}%, critical: {is_critical}")
 
             # Validar lógica de threshold
@@ -222,7 +228,9 @@ async def test_check_budget_threshold_real(real_config: OrchestratorSettings, re
 @pytest.mark.real_integration
 @pytest.mark.asyncio
 @pytest.mark.slow
-async def test_deadline_check_with_real_tickets(real_config: OrchestratorSettings, real_redis, real_metrics):
+async def test_deadline_check_with_real_tickets(
+    real_config: OrchestratorSettings, real_redis, real_metrics
+):
     """
     Teste 3: Verificar checking de deadline com tickets realistas.
 
@@ -244,46 +252,48 @@ async def test_deadline_check_with_real_tickets(real_config: OrchestratorSetting
         # Ticket crítico: criado há 2 min, deadline em 30s (~80%+ consumido)
         tickets = [
             {
-                'ticket': {
-                    'ticket_id': 'test-normal-1',
-                    'created_at': now_ms,  # Criado agora
-                    'sla': {
-                        'deadline': now_ms + 300000,  # 5min no futuro (epoch ms)
-                        'timeout_ms': 300000  # 5 min
-                    }
+                "ticket": {
+                    "ticket_id": "test-normal-1",
+                    "created_at": now_ms,  # Criado agora
+                    "sla": {
+                        "deadline": now_ms + 300000,  # 5min no futuro (epoch ms)
+                        "timeout_ms": 300000,  # 5 min
+                    },
                 }
             },
             {
-                'ticket': {
-                    'ticket_id': 'test-critical-1',
-                    'created_at': now_ms - 120000,  # Criado há 2 min
-                    'sla': {
-                        'deadline': now_ms + 30000,  # 30s no futuro (epoch ms)
-                        'timeout_ms': 150000  # 2.5 min timeout
-                    }
+                "ticket": {
+                    "ticket_id": "test-critical-1",
+                    "created_at": now_ms - 120000,  # Criado há 2 min
+                    "sla": {
+                        "deadline": now_ms + 30000,  # 30s no futuro (epoch ms)
+                        "timeout_ms": 150000,  # 2.5 min timeout
+                    },
                 }
-            }
+            },
         ]
 
         # Verificar SLA do workflow
-        result = await sla_monitor.check_workflow_sla('test-workflow-real', tickets)
+        result = await sla_monitor.check_workflow_sla("test-workflow-real", tickets)
 
         # Validações
-        assert 'deadline_approaching' in result
-        assert 'critical_tickets' in result
-        assert 'remaining_seconds' in result
+        assert "deadline_approaching" in result
+        assert "critical_tickets" in result
+        assert "remaining_seconds" in result
 
         # Deve detectar deadline approaching (ticket crítico)
-        assert result['deadline_approaching'] is True, "Deve detectar deadline approaching"
-        assert 'test-critical-1' in result['critical_tickets'], "Deve identificar ticket crítico"
+        assert result["deadline_approaching"] is True, "Deve detectar deadline approaching"
+        assert "test-critical-1" in result["critical_tickets"], "Deve identificar ticket crítico"
 
-        remaining_seconds = result['remaining_seconds']
+        remaining_seconds = result["remaining_seconds"]
         assert remaining_seconds > 0, "Remaining seconds deve ser positivo"
         assert remaining_seconds < 60, "Remaining seconds deve ser <60s (ticket crítico)"
 
-        print(f"✓ Deadline check: approaching={result['deadline_approaching']}, "
-              f"critical_count={len(result['critical_tickets'])}, "
-              f"remaining={remaining_seconds:.1f}s")
+        print(
+            f"✓ Deadline check: approaching={result['deadline_approaching']}, "
+            f"critical_count={len(result['critical_tickets'])}, "
+            f"remaining={remaining_seconds:.1f}s"
+        )
 
     finally:
         await sla_monitor.close()
@@ -293,10 +303,7 @@ async def test_deadline_check_with_real_tickets(real_config: OrchestratorSetting
 @pytest.mark.asyncio
 @pytest.mark.slow
 async def test_send_real_alert_to_kafka(
-    real_config: OrchestratorSettings,
-    real_redis,
-    real_kafka_producer,
-    real_metrics
+    real_config: OrchestratorSettings, real_redis, real_kafka_producer, real_metrics
 ):
     """
     Teste 4: Verificar que AlertManager pode publicar alertas ao Kafka real.
@@ -314,14 +321,14 @@ async def test_send_real_alert_to_kafka(
         # Criar contexto de alerta
         workflow_id = f"test-workflow-{uuid.uuid4().hex[:8]}"
         context = {
-            'workflow_id': workflow_id,
-            'service_name': 'orchestrator-dynamic',
-            'budget_remaining': 0.15,
-            'burn_rate': 8.5
+            "workflow_id": workflow_id,
+            "service_name": "orchestrator-dynamic",
+            "budget_remaining": 0.15,
+            "burn_rate": 8.5,
         }
 
         # Enviar alerta
-        result = await alert_manager.send_proactive_alert('BUDGET_CRITICAL', context)
+        result = await alert_manager.send_proactive_alert("BUDGET_CRITICAL", context)
 
         assert result is True, "Alert deve ser enviado com sucesso"
 
@@ -329,9 +336,9 @@ async def test_send_real_alert_to_kafka(
         consumer = KafkaConsumer(
             real_config.sla_alerts_topic,
             bootstrap_servers=real_config.kafka_bootstrap_servers,
-            auto_offset_reset='latest',
+            auto_offset_reset="latest",
             consumer_timeout_ms=5000,
-            value_deserializer=lambda m: m.decode('utf-8')
+            value_deserializer=lambda m: m.decode("utf-8"),
         )
 
         # Aguardar mensagem (timeout 5s)
@@ -356,10 +363,7 @@ async def test_send_real_alert_to_kafka(
 @pytest.mark.asyncio
 @pytest.mark.slow
 async def test_publish_real_violation_to_kafka(
-    real_config: OrchestratorSettings,
-    real_redis,
-    real_kafka_producer,
-    real_metrics
+    real_config: OrchestratorSettings, real_redis, real_kafka_producer, real_metrics
 ):
     """
     Teste 5: Verificar publicação de violação ao Kafka real.
@@ -376,13 +380,13 @@ async def test_publish_real_violation_to_kafka(
     try:
         # Criar violação de teste
         violation = {
-            'violation_id': str(uuid.uuid4()),
-            'violation_type': 'DEADLINE_EXCEEDED',
-            'severity': 'CRITICAL',
-            'timestamp': datetime.now(timezone.utc).isoformat(),
-            'ticket_id': f"test-ticket-{uuid.uuid4().hex[:8]}",
-            'workflow_id': f"test-workflow-{uuid.uuid4().hex[:8]}",
-            'delay_ms': 5000
+            "violation_id": str(uuid.uuid4()),
+            "violation_type": "DEADLINE_EXCEEDED",
+            "severity": "CRITICAL",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "ticket_id": f"test-ticket-{uuid.uuid4().hex[:8]}",
+            "workflow_id": f"test-workflow-{uuid.uuid4().hex[:8]}",
+            "delay_ms": 5000,
         }
 
         # Publicar violação (método é void, não retorna bool)
@@ -394,15 +398,15 @@ async def test_publish_real_violation_to_kafka(
         consumer = KafkaConsumer(
             real_config.sla_violations_topic,
             bootstrap_servers=real_config.kafka_bootstrap_servers,
-            auto_offset_reset='latest',
+            auto_offset_reset="latest",
             consumer_timeout_ms=5000,
-            value_deserializer=lambda m: m.decode('utf-8')
+            value_deserializer=lambda m: m.decode("utf-8"),
         )
 
         # Aguardar mensagem
         violation_received = False
         for message in consumer:
-            if violation['violation_id'] in message.value:
+            if violation["violation_id"] in message.value:
                 print(f"✓ Violação recebida: {message.value[:100]}...")
                 violation_received = True
                 break
@@ -432,7 +436,7 @@ async def test_redis_caching_real(real_config: OrchestratorSettings, real_redis,
     await sla_monitor.initialize()
 
     try:
-        service_name = 'orchestrator-dynamic'
+        service_name = "orchestrator-dynamic"
 
         # Limpar cache antes do teste
         cache_key = f"sla:budget:{service_name}"
@@ -440,6 +444,7 @@ async def test_redis_caching_real(real_config: OrchestratorSettings, real_redis,
 
         # Primeira chamada (cache miss)
         import time
+
         start = time.time()
         budget1 = await sla_monitor.get_service_budget(service_name)
         duration1 = time.time() - start
@@ -455,11 +460,14 @@ async def test_redis_caching_real(real_config: OrchestratorSettings, real_redis,
         assert budget1 == budget2, "Budget deve ser o mesmo (do cache)"
 
         # Cache hit deve ser significativamente mais rápido
-        assert duration2 < duration1 * 0.5, \
-            f"Cache hit ({duration2:.3f}s) deve ser <50% do cache miss ({duration1:.3f}s)"
+        assert (
+            duration2 < duration1 * 0.5
+        ), f"Cache hit ({duration2:.3f}s) deve ser <50% do cache miss ({duration1:.3f}s)"
 
-        print(f"✓ Caching: miss={duration1*1000:.1f}ms, hit={duration2*1000:.1f}ms, "
-              f"speedup={duration1/duration2:.1f}x")
+        print(
+            f"✓ Caching: miss={duration1*1000:.1f}ms, hit={duration2*1000:.1f}ms, "
+            f"speedup={duration1/duration2:.1f}x"
+        )
 
         # Verificar que chave existe no Redis
         exists = await real_redis.exists(cache_key)
@@ -467,8 +475,9 @@ async def test_redis_caching_real(real_config: OrchestratorSettings, real_redis,
 
         # Verificar TTL
         ttl = await real_redis.ttl(cache_key)
-        assert 0 < ttl <= real_config.sla_management_cache_ttl_seconds, \
-            f"TTL deve estar entre 0 e {real_config.sla_management_cache_ttl_seconds}, got {ttl}"
+        assert (
+            0 < ttl <= real_config.sla_management_cache_ttl_seconds
+        ), f"TTL deve estar entre 0 e {real_config.sla_management_cache_ttl_seconds}, got {ttl}"
 
     finally:
         await sla_monitor.close()
@@ -478,10 +487,7 @@ async def test_redis_caching_real(real_config: OrchestratorSettings, real_redis,
 @pytest.mark.asyncio
 @pytest.mark.slow
 async def test_alert_deduplication_real(
-    real_config: OrchestratorSettings,
-    real_redis,
-    real_kafka_producer,
-    real_metrics
+    real_config: OrchestratorSettings, real_redis, real_kafka_producer, real_metrics
 ):
     """
     Teste 7: Verificar deduplicação de alertas com Redis real.
@@ -498,17 +504,17 @@ async def test_alert_deduplication_real(
     try:
         workflow_id = f"test-dedup-{uuid.uuid4().hex[:8]}"
         context = {
-            'workflow_id': workflow_id,
-            'service_name': 'orchestrator-dynamic',
-            'budget_remaining': 0.15
+            "workflow_id": workflow_id,
+            "service_name": "orchestrator-dynamic",
+            "budget_remaining": 0.15,
         }
 
         # Primeiro alerta (deve ser enviado)
-        result1 = await alert_manager.send_proactive_alert('BUDGET_CRITICAL', context)
+        result1 = await alert_manager.send_proactive_alert("BUDGET_CRITICAL", context)
         assert result1 is True, "Primeiro alerta deve ser enviado"
 
         # Segundo alerta idêntico (deve ser deduplicado)
-        result2 = await alert_manager.send_proactive_alert('BUDGET_CRITICAL', context)
+        result2 = await alert_manager.send_proactive_alert("BUDGET_CRITICAL", context)
         assert result2 is False, "Segundo alerta deve ser deduplicado"
 
         print(f"✓ Deduplicação: first=sent, second=blocked")
@@ -520,17 +526,20 @@ async def test_alert_deduplication_real(
 
         # Verificar TTL
         ttl = await real_redis.ttl(dedup_key)
-        assert 0 < ttl <= real_config.sla_alert_deduplication_ttl_seconds, \
-            f"TTL deve estar entre 0 e {real_config.sla_alert_deduplication_ttl_seconds}"
+        assert (
+            0 < ttl <= real_config.sla_alert_deduplication_ttl_seconds
+        ), f"TTL deve estar entre 0 e {real_config.sla_alert_deduplication_ttl_seconds}"
 
         # Aguardar TTL expirar (apenas se TTL curto para teste)
         if real_config.sla_alert_deduplication_ttl_seconds <= 10:
             await asyncio.sleep(real_config.sla_alert_deduplication_ttl_seconds + 1)
 
             # Terceiro alerta após expiração (deve ser enviado)
-            result3 = await alert_manager.send_proactive_alert('BUDGET_CRITICAL', context)
+            result3 = await alert_manager.send_proactive_alert("BUDGET_CRITICAL", context)
             assert result3 is True, "Alerta após TTL deve ser enviado"
-            print(f"✓ TTL expiration: third=sent after {real_config.sla_alert_deduplication_ttl_seconds}s")
+            print(
+                f"✓ TTL expiration: third=sent after {real_config.sla_alert_deduplication_ttl_seconds}s"
+            )
 
     finally:
         # AlertManager não tem método close()
@@ -541,10 +550,7 @@ async def test_alert_deduplication_real(
 @pytest.mark.asyncio
 @pytest.mark.slow
 async def test_end_to_end_sla_monitoring_flow(
-    real_config: OrchestratorSettings,
-    real_redis,
-    real_kafka_producer,
-    real_metrics
+    real_config: OrchestratorSettings, real_redis, real_kafka_producer, real_metrics
 ):
     """
     Teste 8: Fluxo completo de monitoramento SLA end-to-end.
@@ -576,65 +582,62 @@ async def test_end_to_end_sla_monitoring_flow(
         ticket_id_2 = f"ticket-e2e-2-{uuid.uuid4().hex[:8]}"
         tickets = [
             {
-                'ticket': {
-                    'ticket_id': ticket_id_1,
-                    'created_at': now_ms - 105000,  # Criado há 1m45s (>80% de 2m10s)
-                    'sla': {
-                        'deadline': now_ms + 25000,  # 25s no futuro (epoch ms)
-                        'timeout_ms': 150000
-                    }
+                "ticket": {
+                    "ticket_id": ticket_id_1,
+                    "created_at": now_ms - 105000,  # Criado há 1m45s (>80% de 2m10s)
+                    "sla": {
+                        "deadline": now_ms + 25000,  # 25s no futuro (epoch ms)
+                        "timeout_ms": 150000,
+                    },
                 }
             },
             {
-                'ticket': {
-                    'ticket_id': ticket_id_2,
-                    'created_at': now_ms,  # Criado agora
-                    'sla': {
-                        'deadline': now_ms + 300000,  # 5min no futuro (epoch ms)
-                        'timeout_ms': 300000
-                    }
+                "ticket": {
+                    "ticket_id": ticket_id_2,
+                    "created_at": now_ms,  # Criado agora
+                    "sla": {
+                        "deadline": now_ms + 300000,  # 5min no futuro (epoch ms)
+                        "timeout_ms": 300000,
+                    },
                 }
-            }
+            },
         ]
 
         # === 1. Verificar SLA do workflow ===
         sla_result = await sla_monitor.check_workflow_sla(workflow_id, tickets)
 
-        assert 'deadline_approaching' in sla_result
-        assert 'critical_tickets' in sla_result
-        assert 'remaining_seconds' in sla_result
+        assert "deadline_approaching" in sla_result
+        assert "critical_tickets" in sla_result
+        assert "remaining_seconds" in sla_result
 
         print(f"✓ Step 1: SLA check - approaching={sla_result['deadline_approaching']}")
 
         # === 2. Enviar alerta se deadline approaching ===
-        if sla_result['deadline_approaching']:
-            critical_ticket_id = sla_result['critical_tickets'][0]
+        if sla_result["deadline_approaching"]:
+            critical_ticket_id = sla_result["critical_tickets"][0]
             deadline_data = {
-                'workflow_id': workflow_id,
-                'ticket_id': critical_ticket_id,
-                'remaining_seconds': sla_result['remaining_seconds']
+                "workflow_id": workflow_id,
+                "ticket_id": critical_ticket_id,
+                "remaining_seconds": sla_result["remaining_seconds"],
             }
 
             # send_deadline_alert não retorna valor (é void)
             await alert_manager.send_deadline_alert(
-                workflow_id=workflow_id,
-                ticket_id=critical_ticket_id,
-                deadline_data=deadline_data
+                workflow_id=workflow_id, ticket_id=critical_ticket_id, deadline_data=deadline_data
             )
 
             print(f"✓ Step 2: Deadline alert sent")
 
         # === 3. Verificar budget threshold ===
         is_critical, budget_data = await sla_monitor.check_budget_threshold(
-            service_name='orchestrator-dynamic',
-            threshold=0.2
+            service_name="orchestrator-dynamic", threshold=0.2
         )
 
         if is_critical and budget_data:
             budget_alert_sent = await alert_manager.send_budget_alert(
                 workflow_id=workflow_id,
-                service_name='orchestrator-dynamic',
-                budget_data=budget_data
+                service_name="orchestrator-dynamic",
+                budget_data=budget_data,
             )
             print(f"✓ Step 3: Budget critical alert sent")
         else:
@@ -644,20 +647,20 @@ async def test_end_to_end_sla_monitoring_flow(
         violations = []
         for ticket_wrapper in tickets:
             # Extrair ticket do wrapper
-            ticket = ticket_wrapper.get('ticket', {})
+            ticket = ticket_wrapper.get("ticket", {})
             # check_ticket_deadline é async e retorna:
             # deadline_approaching, remaining_seconds, percent_consumed, sla_deadline
             deadline_check = await sla_monitor.check_ticket_deadline(ticket)
             # Violação ocorre quando remaining_seconds < 0 (deadline já passou)
-            if deadline_check.get('remaining_seconds', 0) < 0:
+            if deadline_check.get("remaining_seconds", 0) < 0:
                 violation = {
-                    'violation_id': str(uuid.uuid4()),
-                    'violation_type': 'DEADLINE_EXCEEDED',
-                    'severity': 'CRITICAL',
-                    'timestamp': datetime.now(timezone.utc).isoformat(),
-                    'ticket_id': ticket.get('ticket_id'),
-                    'workflow_id': workflow_id,
-                    'delay_ms': abs(deadline_check.get('remaining_seconds', 0) * 1000)
+                    "violation_id": str(uuid.uuid4()),
+                    "violation_type": "DEADLINE_EXCEEDED",
+                    "severity": "CRITICAL",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "ticket_id": ticket.get("ticket_id"),
+                    "workflow_id": workflow_id,
+                    "delay_ms": abs(deadline_check.get("remaining_seconds", 0) * 1000),
                 }
                 violations.append(violation)
 
@@ -689,10 +692,13 @@ async def test_end_to_end_sla_monitoring_flow(
 # TESTES DE PERFORMANCE E THRESHOLD
 # ============================================================================
 
+
 @pytest.mark.real_integration
 @pytest.mark.asyncio
 @pytest.mark.slow
-async def test_sla_monitoring_under_load(real_config: OrchestratorSettings, real_redis, real_metrics):
+async def test_sla_monitoring_under_load(
+    real_config: OrchestratorSettings, real_redis, real_metrics
+):
     """
     Teste 9: Teste de carga - 100 workflows simultâneos com verificações SLA.
 
@@ -718,13 +724,13 @@ async def test_sla_monitoring_under_load(real_config: OrchestratorSettings, real
             tickets = []
             for j in range(tickets_per_workflow):
                 ticket = {
-                    'ticket': {
-                        'ticket_id': f"ticket-{i}-{j}",
-                        'created_at': int((now - timedelta(minutes=j)).timestamp() * 1000),
-                        'sla': {
-                            'deadline': int((now + timedelta(minutes=5-j)).timestamp() * 1000),
-                            'timeout_ms': 600000
-                        }
+                    "ticket": {
+                        "ticket_id": f"ticket-{i}-{j}",
+                        "created_at": int((now - timedelta(minutes=j)).timestamp() * 1000),
+                        "sla": {
+                            "deadline": int((now + timedelta(minutes=5 - j)).timestamp() * 1000),
+                            "timeout_ms": 600000,
+                        },
                     }
                 }
                 tickets.append(ticket)
@@ -732,10 +738,7 @@ async def test_sla_monitoring_under_load(real_config: OrchestratorSettings, real
 
         # Executar verificações em paralelo
         start = time_module.time()
-        tasks = [
-            sla_monitor.check_workflow_sla(wf_id, tickets)
-            for wf_id, tickets in workflows
-        ]
+        tasks = [sla_monitor.check_workflow_sla(wf_id, tickets) for wf_id, tickets in workflows]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         duration = time_module.time() - start
 
@@ -748,9 +751,11 @@ async def test_sla_monitoring_under_load(real_config: OrchestratorSettings, real
         avg_latency = duration / num_workflows
         assert avg_latency < 0.2, f"Avg latency {avg_latency*1000:.1f}ms > 200ms"
 
-        print(f"✓ Load test: {num_workflows} workflows, "
-              f"avg_latency={avg_latency*1000:.1f}ms, "
-              f"error_rate={error_rate*100:.2f}%")
+        print(
+            f"✓ Load test: {num_workflows} workflows, "
+            f"avg_latency={avg_latency*1000:.1f}ms, "
+            f"error_rate={error_rate*100:.2f}%"
+        )
 
     finally:
         await sla_monitor.close()
@@ -758,7 +763,9 @@ async def test_sla_monitoring_under_load(real_config: OrchestratorSettings, real
 
 @pytest.mark.real_integration
 @pytest.mark.asyncio
-async def test_threshold_validation_accuracy(real_config: OrchestratorSettings, real_redis, real_metrics):
+async def test_threshold_validation_accuracy(
+    real_config: OrchestratorSettings, real_redis, real_metrics
+):
     """
     Teste 10: Teste de precisão de thresholds.
 
@@ -775,47 +782,53 @@ async def test_threshold_validation_accuracy(real_config: OrchestratorSettings, 
         # Teste 1: Deadline exatamente em ~80% consumido
         # Criado há 80s, deadline em 100s total => 80% consumido
         ticket_80_percent = {
-            'ticket_id': 'threshold-test-80',
-            'created_at': int((now - timedelta(seconds=80)).timestamp() * 1000),
-            'sla': {
-                'deadline': int((now + timedelta(seconds=20)).timestamp() * 1000),
-                'timeout_ms': 100000
-            }
+            "ticket_id": "threshold-test-80",
+            "created_at": int((now - timedelta(seconds=80)).timestamp() * 1000),
+            "sla": {
+                "deadline": int((now + timedelta(seconds=20)).timestamp() * 1000),
+                "timeout_ms": 100000,
+            },
         }
 
         result = await sla_monitor.check_ticket_deadline(ticket_80_percent)
-        assert result['percent_consumed'] >= 0.78 and result['percent_consumed'] <= 0.82, \
-            f"Percent consumed deve ser ~80%, got {result['percent_consumed']*100:.1f}%"
-        assert result['deadline_approaching'] is True, "Deve detectar deadline approaching em 80%"
+        assert (
+            result["percent_consumed"] >= 0.78 and result["percent_consumed"] <= 0.82
+        ), f"Percent consumed deve ser ~80%, got {result['percent_consumed']*100:.1f}%"
+        assert result["deadline_approaching"] is True, "Deve detectar deadline approaching em 80%"
 
         # Teste 2: Deadline em ~50% (não deve alertar)
         ticket_50_percent = {
-            'ticket_id': 'threshold-test-50',
-            'created_at': int((now - timedelta(seconds=50)).timestamp() * 1000),
-            'sla': {
-                'deadline': int((now + timedelta(seconds=50)).timestamp() * 1000),
-                'timeout_ms': 100000
-            }
+            "ticket_id": "threshold-test-50",
+            "created_at": int((now - timedelta(seconds=50)).timestamp() * 1000),
+            "sla": {
+                "deadline": int((now + timedelta(seconds=50)).timestamp() * 1000),
+                "timeout_ms": 100000,
+            },
         }
 
         result = await sla_monitor.check_ticket_deadline(ticket_50_percent)
-        assert result['percent_consumed'] >= 0.48 and result['percent_consumed'] <= 0.52, \
-            f"Percent consumed deve ser ~50%, got {result['percent_consumed']*100:.1f}%"
-        assert result['deadline_approaching'] is False, "Não deve alertar em 50%"
+        assert (
+            result["percent_consumed"] >= 0.48 and result["percent_consumed"] <= 0.52
+        ), f"Percent consumed deve ser ~50%, got {result['percent_consumed']*100:.1f}%"
+        assert result["deadline_approaching"] is False, "Não deve alertar em 50%"
 
         # Teste 3: Deadline já passou (remaining_seconds negativo)
         ticket_expired = {
-            'ticket_id': 'threshold-test-expired',
-            'created_at': int((now - timedelta(minutes=10)).timestamp() * 1000),
-            'sla': {
-                'deadline': int((now - timedelta(seconds=30)).timestamp() * 1000),
-                'timeout_ms': 600000
-            }
+            "ticket_id": "threshold-test-expired",
+            "created_at": int((now - timedelta(minutes=10)).timestamp() * 1000),
+            "sla": {
+                "deadline": int((now - timedelta(seconds=30)).timestamp() * 1000),
+                "timeout_ms": 600000,
+            },
         }
 
         result = await sla_monitor.check_ticket_deadline(ticket_expired)
-        assert result['remaining_seconds'] < 0, "Remaining seconds deve ser negativo para deadline expirado"
-        assert result['percent_consumed'] >= 1.0, "Percent consumed deve ser >= 100% para deadline expirado"
+        assert (
+            result["remaining_seconds"] < 0
+        ), "Remaining seconds deve ser negativo para deadline expirado"
+        assert (
+            result["percent_consumed"] >= 1.0
+        ), "Percent consumed deve ser >= 100% para deadline expirado"
 
         print("✓ Threshold validation: deadline thresholds accurate")
 

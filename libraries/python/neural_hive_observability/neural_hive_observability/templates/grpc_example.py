@@ -39,7 +39,9 @@ class SpecialistServiceServicer:
     """Servicer gRPC com tracing automático."""
 
     @trace_grpc_method(include_request=True, include_response=True)
-    def EvaluatePlan(self, request: EvaluatePlanRequest, context: grpc.ServicerContext) -> EvaluatePlanResponse:
+    def EvaluatePlan(
+        self, request: EvaluatePlanRequest, context: grpc.ServicerContext
+    ) -> EvaluatePlanResponse:
         # Extrair contexto de baggage e trace do metadata
         ctx, token = extract_grpc_context(context)
         try:

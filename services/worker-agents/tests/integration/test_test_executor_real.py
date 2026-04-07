@@ -37,17 +37,17 @@ class TestTestExecutorWithMockGitHubActions:
 
         # Enable GitHub Actions
         worker_config.github_actions_enabled = True
-        worker_config.github_token = 'test-token'
+        worker_config.github_token = "test-token"
 
         mock_client = create_mock_github_actions_client(
-            run_id='run-123',
+            run_id="run-123",
             success=True,
             tests_passed=42,
             tests_failed=0,
             coverage=87.5,
         )
 
-        with patch('clients.github_actions_client.GitHubActionsClient') as mock_class:
+        with patch("clients.github_actions_client.GitHubActionsClient") as mock_class:
             mock_class.from_env.return_value = mock_client
 
             executor = TestExecutor(
@@ -59,11 +59,11 @@ class TestTestExecutorWithMockGitHubActions:
             executor.github_actions_client = mock_client
 
             ticket = ExecutorTestHelper.create_test_ticket(
-                provider='github_actions',
-                repo='test-org/test-repo',
-                workflow_id='ci.yml',
-                ref='main',
-                test_suite='integration',
+                provider="github_actions",
+                repo="test-org/test-repo",
+                workflow_id="ci.yml",
+                ref="main",
+                test_suite="integration",
             )
 
             result = await executor.execute(ticket)
@@ -71,10 +71,12 @@ class TestTestExecutorWithMockGitHubActions:
         # Validate result
         ResultValidator.assert_success(result)
         ResultValidator.assert_simulated(result, expected=False)
-        ResultValidator.assert_has_output(result, 'tests_passed', 'tests_failed', 'coverage', 'run_id')
-        ResultValidator.assert_output_value(result, 'tests_passed', 42)
-        ResultValidator.assert_output_value(result, 'tests_failed', 0)
-        ResultValidator.assert_output_value(result, 'run_id', 'run-123')
+        ResultValidator.assert_has_output(
+            result, "tests_passed", "tests_failed", "coverage", "run_id"
+        )
+        ResultValidator.assert_output_value(result, "tests_passed", 42)
+        ResultValidator.assert_output_value(result, "tests_failed", 0)
+        ResultValidator.assert_output_value(result, "run_id", "run-123")
 
     @pytest.mark.asyncio
     async def test_test_executor_github_actions_failure(
@@ -84,17 +86,17 @@ class TestTestExecutorWithMockGitHubActions:
         from executors.test_executor import TestExecutor
 
         worker_config.github_actions_enabled = True
-        worker_config.github_token = 'test-token'
+        worker_config.github_token = "test-token"
 
         mock_client = create_mock_github_actions_client(
-            run_id='run-456',
+            run_id="run-456",
             success=False,
             tests_passed=35,
             tests_failed=7,
             coverage=72.0,
         )
 
-        with patch('clients.github_actions_client.GitHubActionsClient') as mock_class:
+        with patch("clients.github_actions_client.GitHubActionsClient") as mock_class:
             mock_class.from_env.return_value = mock_client
 
             executor = TestExecutor(
@@ -105,9 +107,9 @@ class TestTestExecutorWithMockGitHubActions:
             executor.github_actions_client = mock_client
 
             ticket = ExecutorTestHelper.create_test_ticket(
-                provider='github_actions',
-                repo='test-org/test-repo',
-                workflow_id='ci.yml',
+                provider="github_actions",
+                repo="test-org/test-repo",
+                workflow_id="ci.yml",
             )
 
             result = await executor.execute(ticket)
@@ -115,7 +117,7 @@ class TestTestExecutorWithMockGitHubActions:
         # Should return failure
         ResultValidator.assert_failure(result)
         ResultValidator.assert_simulated(result, expected=False)
-        ResultValidator.assert_output_value(result, 'tests_failed', 7)
+        ResultValidator.assert_output_value(result, "tests_failed", 7)
 
     @pytest.mark.asyncio
     async def test_test_executor_github_actions_connection_error(
@@ -125,11 +127,11 @@ class TestTestExecutorWithMockGitHubActions:
         from executors.test_executor import TestExecutor
 
         worker_config.github_actions_enabled = True
-        worker_config.github_token = 'test-token'
+        worker_config.github_token = "test-token"
 
         mock_client = create_mock_github_actions_client(should_fail=True)
 
-        with patch('clients.github_actions_client.GitHubActionsClient') as mock_class:
+        with patch("clients.github_actions_client.GitHubActionsClient") as mock_class:
             mock_class.from_env.return_value = mock_client
 
             executor = TestExecutor(
@@ -140,9 +142,9 @@ class TestTestExecutorWithMockGitHubActions:
             executor.github_actions_client = mock_client
 
             ticket = ExecutorTestHelper.create_test_ticket(
-                provider='github_actions',
-                repo='test-org/test-repo',
-                workflow_id='ci.yml',
+                provider="github_actions",
+                repo="test-org/test-repo",
+                workflow_id="ci.yml",
             )
 
             result = await executor.execute(ticket)
@@ -171,7 +173,7 @@ class TestTestExecutorLocalCommand:
         # Use a simple echo command
         ticket = ExecutorTestHelper.create_test_ticket(
             test_command='echo "test passed"',
-            working_dir='/tmp',
+            working_dir="/tmp",
         )
 
         result = await executor.execute(ticket)
@@ -179,7 +181,7 @@ class TestTestExecutorLocalCommand:
         # Should succeed
         ResultValidator.assert_success(result)
         ResultValidator.assert_simulated(result, expected=False)
-        ResultValidator.assert_log_contains(result, 'echo')
+        ResultValidator.assert_log_contains(result, "echo")
 
     @pytest.mark.asyncio
     async def test_test_executor_local_command_with_output(
@@ -196,13 +198,13 @@ class TestTestExecutorLocalCommand:
 
         # Create temp directory with test report
         with tempfile.TemporaryDirectory() as tmpdir:
-            report_path = Path(tmpdir) / 'report.json'
+            report_path = Path(tmpdir) / "report.json"
             report_path.write_text('{"tests_passed": 10, "tests_failed": 2, "coverage": 85.0}')
 
             ticket = ExecutorTestHelper.create_test_ticket(
-                test_command='echo done',
+                test_command="echo done",
                 working_dir=tmpdir,
-                report_path='report.json',
+                report_path="report.json",
             )
 
             result = await executor.execute(ticket)
@@ -217,7 +219,7 @@ class TestTestExecutorLocalCommand:
         from executors.test_executor import TestExecutor
 
         # Set strict allowed commands
-        worker_config.allowed_test_commands = ['pytest', 'npm test']
+        worker_config.allowed_test_commands = ["pytest", "npm test"]
 
         executor = TestExecutor(
             config=worker_config,
@@ -226,8 +228,8 @@ class TestTestExecutorLocalCommand:
         )
 
         ticket = ExecutorTestHelper.create_test_ticket(
-            test_command='rm -rf /',  # Dangerous command
-            working_dir='/tmp',
+            test_command="rm -rf /",  # Dangerous command
+            working_dir="/tmp",
         )
 
         result = await executor.execute(ticket)
@@ -254,14 +256,14 @@ class TestTestExecutorLocalCommand:
 
         ticket = ExecutorTestHelper.create_test_ticket(
             test_command='python -c "import time; time.sleep(10)"',
-            working_dir='/tmp',
+            working_dir="/tmp",
         )
 
         result = await executor.execute(ticket)
 
         # Should fail with timeout
         ResultValidator.assert_failure(result)
-        ResultValidator.assert_log_contains(result, 'timeout')
+        ResultValidator.assert_log_contains(result, "timeout")
 
     @pytest.mark.asyncio
     async def test_test_executor_working_dir_not_found(
@@ -277,8 +279,8 @@ class TestTestExecutorLocalCommand:
         )
 
         ticket = ExecutorTestHelper.create_test_ticket(
-            test_command='echo test',
-            working_dir='/nonexistent/directory/path',
+            test_command="echo test",
+            working_dir="/nonexistent/directory/path",
         )
 
         result = await executor.execute(ticket)
@@ -302,7 +304,7 @@ class TestTestExecutorLocalCommand:
 
         ticket = ExecutorTestHelper.create_test_ticket(
             test_command='python -c "exit(1)"',
-            working_dir='/tmp',
+            working_dir="/tmp",
         )
 
         result = await executor.execute(ticket)
@@ -329,7 +331,7 @@ class TestTestExecutorSimulation:
         )
 
         ticket = ExecutorTestHelper.create_test_ticket(
-            test_suite='unit',
+            test_suite="unit",
         )
 
         result = await executor.execute(ticket)
@@ -337,8 +339,8 @@ class TestTestExecutorSimulation:
         # Simulation should succeed
         ResultValidator.assert_success(result)
         ResultValidator.assert_simulated(result, expected=True)
-        ResultValidator.assert_has_output(result, 'tests_passed', 'coverage', 'test_suite')
-        ResultValidator.assert_log_contains(result, 'simulated')
+        ResultValidator.assert_has_output(result, "tests_passed", "coverage", "test_suite")
+        ResultValidator.assert_log_contains(result, "simulated")
 
     @pytest.mark.asyncio
     async def test_test_executor_simulation_metrics(
@@ -371,15 +373,15 @@ class TestTestExecutorValidation:
         from executors.base_executor import ValidationError
 
         ticket = {
-            'task_id': 'task-123',
-            'task_type': 'TEST',
-            'parameters': {},
+            "task_id": "task-123",
+            "task_type": "TEST",
+            "parameters": {},
         }
 
         with pytest.raises(ValidationError) as exc_info:
             await test_executor.execute(ticket)
 
-        assert 'ticket_id' in str(exc_info.value)
+        assert "ticket_id" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_test_executor_wrong_task_type(self, test_executor):
@@ -387,16 +389,16 @@ class TestTestExecutorValidation:
         from executors.base_executor import ValidationError
 
         ticket = {
-            'ticket_id': 'ticket-123',
-            'task_id': 'task-123',
-            'task_type': 'BUILD',  # Wrong type
-            'parameters': {},
+            "ticket_id": "ticket-123",
+            "task_id": "task-123",
+            "task_type": "BUILD",  # Wrong type
+            "parameters": {},
         }
 
         with pytest.raises(ValidationError) as exc_info:
             await test_executor.execute(ticket)
 
-        assert 'task type mismatch' in str(exc_info.value).lower()
+        assert "task type mismatch" in str(exc_info.value).lower()
 
 
 class TestTestExecutorCommandSecurity:
@@ -410,7 +412,7 @@ class TestTestExecutorCommandSecurity:
         from executors.test_executor import TestExecutor
 
         # Only allow safe commands
-        worker_config.allowed_test_commands = ['pytest', 'echo']
+        worker_config.allowed_test_commands = ["pytest", "echo"]
 
         executor = TestExecutor(
             config=worker_config,
@@ -420,20 +422,18 @@ class TestTestExecutorCommandSecurity:
 
         # Attempt command injection
         ticket = ExecutorTestHelper.create_test_ticket(
-            test_command='echo test; rm -rf /',
-            working_dir='/tmp',
+            test_command="echo test; rm -rf /",
+            working_dir="/tmp",
         )
 
         result = await executor.execute(ticket)
 
         # The command should be executed safely via shlex.split
         # or fall back to simulation
-        assert 'success' in result
+        assert "success" in result
 
     @pytest.mark.asyncio
-    async def test_empty_command_handled(
-        self, worker_config, mock_vault_client, mock_metrics
-    ):
+    async def test_empty_command_handled(self, worker_config, mock_vault_client, mock_metrics):
         """Test that empty commands are handled safely."""
         from executors.test_executor import TestExecutor
 
@@ -444,8 +444,8 @@ class TestTestExecutorCommandSecurity:
         )
 
         ticket = ExecutorTestHelper.create_test_ticket(
-            test_command='',  # Empty command
-            working_dir='/tmp',
+            test_command="",  # Empty command
+            working_dir="/tmp",
         )
 
         result = await executor.execute(ticket)
@@ -468,15 +468,15 @@ class TestTestExecutorRealGitHubActions:
         from executors.test_executor import TestExecutor
         from clients.github_actions_client import GitHubActionsClient
 
-        github_token = os.getenv('GITHUB_TOKEN')
+        github_token = os.getenv("GITHUB_TOKEN")
         if not github_token:
-            pytest.skip('GITHUB_TOKEN not configured')
+            pytest.skip("GITHUB_TOKEN not configured")
 
-        test_repo = os.getenv('GITHUB_TEST_REPO')
-        test_workflow = os.getenv('GITHUB_TEST_WORKFLOW', 'test.yml')
+        test_repo = os.getenv("GITHUB_TEST_REPO")
+        test_workflow = os.getenv("GITHUB_TEST_WORKFLOW", "test.yml")
 
         if not test_repo:
-            pytest.skip('GITHUB_TEST_REPO not configured')
+            pytest.skip("GITHUB_TEST_REPO not configured")
 
         worker_config.github_actions_enabled = True
         worker_config.github_token = github_token
@@ -497,15 +497,15 @@ class TestTestExecutorRealGitHubActions:
         executor.github_actions_client = real_client
 
         ticket = ExecutorTestHelper.create_test_ticket(
-            provider='github_actions',
+            provider="github_actions",
             repo=test_repo,
             workflow_id=test_workflow,
-            ref='main',
+            ref="main",
         )
 
         result = await executor.execute(ticket)
 
         # With real service, expect either success or graceful failure
-        assert 'success' in result
-        assert 'output' in result
-        assert 'metadata' in result
+        assert "success" in result
+        assert "output" in result
+        assert "metadata" in result

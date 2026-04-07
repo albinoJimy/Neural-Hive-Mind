@@ -14,10 +14,10 @@ _mock_proto.TicketResponse = MagicMock()
 _mock_proto_grpc = MagicMock()
 _mock_proto_grpc.TicketServiceStub = MagicMock()
 
-sys.modules['neural_hive_integration'] = MagicMock()
-sys.modules['neural_hive_integration.proto_stubs'] = MagicMock()
-sys.modules['neural_hive_integration.proto_stubs'].ticket_service_pb2 = _mock_proto
-sys.modules['neural_hive_integration.proto_stubs'].ticket_service_pb2_grpc = _mock_proto_grpc
+sys.modules["neural_hive_integration"] = MagicMock()
+sys.modules["neural_hive_integration.proto_stubs"] = MagicMock()
+sys.modules["neural_hive_integration.proto_stubs"].ticket_service_pb2 = _mock_proto
+sys.modules["neural_hive_integration.proto_stubs"].ticket_service_pb2_grpc = _mock_proto_grpc
 
 
 @pytest.mark.integration
@@ -28,15 +28,15 @@ class TestCircuitBreakerTransitions:
     def mock_config(self):
         """Fixture para configuração mock."""
         config = MagicMock()
-        config.service_name = 'test-service'
-        config.kafka_bootstrap_servers = 'localhost:9092'
-        config.kafka_tickets_topic = 'test.tickets'
-        config.kafka_schema_registry_url = 'http://localhost:8081'
-        config.kafka_security_protocol = 'PLAINTEXT'
+        config.service_name = "test-service"
+        config.kafka_bootstrap_servers = "localhost:9092"
+        config.kafka_tickets_topic = "test.tickets"
+        config.kafka_schema_registry_url = "http://localhost:8081"
+        config.kafka_security_protocol = "PLAINTEXT"
         config.kafka_sasl_mechanism = None
         config.kafka_sasl_username = None
         config.kafka_sasl_password = None
-        config.schemas_base_path = '/tmp/schemas'
+        config.schemas_base_path = "/tmp/schemas"
         config.KAFKA_CIRCUIT_BREAKER_ENABLED = True
         config.KAFKA_CIRCUIT_BREAKER_FAIL_MAX = 2
         config.KAFKA_CIRCUIT_BREAKER_TIMEOUT = 2
@@ -52,7 +52,7 @@ class TestCircuitBreakerTransitions:
         config.REDIS_CIRCUIT_BREAKER_TIMEOUT = 2
         config.REDIS_CIRCUIT_BREAKER_RECOVERY_TIMEOUT = 1
 
-        config.redis_cluster_nodes = 'localhost:6379'
+        config.redis_cluster_nodes = "localhost:6379"
         config.redis_password = None
         config.redis_ssl_enabled = False
         return config
@@ -70,11 +70,11 @@ class TestCircuitBreakerTransitions:
 
         wrapper = TemporalClientWrapper(
             client=mock_client,
-            service_name='test-service',
+            service_name="test-service",
             circuit_breaker_enabled=True,
             fail_max=2,
             timeout_duration=1,
-            recovery_timeout=1
+            recovery_timeout=1,
         )
 
         # Mock do breaker para simular circuito aberto
@@ -83,12 +83,7 @@ class TestCircuitBreakerTransitions:
 
         # Deve propagar CircuitBreakerError
         with pytest.raises(CircuitBreakerError):
-            await wrapper.start_workflow(
-                'TestWorkflow',
-                {},
-                id='test-open',
-                task_queue='test'
-            )
+            await wrapper.start_workflow("TestWorkflow", {}, id="test-open", task_queue="test")
 
     @pytest.mark.asyncio
     async def test_redis_circuit_breaker_fail_open_behavior(self, mock_config):
@@ -102,8 +97,8 @@ class TestCircuitBreakerTransitions:
         redis_client._circuit_breaker = None
 
         # Simular falha na inicialização
-        with patch('redis.asyncio.Redis') as mock_redis:
-            mock_redis.return_value.ping = AsyncMock(side_effect=Exception('Redis down'))
+        with patch("redis.asyncio.Redis") as mock_redis:
+            mock_redis.return_value.ping = AsyncMock(side_effect=Exception("Redis down"))
 
             client = await redis_client.get_redis_client(mock_config)
 
@@ -118,14 +113,12 @@ class TestCircuitBreakerTransitions:
         from neural_hive_resilience.circuit_breaker import MonitoredCircuitBreaker
 
         breaker = MonitoredCircuitBreaker(
-            service_name='test-service',
-            circuit_name='test_circuit',
-            fail_max=5
+            service_name="test-service", circuit_name="test_circuit", fail_max=5
         )
 
         # Verificar que o circuit breaker foi criado corretamente
         assert breaker.fail_max == 5
-        assert breaker.service_name == 'test-service'
+        assert breaker.service_name == "test-service"
 
 
 @pytest.mark.integration
@@ -145,11 +138,11 @@ class TestCircuitBreakerRecovery:
 
         wrapper = TemporalClientWrapper(
             client=mock_client,
-            service_name='test-service',
+            service_name="test-service",
             circuit_breaker_enabled=True,
             fail_max=2,
             timeout_duration=1,
-            recovery_timeout=1
+            recovery_timeout=1,
         )
 
         # Mock do breaker para simular sucesso
@@ -157,10 +150,7 @@ class TestCircuitBreakerRecovery:
         wrapper.breaker.call_async = AsyncMock(return_value=expected_handle)
 
         handle = await wrapper.start_workflow(
-            'TestWorkflow',
-            {},
-            id='test-success',
-            task_queue='test'
+            "TestWorkflow", {}, id="test-success", task_queue="test"
         )
 
         assert handle == expected_handle
@@ -183,9 +173,9 @@ class TestCircuitBreakerConcurrency:
 
         wrapper = TemporalClientWrapper(
             client=mock_client,
-            service_name='test-service',
+            service_name="test-service",
             circuit_breaker_enabled=True,
-            fail_max=5
+            fail_max=5,
         )
 
         # Mock do breaker para retornar sucesso
@@ -194,12 +184,7 @@ class TestCircuitBreakerConcurrency:
 
         # Enviar 10 requisições concorrentes
         tasks = [
-            wrapper.start_workflow(
-                'TestWorkflow',
-                {},
-                id=f'test-concurrent-{i}',
-                task_queue='test'
-            )
+            wrapper.start_workflow("TestWorkflow", {}, id=f"test-concurrent-{i}", task_queue="test")
             for i in range(10)
         ]
 

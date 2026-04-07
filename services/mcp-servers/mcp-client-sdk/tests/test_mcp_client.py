@@ -74,9 +74,7 @@ class TestMCPClient:
         # Mock HTTP response
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "result": {"files": ["file1.py", "file2.py"]}
-        }
+        mock_response.json.return_value = {"result": {"files": ["file1.py", "file2.py"]}}
 
         with patch("httpx.AsyncClient.post", return_value=mock_response) as mock_post:
             result = await client.execute_tool(

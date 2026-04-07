@@ -4,6 +4,7 @@ Activities Temporal para consolidação de resultados (Etapa C5).
 import hashlib
 import json
 from datetime import datetime, timezone
+
 UTC = timezone.utc  # type: ignore
 from typing import Any
 from uuid import uuid4

@@ -67,9 +67,7 @@ class DisasterRecoveryManager:
             storage_provider=config.backup_storage_provider,
         )
 
-    def backup_specialist_state(
-        self, tenant_id: Optional[str] = None
-    ) -> Dict[str, Any]:
+    def backup_specialist_state(self, tenant_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Executa backup do estado do especialista.
 
@@ -145,9 +143,7 @@ class DisasterRecoveryManager:
                 futures[executor.submit(self._backup_config, backup_dir)] = "config"
 
                 # Ledger MongoDB
-                futures[
-                    executor.submit(self._backup_ledger, backup_dir, tenant_id)
-                ] = "ledger"
+                futures[executor.submit(self._backup_ledger, backup_dir, tenant_id)] = "ledger"
 
                 # Cache Redis (opcional)
                 if self.config.backup_include_cache:
@@ -156,16 +152,12 @@ class DisasterRecoveryManager:
                 # Feature Store
                 if self.config.backup_include_feature_store:
                     futures[
-                        executor.submit(
-                            self._backup_feature_store, backup_dir, tenant_id
-                        )
+                        executor.submit(self._backup_feature_store, backup_dir, tenant_id)
                     ] = "feature_store"
 
                 # Métricas
                 if self.config.backup_include_metrics:
-                    futures[
-                        executor.submit(self._backup_metrics, backup_dir)
-                    ] = "metrics"
+                    futures[executor.submit(self._backup_metrics, backup_dir)] = "metrics"
 
                 # Aguardar conclusão
                 for future in as_completed(futures):
@@ -213,7 +205,9 @@ class DisasterRecoveryManager:
 
             # Criar arquivo .tar.gz
             timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-            backup_filename = f"specialist-{self.config.specialist_type}{tenant_suffix}-backup-{timestamp}.tar.gz"
+            backup_filename = (
+                f"specialist-{self.config.specialist_type}{tenant_suffix}-backup-{timestamp}.tar.gz"
+            )
             backup_archive_path = os.path.join(tempfile.gettempdir(), backup_filename)
 
             logger.info(
@@ -282,9 +276,7 @@ class DisasterRecoveryManager:
                     tenant_id or "default", time.time()
                 )
                 self.specialist.metrics.observe_backup_duration(duration)
-                self.specialist.metrics.set_backup_size(
-                    tenant_id or "default", archive_size
-                )
+                self.specialist.metrics.set_backup_size(tenant_id or "default", archive_size)
                 self.specialist.metrics.increment_backup_total("success")
 
             # Limpar arquivos temporários
@@ -382,7 +374,9 @@ class DisasterRecoveryManager:
             if mlflow_client and hasattr(mlflow_client, "download_artifacts"):
                 try:
                     # Construir model URI
-                    model_uri = f"models:/{self.config.mlflow_model_name}/{self.config.mlflow_model_stage}"
+                    model_uri = (
+                        f"models:/{self.config.mlflow_model_name}/{self.config.mlflow_model_stage}"
+                    )
 
                     logger.info("Baixando artifacts do MLflow", model_uri=model_uri)
 
@@ -410,20 +404,14 @@ class DisasterRecoveryManager:
                         model_metadata["artifacts_size_bytes"] = artifacts_size
                         model_metadata["artifacts_path"] = downloaded_path
 
-                        logger.info(
-                            "Artifacts do modelo baixados", size_bytes=artifacts_size
-                        )
+                        logger.info("Artifacts do modelo baixados", size_bytes=artifacts_size)
 
                     except ImportError:
-                        logger.warning(
-                            "mlflow não disponível para download de artifacts"
-                        )
+                        logger.warning("mlflow não disponível para download de artifacts")
                         model_metadata["artifacts_downloaded"] = False
 
                     except Exception as e:
-                        logger.warning(
-                            "Falha ao baixar artifacts do MLflow", error=str(e)
-                        )
+                        logger.warning("Falha ao baixar artifacts do MLflow", error=str(e))
                         model_metadata["artifacts_downloaded"] = False
                         model_metadata["artifacts_error"] = str(e)
 
@@ -514,9 +502,7 @@ class DisasterRecoveryManager:
 
             duration = time.time() - start_time
 
-            logger.info(
-                "Backup de configuração concluído", duration_seconds=round(duration, 2)
-            )
+            logger.info("Backup de configuração concluído", duration_seconds=round(duration, 2))
 
             return {"success": True, "duration_seconds": duration}
 
@@ -531,9 +517,7 @@ class DisasterRecoveryManager:
 
             return {"success": False, "error": str(e), "duration_seconds": duration}
 
-    def _backup_ledger(
-        self, backup_dir: str, tenant_id: Optional[str] = None
-    ) -> Dict[str, Any]:
+    def _backup_ledger(self, backup_dir: str, tenant_id: Optional[str] = None) -> Dict[str, Any]:
         """
         Backup de ledger MongoDB.
 
@@ -582,9 +566,7 @@ class DisasterRecoveryManager:
 
             # Executar mongodump
             try:
-                result = subprocess.run(
-                    cmd, capture_output=True, text=True, timeout=300
-                )
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
 
                 if result.returncode != 0:
                     raise Exception(f"mongodump falhou: {result.stderr}")
@@ -607,15 +589,11 @@ class DisasterRecoveryManager:
                 with open(output_file, "w") as f:
                     json.dump(documents, f, indent=2, default=str)
 
-                logger.info(
-                    "Ledger exportado via driver", document_count=len(documents)
-                )
+                logger.info("Ledger exportado via driver", document_count=len(documents))
 
             duration = time.time() - start_time
 
-            logger.info(
-                "Backup de ledger concluído", duration_seconds=round(duration, 2)
-            )
+            logger.info("Backup de ledger concluído", duration_seconds=round(duration, 2))
 
             return {"success": True, "duration_seconds": duration}
 
@@ -665,9 +643,7 @@ class DisasterRecoveryManager:
 
             duration = time.time() - start_time
 
-            logger.info(
-                "Backup de cache concluído", duration_seconds=round(duration, 2)
-            )
+            logger.info("Backup de cache concluído", duration_seconds=round(duration, 2))
 
             return {"success": True, "duration_seconds": duration}
 
@@ -779,9 +755,7 @@ class DisasterRecoveryManager:
 
             duration = time.time() - start_time
 
-            logger.info(
-                "Backup de métricas concluído", duration_seconds=round(duration, 2)
-            )
+            logger.info("Backup de métricas concluído", duration_seconds=round(duration, 2))
 
             return {"success": True, "duration_seconds": duration}
 
@@ -872,9 +846,7 @@ class DisasterRecoveryManager:
                 futures[executor.submit(self._backup_config, backup_dir)] = "config"
 
                 # Ledger MongoDB
-                futures[
-                    executor.submit(self._backup_ledger, backup_dir, tenant_id)
-                ] = "ledger"
+                futures[executor.submit(self._backup_ledger, backup_dir, tenant_id)] = "ledger"
 
                 # Cache Redis (opcional)
                 if self.config.backup_include_cache:
@@ -883,16 +855,12 @@ class DisasterRecoveryManager:
                 # Feature Store
                 if self.config.backup_include_feature_store:
                     futures[
-                        executor.submit(
-                            self._backup_feature_store, backup_dir, tenant_id
-                        )
+                        executor.submit(self._backup_feature_store, backup_dir, tenant_id)
                     ] = "feature_store"
 
                 # Métricas
                 if self.config.backup_include_metrics:
-                    futures[
-                        executor.submit(self._backup_metrics, backup_dir)
-                    ] = "metrics"
+                    futures[executor.submit(self._backup_metrics, backup_dir)] = "metrics"
 
                 # Aguardar conclusão
                 for future in as_completed(futures):
@@ -918,9 +886,7 @@ class DisasterRecoveryManager:
                                 tar.add(component_dir, arcname=component_name)
 
                             # Calcular SHA-256 do tarball
-                            sha256_digest = self._calculate_file_checksum(
-                                component_tarball
-                            )
+                            sha256_digest = self._calculate_file_checksum(component_tarball)
                             component_digests[component_name] = sha256_digest
 
                             logger.info(
@@ -1039,9 +1005,7 @@ class DisasterRecoveryManager:
                     tenant_id or "default", time.time()
                 )
                 self.specialist.metrics.observe_backup_duration(duration)
-                self.specialist.metrics.set_backup_size(
-                    tenant_id or "default", snapshot_size
-                )
+                self.specialist.metrics.set_backup_size(tenant_id or "default", snapshot_size)
                 self.specialist.metrics.increment_backup_total("success")
 
             successful_components = [
@@ -1054,9 +1018,7 @@ class DisasterRecoveryManager:
                 snapshot_size_bytes=snapshot_size,
                 duration_seconds=round(duration, 2),
                 components_included=successful_components,
-                component_digests={
-                    k: v[:16] + "..." for k, v in component_digests.items()
-                },
+                component_digests={k: v[:16] + "..." for k, v in component_digests.items()},
             )
 
             return {
@@ -1165,13 +1127,9 @@ class DisasterRecoveryManager:
                     # Normalizar timestamp para UTC timezone-aware
                     if isinstance(snapshot_timestamp, datetime):
                         if snapshot_timestamp.tzinfo is None:
-                            snapshot_timestamp = snapshot_timestamp.replace(
-                                tzinfo=timezone.utc
-                            )
+                            snapshot_timestamp = snapshot_timestamp.replace(tzinfo=timezone.utc)
                         else:
-                            snapshot_timestamp = snapshot_timestamp.astimezone(
-                                timezone.utc
-                            )
+                            snapshot_timestamp = snapshot_timestamp.astimezone(timezone.utc)
 
                         # Verificar se não expirou
                         if snapshot_timestamp >= cutoff_date:
@@ -1193,9 +1151,7 @@ class DisasterRecoveryManager:
                         tempfile.gettempdir(), os.path.basename(snapshot_obj["key"])
                     )
 
-                    if self.storage_client.download_backup(
-                        snapshot_obj["key"], snapshot_local
-                    ):
+                    if self.storage_client.download_backup(snapshot_obj["key"], snapshot_local):
                         with open(snapshot_local, "r") as f:
                             snapshot_data = json.load(f)
 
@@ -1309,9 +1265,7 @@ class DisasterRecoveryManager:
 
         start_time = time.time()
 
-        logger.info(
-            "Iniciando restore de snapshot incremental", snapshot_id=snapshot_id
-        )
+        logger.info("Iniciando restore de snapshot incremental", snapshot_id=snapshot_id)
 
         # Criar diretório temporário
         extract_dir = tempfile.mkdtemp(prefix="restore-snapshot-")
@@ -1339,9 +1293,7 @@ class DisasterRecoveryManager:
                     raise Exception(f"Snapshot não encontrado: {snapshot_id}")
 
             # Download do snapshot
-            snapshot_local = os.path.join(
-                tempfile.gettempdir(), os.path.basename(snapshot_key)
-            )
+            snapshot_local = os.path.join(tempfile.gettempdir(), os.path.basename(snapshot_key))
 
             if not self.storage_client.download_backup(snapshot_key, snapshot_local):
                 raise Exception("Falha no download do snapshot")
@@ -1407,13 +1359,9 @@ class DisasterRecoveryManager:
                         restore_method(component_dir, target_dir)
                         restored_components.append(component_name)
                         component_status[component_name] = {"status": "success"}
-                        logger.info(
-                            f"Componente {component_name} restaurado com sucesso"
-                        )
+                        logger.info(f"Componente {component_name} restaurado com sucesso")
                     else:
-                        logger.warning(
-                            f"Método de restore para {component_name} não implementado"
-                        )
+                        logger.warning(f"Método de restore para {component_name} não implementado")
                         component_status[component_name] = {
                             "status": "failed",
                             "reason": "method_not_implemented",
@@ -1570,15 +1518,11 @@ class DisasterRecoveryManager:
                 raise Exception(f"Backup não encontrado: {backup_id}")
 
             # Download do arquivo de backup
-            backup_local_path = os.path.join(
-                tempfile.gettempdir(), os.path.basename(backup_file)
-            )
+            backup_local_path = os.path.join(tempfile.gettempdir(), os.path.basename(backup_file))
             checksum_local_path = f"{backup_local_path}.sha256"
 
             try:
-                if not self.storage_client.download_backup(
-                    backup_file, backup_local_path
-                ):
+                if not self.storage_client.download_backup(backup_file, backup_local_path):
                     raise Exception("Falha no download do backup")
 
             except Exception as e:
@@ -1591,12 +1535,8 @@ class DisasterRecoveryManager:
 
             # Download do checksum
             try:
-                if not self.storage_client.download_backup(
-                    checksum_file, checksum_local_path
-                ):
-                    logger.warning(
-                        "Checksum file não encontrado, validação será limitada"
-                    )
+                if not self.storage_client.download_backup(checksum_file, checksum_local_path):
+                    logger.warning("Checksum file não encontrado, validação será limitada")
                     checksum_local_path = None
 
             except Exception as e:
@@ -1667,14 +1607,10 @@ class DisasterRecoveryManager:
             component_status = {}
 
             for component_name in restore_order:
-                component = next(
-                    (c for c in manifest.components if c.name == component_name), None
-                )
+                component = next((c for c in manifest.components if c.name == component_name), None)
 
                 if not component or not component.included:
-                    logger.debug(
-                        f"Componente {component_name} não incluído no backup, pulando"
-                    )
+                    logger.debug(f"Componente {component_name} não incluído no backup, pulando")
                     component_status[component_name] = {
                         "status": "skipped",
                         "reason": "not_included_in_backup",
@@ -1684,9 +1620,7 @@ class DisasterRecoveryManager:
                 component_dir = os.path.join(extract_dir, component_name)
 
                 if not os.path.exists(component_dir):
-                    logger.warning(
-                        f"Diretório do componente {component_name} não encontrado"
-                    )
+                    logger.warning(f"Diretório do componente {component_name} não encontrado")
                     component_status[component_name] = {
                         "status": "failed",
                         "reason": "directory_not_found",
@@ -1702,13 +1636,9 @@ class DisasterRecoveryManager:
                         restore_method(component_dir, target_dir)
                         restored_components.append(component_name)
                         component_status[component_name] = {"status": "success"}
-                        logger.info(
-                            f"Componente {component_name} restaurado com sucesso"
-                        )
+                        logger.info(f"Componente {component_name} restaurado com sucesso")
                     else:
-                        logger.warning(
-                            f"Método de restore para {component_name} não implementado"
-                        )
+                        logger.warning(f"Método de restore para {component_name} não implementado")
                         component_status[component_name] = {
                             "status": "failed",
                             "reason": "method_not_implemented",
@@ -1841,9 +1771,7 @@ class DisasterRecoveryManager:
             # Selecionar backup
             if backup_id:
                 # Procurar backup específico
-                selected_backup = next(
-                    (b for b in backup_files if backup_id in b["key"]), None
-                )
+                selected_backup = next((b for b in backup_files if backup_id in b["key"]), None)
                 if not selected_backup:
                     raise Exception(f"Backup não encontrado: {backup_id}")
             else:
@@ -1864,9 +1792,7 @@ class DisasterRecoveryManager:
             # 2. Download
             logger.info("Testando download de backup")
 
-            backup_local_path = os.path.join(
-                tempfile.gettempdir(), os.path.basename(backup_file)
-            )
+            backup_local_path = os.path.join(tempfile.gettempdir(), os.path.basename(backup_file))
             checksum_local_path = f"{backup_local_path}.sha256"
 
             if not self.storage_client.download_backup(backup_file, backup_local_path):
@@ -1876,9 +1802,7 @@ class DisasterRecoveryManager:
             logger.info("Download bem-sucedido")
 
             # Download de checksum
-            has_checksum = self.storage_client.download_backup(
-                checksum_file, checksum_local_path
-            )
+            has_checksum = self.storage_client.download_backup(checksum_file, checksum_local_path)
 
             # 3. Validar checksum
             if has_checksum:
@@ -2036,9 +1960,7 @@ class DisasterRecoveryManager:
         # Filtrar apenas arquivos .tar.gz (não incluir checksums .sha256)
         backups = [b for b in all_objects if b["key"].endswith(".tar.gz")]
 
-        logger.info(
-            "Backups listados", count=len(backups), total_objects=len(all_objects)
-        )
+        logger.info("Backups listados", count=len(backups), total_objects=len(all_objects))
 
         return backups
 
@@ -2061,9 +1983,7 @@ class DisasterRecoveryManager:
         )
 
         # Usar timezone-aware UTC para consistência
-        cutoff_date = datetime.now(timezone.utc) - timedelta(
-            days=self.config.backup_retention_days
-        )
+        cutoff_date = datetime.now(timezone.utc) - timedelta(days=self.config.backup_retention_days)
 
         deleted_count = 0
         error_count = 0
@@ -2083,17 +2003,13 @@ class DisasterRecoveryManager:
                 snapshot_timestamp = snapshot.get("timestamp")
 
                 if not snapshot_timestamp:
-                    logger.warning(
-                        "Snapshot sem timestamp, pulando", snapshot_key=snapshot["key"]
-                    )
+                    logger.warning("Snapshot sem timestamp, pulando", snapshot_key=snapshot["key"])
                     continue
 
                 # Normalizar timestamp
                 if isinstance(snapshot_timestamp, datetime):
                     if snapshot_timestamp.tzinfo is None:
-                        snapshot_timestamp = snapshot_timestamp.replace(
-                            tzinfo=timezone.utc
-                        )
+                        snapshot_timestamp = snapshot_timestamp.replace(tzinfo=timezone.utc)
                     else:
                         snapshot_timestamp = snapshot_timestamp.astimezone(timezone.utc)
                 else:
@@ -2116,9 +2032,7 @@ class DisasterRecoveryManager:
                         deleted_count += 1
                     else:
                         error_count += 1
-                        logger.error(
-                            "Falha ao deletar snapshot", snapshot_key=snapshot["key"]
-                        )
+                        logger.error("Falha ao deletar snapshot", snapshot_key=snapshot["key"])
 
             logger.info(
                 "Snapshots expirados deletados (blobs órfãos serão removidos por GC)",
@@ -2138,9 +2052,7 @@ class DisasterRecoveryManager:
                 backup_timestamp = backup.get("timestamp")
 
                 if not backup_timestamp:
-                    logger.warning(
-                        "Backup sem timestamp, pulando", backup_key=backup["key"]
-                    )
+                    logger.warning("Backup sem timestamp, pulando", backup_key=backup["key"])
                     continue
 
                 # Normalizar timestamp para UTC timezone-aware
@@ -2183,9 +2095,7 @@ class DisasterRecoveryManager:
                             )
                     else:
                         error_count += 1
-                        logger.error(
-                            "Falha ao deletar backup", backup_key=backup["key"]
-                        )
+                        logger.error("Falha ao deletar backup", backup_key=backup["key"])
 
             logger.info(
                 "Backups expirados deletados",
@@ -2246,9 +2156,7 @@ class DisasterRecoveryManager:
 
         # Verificar se artifacts estão disponíveis
         artifacts_dir = os.path.join(component_dir, "artifacts")
-        if not os.path.exists(artifacts_dir) or not model_metadata.get(
-            "artifacts_downloaded"
-        ):
+        if not os.path.exists(artifacts_dir) or not model_metadata.get("artifacts_downloaded"):
             logger.warning(
                 "Artifacts não encontrados no backup, pulando restore de modelo",
                 artifacts_downloaded=model_metadata.get("artifacts_downloaded", False),
@@ -2289,9 +2197,7 @@ class DisasterRecoveryManager:
                 model = mlflow.pyfunc.load_model(artifacts_dir)
 
                 # Registrar modelo no MLflow
-                model_name = model_metadata.get(
-                    "model_name", self.config.mlflow_model_name
-                )
+                model_name = model_metadata.get("model_name", self.config.mlflow_model_name)
 
                 mlflow.pyfunc.log_model(
                     artifact_path="model",
@@ -2302,20 +2208,14 @@ class DisasterRecoveryManager:
                 run_id = run.info.run_id
 
             # Obter versão do modelo registrado
-            registered_model_versions = client.search_model_versions(
-                f"name='{model_name}'"
-            )
+            registered_model_versions = client.search_model_versions(f"name='{model_name}'")
 
             # Encontrar a versão mais recente (a que acabamos de registrar)
             if registered_model_versions:
-                latest_version = max(
-                    registered_model_versions, key=lambda v: int(v.version)
-                )
+                latest_version = max(registered_model_versions, key=lambda v: int(v.version))
 
                 # Transicionar para o stage configurado
-                target_stage = model_metadata.get(
-                    "model_stage", self.config.mlflow_model_stage
-                )
+                target_stage = model_metadata.get("model_stage", self.config.mlflow_model_stage)
 
                 client.transition_model_version_stage(
                     name=model_name, version=latest_version.version, stage=target_stage
@@ -2382,9 +2282,7 @@ class DisasterRecoveryManager:
                     dump_dir,
                 ]
 
-                result = subprocess.run(
-                    cmd, capture_output=True, text=True, timeout=300
-                )
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
 
                 if result.returncode != 0:
                     raise Exception(f"mongorestore falhou: {result.stderr}")
@@ -2395,9 +2293,7 @@ class DisasterRecoveryManager:
             except FileNotFoundError:
                 logger.warning("mongorestore não encontrado, tentando fallback JSON")
             except Exception as e:
-                logger.warning(
-                    "Erro ao usar mongorestore, tentando fallback JSON", error=str(e)
-                )
+                logger.warning("Erro ao usar mongorestore, tentando fallback JSON", error=str(e))
 
         # Fallback: restore via driver com JSON
         if os.path.exists(json_file):
@@ -2414,9 +2310,7 @@ class DisasterRecoveryManager:
                     logger.error("Formato de ledger inválido, esperado lista")
                     return
 
-                logger.info(
-                    "Dados do ledger carregados", document_count=len(ledger_data)
-                )
+                logger.info("Dados do ledger carregados", document_count=len(ledger_data))
 
                 # Conectar ao MongoDB
                 client = MongoClient(self.config.mongodb_uri)
@@ -2497,9 +2391,7 @@ class DisasterRecoveryManager:
             with open(cache_file, "r") as f:
                 cache_data = json.load(f)
 
-            logger.info(
-                "Restaurando cache Redis", key_count=cache_data.get("key_count", 0)
-            )
+            logger.info("Restaurando cache Redis", key_count=cache_data.get("key_count", 0))
 
             # Verificar se há dados para restaurar
             cache_keys = cache_data.get("keys", [])
@@ -2582,9 +2474,7 @@ class DisasterRecoveryManager:
                 error_type=type(e).__name__,
             )
 
-    def _restore_feature_store(
-        self, component_dir: str, target_dir: Optional[str]
-    ) -> None:
+    def _restore_feature_store(self, component_dir: str, target_dir: Optional[str]) -> None:
         """
         Restaura feature store de backup.
 
@@ -2627,9 +2517,7 @@ class DisasterRecoveryManager:
 
             # Opcionalmente purgar features existentes do tenant antes de restaurar
             if tenant_id:
-                logger.info(
-                    "Removendo features existentes do tenant", tenant_id=tenant_id
-                )
+                logger.info("Removendo features existentes do tenant", tenant_id=tenant_id)
                 delete_result = collection.delete_many({"tenant_id": tenant_id})
                 logger.info(
                     "Features antigas removidas",
@@ -2663,9 +2551,7 @@ class DisasterRecoveryManager:
                     filter_key = {"_id": feature_doc["_id"]}
 
                 if filter_key:
-                    operations.append(
-                        UpdateOne(filter_key, {"$set": feature_doc}, upsert=True)
-                    )
+                    operations.append(UpdateOne(filter_key, {"$set": feature_doc}, upsert=True))
 
             # Executar bulk write
             if operations:
@@ -2685,16 +2571,12 @@ class DisasterRecoveryManager:
 
                     # Índice composto por tenant_id e plan_id (se multi-tenancy)
                     if tenant_id:
-                        collection.create_index(
-                            [("tenant_id", ASCENDING), ("plan_id", ASCENDING)]
-                        )
+                        collection.create_index([("tenant_id", ASCENDING), ("plan_id", ASCENDING)])
 
                     logger.info("Índices de feature store criados/verificados")
 
                 except Exception as e:
-                    logger.warning(
-                        "Erro ao criar índices de feature store", error=str(e)
-                    )
+                    logger.warning("Erro ao criar índices de feature store", error=str(e))
 
             else:
                 logger.warning("Nenhuma operação de feature store para executar")
@@ -2750,9 +2632,7 @@ class DisasterRecoveryManager:
         except json.JSONDecodeError as e:
             logger.warning("Erro ao parsear arquivo de métricas", error=str(e))
         except Exception as e:
-            logger.warning(
-                "Erro ao validar métricas", error=str(e), error_type=type(e).__name__
-            )
+            logger.warning("Erro ao validar métricas", error=str(e), error_type=type(e).__name__)
 
     def _run_smoke_tests(self) -> Dict[str, Any]:
         """
@@ -2765,9 +2645,7 @@ class DisasterRecoveryManager:
 
         try:
             # Test 1: Config carregada
-            results["tests"]["config_loaded"] = {
-                "status": "pass" if self.config else "fail"
-            }
+            results["tests"]["config_loaded"] = {"status": "pass" if self.config else "fail"}
 
             # Test 2: Specialist inicializado
             results["tests"]["specialist_initialized"] = {

@@ -39,9 +39,7 @@ def get_copilot_client() -> CopilotClient:
     return _copilot_client
 
 
-def select_provider(
-    requested: str
-) -> tuple[Literal["openai", "copilot"], Any]:
+def select_provider(requested: str) -> tuple[Literal["openai", "copilot"], Any]:
     """
     Seleciona provider baseado em disponibilidade.
 
@@ -78,10 +76,7 @@ def register_codegen_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     async def generate_code(
-        prompt: str,
-        language: str,
-        provider: str = "auto",
-        max_tokens: int = 500
+        prompt: str, language: str, provider: str = "auto", max_tokens: int = 500
     ) -> dict[str, Any]:
         """
         Gera código a partir de descrição em linguagem natural.
@@ -100,10 +95,7 @@ def register_codegen_tools(mcp: FastMCP) -> None:
         provider_name, client = select_provider(provider)
 
         logger.info(
-            "generating_code",
-            provider=provider_name,
-            language=language,
-            prompt_length=len(prompt)
+            "generating_code", provider=provider_name, language=language, prompt_length=len(prompt)
         )
 
         if provider_name == "openai":
@@ -119,7 +111,7 @@ def register_codegen_tools(mcp: FastMCP) -> None:
                 "provider": provider_name,
                 "error": result.get("error"),
                 "message": result.get("message"),
-                "duration_seconds": duration
+                "duration_seconds": duration,
             }
 
         return {
@@ -129,15 +121,12 @@ def register_codegen_tools(mcp: FastMCP) -> None:
             "code": result.get("code", ""),
             "model": result.get("model"),
             "usage": result.get("usage", {}),
-            "duration_seconds": duration
+            "duration_seconds": duration,
         }
 
     @mcp.tool()
     async def complete_code(
-        code: str,
-        language: str,
-        cursor_position: int,
-        provider: str = "auto"
+        code: str, language: str, cursor_position: int, provider: str = "auto"
     ) -> dict[str, Any]:
         """
         Completa código parcial na posição do cursor.
@@ -160,21 +149,17 @@ def register_codegen_tools(mcp: FastMCP) -> None:
             provider=provider_name,
             language=language,
             code_length=len(code),
-            cursor_position=cursor_position
+            cursor_position=cursor_position,
         )
 
         if provider_name == "openai":
-            result = await client.complete_code(
-                code, language, cursor_position
-            )
+            result = await client.complete_code(code, language, cursor_position)
             if result.get("success"):
                 completions = [{"text": result.get("completion", ""), "index": 0}]
             else:
                 completions = []
         else:
-            result = await client.get_suggestions(
-                code, language, cursor_position
-            )
+            result = await client.get_suggestions(code, language, cursor_position)
             completions = result.get("suggestions", [])
 
         duration = time.time() - start_time
@@ -185,7 +170,7 @@ def register_codegen_tools(mcp: FastMCP) -> None:
                 "provider": provider_name,
                 "error": result.get("error"),
                 "message": result.get("message"),
-                "duration_seconds": duration
+                "duration_seconds": duration,
             }
 
         return {
@@ -194,15 +179,11 @@ def register_codegen_tools(mcp: FastMCP) -> None:
             "language": language,
             "completions": completions,
             "model": result.get("model"),
-            "duration_seconds": duration
+            "duration_seconds": duration,
         }
 
     @mcp.tool()
-    async def explain_code(
-        code: str,
-        language: str,
-        provider: str = "auto"
-    ) -> dict[str, Any]:
+    async def explain_code(code: str, language: str, provider: str = "auto") -> dict[str, Any]:
         """
         Gera explicação detalhada para um trecho de código.
 
@@ -229,14 +210,11 @@ def register_codegen_tools(mcp: FastMCP) -> None:
             return {
                 "success": False,
                 "error": "No provider available",
-                "message": "Nenhum provider de IA configurado para explicação"
+                "message": "Nenhum provider de IA configurado para explicação",
             }
 
         logger.info(
-            "explaining_code",
-            provider=provider_name,
-            language=language,
-            code_length=len(code)
+            "explaining_code", provider=provider_name, language=language, code_length=len(code)
         )
 
         # Chamar método apropriado baseado no provider
@@ -257,7 +235,7 @@ def register_codegen_tools(mcp: FastMCP) -> None:
                 "provider": provider_name,
                 "error": result.get("error"),
                 "message": result.get("message"),
-                "duration_seconds": duration
+                "duration_seconds": duration,
             }
 
         return {
@@ -267,5 +245,5 @@ def register_codegen_tools(mcp: FastMCP) -> None:
             "explanation": result.get("explanation", ""),
             "model": result.get("model"),
             "usage": result.get("usage", {}),
-            "duration_seconds": duration
+            "duration_seconds": duration,
         }

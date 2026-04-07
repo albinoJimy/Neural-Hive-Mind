@@ -94,9 +94,11 @@ class TestOntologyBasedEvaluator:
 
     def test_init_with_ontology_path(self, config):
         """Testa inicialização com ontology_path."""
-        with patch('builtins.open', mock_open(read_data='{}')):
-            with patch('pathlib.Path.exists', return_value=True):
-                from neural_hive_specialists.semantic_pipeline.ontology_evaluator import OntologyBasedEvaluator
+        with patch("builtins.open", mock_open(read_data="{}")):
+            with patch("pathlib.Path.exists", return_value=True):
+                from neural_hive_specialists.semantic_pipeline.ontology_evaluator import (
+                    OntologyBasedEvaluator,
+                )
 
                 evaluator = OntologyBasedEvaluator(config)
 
@@ -107,7 +109,9 @@ class TestOntologyBasedEvaluator:
         """Testa inicialização sem ontology_path."""
         config = {}
 
-        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import OntologyBasedEvaluator
+        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import (
+            OntologyBasedEvaluator,
+        )
 
         evaluator = OntologyBasedEvaluator(config)
 
@@ -115,11 +119,13 @@ class TestOntologyBasedEvaluator:
         assert evaluator.intents_taxonomy is None
         assert evaluator.architecture_patterns is None
 
-    @patch('builtins.open', mock_open(read_data='{"domains": {}}'))
-    @patch('pathlib.Path.exists', return_value=True)
+    @patch("builtins.open", mock_open(read_data='{"domains": {}}'))
+    @patch("pathlib.Path.exists", return_value=True)
     def test_load_ontologies_successfully(self, mock_exists, config):
         """Testa carregamento bem-sucedido de ontologias."""
-        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import OntologyBasedEvaluator
+        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import (
+            OntologyBasedEvaluator,
+        )
 
         evaluator = OntologyBasedEvaluator(config)
 
@@ -128,7 +134,9 @@ class TestOntologyBasedEvaluator:
 
     def test_load_ontologies_no_path(self):
         """Testa carregamento sem ontology_path configurado."""
-        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import OntologyBasedEvaluator
+        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import (
+            OntologyBasedEvaluator,
+        )
 
         config = {}
         evaluator = OntologyBasedEvaluator(config)
@@ -136,9 +144,13 @@ class TestOntologyBasedEvaluator:
         assert evaluator.intents_taxonomy is None
         assert evaluator.architecture_patterns is None
 
-    def test_evaluate_security_level_no_taxonomy(self, sample_cognitive_plan, sample_extracted_features):
+    def test_evaluate_security_level_no_taxonomy(
+        self, sample_cognitive_plan, sample_extracted_features
+    ):
         """Testa avaliação de segurança sem taxonomia carregada."""
-        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import OntologyBasedEvaluator
+        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import (
+            OntologyBasedEvaluator,
+        )
 
         config = {}
         evaluator = OntologyBasedEvaluator(config)
@@ -149,7 +161,9 @@ class TestOntologyBasedEvaluator:
 
     def test_evaluate_security_level_no_domain(self, sample_cognitive_plan):
         """Testa avaliação de segurança sem domínio nas features."""
-        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import OntologyBasedEvaluator
+        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import (
+            OntologyBasedEvaluator,
+        )
 
         config = {"ontology_path": "/fake/path"}
         evaluator = OntologyBasedEvaluator(config)
@@ -159,11 +173,15 @@ class TestOntologyBasedEvaluator:
 
         assert score == 0.5
 
-    def test_evaluate_security_level_unknown_domain(self, sample_cognitive_plan, sample_extracted_features):
+    def test_evaluate_security_level_unknown_domain(
+        self, sample_cognitive_plan, sample_extracted_features
+    ):
         """Testa avaliação de segurança com domínio desconhecido."""
-        with patch('builtins.open', mock_open(read_data='{"domains": {}}')):
-            with patch('pathlib.Path.exists', return_value=True):
-                from neural_hive_specialists.semantic_pipeline.ontology_evaluator import OntologyBasedEvaluator
+        with patch("builtins.open", mock_open(read_data='{"domains": {}}')):
+            with patch("pathlib.Path.exists", return_value=True):
+                from neural_hive_specialists.semantic_pipeline.ontology_evaluator import (
+                    OntologyBasedEvaluator,
+                )
 
                 config = {"ontology_path": "/fake/path"}
                 evaluator = OntologyBasedEvaluator(config)
@@ -177,14 +195,18 @@ class TestOntologyBasedEvaluator:
         self, sample_cognitive_plan, sample_extracted_features, sample_intents_taxonomy
     ):
         """Testa avaliação de segurança com domínio conhecido."""
-        with patch('builtins.open', mock_open(read_data=json.dumps(sample_intents_taxonomy))):
-            with patch('pathlib.Path.exists', return_value=True):
-                from neural_hive_specialists.semantic_pipeline.ontology_evaluator import OntologyBasedEvaluator
+        with patch("builtins.open", mock_open(read_data=json.dumps(sample_intents_taxonomy))):
+            with patch("pathlib.Path.exists", return_value=True):
+                from neural_hive_specialists.semantic_pipeline.ontology_evaluator import (
+                    OntologyBasedEvaluator,
+                )
 
                 config = {"ontology_path": "/fake/path"}
                 evaluator = OntologyBasedEvaluator(config)
 
-                score = evaluator.evaluate_security_level(sample_cognitive_plan, sample_extracted_features)
+                score = evaluator.evaluate_security_level(
+                    sample_cognitive_plan, sample_extracted_features
+                )
 
                 # technical tem risk_weight=0.5, então base_security = 1.0 - 0.5 = 0.5
                 # + 0.2 boost por security subcategory = 0.7
@@ -203,25 +225,35 @@ class TestOntologyBasedEvaluator:
             }
         }
 
-        with patch('builtins.open', mock_open(read_data=json.dumps(taxonomy))):
-            with patch('pathlib.Path.exists', return_value=True):
-                from neural_hive_specialists.semantic_pipeline.ontology_evaluator import OntologyBasedEvaluator
+        with patch("builtins.open", mock_open(read_data=json.dumps(taxonomy))):
+            with patch("pathlib.Path.exists", return_value=True):
+                from neural_hive_specialists.semantic_pipeline.ontology_evaluator import (
+                    OntologyBasedEvaluator,
+                )
 
                 config = {"ontology_path": "/fake/path"}
                 evaluator = OntologyBasedEvaluator(config)
 
-                score = evaluator.evaluate_security_level(sample_cognitive_plan, sample_extracted_features)
+                score = evaluator.evaluate_security_level(
+                    sample_cognitive_plan, sample_extracted_features
+                )
 
                 assert 0.0 <= score <= 1.0
 
-    def test_evaluate_architecture_compliance_no_patterns(self, sample_cognitive_plan, sample_extracted_features):
+    def test_evaluate_architecture_compliance_no_patterns(
+        self, sample_cognitive_plan, sample_extracted_features
+    ):
         """Testa avaliação arquitetural sem padrões carregados."""
-        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import OntologyBasedEvaluator
+        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import (
+            OntologyBasedEvaluator,
+        )
 
         config = {}
         evaluator = OntologyBasedEvaluator(config)
 
-        score = evaluator.evaluate_architecture_compliance(sample_cognitive_plan, sample_extracted_features)
+        score = evaluator.evaluate_architecture_compliance(
+            sample_cognitive_plan, sample_extracted_features
+        )
 
         assert score == 0.5
 
@@ -229,14 +261,18 @@ class TestOntologyBasedEvaluator:
         self, sample_cognitive_plan, sample_extracted_features, sample_architecture_patterns
     ):
         """Testa avaliação arquitetural com features de grafo."""
-        with patch('builtins.open', mock_open(read_data=json.dumps(sample_architecture_patterns))):
-            with patch('pathlib.Path.exists', return_value=True):
-                from neural_hive_specialists.semantic_pipeline.ontology_evaluator import OntologyBasedEvaluator
+        with patch("builtins.open", mock_open(read_data=json.dumps(sample_architecture_patterns))):
+            with patch("pathlib.Path.exists", return_value=True):
+                from neural_hive_specialists.semantic_pipeline.ontology_evaluator import (
+                    OntologyBasedEvaluator,
+                )
 
                 config = {"ontology_path": "/fake/path"}
                 evaluator = OntologyBasedEvaluator(config)
 
-                score = evaluator.evaluate_architecture_compliance(sample_cognitive_plan, sample_extracted_features)
+                score = evaluator.evaluate_architecture_compliance(
+                    sample_cognitive_plan, sample_extracted_features
+                )
 
                 # Score deve estar no intervalo válido
                 assert 0.0 <= score <= 1.0
@@ -246,15 +282,19 @@ class TestOntologyBasedEvaluator:
         self, sample_cognitive_plan, sample_intents_taxonomy
     ):
         """Testa avaliação arquitetural com features de grafo incompletas."""
-        with patch('builtins.open', mock_open(read_data=json.dumps(sample_intents_taxonomy))):
-            with patch('pathlib.Path.exists', return_value=True):
-                from neural_hive_specialists.semantic_pipeline.ontology_evaluator import OntologyBasedEvaluator
+        with patch("builtins.open", mock_open(read_data=json.dumps(sample_intents_taxonomy))):
+            with patch("pathlib.Path.exists", return_value=True):
+                from neural_hive_specialists.semantic_pipeline.ontology_evaluator import (
+                    OntologyBasedEvaluator,
+                )
 
                 config = {"ontology_path": "/fake/path"}
                 evaluator = OntologyBasedEvaluator(config)
 
                 features_no_graph = {"metadata_features": {"domain": "technical"}}
-                score = evaluator.evaluate_architecture_compliance(sample_cognitive_plan, features_no_graph)
+                score = evaluator.evaluate_architecture_compliance(
+                    sample_cognitive_plan, features_no_graph
+                )
 
                 # Deve usar valores padrão
                 assert 0.0 <= score <= 1.0
@@ -263,7 +303,9 @@ class TestOntologyBasedEvaluator:
         self, sample_cognitive_plan, sample_extracted_features
     ):
         """Testa avaliação de complexidade sem taxonomia."""
-        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import OntologyBasedEvaluator
+        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import (
+            OntologyBasedEvaluator,
+        )
 
         config = {}
         evaluator = OntologyBasedEvaluator(config)
@@ -277,14 +319,18 @@ class TestOntologyBasedEvaluator:
         self, sample_cognitive_plan, sample_extracted_features, sample_intents_taxonomy
     ):
         """Testa avaliação de complexidade com taxonomia."""
-        with patch('builtins.open', mock_open(read_data=json.dumps(sample_intents_taxonomy))):
-            with patch('pathlib.Path.exists', return_value=True):
-                from neural_hive_specialists.semantic_pipeline.ontology_evaluator import OntologyBasedEvaluator
+        with patch("builtins.open", mock_open(read_data=json.dumps(sample_intents_taxonomy))):
+            with patch("pathlib.Path.exists", return_value=True):
+                from neural_hive_specialists.semantic_pipeline.ontology_evaluator import (
+                    OntologyBasedEvaluator,
+                )
 
                 config = {"ontology_path": "/fake/path"}
                 evaluator = OntologyBasedEvaluator(config)
 
-                score = evaluator.evaluate_complexity(sample_cognitive_plan, sample_extracted_features)
+                score = evaluator.evaluate_complexity(
+                    sample_cognitive_plan, sample_extracted_features
+                )
 
                 # technical tem complexity_factors [0.7, 0.5] -> média 0.6
                 # + path_complexity + density
@@ -307,12 +353,14 @@ class TestOntologyBasedEvaluator:
             "graph_features": {
                 "critical_path_length": 100,  # > 10
                 "density": 2.0,  # > 1.0
-            }
+            },
         }
 
-        with patch('builtins.open', mock_open(read_data=json.dumps(taxonomy))):
-            with patch('pathlib.Path.exists', return_value=True):
-                from neural_hive_specialists.semantic_pipeline.ontology_evaluator import OntologyBasedEvaluator
+        with patch("builtins.open", mock_open(read_data=json.dumps(taxonomy))):
+            with patch("pathlib.Path.exists", return_value=True):
+                from neural_hive_specialists.semantic_pipeline.ontology_evaluator import (
+                    OntologyBasedEvaluator,
+                )
 
                 config = {"ontology_path": "/fake/path"}
                 evaluator = OntologyBasedEvaluator(config)
@@ -325,7 +373,9 @@ class TestOntologyBasedEvaluator:
         self, sample_cognitive_plan, sample_extracted_features
     ):
         """Testa avaliação de padrões de risco sem taxonomia."""
-        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import OntologyBasedEvaluator
+        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import (
+            OntologyBasedEvaluator,
+        )
 
         config = {}
         evaluator = OntologyBasedEvaluator(config)
@@ -336,7 +386,9 @@ class TestOntologyBasedEvaluator:
 
     def test_evaluate_risk_patterns_no_domain(self, sample_cognitive_plan):
         """Testa avaliação de padrões de risco sem domínio."""
-        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import OntologyBasedEvaluator
+        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import (
+            OntologyBasedEvaluator,
+        )
 
         config = {}
         evaluator = OntologyBasedEvaluator(config)
@@ -350,14 +402,18 @@ class TestOntologyBasedEvaluator:
         self, sample_cognitive_plan, sample_extracted_features, sample_intents_taxonomy
     ):
         """Testa avaliação de padrões de risco com padrões definidos."""
-        with patch('builtins.open', mock_open(read_data=json.dumps(sample_intents_taxonomy))):
-            with patch('pathlib.Path.exists', return_value=True):
-                from neural_hive_specialists.semantic_pipeline.ontology_evaluator import OntologyBasedEvaluator
+        with patch("builtins.open", mock_open(read_data=json.dumps(sample_intents_taxonomy))):
+            with patch("pathlib.Path.exists", return_value=True):
+                from neural_hive_specialists.semantic_pipeline.ontology_evaluator import (
+                    OntologyBasedEvaluator,
+                )
 
                 config = {"ontology_path": "/fake/path"}
                 evaluator = OntologyBasedEvaluator(config)
 
-                score = evaluator.evaluate_risk_patterns(sample_cognitive_plan, sample_extracted_features)
+                score = evaluator.evaluate_risk_patterns(
+                    sample_cognitive_plan, sample_extracted_features
+                )
 
                 # technical tem 2 patterns: high(0.7)*0.6 + low(0.3)*0.3 = 0.42+0.09 = 0.51/2 = 0.255
                 assert 0.0 <= score <= 1.0
@@ -375,89 +431,93 @@ class TestOntologyBasedEvaluator:
             }
         }
 
-        with patch('builtins.open', mock_open(read_data=json.dumps(taxonomy))):
-            with patch('pathlib.Path.exists', return_value=True):
-                from neural_hive_specialists.semantic_pipeline.ontology_evaluator import OntologyBasedEvaluator
+        with patch("builtins.open", mock_open(read_data=json.dumps(taxonomy))):
+            with patch("pathlib.Path.exists", return_value=True):
+                from neural_hive_specialists.semantic_pipeline.ontology_evaluator import (
+                    OntologyBasedEvaluator,
+                )
 
                 config = {"ontology_path": "/fake/path"}
                 evaluator = OntologyBasedEvaluator(config)
 
-                score = evaluator.evaluate_risk_patterns(sample_cognitive_plan, sample_extracted_features)
+                score = evaluator.evaluate_risk_patterns(
+                    sample_cognitive_plan, sample_extracted_features
+                )
 
                 # Deve usar risk_weight como fallback
                 assert score == 0.7
 
     def test_get_domain_recommendations_approve(self):
         """Testa recomendação approve."""
-        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import OntologyBasedEvaluator
+        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import (
+            OntologyBasedEvaluator,
+        )
 
         config = {}
         evaluator = OntologyBasedEvaluator(config)
 
         recommendation = evaluator.get_domain_recommendations(
-            domain="technical",
-            risk_score=0.2,
-            confidence_score=0.9
+            domain="technical", risk_score=0.2, confidence_score=0.9
         )
 
         assert recommendation == "approve"
 
     def test_get_domain_recommendations_reject_low_confidence(self):
         """Testa recomendação reject por baixa confiança."""
-        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import OntologyBasedEvaluator
+        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import (
+            OntologyBasedEvaluator,
+        )
 
         config = {}
         evaluator = OntologyBasedEvaluator(config)
 
         recommendation = evaluator.get_domain_recommendations(
-            domain="technical",
-            risk_score=0.3,
-            confidence_score=0.4  # < 0.5
+            domain="technical", risk_score=0.3, confidence_score=0.4  # < 0.5
         )
 
         assert recommendation == "reject"
 
     def test_get_domain_recommendations_reject_high_risk(self):
         """Testa recomendação reject por alto risco."""
-        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import OntologyBasedEvaluator
+        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import (
+            OntologyBasedEvaluator,
+        )
 
         config = {}
         evaluator = OntologyBasedEvaluator(config)
 
         recommendation = evaluator.get_domain_recommendations(
-            domain="technical",
-            risk_score=0.8,  # > 0.7
-            confidence_score=0.6
+            domain="technical", risk_score=0.8, confidence_score=0.6  # > 0.7
         )
 
         assert recommendation == "reject"
 
     def test_get_domain_recommendations_review_required(self):
         """Testa recomendação review_required."""
-        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import OntologyBasedEvaluator
+        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import (
+            OntologyBasedEvaluator,
+        )
 
         config = {}
         evaluator = OntologyBasedEvaluator(config)
 
         recommendation = evaluator.get_domain_recommendations(
-            domain="technical",
-            risk_score=0.6,  # > 0.5
-            confidence_score=0.6
+            domain="technical", risk_score=0.6, confidence_score=0.6  # > 0.5
         )
 
         assert recommendation == "review_required"
 
     def test_get_domain_recommendations_conditional(self):
         """Testa recomendação conditional."""
-        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import OntologyBasedEvaluator
+        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import (
+            OntologyBasedEvaluator,
+        )
 
         config = {}
         evaluator = OntologyBasedEvaluator(config)
 
         recommendation = evaluator.get_domain_recommendations(
-            domain="technical",
-            risk_score=0.4,  # < 0.5
-            confidence_score=0.6  # >= 0.5
+            domain="technical", risk_score=0.4, confidence_score=0.6  # < 0.5  # >= 0.5
         )
 
         assert recommendation == "conditional"
@@ -474,14 +534,18 @@ class TestOntologyBasedEvaluator:
             }
         }
 
-        with patch('builtins.open', mock_open(read_data=json.dumps(taxonomy))):
-            with patch('pathlib.Path.exists', return_value=True):
-                from neural_hive_specialists.semantic_pipeline.ontology_evaluator import OntologyBasedEvaluator
+        with patch("builtins.open", mock_open(read_data=json.dumps(taxonomy))):
+            with patch("pathlib.Path.exists", return_value=True):
+                from neural_hive_specialists.semantic_pipeline.ontology_evaluator import (
+                    OntologyBasedEvaluator,
+                )
 
                 config = {"ontology_path": "/fake/path"}
                 evaluator = OntologyBasedEvaluator(config)
 
-                score = evaluator.evaluate_security_level(sample_cognitive_plan, sample_extracted_features)
+                score = evaluator.evaluate_security_level(
+                    sample_cognitive_plan, sample_extracted_features
+                )
 
                 # Deve retornar fallback
                 assert score == 0.5
@@ -490,7 +554,9 @@ class TestOntologyBasedEvaluator:
         self, sample_cognitive_plan, sample_extracted_features
     ):
         """Testa tratamento de exceção em evaluate_architecture_compliance."""
-        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import OntologyBasedEvaluator
+        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import (
+            OntologyBasedEvaluator,
+        )
 
         config = {}
         evaluator = OntologyBasedEvaluator(config)
@@ -507,14 +573,16 @@ class TestOntologyBasedEvaluator:
         self, sample_cognitive_plan, sample_extracted_features
     ):
         """Testa tratamento de exceção em evaluate_complexity."""
-        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import OntologyBasedEvaluator
+        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import (
+            OntologyBasedEvaluator,
+        )
 
         config = {}
         evaluator = OntologyBasedEvaluator(config)
 
         # Criar features que causam exceção durante processamento
         # O código trata exceções e retorna 0.5
-        with patch.object(evaluator, 'intents_taxonomy', None):
+        with patch.object(evaluator, "intents_taxonomy", None):
             score = evaluator.evaluate_complexity(sample_cognitive_plan, {"metadata_features": {}})
 
         # Deve retornar valor calculado ou fallback
@@ -526,22 +594,22 @@ class TestOntologyBasedEvaluator:
         """Testa tratamento de exceção em evaluate_risk_patterns."""
         taxonomy = {
             "domains": {
-                "technical": {
-                    "risk_patterns": [
-                        {"threshold": "invalid", "severity": "invalid"}
-                    ]
-                }
+                "technical": {"risk_patterns": [{"threshold": "invalid", "severity": "invalid"}]}
             }
         }
 
-        with patch('builtins.open', mock_open(read_data=json.dumps(taxonomy))):
-            with patch('pathlib.Path.exists', return_value=True):
-                from neural_hive_specialists.semantic_pipeline.ontology_evaluator import OntologyBasedEvaluator
+        with patch("builtins.open", mock_open(read_data=json.dumps(taxonomy))):
+            with patch("pathlib.Path.exists", return_value=True):
+                from neural_hive_specialists.semantic_pipeline.ontology_evaluator import (
+                    OntologyBasedEvaluator,
+                )
 
                 config = {"ontology_path": "/fake/path"}
                 evaluator = OntologyBasedEvaluator(config)
 
-                score = evaluator.evaluate_risk_patterns(sample_cognitive_plan, sample_extracted_features)
+                score = evaluator.evaluate_risk_patterns(
+                    sample_cognitive_plan, sample_extracted_features
+                )
 
                 # Deve retornar fallback
                 assert score == 0.5
@@ -559,9 +627,11 @@ class TestOntologyBasedEvaluator:
             }
         }
 
-        with patch('builtins.open', mock_open(read_data=json.dumps(taxonomy))):
-            with patch('pathlib.Path.exists', return_value=True):
-                from neural_hive_specialists.semantic_pipeline.ontology_evaluator import OntologyBasedEvaluator
+        with patch("builtins.open", mock_open(read_data=json.dumps(taxonomy))):
+            with patch("pathlib.Path.exists", return_value=True):
+                from neural_hive_specialists.semantic_pipeline.ontology_evaluator import (
+                    OntologyBasedEvaluator,
+                )
 
                 config = {"ontology_path": "/fake/path"}
                 evaluator = OntologyBasedEvaluator(config)
@@ -576,7 +646,9 @@ class TestOntologyBasedEvaluator:
 
     def test_architecture_score_components(self, sample_cognitive_plan, sample_extracted_features):
         """Testa componentes do score arquitetural."""
-        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import OntologyBasedEvaluator
+        from neural_hive_specialists.semantic_pipeline.ontology_evaluator import (
+            OntologyBasedEvaluator,
+        )
 
         config = {}
         evaluator = OntologyBasedEvaluator(config)
@@ -588,7 +660,9 @@ class TestOntologyBasedEvaluator:
         # Total = 1.0*0.3 + 0.6*0.3 + 1.0*0.4 = 0.3 + 0.18 + 0.4 = 0.88
 
         # Mas sem patterns carregados, deve retornar 0.5
-        score = evaluator.evaluate_architecture_compliance(sample_cognitive_plan, sample_extracted_features)
+        score = evaluator.evaluate_architecture_compliance(
+            sample_cognitive_plan, sample_extracted_features
+        )
 
         assert score == 0.5  # Sem patterns carregados
 
@@ -607,16 +681,16 @@ class TestOntologyBasedEvaluator:
                 "domains": {
                     "test": {
                         "risk_weight": 0.5,
-                        "risk_patterns": [
-                            {"threshold": 1.0, "severity": severity}
-                        ]
+                        "risk_patterns": [{"threshold": 1.0, "severity": severity}],
                     }
                 }
             }
 
-            with patch('builtins.open', mock_open(read_data=json.dumps(taxonomy))):
-                with patch('pathlib.Path.exists', return_value=True):
-                    from neural_hive_specialists.semantic_pipeline.ontology_evaluator import OntologyBasedEvaluator
+            with patch("builtins.open", mock_open(read_data=json.dumps(taxonomy))):
+                with patch("pathlib.Path.exists", return_value=True):
+                    from neural_hive_specialists.semantic_pipeline.ontology_evaluator import (
+                        OntologyBasedEvaluator,
+                    )
 
                     config = {"ontology_path": "/fake/path"}
                     evaluator = OntologyBasedEvaluator(config)

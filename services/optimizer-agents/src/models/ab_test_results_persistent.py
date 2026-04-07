@@ -7,6 +7,7 @@ incluindo conversão de/para dicionário e serialização.
 
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
+
 UTC = timezone.utc  # type: ignore
 from typing import Any
 

@@ -18,17 +18,17 @@ from datetime import timedelta
 @pytest.fixture
 def mock_app_state():
     """Mock do app_state para testes."""
-    with patch('src.main.app_state') as mock_state:
+    with patch("src.main.app_state") as mock_state:
         yield mock_state
 
 
 @pytest.fixture
 def mock_settings():
     """Mock das configurações."""
-    with patch('src.main.get_settings') as mock_get_settings:
+    with patch("src.main.get_settings") as mock_get_settings:
         mock_config = MagicMock()
-        mock_config.temporal_workflow_id_prefix = 'nhm-'
-        mock_config.temporal_task_queue = 'orchestration-tasks'
+        mock_config.temporal_workflow_id_prefix = "nhm-"
+        mock_config.temporal_task_queue = "orchestration-tasks"
         mock_get_settings.return_value = mock_config
         yield mock_config
 
@@ -57,12 +57,12 @@ class TestWorkflowStartIntegration:
                 "decision_id": "decision-integration-001",
                 "tasks": [
                     {"task_id": "task-1", "type": "BUILD", "description": "Build service"},
-                    {"task_id": "task-2", "type": "DEPLOY", "description": "Deploy to staging"}
-                ]
+                    {"task_id": "task-2", "type": "DEPLOY", "description": "Deploy to staging"},
+                ],
             },
             "correlation_id": "corr-integration",
             "priority": 8,
-            "sla_deadline_seconds": 7200
+            "sla_deadline_seconds": 7200,
         }
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
@@ -93,12 +93,14 @@ class TestWorkflowStartIntegration:
 
         # Mock Temporal client para start
         mock_handle = AsyncMock()
-        mock_handle.query = AsyncMock(return_value={
-            "status": "started",
-            "tickets_generated": 0,
-            "workflow_result": {},
-            "sla_warnings": []
-        })
+        mock_handle.query = AsyncMock(
+            return_value={
+                "status": "started",
+                "tickets_generated": 0,
+                "workflow_result": {},
+                "sla_warnings": [],
+            }
+        )
 
         mock_temporal = MagicMock()
         mock_temporal.start_workflow = AsyncMock()
@@ -111,16 +113,15 @@ class TestWorkflowStartIntegration:
                 "/api/v1/workflows/start",
                 json={
                     "cognitive_plan": {"plan_id": "plan-query-test"},
-                    "correlation_id": "corr-query-test"
-                }
+                    "correlation_id": "corr-query-test",
+                },
             )
             assert start_response.status_code == 200
             workflow_id = start_response.json()["workflow_id"]
 
             # 2. Consultar status do workflow
             query_response = await ac.post(
-                f"/api/v1/workflows/{workflow_id}/query",
-                json={"query_name": "get_status"}
+                f"/api/v1/workflows/{workflow_id}/query", json={"query_name": "get_status"}
             )
 
         # Validar que query funciona após start
@@ -150,15 +151,17 @@ class TestWorkflowStartIdempotency:
                 "/api/v1/workflows/start",
                 json={
                     "cognitive_plan": {"plan_id": "plan-dup"},
-                    "correlation_id": "corr-duplicate"
-                }
+                    "correlation_id": "corr-duplicate",
+                },
             )
 
         assert response.status_code == 500
         assert "Workflow execution already started" in response.json()["detail"]
 
     @pytest.mark.asyncio
-    async def test_workflow_start_concurrent_requests_same_correlation(self, mock_app_state, mock_settings):
+    async def test_workflow_start_concurrent_requests_same_correlation(
+        self, mock_app_state, mock_settings
+    ):
         """Testa requests concorrentes com mesmo correlation_id."""
         from src.main import app
         import asyncio
@@ -178,7 +181,7 @@ class TestWorkflowStartIdempotency:
 
         request_data = {
             "cognitive_plan": {"plan_id": "plan-concurrent"},
-            "correlation_id": "corr-concurrent"
+            "correlation_id": "corr-concurrent",
         }
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
@@ -186,11 +189,11 @@ class TestWorkflowStartIdempotency:
             results = await asyncio.gather(
                 ac.post("/api/v1/workflows/start", json=request_data),
                 ac.post("/api/v1/workflows/start", json=request_data),
-                return_exceptions=True
+                return_exceptions=True,
             )
 
         # Uma deve ter sucesso, outra deve falhar
-        status_codes = [r.status_code for r in results if hasattr(r, 'status_code')]
+        status_codes = [r.status_code for r in results if hasattr(r, "status_code")]
         assert 200 in status_codes or 500 in status_codes
 
 
@@ -215,8 +218,8 @@ class TestWorkflowStartErrorHandling:
                 "/api/v1/workflows/start",
                 json={
                     "cognitive_plan": {"plan_id": "plan-timeout"},
-                    "correlation_id": "corr-timeout"
-                }
+                    "correlation_id": "corr-timeout",
+                },
             )
 
         assert response.status_code == 500
@@ -238,8 +241,8 @@ class TestWorkflowStartErrorHandling:
                 "/api/v1/workflows/start",
                 json={
                     "cognitive_plan": {"plan_id": "plan-namespace"},
-                    "correlation_id": "corr-namespace"
-                }
+                    "correlation_id": "corr-namespace",
+                },
             )
 
         assert response.status_code == 500
@@ -250,7 +253,9 @@ class TestWorkflowStartWithMockWorkflow:
     """Testes com mock do OrchestrationWorkflow."""
 
     @pytest.mark.asyncio
-    async def test_workflow_start_passes_correct_workflow_class(self, mock_app_state, mock_settings):
+    async def test_workflow_start_passes_correct_workflow_class(
+        self, mock_app_state, mock_settings
+    ):
         """Testa que OrchestrationWorkflow.run é passado ao Temporal."""
         from src.main import app
 
@@ -261,10 +266,7 @@ class TestWorkflowStartWithMockWorkflow:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             response = await ac.post(
                 "/api/v1/workflows/start",
-                json={
-                    "cognitive_plan": {"plan_id": "plan-123"},
-                    "correlation_id": "corr-123"
-                }
+                json={"cognitive_plan": {"plan_id": "plan-123"}, "correlation_id": "corr-123"},
             )
 
         assert response.status_code == 200
@@ -273,7 +275,7 @@ class TestWorkflowStartWithMockWorkflow:
         call_args = mock_temporal.start_workflow.call_args
         workflow_run = call_args.args[0]
         # O nome do método deve ser 'run' do OrchestrationWorkflow
-        assert hasattr(workflow_run, '__name__') or callable(workflow_run)
+        assert hasattr(workflow_run, "__name__") or callable(workflow_run)
 
     @pytest.mark.asyncio
     async def test_workflow_start_uses_correct_task_queue(self, mock_app_state, mock_settings):
@@ -287,10 +289,7 @@ class TestWorkflowStartWithMockWorkflow:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             response = await ac.post(
                 "/api/v1/workflows/start",
-                json={
-                    "cognitive_plan": {"plan_id": "plan-123"},
-                    "correlation_id": "corr-123"
-                }
+                json={"cognitive_plan": {"plan_id": "plan-123"}, "correlation_id": "corr-123"},
             )
 
         assert response.status_code == 200
@@ -311,22 +310,19 @@ class TestWorkflowStartLogging:
         mock_temporal.start_workflow = AsyncMock()
         mock_app_state.temporal_client = mock_temporal
 
-        with patch('src.main.logger') as mock_logger:
+        with patch("src.main.logger") as mock_logger:
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 response = await ac.post(
                     "/api/v1/workflows/start",
-                    json={
-                        "cognitive_plan": {"plan_id": "plan-log"},
-                        "correlation_id": "corr-log"
-                    }
+                    json={"cognitive_plan": {"plan_id": "plan-log"}, "correlation_id": "corr-log"},
                 )
 
         assert response.status_code == 200
 
         # Verificar logs chamados
         log_calls = [call[0][0] for call in mock_logger.info.call_args_list]
-        assert 'workflow_start_attempt' in log_calls
-        assert 'workflow_started' in log_calls
+        assert "workflow_start_attempt" in log_calls
+        assert "workflow_started" in log_calls
 
     @pytest.mark.asyncio
     async def test_workflow_start_logs_rejection_when_temporal_unavailable(self, mock_app_state):
@@ -335,14 +331,14 @@ class TestWorkflowStartLogging:
 
         mock_app_state.temporal_client = None
 
-        with patch('src.main.logger') as mock_logger:
+        with patch("src.main.logger") as mock_logger:
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 response = await ac.post(
                     "/api/v1/workflows/start",
                     json={
                         "cognitive_plan": {"plan_id": "plan-reject"},
-                        "correlation_id": "corr-reject"
-                    }
+                        "correlation_id": "corr-reject",
+                    },
                 )
 
         assert response.status_code == 503
@@ -350,7 +346,7 @@ class TestWorkflowStartLogging:
         # Verificar log de rejeição
         mock_logger.warning.assert_called()
         warning_calls = [call[0][0] for call in mock_logger.warning.call_args_list]
-        assert 'workflow_start_rejected' in warning_calls
+        assert "workflow_start_rejected" in warning_calls
 
     @pytest.mark.asyncio
     async def test_workflow_start_logs_failure_on_error(self, mock_app_state, mock_settings):
@@ -361,14 +357,14 @@ class TestWorkflowStartLogging:
         mock_temporal.start_workflow = AsyncMock(side_effect=Exception("Test error"))
         mock_app_state.temporal_client = mock_temporal
 
-        with patch('src.main.logger') as mock_logger:
+        with patch("src.main.logger") as mock_logger:
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 response = await ac.post(
                     "/api/v1/workflows/start",
                     json={
                         "cognitive_plan": {"plan_id": "plan-fail"},
-                        "correlation_id": "corr-fail"
-                    }
+                        "correlation_id": "corr-fail",
+                    },
                 )
 
         assert response.status_code == 500
@@ -376,7 +372,7 @@ class TestWorkflowStartLogging:
         # Verificar log de erro
         mock_logger.error.assert_called()
         error_calls = [call[0][0] for call in mock_logger.error.call_args_list]
-        assert 'workflow_start_failed' in error_calls
+        assert "workflow_start_failed" in error_calls
 
 
 class TestWorkflowStartEdgeCases:
@@ -398,16 +394,13 @@ class TestWorkflowStartEdgeCases:
             "tasks": [
                 {"task_id": f"task-{i}", "type": "BUILD", "description": f"Task {i}"}
                 for i in range(100)
-            ]
+            ],
         }
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             response = await ac.post(
                 "/api/v1/workflows/start",
-                json={
-                    "cognitive_plan": large_plan,
-                    "correlation_id": "corr-large"
-                }
+                json={"cognitive_plan": large_plan, "correlation_id": "corr-large"},
             )
 
         assert response.status_code == 200
@@ -415,7 +408,9 @@ class TestWorkflowStartEdgeCases:
         assert data["status"] == "started"
 
     @pytest.mark.asyncio
-    async def test_workflow_start_with_special_characters_in_correlation_id(self, mock_app_state, mock_settings):
+    async def test_workflow_start_with_special_characters_in_correlation_id(
+        self, mock_app_state, mock_settings
+    ):
         """Testa correlation_id com caracteres especiais."""
         from src.main import app
 
@@ -431,8 +426,8 @@ class TestWorkflowStartEdgeCases:
                 "/api/v1/workflows/start",
                 json={
                     "cognitive_plan": {"plan_id": "plan-special"},
-                    "correlation_id": special_correlation
-                }
+                    "correlation_id": special_correlation,
+                },
             )
 
         assert response.status_code == 200
@@ -450,11 +445,7 @@ class TestWorkflowStartEdgeCases:
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             response = await ac.post(
-                "/api/v1/workflows/start",
-                json={
-                    "cognitive_plan": {},
-                    "correlation_id": "corr-min"
-                }
+                "/api/v1/workflows/start", json={"cognitive_plan": {}, "correlation_id": "corr-min"}
             )
 
         assert response.status_code == 200
@@ -463,7 +454,9 @@ class TestWorkflowStartEdgeCases:
         assert data["correlation_id"] == "corr-min"
 
     @pytest.mark.asyncio
-    async def test_workflow_start_preserves_extra_cognitive_plan_fields(self, mock_app_state, mock_settings):
+    async def test_workflow_start_preserves_extra_cognitive_plan_fields(
+        self, mock_app_state, mock_settings
+    ):
         """Testa que campos extras no cognitive_plan são preservados."""
         from src.main import app
 
@@ -475,16 +468,13 @@ class TestWorkflowStartEdgeCases:
             "plan_id": "plan-extra",
             "custom_field": "custom_value",
             "nested": {"key": "value"},
-            "array_field": [1, 2, 3]
+            "array_field": [1, 2, 3],
         }
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             response = await ac.post(
                 "/api/v1/workflows/start",
-                json={
-                    "cognitive_plan": cognitive_plan,
-                    "correlation_id": "corr-extra"
-                }
+                json={"cognitive_plan": cognitive_plan, "correlation_id": "corr-extra"},
             )
 
         assert response.status_code == 200

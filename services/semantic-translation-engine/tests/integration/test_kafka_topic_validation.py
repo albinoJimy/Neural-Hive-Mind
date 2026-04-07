@@ -16,13 +16,13 @@ class TestKafkaTopicValidation:
     def mock_settings(self):
         """Settings mock com configuração padrão."""
         settings = MagicMock()
-        settings.kafka_bootstrap_servers = 'localhost:9092'
+        settings.kafka_bootstrap_servers = "localhost:9092"
         settings.kafka_topics = [
-            'intentions.business',
-            'intentions.technical',
-            'intentions.infrastructure'
+            "intentions.business",
+            "intentions.technical",
+            "intentions.infrastructure",
         ]
-        settings.kafka_security_protocol = 'PLAINTEXT'
+        settings.kafka_security_protocol = "PLAINTEXT"
         settings.kafka_sasl_mechanism = None
         settings.kafka_sasl_username = None
         settings.kafka_sasl_password = None
@@ -33,11 +33,11 @@ class TestKafkaTopicValidation:
         """Mock de metadados do cluster com tópicos existentes."""
         metadata = MagicMock()
         metadata.topics = {
-            'intentions.business': MagicMock(),
-            'intentions.technical': MagicMock(),
-            'intentions.infrastructure': MagicMock(),
-            'intentions.security': MagicMock(),
-            'plans.ready': MagicMock(),
+            "intentions.business": MagicMock(),
+            "intentions.technical": MagicMock(),
+            "intentions.infrastructure": MagicMock(),
+            "intentions.security": MagicMock(),
+            "plans.ready": MagicMock(),
         }
         return metadata
 
@@ -46,9 +46,9 @@ class TestKafkaTopicValidation:
         """Mock de metadados do cluster sem alguns tópicos."""
         metadata = MagicMock()
         metadata.topics = {
-            'intentions.business': MagicMock(),
-            'plans.ready': MagicMock(),
-            'other.topic': MagicMock(),
+            "intentions.business": MagicMock(),
+            "plans.ready": MagicMock(),
+            "other.topic": MagicMock(),
         }
         return metadata
 
@@ -59,7 +59,7 @@ class TestKafkaTopicValidation:
         """Verifica que RuntimeError é lançado quando tópicos estão ausentes."""
         from src.main import validate_kafka_topics_exist
 
-        with patch('src.main.AdminClient') as MockAdminClient:
+        with patch("src.main.AdminClient") as MockAdminClient:
             mock_admin = MagicMock()
             mock_admin.list_topics.return_value = mock_cluster_metadata_missing_topics
             MockAdminClient.return_value = mock_admin
@@ -69,8 +69,8 @@ class TestKafkaTopicValidation:
 
             # Verifica mensagem de erro contém tópicos faltantes
             error_msg = str(exc_info.value)
-            assert 'intentions.technical' in error_msg or 'intentions.infrastructure' in error_msg
-            assert 'Tópicos Kafka obrigatórios não encontrados' in error_msg
+            assert "intentions.technical" in error_msg or "intentions.infrastructure" in error_msg
+            assert "Tópicos Kafka obrigatórios não encontrados" in error_msg
 
     @pytest.mark.asyncio
     async def test_validate_kafka_topics_exist_succeeds_when_all_exist(
@@ -79,7 +79,7 @@ class TestKafkaTopicValidation:
         """Verifica que nenhuma exceção é lançada quando todos os tópicos existem."""
         from src.main import validate_kafka_topics_exist
 
-        with patch('src.main.AdminClient') as MockAdminClient:
+        with patch("src.main.AdminClient") as MockAdminClient:
             mock_admin = MagicMock()
             mock_admin.list_topics.return_value = mock_cluster_metadata_with_topics
             MockAdminClient.return_value = mock_admin
@@ -92,23 +92,21 @@ class TestKafkaTopicValidation:
             mock_admin.list_topics.assert_called_once_with(timeout=10)
 
     @pytest.mark.asyncio
-    async def test_validate_kafka_topics_exist_handles_connection_error(
-        self, mock_settings
-    ):
+    async def test_validate_kafka_topics_exist_handles_connection_error(self, mock_settings):
         """Verifica tratamento de erro de conexão com Kafka."""
         from src.main import validate_kafka_topics_exist
 
-        with patch('src.main.AdminClient') as MockAdminClient:
+        with patch("src.main.AdminClient") as MockAdminClient:
             mock_admin = MagicMock()
-            mock_admin.list_topics.side_effect = Exception('Connection refused')
+            mock_admin.list_topics.side_effect = Exception("Connection refused")
             MockAdminClient.return_value = mock_admin
 
             with pytest.raises(RuntimeError) as exc_info:
                 await validate_kafka_topics_exist(mock_settings)
 
             error_msg = str(exc_info.value)
-            assert 'Não foi possível conectar ao Kafka' in error_msg
-            assert 'Connection refused' in error_msg
+            assert "Não foi possível conectar ao Kafka" in error_msg
+            assert "Connection refused" in error_msg
 
     @pytest.mark.asyncio
     async def test_validate_kafka_topics_with_security_config(self):
@@ -116,17 +114,17 @@ class TestKafkaTopicValidation:
         from src.main import validate_kafka_topics_exist
 
         settings = MagicMock()
-        settings.kafka_bootstrap_servers = 'localhost:9092'
-        settings.kafka_topics = ['test.topic']
-        settings.kafka_security_protocol = 'SASL_SSL'
-        settings.kafka_sasl_mechanism = 'PLAIN'
-        settings.kafka_sasl_username = 'user'
-        settings.kafka_sasl_password = 'password'
+        settings.kafka_bootstrap_servers = "localhost:9092"
+        settings.kafka_topics = ["test.topic"]
+        settings.kafka_security_protocol = "SASL_SSL"
+        settings.kafka_sasl_mechanism = "PLAIN"
+        settings.kafka_sasl_username = "user"
+        settings.kafka_sasl_password = "password"
 
         metadata = MagicMock()
-        metadata.topics = {'test.topic': MagicMock()}
+        metadata.topics = {"test.topic": MagicMock()}
 
-        with patch('src.main.AdminClient') as MockAdminClient:
+        with patch("src.main.AdminClient") as MockAdminClient:
             mock_admin = MagicMock()
             mock_admin.list_topics.return_value = metadata
             MockAdminClient.return_value = mock_admin
@@ -135,36 +133,34 @@ class TestKafkaTopicValidation:
 
             # Verifica que AdminClient foi criado com config de segurança
             call_args = MockAdminClient.call_args[0][0]
-            assert call_args['security.protocol'] == 'SASL_SSL'
-            assert call_args['sasl.mechanism'] == 'PLAIN'
-            assert call_args['sasl.username'] == 'user'
-            assert call_args['sasl.password'] == 'password'
+            assert call_args["security.protocol"] == "SASL_SSL"
+            assert call_args["sasl.mechanism"] == "PLAIN"
+            assert call_args["sasl.username"] == "user"
+            assert call_args["sasl.password"] == "password"
 
     @pytest.mark.asyncio
-    async def test_validate_kafka_topics_logs_available_topics_on_error(
-        self, mock_settings
-    ):
+    async def test_validate_kafka_topics_logs_available_topics_on_error(self, mock_settings):
         """Verifica que logs incluem tópicos disponíveis quando há erro."""
         from src.main import validate_kafka_topics_exist
 
         metadata = MagicMock()
         metadata.topics = {
-            'available.topic.1': MagicMock(),
-            'available.topic.2': MagicMock(),
+            "available.topic.1": MagicMock(),
+            "available.topic.2": MagicMock(),
         }
 
-        with patch('src.main.AdminClient') as MockAdminClient:
+        with patch("src.main.AdminClient") as MockAdminClient:
             mock_admin = MagicMock()
             mock_admin.list_topics.return_value = metadata
             MockAdminClient.return_value = mock_admin
 
-            with patch('src.main.logger') as mock_logger:
+            with patch("src.main.logger") as mock_logger:
                 with pytest.raises(RuntimeError):
                     await validate_kafka_topics_exist(mock_settings)
 
                 # Verifica que logger.error foi chamado com campos corretos
                 mock_logger.error.assert_called()
                 call_kwargs = mock_logger.error.call_args[1]
-                assert 'missing_topics' in call_kwargs
-                assert 'configured_topics' in call_kwargs
-                assert 'available_topics' in call_kwargs
+                assert "missing_topics" in call_kwargs
+                assert "configured_topics" in call_kwargs
+                assert "available_topics" in call_kwargs

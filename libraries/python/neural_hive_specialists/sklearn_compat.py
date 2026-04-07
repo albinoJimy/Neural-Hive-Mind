@@ -46,9 +46,7 @@ def _monkey_patch_sklearn_trees():
 
             def patched_getattribute(self, name):
                 """Handle missing monotonic_cst attribute gracefully."""
-                if name == "monotonic_cst" and not hasattr(
-                    self, "_monotonic_cst_patched"
-                ):
+                if name == "monotonic_cst" and not hasattr(self, "_monotonic_cst_patched"):
                     # Return None for missing monotonic_cst attribute
                     return None
                 return original_getattribute(self, name)
@@ -77,9 +75,7 @@ def _monkey_patch_sklearn_trees():
                 # Add monotonic_cst to all estimators before validation
                 if hasattr(self, "estimators_"):
                     for estimator in self.estimators_:
-                        if hasattr(estimator, "tree_") and not hasattr(
-                            estimator, "monotonic_cst"
-                        ):
+                        if hasattr(estimator, "tree_") and not hasattr(estimator, "monotonic_cst"):
                             object.__setattr__(estimator, "monotonic_cst", None)
                 return original_validate(self, X, *args, **kwargs)
 
@@ -144,25 +140,19 @@ def patch_model_after_loading(model):
         # Patch ensemble estimators
         if hasattr(sklearn_model, "estimators_"):
             for estimator in sklearn_model.estimators_:
-                if hasattr(estimator, "tree_") and not hasattr(
-                    estimator, "monotonic_cst"
-                ):
+                if hasattr(estimator, "tree_") and not hasattr(estimator, "monotonic_cst"):
                     object.__setattr__(estimator, "monotonic_cst", None)
                     patched_count += 1
 
                 # Handle nested estimators (e.g., in BaggingClassifier)
                 if hasattr(estimator, "estimators_"):
                     for nested in estimator.estimators_:
-                        if hasattr(nested, "tree_") and not hasattr(
-                            nested, "monotonic_cst"
-                        ):
+                        if hasattr(nested, "tree_") and not hasattr(nested, "monotonic_cst"):
                             object.__setattr__(nested, "monotonic_cst", None)
                             patched_count += 1
 
         # Patch single tree models
-        elif hasattr(sklearn_model, "tree_") and not hasattr(
-            sklearn_model, "monotonic_cst"
-        ):
+        elif hasattr(sklearn_model, "tree_") and not hasattr(sklearn_model, "monotonic_cst"):
             object.__setattr__(sklearn_model, "monotonic_cst", None)
             patched_count += 1
 

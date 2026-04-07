@@ -21,9 +21,7 @@ class TestTestRunnerExecution:
 
     @pytest.mark.asyncio
     async def test_run_tests_success(
-        self,
-        sample_pipeline_context_with_artifacts,
-        mock_mongodb_client
+        self, sample_pipeline_context_with_artifacts, mock_mongodb_client
     ):
         """Deve executar testes com sucesso."""
         from src.services.test_runner import TestRunner
@@ -54,13 +52,11 @@ def root():
         result = sample_pipeline_context_with_artifacts.validation_results[0]
         # ValidationStatus é StrEnum, então status.value retorna a string
         # Mas diretamente result.status já é a string
-        assert result.status in ('PASSED', 'WARNING', 'FAILED')  # pytest pode não estar instalado
+        assert result.status in ("PASSED", "WARNING", "FAILED")  # pytest pode não estar instalado
 
     @pytest.mark.asyncio
     async def test_run_tests_adds_validation_result(
-        self,
-        sample_pipeline_context_with_artifacts,
-        mock_mongodb_client
+        self, sample_pipeline_context_with_artifacts, mock_mongodb_client
     ):
         """Deve adicionar ValidationResult ao contexto."""
         from src.services.test_runner import TestRunner
@@ -78,17 +74,14 @@ def root():
         assert len(sample_pipeline_context_with_artifacts.validation_results) >= 1
         result = sample_pipeline_context_with_artifacts.validation_results[0]
         assert result.validation_type == ValidationType.UNIT_TEST
-        assert result.tool_name in ('pytest', 'heuristic')  # Fallback se pytest não instalado
+        assert result.tool_name in ("pytest", "heuristic")  # Fallback se pytest não instalado
 
 
 class TestTestRunnerCoverageThreshold:
     """Testes de threshold de cobertura."""
 
     @pytest.mark.asyncio
-    async def test_default_min_coverage(
-        self,
-        sample_pipeline_context_with_artifacts
-    ):
+    async def test_default_min_coverage(self, sample_pipeline_context_with_artifacts):
         """Deve usar min_coverage padrao de 0.8."""
         from src.services.test_runner import TestRunner
 
@@ -97,10 +90,7 @@ class TestTestRunnerCoverageThreshold:
         assert runner.min_coverage == 0.8
 
     @pytest.mark.asyncio
-    async def test_custom_min_coverage(
-        self,
-        sample_pipeline_context_with_artifacts
-    ):
+    async def test_custom_min_coverage(self, sample_pipeline_context_with_artifacts):
         """Deve aceitar min_coverage customizado."""
         from src.services.test_runner import TestRunner
 
@@ -114,16 +104,12 @@ class TestTestRunnerValidationResult:
 
     @pytest.mark.asyncio
     async def test_validation_result_no_issues(
-        self,
-        sample_pipeline_context_with_artifacts,
-        mock_mongodb_client
+        self, sample_pipeline_context_with_artifacts, mock_mongodb_client
     ):
         """Deve criar resultado com issues contados."""
         from src.services.test_runner import TestRunner
 
-        mock_mongodb_client.get_artifact_content = AsyncMock(
-            return_value='def test(): pass'
-        )
+        mock_mongodb_client.get_artifact_content = AsyncMock(return_value="def test(): pass")
 
         runner = TestRunner(min_coverage=0.8, mongodb_client=mock_mongodb_client)
 
@@ -140,9 +126,7 @@ class TestTestRunnerValidationResult:
 
     @pytest.mark.asyncio
     async def test_validation_result_has_duration(
-        self,
-        sample_pipeline_context_with_artifacts,
-        mock_mongodb_client
+        self, sample_pipeline_context_with_artifacts, mock_mongodb_client
     ):
         """Deve incluir duracao na execucao."""
         from src.services.test_runner import TestRunner
@@ -161,16 +145,12 @@ class TestTestRunnerValidationResult:
 
     @pytest.mark.asyncio
     async def test_validation_result_has_timestamp(
-        self,
-        sample_pipeline_context_with_artifacts,
-        mock_mongodb_client
+        self, sample_pipeline_context_with_artifacts, mock_mongodb_client
     ):
         """Deve incluir timestamp de execucao."""
         from src.services.test_runner import TestRunner
 
-        mock_mongodb_client.get_artifact_content = AsyncMock(
-            return_value='def test(): pass'
-        )
+        mock_mongodb_client.get_artifact_content = AsyncMock(return_value="def test(): pass")
 
         runner = TestRunner(mongodb_client=mock_mongodb_client)
 

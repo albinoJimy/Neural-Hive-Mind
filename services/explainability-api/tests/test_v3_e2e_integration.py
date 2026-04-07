@@ -176,9 +176,7 @@ class TestV3E2EFullFlow:
         # expectativa é consenso parcial (~0.6)
         assert 0.5 <= consensus_strength <= 0.7
 
-    def test_full_v3_explanation_flow_counterfactuals(
-        self, hierarchical_votes, explainer_services
-    ):
+    def test_full_v3_explanation_flow_counterfactuals(self, hierarchical_votes, explainer_services):
         """Testa geração de counterfactuals no fluxo completo."""
         analyzer = explainer_services["counterfactual"]
 
@@ -225,9 +223,7 @@ class TestV3E2EFullFlow:
         assert isinstance(sensitivity["decision_flips"], list)
 
     @pytest.mark.asyncio
-    async def test_full_v3_explanation_flow_temporal_analysis(
-        self, hierarchical_votes
-    ):
+    async def test_full_v3_explanation_flow_temporal_analysis(self, hierarchical_votes):
         """Testa análise temporal no fluxo completo."""
         from services.temporal_tracker import TemporalTracker
 
@@ -282,9 +278,7 @@ class TestV3E2EFullFlow:
         assert session["duration_hours"] > 0
 
     @pytest.mark.asyncio
-    async def test_full_v3_explanation_flow_temporal_window_analysis(
-        self, hierarchical_votes
-    ):
+    async def test_full_v3_explanation_flow_temporal_window_analysis(self, hierarchical_votes):
         """Testa análise de janela temporal."""
         from services.temporal_tracker import TemporalTracker
 
@@ -341,9 +335,7 @@ class TestV3E2EFullFlow:
 
         # 2. Counterfactuals
         analyzer = explainer_services["counterfactual"]
-        counterfactual_result = analyzer.generate_all_counterfactuals(
-            hierarchical_votes
-        )
+        counterfactual_result = analyzer.generate_all_counterfactuals(hierarchical_votes)
 
         assert "scenarios" in counterfactual_result
         assert "sensitivity_analysis" in counterfactual_result
@@ -351,15 +343,11 @@ class TestV3E2EFullFlow:
         # 3. Validar consistência entre componentes
 
         # Consensus strength deve ser calculável
-        consensus_strength = hierarchical_result["hierarchical_breakdown"][
-            "consensus_strength"
-        ]
+        consensus_strength = hierarchical_result["hierarchical_breakdown"]["consensus_strength"]
         assert 0.0 <= consensus_strength <= 1.0
 
         # Nível dominante deve estar presente
-        dominant_level = hierarchical_result["hierarchical_breakdown"][
-            "dominant_level"
-        ]
+        dominant_level = hierarchical_result["hierarchical_breakdown"]["dominant_level"]
         assert dominant_level in ["expert", "senior", "mid_level", "junior", "trainee"]
 
         # Decision flips devem ser detectáveis
@@ -379,9 +367,7 @@ class TestV3E2EFullFlow:
         assert "counterfactual_analysis" in integrated_result
         assert integrated_result["decision_id"] == "test-v3-decision"
 
-    def test_full_v3_explanation_flow_unanimous_consensus(
-        self, explainer_services
-    ):
+    def test_full_v3_explanation_flow_unanimous_consensus(self, explainer_services):
         """Testa fluxo com consenso unânime."""
         unanimous_votes = [
             create_vote("expert", "approve", 0.9, "business"),
@@ -400,9 +386,7 @@ class TestV3E2EFullFlow:
         dominant_level = result["hierarchical_breakdown"]["dominant_level"]
         assert dominant_level == "expert"
 
-    def test_full_v3_explanation_flow_divided_consensus(
-        self, explainer_services
-    ):
+    def test_full_v3_explanation_flow_divided_consensus(self, explainer_services):
         """Testa fluxo com consenso dividido."""
         divided_votes = [
             create_vote("expert", "approve", 0.9, "business"),

@@ -23,9 +23,7 @@ def mock_config():
 @pytest.fixture
 def collector(mock_config):
     """Instância de AggregatedMetricsCollector para testes."""
-    with patch(
-        "neural_hive_specialists.observability.aggregated_metrics.MongoClient"
-    ):
+    with patch("neural_hive_specialists.observability.aggregated_metrics.MongoClient"):
         return AggregatedMetricsCollector(mock_config)
 
 
@@ -74,9 +72,7 @@ class TestCollectConsensusMetrics:
         # Mock collection
         mock_collection = MagicMock()
         collector._mongo_client = MagicMock()
-        collector._mongo_client.__getitem__.return_value.__getitem__.return_value = (
-            mock_collection
-        )
+        collector._mongo_client.__getitem__.return_value.__getitem__.return_value = mock_collection
 
         # Mock aggregate result
         mock_collection.aggregate.return_value = [
@@ -111,9 +107,7 @@ class TestCollectConsensusMetrics:
         """Testa coleta quando não há dados."""
         mock_collection = MagicMock()
         collector._mongo_client = MagicMock()
-        collector._mongo_client.__getitem__.return_value.__getitem__.return_value = (
-            mock_collection
-        )
+        collector._mongo_client.__getitem__.return_value.__getitem__.return_value = mock_collection
 
         mock_collection.aggregate.return_value = []
 
@@ -130,9 +124,7 @@ class TestCollectSpecialistMetrics:
         """Testa coleta bem-sucedida de métricas por especialista."""
         mock_collection = MagicMock()
         collector._mongo_client = MagicMock()
-        collector._mongo_client.__getitem__.return_value.__getitem__.return_value = (
-            mock_collection
-        )
+        collector._mongo_client.__getitem__.return_value.__getitem__.return_value = mock_collection
 
         mock_collection.aggregate.return_value = [
             {
@@ -161,9 +153,7 @@ class TestCollectSpecialistMetrics:
         """Testa cálculo de buffered_rate."""
         mock_collection = MagicMock()
         collector._mongo_client = MagicMock()
-        collector._mongo_client.__getitem__.return_value.__getitem__.return_value = (
-            mock_collection
-        )
+        collector._mongo_client.__getitem__.return_value.__getitem__.return_value = mock_collection
 
         mock_collection.aggregate.return_value = [
             {
@@ -188,9 +178,7 @@ class TestCollectLatencyMetrics:
         """Testa coleta bem-sucedida de métricas de latência."""
         mock_collection = MagicMock()
         collector._mongo_client = MagicMock()
-        collector._mongo_client.__getitem__.return_value.__getitem__.return_value = (
-            mock_collection
-        )
+        collector._mongo_client.__getitem__.return_value.__getitem__.return_value = mock_collection
 
         processing_times = [100, 150, 200, 250, 300, 120, 180, 220, 280, 320]
 
@@ -208,13 +196,9 @@ class TestCollectLatencyMetrics:
         """Testa coleta com lista de tempos vazia."""
         mock_collection = MagicMock()
         collector._mongo_client = MagicMock()
-        collector._mongo_client.__getitem__.return_value.__getitem__.return_value = (
-            mock_collection
-        )
+        collector._mongo_client.__getitem__.return_value.__getitem__.return_value = mock_collection
 
-        mock_collection.aggregate.return_value = [
-            {"_id": "technical", "processing_times": []}
-        ]
+        mock_collection.aggregate.return_value = [{"_id": "technical", "processing_times": []}]
 
         await collector._collect_latency_metrics()
 
@@ -229,9 +213,7 @@ class TestCollectRecommendationDistribution:
         """Testa coleta bem-sucedida de distribuição."""
         mock_collection = MagicMock()
         collector._mongo_client = MagicMock()
-        collector._mongo_client.__getitem__.return_value.__getitem__.return_value = (
-            mock_collection
-        )
+        collector._mongo_client.__getitem__.return_value.__getitem__.return_value = mock_collection
 
         # Mock aggregate para distribution
         mock_collection.aggregate.side_effect = [
@@ -263,9 +245,7 @@ class TestCollectLedgerHealth:
         """Testa cálculo de saúde do ledger."""
         mock_collection = MagicMock()
         collector._mongo_client = MagicMock()
-        collector._mongo_client.__getitem__.return_value.__getitem__.return_value = (
-            mock_collection
-        )
+        collector._mongo_client.__getitem__.return_value.__getitem__.return_value = mock_collection
 
         # Mock dos dados
         mock_collection.find.return_value.limit.return_value = []
@@ -288,9 +268,7 @@ class TestCalculateSpecialistAgreementMatrix:
         """Testa com dados vazios."""
         mock_collection = MagicMock()
         collector._mongo_client = MagicMock()
-        collector._mongo_client.__getitem__.return_value.__getitem__.return_value = (
-            mock_collection
-        )
+        collector._mongo_client.__getitem__.return_value.__getitem__.return_value = mock_collection
 
         mock_collection.aggregate.return_value = []
 
@@ -302,9 +280,7 @@ class TestCalculateSpecialistAgreementMatrix:
         """Testa cálculo de matriz de concordância."""
         mock_collection = MagicMock()
         collector._mongo_client = MagicMock()
-        collector._mongo_client.__getitem__.return_value.__getitem__.return_value = (
-            mock_collection
-        )
+        collector._mongo_client.__getitem__.return_value.__getitem__.return_value = mock_collection
 
         # Plan 1: technical e business concordam (approve)
         # Plan 2: technical e business discordam
@@ -366,9 +342,7 @@ class TestCollectAllMetrics:
         # Mock collection
         mock_collection = MagicMock()
         collector._mongo_client = MagicMock()
-        collector._mongo_client.__getitem__.return_value.__getitem__.return_value = (
-            mock_collection
-        )
+        collector._mongo_client.__getitem__.return_value.__getitem__.return_value = mock_collection
 
         # Retornar dados vazios para evitar erros
         mock_collection.aggregate.return_value = []
@@ -384,9 +358,7 @@ class TestCollectAllMetrics:
         """Testa que coletas executam em paralelo."""
         mock_collection = MagicMock()
         collector._mongo_client = MagicMock()
-        collector._mongo_client.__getitem__.return_value.__getitem__.return_value = (
-            mock_collection
-        )
+        collector._mongo_client.__getitem__.return_value.__getitem__.return_value = mock_collection
 
         mock_collection.aggregate.return_value = []
         mock_collection.find.return_value = []
@@ -419,9 +391,7 @@ class TestEdgeCases:
         """Testa tratamento de erro do MongoDB."""
         mock_collection = MagicMock()
         collector._mongo_client = MagicMock()
-        collector._mongo_client.__getitem__.return_value.__getitem__.return_value = (
-            mock_collection
-        )
+        collector._mongo_client.__getitem__.return_value.__getitem__.return_value = mock_collection
 
         # Simular erro
         mock_collection.aggregate.side_effect = Exception("MongoDB error")

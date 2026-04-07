@@ -57,40 +57,28 @@ def sample_workers() -> List[Dict[str, Any]]:
             "agent_type": "worker-agent",
             "status": "HEALTHY",
             "capabilities": ["python", "data-processing"],
-            "telemetry": {
-                "success_rate": 0.95,
-                "avg_duration_ms": 800,
-                "total_executions": 100
-            },
+            "telemetry": {"success_rate": 0.95, "avg_duration_ms": 800, "total_executions": 100},
             "active_tasks": 3,
-            "max_concurrent_tasks": 10
+            "max_concurrent_tasks": 10,
         },
         {
             "agent_id": "worker-002",
             "agent_type": "worker-agent",
             "status": "HEALTHY",
             "capabilities": ["python", "ml-inference"],
-            "telemetry": {
-                "success_rate": 0.90,
-                "avg_duration_ms": 1200,
-                "total_executions": 50
-            },
+            "telemetry": {"success_rate": 0.90, "avg_duration_ms": 1200, "total_executions": 50},
             "active_tasks": 5,
-            "max_concurrent_tasks": 10
+            "max_concurrent_tasks": 10,
         },
         {
             "agent_id": "worker-003",
             "agent_type": "worker-agent",
             "status": "DEGRADED",
             "capabilities": ["python"],
-            "telemetry": {
-                "success_rate": 0.80,
-                "avg_duration_ms": 1500,
-                "total_executions": 30
-            },
+            "telemetry": {"success_rate": 0.80, "avg_duration_ms": 1500, "total_executions": 30},
             "active_tasks": 1,
-            "max_concurrent_tasks": 10
-        }
+            "max_concurrent_tasks": 10,
+        },
     ]
 
 
@@ -101,7 +89,7 @@ def sample_ticket() -> Dict[str, Any]:
         "ticket_id": "ticket-123",
         "required_capabilities": ["python", "data-processing"],
         "namespace": "default",
-        "security_level": "standard"
+        "security_level": "standard",
     }
 
 
@@ -118,9 +106,7 @@ class TestResourceAllocator:
 
         # Criar allocator
         allocator = ResourceAllocator(
-            registry_client=mock_registry_client,
-            config=mock_config,
-            metrics=mock_metrics
+            registry_client=mock_registry_client, config=mock_config, metrics=mock_metrics
         )
 
         # Executar
@@ -143,9 +129,7 @@ class TestResourceAllocator:
 
         # Criar allocator
         allocator = ResourceAllocator(
-            registry_client=mock_registry_client,
-            config=mock_config,
-            metrics=mock_metrics
+            registry_client=mock_registry_client, config=mock_config, metrics=mock_metrics
         )
 
         # Executar
@@ -165,9 +149,7 @@ class TestResourceAllocator:
         mock_registry_client.discover_agents.return_value = sample_workers
 
         allocator = ResourceAllocator(
-            registry_client=mock_registry_client,
-            config=mock_config,
-            metrics=mock_metrics
+            registry_client=mock_registry_client, config=mock_config, metrics=mock_metrics
         )
 
         await allocator.discover_workers(sample_ticket)
@@ -183,9 +165,7 @@ class TestResourceAllocator:
     ):
         """Testa seleção com um único worker."""
         allocator = ResourceAllocator(
-            registry_client=mock_registry_client,
-            config=mock_config,
-            metrics=mock_metrics
+            registry_client=mock_registry_client, config=mock_config, metrics=mock_metrics
         )
 
         workers = [sample_workers[0]]
@@ -207,9 +187,7 @@ class TestResourceAllocator:
     ):
         """Testa seleção com múltiplos workers."""
         allocator = ResourceAllocator(
-            registry_client=mock_registry_client,
-            config=mock_config,
-            metrics=mock_metrics
+            registry_client=mock_registry_client, config=mock_config, metrics=mock_metrics
         )
 
         priority_score = 0.75
@@ -222,14 +200,10 @@ class TestResourceAllocator:
         # worker-001 deve ter maior score (HEALTHY + melhor telemetria)
         assert result["agent_id"] == "worker-001"
 
-    def test_select_best_worker_empty_list(
-        self, mock_registry_client, mock_config, mock_metrics
-    ):
+    def test_select_best_worker_empty_list(self, mock_registry_client, mock_config, mock_metrics):
         """Testa seleção com lista vazia."""
         allocator = ResourceAllocator(
-            registry_client=mock_registry_client,
-            config=mock_config,
-            metrics=mock_metrics
+            registry_client=mock_registry_client, config=mock_config, metrics=mock_metrics
         )
 
         result = allocator.select_best_worker([], 0.5)
@@ -245,9 +219,7 @@ class TestResourceAllocator:
             worker["status"] = "UNHEALTHY"
 
         allocator = ResourceAllocator(
-            registry_client=mock_registry_client,
-            config=mock_config,
-            metrics=mock_metrics
+            registry_client=mock_registry_client, config=mock_config, metrics=mock_metrics
         )
 
         result = allocator.select_best_worker(sample_workers, 0.5)
@@ -260,9 +232,7 @@ class TestResourceAllocator:
     ):
         """Testa score de agente HEALTHY com alta taxa de sucesso."""
         allocator = ResourceAllocator(
-            registry_client=mock_registry_client,
-            config=mock_config,
-            metrics=mock_metrics
+            registry_client=mock_registry_client, config=mock_config, metrics=mock_metrics
         )
 
         agent = sample_workers[0]  # HEALTHY, 95% success
@@ -278,9 +248,7 @@ class TestResourceAllocator:
     ):
         """Testa score de agente DEGRADED."""
         allocator = ResourceAllocator(
-            registry_client=mock_registry_client,
-            config=mock_config,
-            metrics=mock_metrics
+            registry_client=mock_registry_client, config=mock_config, metrics=mock_metrics
         )
 
         agent = sample_workers[2]  # DEGRADED
@@ -296,16 +264,10 @@ class TestResourceAllocator:
     ):
         """Testa score quando não há dados de telemetria."""
         allocator = ResourceAllocator(
-            registry_client=mock_registry_client,
-            config=mock_config,
-            metrics=mock_metrics
+            registry_client=mock_registry_client, config=mock_config, metrics=mock_metrics
         )
 
-        agent = {
-            "agent_id": "worker-no-telemetry",
-            "status": "HEALTHY",
-            "capabilities": ["python"]
-        }
+        agent = {"agent_id": "worker-no-telemetry", "status": "HEALTHY", "capabilities": ["python"]}
 
         score = allocator._calculate_agent_score(agent)
 
@@ -318,9 +280,7 @@ class TestResourceAllocator:
     ):
         """Verifica fórmula de score de telemetria."""
         allocator = ResourceAllocator(
-            registry_client=mock_registry_client,
-            config=mock_config,
-            metrics=mock_metrics
+            registry_client=mock_registry_client, config=mock_config, metrics=mock_metrics
         )
 
         telemetry = sample_workers[0]["telemetry"]
@@ -341,9 +301,7 @@ class TestResourceAllocator:
     ):
         """Testa worker HEALTHY disponível."""
         allocator = ResourceAllocator(
-            registry_client=mock_registry_client,
-            config=mock_config,
-            metrics=mock_metrics
+            registry_client=mock_registry_client, config=mock_config, metrics=mock_metrics
         )
 
         agent = sample_workers[0]
@@ -352,21 +310,13 @@ class TestResourceAllocator:
 
         assert result is True
 
-    def test_is_worker_available_unhealthy(
-        self, mock_registry_client, mock_config, mock_metrics
-    ):
+    def test_is_worker_available_unhealthy(self, mock_registry_client, mock_config, mock_metrics):
         """Testa worker UNHEALTHY indisponível."""
         allocator = ResourceAllocator(
-            registry_client=mock_registry_client,
-            config=mock_config,
-            metrics=mock_metrics
+            registry_client=mock_registry_client, config=mock_config, metrics=mock_metrics
         )
 
-        agent = {
-            "agent_id": "worker-unhealthy",
-            "status": "UNHEALTHY",
-            "capabilities": ["python"]
-        }
+        agent = {"agent_id": "worker-unhealthy", "status": "UNHEALTHY", "capabilities": ["python"]}
 
         result = allocator._is_worker_available(agent)
 
@@ -377,9 +327,7 @@ class TestResourceAllocator:
     ):
         """Testa worker com capacidade cheia."""
         allocator = ResourceAllocator(
-            registry_client=mock_registry_client,
-            config=mock_config,
-            metrics=mock_metrics
+            registry_client=mock_registry_client, config=mock_config, metrics=mock_metrics
         )
 
         agent = {
@@ -387,7 +335,7 @@ class TestResourceAllocator:
             "status": "HEALTHY",
             "capabilities": ["python"],
             "active_tasks": 10,
-            "max_concurrent_tasks": 10
+            "max_concurrent_tasks": 10,
         }
 
         result = allocator._is_worker_available(agent)
@@ -399,9 +347,7 @@ class TestResourceAllocator:
     ):
         """Testa worker com capacidade disponível."""
         allocator = ResourceAllocator(
-            registry_client=mock_registry_client,
-            config=mock_config,
-            metrics=mock_metrics
+            registry_client=mock_registry_client, config=mock_config, metrics=mock_metrics
         )
 
         agent = sample_workers[0]  # 3/10 tasks

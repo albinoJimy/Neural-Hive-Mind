@@ -39,13 +39,12 @@ class TestInitTracing:
     def test_init_tracing_creates_tracer(self):
         """Testa que init_tracing cria um tracer válido."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         # Patch para evitar conexão OTLP real
-        with patch('neural_hive_observability.tracing.ResilientOTLPSpanExporter'):
-            with patch('neural_hive_observability.tracing.BatchSpanProcessor'):
+        with patch("neural_hive_observability.tracing.ResilientOTLPSpanExporter"):
+            with patch("neural_hive_observability.tracing.BatchSpanProcessor"):
                 init_tracing(config)
 
         tracer = get_tracer()
@@ -54,15 +53,15 @@ class TestInitTracing:
     def test_init_tracing_sets_config(self):
         """Testa que init_tracing define a config global."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
-        with patch('neural_hive_observability.tracing.ResilientOTLPSpanExporter'):
-            with patch('neural_hive_observability.tracing.BatchSpanProcessor'):
+        with patch("neural_hive_observability.tracing.ResilientOTLPSpanExporter"):
+            with patch("neural_hive_observability.tracing.BatchSpanProcessor"):
                 init_tracing(config)
 
         from neural_hive_observability import tracing
+
         assert tracing._config == config
 
 
@@ -76,8 +75,9 @@ class TestTraceIntentDecorator:
         mock_config.neural_hive_layer = "test-layer"
         mock_config.neural_hive_domain = None
 
-        with patch('neural_hive_observability.tracing._tracer') as mock_tracer, \
-             patch('neural_hive_observability.tracing._config', mock_config):
+        with patch("neural_hive_observability.tracing._tracer") as mock_tracer, patch(
+            "neural_hive_observability.tracing._config", mock_config
+        ):
             mock_span = Mock()
             mock_span.__enter__ = Mock(return_value=mock_span)
             mock_span.__exit__ = Mock(return_value=False)
@@ -94,7 +94,8 @@ class TestTraceIntentDecorator:
     def test_trace_intent_async_function(self):
         """Testa decorator em função assíncrona."""
         # Testar sem tracer (retorna função original)
-        with patch('neural_hive_observability.tracing._tracer', None):
+        with patch("neural_hive_observability.tracing._tracer", None):
+
             @trace_intent(extract_intent_id_from="intent_id")
             async def test_async_func(intent_id: str):
                 return f"Async {intent_id}"
@@ -104,7 +105,8 @@ class TestTraceIntentDecorator:
 
     def test_trace_intent_without_tracer(self):
         """Testa que decorator funciona sem tracer."""
-        with patch('neural_hive_observability.tracing._tracer', None):
+        with patch("neural_hive_observability.tracing._tracer", None):
+
             @trace_intent()
             def test_func():
                 return "No tracer"
@@ -119,8 +121,9 @@ class TestTraceIntentDecorator:
         mock_config.neural_hive_layer = "test-layer"
         mock_config.neural_hive_domain = None
 
-        with patch('neural_hive_observability.tracing._tracer') as mock_tracer, \
-             patch('neural_hive_observability.tracing._config', mock_config):
+        with patch("neural_hive_observability.tracing._tracer") as mock_tracer, patch(
+            "neural_hive_observability.tracing._config", mock_config
+        ):
             mock_span = Mock()
             mock_span.__enter__ = Mock(return_value=mock_span)
             mock_span.__exit__ = Mock(return_value=False)
@@ -146,8 +149,9 @@ class TestTraceIntentDecorator:
         mock_config.neural_hive_layer = "test-layer"
         mock_config.neural_hive_domain = None
 
-        with patch('neural_hive_observability.tracing._tracer') as mock_tracer, \
-             patch('neural_hive_observability.tracing._config', mock_config):
+        with patch("neural_hive_observability.tracing._tracer") as mock_tracer, patch(
+            "neural_hive_observability.tracing._config", mock_config
+        ):
             mock_span = Mock()
             mock_span.__enter__ = Mock(return_value=mock_span)
             mock_span.__exit__ = Mock(return_value=False)
@@ -169,8 +173,9 @@ class TestTraceIntentDecorator:
         mock_config.neural_hive_layer = "test-layer"
         mock_config.neural_hive_domain = None
 
-        with patch('neural_hive_observability.tracing._tracer') as mock_tracer, \
-             patch('neural_hive_observability.tracing._config', mock_config):
+        with patch("neural_hive_observability.tracing._tracer") as mock_tracer, patch(
+            "neural_hive_observability.tracing._config", mock_config
+        ):
             mock_span = Mock()
             mock_span.__enter__ = Mock(return_value=mock_span)
             mock_span.__exit__ = Mock(return_value=False)
@@ -196,8 +201,9 @@ class TestTracePlanDecorator:
         mock_config.neural_hive_layer = "test-layer"
         mock_config.neural_hive_domain = None
 
-        with patch('neural_hive_observability.tracing._tracer') as mock_tracer, \
-             patch('neural_hive_observability.tracing._config', mock_config):
+        with patch("neural_hive_observability.tracing._tracer") as mock_tracer, patch(
+            "neural_hive_observability.tracing._config", mock_config
+        ):
             mock_span = Mock()
             mock_span.__enter__ = Mock(return_value=mock_span)
             mock_span.__exit__ = Mock(return_value=False)
@@ -222,8 +228,9 @@ class TestTraceGrpcMethod:
         mock_config.neural_hive_layer = "test-layer"
         mock_config.neural_hive_domain = None
 
-        with patch('neural_hive_observability.tracing._tracer') as mock_tracer, \
-             patch('neural_hive_observability.tracing._config', mock_config):
+        with patch("neural_hive_observability.tracing._tracer") as mock_tracer, patch(
+            "neural_hive_observability.tracing._config", mock_config
+        ):
             mock_span = Mock()
             mock_span.__enter__ = Mock(return_value=mock_span)
             mock_span.__exit__ = Mock(return_value=False)
@@ -243,7 +250,7 @@ class TestTraceGrpcMethod:
 
     def test_trace_grpc_method_without_tracer(self):
         """Testa que funciona sem tracer."""
-        with patch('neural_hive_observability.tracing._tracer', None):
+        with patch("neural_hive_observability.tracing._tracer", None):
 
             @trace_grpc_method()
             def test_grpc_func(self, request, context):
@@ -263,8 +270,9 @@ class TestCorrelationContext:
         mock_config.neural_hive_layer = "test-layer"
         mock_config.neural_hive_domain = None
 
-        with patch('neural_hive_observability.tracing._tracer') as mock_tracer, \
-             patch('neural_hive_observability.tracing._config', mock_config):
+        with patch("neural_hive_observability.tracing._tracer") as mock_tracer, patch(
+            "neural_hive_observability.tracing._config", mock_config
+        ):
             mock_tracer.start_as_current_span.return_value.__enter__ = Mock()
             mock_tracer.start_as_current_span.return_value.__exit__ = Mock()
 
@@ -273,7 +281,7 @@ class TestCorrelationContext:
 
     def test_correlation_context_without_tracer(self):
         """Testa que funciona sem tracer."""
-        with patch('neural_hive_observability.tracing._tracer', None):
+        with patch("neural_hive_observability.tracing._tracer", None):
             with correlation_context(intent_id="test-intent"):
                 pass  # Não deve lançar exceção
 
@@ -282,8 +290,9 @@ class TestCorrelationContext:
         mock_config = Mock()
         mock_config.neural_hive_component = "test-component"
 
-        with patch('neural_hive_observability.tracing._tracer') as mock_tracer, \
-             patch('neural_hive_observability.tracing._config', mock_config):
+        with patch("neural_hive_observability.tracing._tracer") as mock_tracer, patch(
+            "neural_hive_observability.tracing._config", mock_config
+        ):
             mock_tracer.start_as_current_span.return_value.__enter__ = Mock()
             mock_tracer.start_as_current_span.return_value.__exit__ = Mock()
 
@@ -292,7 +301,7 @@ class TestCorrelationContext:
                 plan_id="plan-456",
                 user_id="user-789",
                 domain="test-domain",
-                extra="extra-value"
+                extra="extra-value",
             ):
                 pass
 
@@ -310,7 +319,7 @@ class TestEnrichSpan:
             plan_id="plan-456",
             user_id="user-789",
             operation_type="test-op",
-            custom_attr="custom-value"
+            custom_attr="custom-value",
         )
 
         # Verificar que set_attribute foi chamado
@@ -320,11 +329,7 @@ class TestEnrichSpan:
         """Testa enriquecimento com valores None."""
         mock_span = Mock()
 
-        enrich_span(
-            mock_span,
-            intent_id=None,
-            plan_id=None
-        )
+        enrich_span(mock_span, intent_id=None, plan_id=None)
 
         # Não deve chamar set_attribute para valores None
         # mas não deve lançar exceção
@@ -392,7 +397,7 @@ class TestCreateChildSpan:
 
     def test_create_child_span_without_tracer_raises(self):
         """Testa que lança RuntimeError sem tracer."""
-        with patch('neural_hive_observability.tracing._tracer', None):
+        with patch("neural_hive_observability.tracing._tracer", None):
             with pytest.raises(RuntimeError):
                 create_child_span("test-span")
 
@@ -402,8 +407,9 @@ class TestCreateChildSpan:
         mock_span = Mock()
         mock_tracer.start_span.return_value = mock_span
 
-        with patch('neural_hive_observability.tracing._tracer', mock_tracer), \
-             patch('neural_hive_observability.tracing._config', Mock()):
+        with patch("neural_hive_observability.tracing._tracer", mock_tracer), patch(
+            "neural_hive_observability.tracing._config", Mock()
+        ):
             span = create_child_span("test-span", attr1="value1")
             assert span == mock_span
 
@@ -425,7 +431,7 @@ class TestInjectExtractContextHeaders:
         headers = {
             "x-neural-hive-intent-id": "intent-123",
             "x-neural-hive-plan-id": "plan-456",
-            "x-neural-hive-user-id": "user-789"
+            "x-neural-hive-user-id": "user-789",
         }
 
         # Não deve lançar exceção
@@ -444,8 +450,9 @@ class TestTraceIntentExtraction:
         mock_config.neural_hive_layer = "test-layer"
         mock_config.neural_hive_domain = None
 
-        with patch('neural_hive_observability.tracing._tracer') as mock_tracer, \
-             patch('neural_hive_observability.tracing._config', mock_config):
+        with patch("neural_hive_observability.tracing._tracer") as mock_tracer, patch(
+            "neural_hive_observability.tracing._config", mock_config
+        ):
             mock_span = Mock()
             mock_span.__enter__ = Mock(return_value=mock_span)
             mock_span.__exit__ = Mock(return_value=False)
@@ -465,8 +472,9 @@ class TestTraceIntentExtraction:
         mock_config.neural_hive_layer = "test-layer"
         mock_config.neural_hive_domain = None
 
-        with patch('neural_hive_observability.tracing._tracer') as mock_tracer, \
-             patch('neural_hive_observability.tracing._config', mock_config):
+        with patch("neural_hive_observability.tracing._tracer") as mock_tracer, patch(
+            "neural_hive_observability.tracing._config", mock_config
+        ):
             mock_span = Mock()
             mock_span.__enter__ = Mock(return_value=mock_span)
             mock_span.__exit__ = Mock(return_value=False)
@@ -490,8 +498,9 @@ class TestTraceIntentOperationName:
         mock_config.neural_hive_layer = "test-layer"
         mock_config.neural_hive_domain = None
 
-        with patch('neural_hive_observability.tracing._tracer') as mock_tracer, \
-             patch('neural_hive_observability.tracing._config', mock_config):
+        with patch("neural_hive_observability.tracing._tracer") as mock_tracer, patch(
+            "neural_hive_observability.tracing._config", mock_config
+        ):
             mock_span = Mock()
             mock_span.__enter__ = Mock(return_value=mock_span)
             mock_span.__exit__ = Mock(return_value=False)

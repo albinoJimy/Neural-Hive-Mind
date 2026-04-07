@@ -308,9 +308,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
 
         # Criar AnalyticsEngine com InsightGenerator injetado
         # NOTA: Esta injeção precisará ser implementada no construtor
-        analytics = AnalyticsEngine(
-            min_confidence=0.7, insight_generator=mock_insight_generator
-        )
+        analytics = AnalyticsEngine(min_confidence=0.7, insight_generator=mock_insight_generator)
 
         base_time = datetime.now(timezone.utc)
         window = TimeWindow(
@@ -465,9 +463,7 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
             value = random.gauss(50, 5)
             if i % 100 == 0:  # Adicionar anomalia a cada 100 pontos
                 value = 200.0
-            telemetry_data.append(
-                {"metric": "latency_ms", "value": value, "timestamp": base_time}
-            )
+            telemetry_data.append({"metric": "latency_ms", "value": value, "timestamp": base_time})
 
         # Act
         import time
@@ -477,4 +473,6 @@ class TestAnalyticsEngineAnalyzeTelemetryWindow:
         elapsed_time = time.time() - start_time
 
         # Assert
-        assert elapsed_time < 5.0, f"Deve completar em menos de 5 segundos, levou {elapsed_time:.2f}s"
+        assert (
+            elapsed_time < 5.0
+        ), f"Deve completar em menos de 5 segundos, levou {elapsed_time:.2f}s"

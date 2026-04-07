@@ -19,9 +19,9 @@ async def mock_opa_http():
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.raise_for_status = MagicMock()
-    mock_response.json = MagicMock(return_value={
-        "result": {"allow": True, "violations": [], "warnings": []}
-    })
+    mock_response.json = MagicMock(
+        return_value={"result": {"allow": True, "violations": [], "warnings": []}}
+    )
 
     mock_client = AsyncMock()
     mock_client.get = AsyncMock(return_value=mock_response)
@@ -50,12 +50,12 @@ async def test_opa_client_evaluate_policy_success(mock_opa_http):
                     "resource_saturation": 0.5,
                     "critical_incidents": [],
                     "sla_violations": [],
-                    "active_plans": []
+                    "active_plans": [],
                 },
                 "analysis": {"metrics_snapshot": {"bias_score": 0.1}, "conflict_domains": []},
-                "reasoning_summary": "Test decision"
+                "reasoning_summary": "Test decision",
             }
-        }
+        },
     )
 
     assert result["allow"] is True
@@ -67,20 +67,22 @@ async def test_opa_client_evaluate_policy_success(mock_opa_http):
 async def test_opa_client_evaluate_policy_deny_excessive_risk(mock_opa_http):
     """Testa avaliação que nega por risco excessivo"""
     # Configurar mock para retornar negação
-    mock_opa_http.post.return_value.json = MagicMock(return_value={
-        "result": {
-            "allow": False,
-            "violations": [
-                {
-                    "policy": "ethical_guardrails",
-                    "rule": "excessive_risk",
-                    "severity": "critical",
-                    "msg": "Risk score muito alto: 0.95"
-                }
-            ],
-            "warnings": []
+    mock_opa_http.post.return_value.json = MagicMock(
+        return_value={
+            "result": {
+                "allow": False,
+                "violations": [
+                    {
+                        "policy": "ethical_guardrails",
+                        "rule": "excessive_risk",
+                        "severity": "critical",
+                        "msg": "Risk score muito alto: 0.95",
+                    }
+                ],
+                "warnings": [],
+            }
         }
-    })
+    )
 
     client = OPAClient(base_url="http://mock-opa:8181", timeout=5.0)
     client._client = mock_opa_http
@@ -97,12 +99,12 @@ async def test_opa_client_evaluate_policy_deny_excessive_risk(mock_opa_http):
                     "resource_saturation": 0.5,
                     "critical_incidents": [],
                     "sla_violations": [],
-                    "active_plans": []
+                    "active_plans": [],
                 },
                 "analysis": {"metrics_snapshot": {}, "conflict_domains": []},
-                "reasoning_summary": "Replanning"
+                "reasoning_summary": "Replanning",
             }
-        }
+        },
     )
 
     assert result["allow"] is False
@@ -116,10 +118,7 @@ async def test_opa_client_not_connected():
     # Não chamar connect()
 
     with pytest.raises(RuntimeError, match="Client not connected"):
-        await client.evaluate_policy(
-            policy_path="test",
-            input_data={}
-        )
+        await client.evaluate_policy(policy_path="test", input_data={})
 
 
 @pytest.mark.asyncio
@@ -127,24 +126,20 @@ async def test_opa_client_http_error_handling(mock_opa_http):
     """Testa tratamento de erros HTTP"""
     # Configurar mock para simular erro HTTP
     from httpx import HTTPStatusError
+
     mock_response = MagicMock()
     mock_response.status_code = 500
     error_response = MagicMock()
     error_response.status_code = 500
 
     # Criar HTTPStatusError
-    http_error = HTTPStatusError(
-        "Server error", request=MagicMock(), response=error_response
-    )
+    http_error = HTTPStatusError("Server error", request=MagicMock(), response=error_response)
     mock_opa_http.post.return_value.raise_for_status.side_effect = http_error
 
     client = OPAClient(base_url="http://mock-opa:8181", timeout=5.0)
     client._client = mock_opa_http
 
-    result = await client.evaluate_policy(
-        policy_path="test",
-        input_data={}
-    )
+    result = await client.evaluate_policy(policy_path="test", input_data={})
 
     # Deve retornar allow=False em caso de erro
     assert result["allow"] is False

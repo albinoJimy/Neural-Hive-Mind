@@ -5,6 +5,7 @@ Coordena a preempção de tickets de baixa prioridade
 para dar lugar a tickets de alta prioridade.
 """
 from datetime import timezone
+
 UTC = timezone.utc  # type: ignore
 from enum import StrEnum
 from typing import Any

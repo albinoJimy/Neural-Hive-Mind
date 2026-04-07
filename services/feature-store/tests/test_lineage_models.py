@@ -72,7 +72,7 @@ class TestLineageMetadata:
             cache_key="feature:plan:123",
             feature_version="v1.0.0",
             tags=["experimental", "fast"],
-            custom_metadata={"model": "v2"}
+            custom_metadata={"model": "v2"},
         )
         assert metadata.computation_duration_ms == 150.5
         assert metadata.computation_node == "worker-1"
@@ -92,7 +92,7 @@ class TestFeatureLineage:
             plan_id="plan-456",
             source_type=SourceType.COGNITIVE_PLAN,
             transformation_type=TransformationType.COMPUTED,
-            computation_hash="abc123def456"
+            computation_hash="abc123def456",
         )
         assert lineage.lineage_id is not None
         assert len(lineage.lineage_id) > 0
@@ -126,7 +126,7 @@ class TestFeatureLineage:
             parent_lineage_ids=["lineage-1", "lineage-2"],
             created_at=now,
             created_by="custom-service",
-            transformation_metadata={"algorithm": "weighted_avg"}
+            transformation_metadata={"algorithm": "weighted_avg"},
         )
         assert lineage.lineage_id == "lineage-789"
         assert lineage.source_type == SourceType.DERIVED
@@ -146,7 +146,7 @@ class TestFeatureLineage:
                 plan_id="plan-456",
                 source_type=SourceType.COGNITIVE_PLAN,
                 transformation_type=TransformationType.COMPUTED,
-                computation_hash="abc"  # Muito curto
+                computation_hash="abc",  # Muito curto
             )
 
     def test_mark_modified(self):
@@ -156,7 +156,7 @@ class TestFeatureLineage:
             plan_id="plan-456",
             source_type=SourceType.COGNITIVE_PLAN,
             transformation_type=TransformationType.COMPUTED,
-            computation_hash="abc123def456"
+            computation_hash="abc123def456",
         )
         assert lineage.modified_at is None
         assert lineage.modified_count == 0
@@ -175,7 +175,7 @@ class TestFeatureLineage:
             plan_id="plan-456",
             source_type=SourceType.COGNITIVE_PLAN,
             transformation_type=TransformationType.COMPUTED,
-            computation_hash="abc123def456"
+            computation_hash="abc123def456",
         )
         assert len(lineage.feature_dependencies) == 0
 
@@ -198,7 +198,7 @@ class TestFeatureLineage:
             plan_id="plan-456",
             source_type=SourceType.COGNITIVE_PLAN,
             transformation_type=TransformationType.COMPUTED,
-            computation_hash="abc123def456"
+            computation_hash="abc123def456",
         )
         assert len(lineage.parent_lineage_ids) == 0
 
@@ -218,7 +218,7 @@ class TestFeatureLineage:
             plan_id="plan-456",
             source_type=SourceType.COGNITIVE_PLAN,
             transformation_type=TransformationType.COMPUTED,
-            computation_hash="abc123def456"
+            computation_hash="abc123def456",
         )
         assert len(lineage.data_sources) == 0
 
@@ -242,7 +242,7 @@ class TestFeatureLineage:
             plan_id="plan-456",
             source_type=SourceType.COGNITIVE_PLAN,
             transformation_type=TransformationType.COMPUTED,
-            computation_hash="abc123def456"
+            computation_hash="abc123def456",
         )
         # Deve ser serializável
         json_dict = lineage.model_dump()
@@ -270,14 +270,14 @@ class TestLineageTree:
             plan_id="plan-456",
             source_type=SourceType.COGNITIVE_PLAN,
             transformation_type=TransformationType.COMPUTED,
-            computation_hash="abc123def456"
+            computation_hash="abc123def456",
         )
         tree = LineageTree(
             feature_id="feature-123",
             lineage=lineage,
             upstream={"depth_1": [{"feature_id": "feat-1"}]},
             downstream={"depth_1": [{"feature_id": "feat-2"}]},
-            tree_depth=2
+            tree_depth=2,
         )
         assert tree.lineage is not None
         assert len(tree.upstream) == 1
@@ -306,7 +306,7 @@ class TestLineageImpact:
             total_downstream=15,
             affected_plans=["plan-1", "plan-2"],
             critical_path=["feature-123", "feat-1", "feat-2"],
-            impact_score=0.8
+            impact_score=0.8,
         )
         assert impact.direct_dependencies == 3
         assert impact.total_downstream == 15
@@ -317,38 +317,23 @@ class TestLineageImpact:
     def test_impact_score_validation(self):
         """Testa validação do impact_score"""
         # Score válido (0-1)
-        impact = LineageImpact(
-            feature_id="feature-123",
-            impact_score=0.5
-        )
+        impact = LineageImpact(feature_id="feature-123", impact_score=0.5)
         assert impact.impact_score == 0.5
 
         # Score mínimo
-        impact_min = LineageImpact(
-            feature_id="feature-123",
-            impact_score=0.0
-        )
+        impact_min = LineageImpact(feature_id="feature-123", impact_score=0.0)
         assert impact_min.impact_score == 0.0
 
         # Score máximo
-        impact_max = LineageImpact(
-            feature_id="feature-123",
-            impact_score=1.0
-        )
+        impact_max = LineageImpact(feature_id="feature-123", impact_score=1.0)
         assert impact_max.impact_score == 1.0
 
         # Score inválido
         with pytest.raises(ValueError):
-            LineageImpact(
-                feature_id="feature-123",
-                impact_score=1.5  # > 1.0
-            )
+            LineageImpact(feature_id="feature-123", impact_score=1.5)  # > 1.0
 
         with pytest.raises(ValueError):
-            LineageImpact(
-                feature_id="feature-123",
-                impact_score=-0.1  # < 0.0
-            )
+            LineageImpact(feature_id="feature-123", impact_score=-0.1)  # < 0.0
 
 
 class TestLineageIntegrityReport:
@@ -374,7 +359,7 @@ class TestLineageIntegrityReport:
             has_cycle=True,
             timestamps_valid=False,
             errors=["Cycle detected in lineage graph"],
-            warnings=["Timestamp close to tolerance limit"]
+            warnings=["Timestamp close to tolerance limit"],
         )
         assert report.has_cycle is True
         assert report.timestamps_valid is False

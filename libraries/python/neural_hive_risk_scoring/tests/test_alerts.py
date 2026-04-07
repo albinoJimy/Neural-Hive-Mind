@@ -21,7 +21,7 @@ from neural_hive_risk_scoring import (
     RiskScoringConfig,
     RiskBand,
     RiskAssessment,
-    UnifiedDomain
+    UnifiedDomain,
 )
 
 
@@ -53,9 +53,7 @@ def risk_history():
 def alert_manager(threshold_monitor, risk_history, config):
     """Gerenciador de alertas de teste."""
     return RiskAlertManager(
-        threshold_monitor=threshold_monitor,
-        risk_history=risk_history,
-        config=config
+        threshold_monitor=threshold_monitor, risk_history=risk_history, config=config
     )
 
 
@@ -66,8 +64,8 @@ def sample_assessment():
         score=0.9,
         band=RiskBand.CRITICAL,
         domain=UnifiedDomain.SECURITY,
-        factors={'security_level': 0.9},
-        reasoning='Critical security risk'
+        factors={"security_level": 0.9},
+        reasoning="Critical security risk",
     )
 
 
@@ -77,55 +75,46 @@ class TestAlertRule:
     def test_init(self):
         """Testa inicialização."""
         rule = AlertRule(
-            name='test_rule',
+            name="test_rule",
             alert_type=AlertType.THRESHOLD_VIOLATION,
             enabled=True,
             min_severity=AlertSeverity.WARNING,
-            cooldown_minutes=60
+            cooldown_minutes=60,
         )
 
-        assert rule.name == 'test_rule'
+        assert rule.name == "test_rule"
         assert rule.alert_type == AlertType.THRESHOLD_VIOLATION
         assert rule.enabled == True
 
     def test_should_trigger_disabled(self):
         """Testa regra desabilitada."""
-        rule = AlertRule(
-            name='disabled',
-            alert_type=AlertType.THRESHOLD_VIOLATION,
-            enabled=False
-        )
+        rule = AlertRule(name="disabled", alert_type=AlertType.THRESHOLD_VIOLATION, enabled=False)
 
-        context = {'threshold_violation': True}
-        result = rule.should_trigger('entity-1', context, None)
+        context = {"threshold_violation": True}
+        result = rule.should_trigger("entity-1", context, None)
 
         assert result == False
 
     def test_should_trigger_with_cooldown(self):
         """Testa cooldown de regra."""
         rule = AlertRule(
-            name='with_cooldown',
-            alert_type=AlertType.THRESHOLD_VIOLATION,
-            cooldown_minutes=60
+            name="with_cooldown", alert_type=AlertType.THRESHOLD_VIOLATION, cooldown_minutes=60
         )
 
-        context = {'threshold_violation': True}
+        context = {"threshold_violation": True}
         last_alert = datetime.now(timezone.utc) - timedelta(minutes=30)
 
-        result = rule.should_trigger('entity-1', context, last_alert)
+        result = rule.should_trigger("entity-1", context, last_alert)
 
         # Deve bloquear por cooldown
         assert result == False
 
     def test_should_trigger_threshold_violation(self):
         """Testa gatilho de violação de threshold."""
-        rule = AlertRule(
-            name='violation',
-            alert_type=AlertType.THRESHOLD_VIOLATION
-        )
+        rule = AlertRule(name="violation", alert_type=AlertType.THRESHOLD_VIOLATION)
 
-        context = {'threshold_violation': True}
-        result = rule.should_trigger('entity-1', context, None)
+        context = {"threshold_violation": True}
+        result = rule.should_trigger("entity-1", context, None)
 
         assert result == True
 
@@ -143,15 +132,15 @@ class TestLoggingAlertHandler:
         handler = LoggingAlertHandler()
 
         alert = RiskAlert(
-            id='ALT-001',
+            id="ALT-001",
             alert_type=AlertType.THRESHOLD_VIOLATION,
             severity=AlertSeverity.WARNING,
-            entity_id='test-entity',
+            entity_id="test-entity",
             domain=UnifiedDomain.SECURITY,
             score=0.9,
             band=RiskBand.CRITICAL,
-            message='Test alert',
-            details={}
+            message="Test alert",
+            details={},
         )
 
         result = handler.handle(alert)
@@ -165,14 +154,14 @@ class TestCallbackAlertHandler:
     def test_init(self):
         """Testa inicialização."""
         callback = Mock(return_value=True)
-        handler = CallbackAlertHandler('test_handler', callback)
+        handler = CallbackAlertHandler("test_handler", callback)
 
-        assert handler.name == 'test_handler'
+        assert handler.name == "test_handler"
 
     def test_handle_success(self):
         """Testa processamento bem-sucedido."""
         callback = Mock(return_value=True)
-        handler = CallbackAlertHandler('test', callback)
+        handler = CallbackAlertHandler("test", callback)
 
         alert = Mock()
         result = handler.handle(alert)
@@ -183,7 +172,7 @@ class TestCallbackAlertHandler:
     def test_handle_failure(self):
         """Testa processamento com falha."""
         callback = Mock(side_effect=Exception("Test error"))
-        handler = CallbackAlertHandler('test', callback)
+        handler = CallbackAlertHandler("test", callback)
 
         alert = Mock()
         result = handler.handle(alert)
@@ -197,41 +186,41 @@ class TestRiskAlert:
     def test_init(self):
         """Testa inicialização."""
         alert = RiskAlert(
-            id='ALT-001',
+            id="ALT-001",
             alert_type=AlertType.THRESHOLD_VIOLATION,
             severity=AlertSeverity.CRITICAL,
-            entity_id='test-entity',
+            entity_id="test-entity",
             domain=UnifiedDomain.SECURITY,
             score=0.9,
             band=RiskBand.CRITICAL,
-            message='Critical alert',
-            details={}
+            message="Critical alert",
+            details={},
         )
 
-        assert alert.id == 'ALT-001'
+        assert alert.id == "ALT-001"
         assert alert.acknowledged == False
         assert alert.resolved == False
 
     def test_to_dict(self):
         """Testa conversão para dicionário."""
         alert = RiskAlert(
-            id='ALT-001',
+            id="ALT-001",
             alert_type=AlertType.ANOMALY_DETECTED,
             severity=AlertSeverity.WARNING,
-            entity_id='test-entity',
+            entity_id="test-entity",
             domain=UnifiedDomain.BUSINESS,
             score=0.7,
             band=RiskBand.HIGH,
-            message='Anomaly alert',
-            details={}
+            message="Anomaly alert",
+            details={},
         )
 
         alert_dict = alert.to_dict()
 
-        assert alert_dict['id'] == 'ALT-001'
-        assert alert_dict['alert_type'] == 'anomaly_detected'
-        assert alert_dict['severity'] == 'warning'
-        assert alert_dict['acknowledged'] == False
+        assert alert_dict["id"] == "ALT-001"
+        assert alert_dict["alert_type"] == "anomaly_detected"
+        assert alert_dict["severity"] == "warning"
+        assert alert_dict["acknowledged"] == False
 
 
 class TestRiskAlertManager:
@@ -248,10 +237,7 @@ class TestRiskAlertManager:
         """Testa adição de regra."""
         initial_count = len(alert_manager._rules)
 
-        rule = AlertRule(
-            name='custom_rule',
-            alert_type=AlertType.TREND_WORSENING
-        )
+        rule = AlertRule(name="custom_rule", alert_type=AlertType.TREND_WORSENING)
         alert_manager.add_rule(rule)
 
         assert len(alert_manager._rules) == initial_count + 1
@@ -263,7 +249,7 @@ class TestRiskAlertManager:
         def custom_handler(alert):
             return True
 
-        handler = CallbackAlertHandler('custom', custom_handler)
+        handler = CallbackAlertHandler("custom", custom_handler)
         alert_manager.add_handler(handler)
 
         assert len(alert_manager._handlers) == initial_count + 1
@@ -275,28 +261,28 @@ class TestRiskAlertManager:
             band=RiskBand.LOW,
             domain=UnifiedDomain.BUSINESS,
             factors={},
-            reasoning='Low risk'
+            reasoning="Low risk",
         )
 
-        alerts = alert_manager.process_assessment(assessment, 'safe-entity')
+        alerts = alert_manager.process_assessment(assessment, "safe-entity")
 
         # Score baixo não deve gerar alerta
         assert len(alerts) == 0
 
     def test_process_assessment_with_alert(self, alert_manager, sample_assessment):
         """Testa processamento com alerta."""
-        alerts = alert_manager.process_assessment(sample_assessment, 'risky-entity')
+        alerts = alert_manager.process_assessment(sample_assessment, "risky-entity")
 
         # Score crítico deve gerar alerta
         assert len(alerts) >= 1
 
     def test_acknowledge_alert(self, alert_manager, sample_assessment):
         """Testa confirmação de alerta."""
-        alerts = alert_manager.process_assessment(sample_assessment, 'test-entity')
+        alerts = alert_manager.process_assessment(sample_assessment, "test-entity")
 
         if alerts:
             alert_id = alerts[0].id
-            result = alert_manager.acknowledge_alert(alert_id, 'user-1')
+            result = alert_manager.acknowledge_alert(alert_id, "user-1")
 
             assert result == True
 
@@ -305,15 +291,15 @@ class TestRiskAlertManager:
             alert = next((a for a in all_alerts if a.id == alert_id), None)
             assert alert is not None
             assert alert.acknowledged == True
-            assert alert.acknowledged_by == 'user-1'
+            assert alert.acknowledged_by == "user-1"
 
     def test_resolve_alert(self, alert_manager, sample_assessment):
         """Testa resolução de alerta."""
-        alerts = alert_manager.process_assessment(sample_assessment, 'test-entity')
+        alerts = alert_manager.process_assessment(sample_assessment, "test-entity")
 
         if alerts:
             alert_id = alerts[0].id
-            result = alert_manager.resolve_alert(alert_id, 'user-1')
+            result = alert_manager.resolve_alert(alert_id, "user-1")
 
             assert result == True
 
@@ -325,16 +311,16 @@ class TestRiskAlertManager:
 
     def test_get_alerts_by_entity(self, alert_manager, sample_assessment):
         """Testa filtro por entidade."""
-        alert_manager.process_assessment(sample_assessment, 'entity-1')
-        alert_manager.process_assessment(sample_assessment, 'entity-2')
+        alert_manager.process_assessment(sample_assessment, "entity-1")
+        alert_manager.process_assessment(sample_assessment, "entity-2")
 
-        entity1_alerts = alert_manager.get_alerts(entity_id='entity-1')
+        entity1_alerts = alert_manager.get_alerts(entity_id="entity-1")
 
-        assert all(a.entity_id == 'entity-1' for a in entity1_alerts)
+        assert all(a.entity_id == "entity-1" for a in entity1_alerts)
 
     def test_get_alerts_by_type(self, alert_manager, sample_assessment):
         """Testa filtro por tipo."""
-        alerts = alert_manager.process_assessment(sample_assessment, 'test-entity')
+        alerts = alert_manager.process_assessment(sample_assessment, "test-entity")
 
         if alerts:
             alert_type = alerts[0].alert_type
@@ -344,7 +330,7 @@ class TestRiskAlertManager:
 
     def test_get_alerts_unacknowledged_only(self, alert_manager, sample_assessment):
         """Testa filtro de não confirmados."""
-        alert_manager.process_assessment(sample_assessment, 'test-entity')
+        alert_manager.process_assessment(sample_assessment, "test-entity")
 
         unacknowledged = alert_manager.get_alerts(unacknowledged_only=True)
 
@@ -354,32 +340,32 @@ class TestRiskAlertManager:
 
     def test_get_alert_stats(self, alert_manager, sample_assessment):
         """Testa estatísticas de alertas."""
-        alert_manager.process_assessment(sample_assessment, 'entity-1')
-        alert_manager.process_assessment(sample_assessment, 'entity-2')
+        alert_manager.process_assessment(sample_assessment, "entity-1")
+        alert_manager.process_assessment(sample_assessment, "entity-2")
 
         stats = alert_manager.get_alert_stats()
 
-        assert 'total_alerts' in stats
-        assert 'unacknowledged' in stats
-        assert 'unresolved' in stats
-        assert 'by_type' in stats
-        assert 'by_severity' in stats
-        assert stats['total_alerts'] >= 2
+        assert "total_alerts" in stats
+        assert "unacknowledged" in stats
+        assert "unresolved" in stats
+        assert "by_type" in stats
+        assert "by_severity" in stats
+        assert stats["total_alerts"] >= 2
 
     def test_cleanup_old_alerts(self, alert_manager):
         """Testa limpeza de alertas antigos."""
         # Criar alerta antigo
         old_alert = RiskAlert(
-            id='ALT-OLD',
+            id="ALT-OLD",
             alert_type=AlertType.THRESHOLD_VIOLATION,
             severity=AlertSeverity.INFO,
-            entity_id='old-entity',
+            entity_id="old-entity",
             domain=UnifiedDomain.BUSINESS,
             score=0.5,
             band=RiskBand.MEDIUM,
-            message='Old alert',
+            message="Old alert",
             details={},
-            timestamp=datetime.now(timezone.utc) - timedelta(days=60)
+            timestamp=datetime.now(timezone.utc) - timedelta(days=60),
         )
         alert_manager._store_alert(old_alert)
 
@@ -399,12 +385,12 @@ class TestRiskAlertManager:
                 band=RiskBand.HIGH,
                 domain=UnifiedDomain.SECURITY,
                 factors={},
-                reasoning=f'High risk {i}'
+                reasoning=f"High risk {i}",
             )
-            alert_manager.process_assessment(assessment, 'consecutive-entity')
+            alert_manager.process_assessment(assessment, "consecutive-entity")
 
         # Deve ter rastreado contagens
-        assert 'consecutive-entity' in alert_manager._consecutive_high_risk
+        assert "consecutive-entity" in alert_manager._consecutive_high_risk
 
     def test_custom_rule_triggering(self, alert_manager, risk_history, sample_assessment):
         """Testa regra customizada."""
@@ -416,16 +402,14 @@ class TestRiskAlertManager:
                 band=RiskBand.MEDIUM,
                 domain=UnifiedDomain.BUSINESS,
                 factors={},
-                reasoning='test'
+                reasoning="test",
             )
             assessment.assessed_at = now - timedelta(hours=10 - i)
-            alert_manager.risk_history.record_assessment(assessment, 'trend-entity')
+            alert_manager.risk_history.record_assessment(assessment, "trend-entity")
 
         # Criar regra customizada
         custom_rule = AlertRule(
-            name='custom_trend',
-            alert_type=AlertType.TREND_WORSENING,
-            cooldown_minutes=0
+            name="custom_trend", alert_type=AlertType.TREND_WORSENING, cooldown_minutes=0
         )
         alert_manager.add_rule(custom_rule)
 
@@ -435,10 +419,10 @@ class TestRiskAlertManager:
             band=RiskBand.HIGH,
             domain=UnifiedDomain.BUSINESS,
             factors={},
-            reasoning='Current high'
+            reasoning="Current high",
         )
 
-        alerts = alert_manager.process_assessment(current, 'trend-entity')
+        alerts = alert_manager.process_assessment(current, "trend-entity")
 
         # Pode gerar alerta de tendência
         assert isinstance(alerts, list)
@@ -454,16 +438,14 @@ class TestRiskAlertManager:
                 band=RiskBand.MEDIUM,
                 domain=UnifiedDomain.BUSINESS,
                 factors={},
-                reasoning='normal'
+                reasoning="normal",
             )
             assessment.assessed_at = now - timedelta(hours=24 - i)
-            alert_manager.risk_history.record_assessment(assessment, 'anomaly-entity')
+            alert_manager.risk_history.record_assessment(assessment, "anomaly-entity")
 
         # Criar regra de anomalia
         anomaly_rule = AlertRule(
-            name='anomaly_detection',
-            alert_type=AlertType.ANOMALY_DETECTED,
-            cooldown_minutes=0
+            name="anomaly_detection", alert_type=AlertType.ANOMALY_DETECTED, cooldown_minutes=0
         )
         alert_manager.add_rule(anomaly_rule)
 
@@ -473,10 +455,10 @@ class TestRiskAlertManager:
             band=RiskBand.CRITICAL,
             domain=UnifiedDomain.BUSINESS,
             factors={},
-            reasoning='potential anomaly'
+            reasoning="potential anomaly",
         )
 
-        alerts = alert_manager.process_assessment(anomaly_assessment, 'anomaly-entity')
+        alerts = alert_manager.process_assessment(anomaly_assessment, "anomaly-entity")
 
         assert isinstance(alerts, list)
 
@@ -484,20 +466,16 @@ class TestRiskAlertManager:
         """Testa alerta de escalada rápida."""
         # Primeira avaliação baixa
         low = RiskAssessment(
-            score=0.2,
-            band=RiskBand.LOW,
-            domain=UnifiedDomain.BUSINESS,
-            factors={},
-            reasoning='low'
+            score=0.2, band=RiskBand.LOW, domain=UnifiedDomain.BUSINESS, factors={}, reasoning="low"
         )
-        alert_manager.process_assessment(low, 'escalation-entity')
+        alert_manager.process_assessment(low, "escalation-entity")
 
         # Regra de escalada rápida
         escalation_rule = AlertRule(
-            name='rapid_escalation',
+            name="rapid_escalation",
             alert_type=AlertType.RAPID_ESCALATION,
             cooldown_minutes=0,
-            conditions={'max_escalation_rate': 0.3}
+            conditions={"max_escalation_rate": 0.3},
         )
         alert_manager.add_rule(escalation_rule)
 
@@ -507,10 +485,10 @@ class TestRiskAlertManager:
             band=RiskBand.CRITICAL,
             domain=UnifiedDomain.BUSINESS,
             factors={},
-            reasoning='high'
+            reasoning="high",
         )
 
-        alerts = alert_manager.process_assessment(high, 'escalation-entity')
+        alerts = alert_manager.process_assessment(high, "escalation-entity")
 
         # Pode gerar alerta de escalada
         assert isinstance(alerts, list)
@@ -522,22 +500,16 @@ class TestRiskAlertManager:
             RiskBand.LOW: AlertSeverity.INFO,
             RiskBand.MEDIUM: AlertSeverity.WARNING,
             RiskBand.HIGH: AlertSeverity.ERROR,
-            RiskBand.CRITICAL: AlertSeverity.CRITICAL
+            RiskBand.CRITICAL: AlertSeverity.CRITICAL,
         }
 
         for band, expected_severity in band_severity.items():
             assessment = RiskAssessment(
-                score=0.5,
-                band=band,
-                domain=UnifiedDomain.BUSINESS,
-                factors={},
-                reasoning='test'
+                score=0.5, band=band, domain=UnifiedDomain.BUSINESS, factors={}, reasoning="test"
             )
 
             severity = alert_manager._determine_severity(
-                rule=Mock(min_severity=AlertSeverity.INFO),
-                assessment=assessment,
-                context={}
+                rule=Mock(min_severity=AlertSeverity.INFO), assessment=assessment, context={}
             )
 
             assert severity == expected_severity
@@ -553,33 +525,30 @@ class TestRiskAlertManager:
         }
 
         for alert_type, keyword in templates.items():
-            rule = AlertRule(
-                name='test',
-                alert_type=alert_type
-            )
+            rule = AlertRule(name="test", alert_type=alert_type)
 
             assessment = RiskAssessment(
                 score=0.8,
                 band=RiskBand.HIGH,
                 domain=UnifiedDomain.SECURITY,
                 factors={},
-                reasoning='test'
+                reasoning="test",
             )
 
             context = {
-                'entity_id': 'test-entity',
-                'score_delta': 0.3,
-                'consecutive_high_risk_count': 3
+                "entity_id": "test-entity",
+                "score_delta": 0.3,
+                "consecutive_high_risk_count": 3,
             }
 
             message = alert_manager._generate_message(rule, assessment, context)
 
             # Mensagem deve conter palavras-chave relevantes
-            assert 'test-entity' in message
+            assert "test-entity" in message
 
     def test_get_alerts_by_severity(self, alert_manager, sample_assessment):
         """Testa filtro por severidade."""
-        alert_manager.process_assessment(sample_assessment, 'entity-1')
+        alert_manager.process_assessment(sample_assessment, "entity-1")
 
         critical_alerts = alert_manager.get_alerts(severity=AlertSeverity.CRITICAL)
 
@@ -593,31 +562,31 @@ class TestRiskAlertManager:
 
         # Criar alerta antigo
         old_alert = RiskAlert(
-            id='ALT-OLD-001',
+            id="ALT-OLD-001",
             alert_type=AlertType.THRESHOLD_VIOLATION,
             severity=AlertSeverity.INFO,
-            entity_id='old-entity',
+            entity_id="old-entity",
             domain=UnifiedDomain.BUSINESS,
             score=0.5,
             band=RiskBand.MEDIUM,
-            message='Old alert',
+            message="Old alert",
             details={},
-            timestamp=now - timedelta(hours=10)
+            timestamp=now - timedelta(hours=10),
         )
         alert_manager._store_alert(old_alert)
 
         # Criar alerta recente
         recent_alert = RiskAlert(
-            id='ALT-NEW-001',
+            id="ALT-NEW-001",
             alert_type=AlertType.THRESHOLD_VIOLATION,
             severity=AlertSeverity.INFO,
-            entity_id='recent-entity',
+            entity_id="recent-entity",
             domain=UnifiedDomain.BUSINESS,
             score=0.5,
             band=RiskBand.MEDIUM,
-            message='Recent alert',
+            message="Recent alert",
             details={},
-            timestamp=now - timedelta(minutes=5)
+            timestamp=now - timedelta(minutes=5),
         )
         alert_manager._store_alert(recent_alert)
 
@@ -631,7 +600,7 @@ class TestRiskAlertManager:
         """Testa limite de resultados."""
         # Criar múltiplos alertas
         for i in range(5):
-            alert_manager.process_assessment(sample_assessment, f'entity-{i}')
+            alert_manager.process_assessment(sample_assessment, f"entity-{i}")
 
         # Buscar com limite
         limited_alerts = alert_manager.get_alerts(limit=3)
@@ -640,43 +609,40 @@ class TestRiskAlertManager:
 
     def test_acknowledge_nonexistent_alert(self, alert_manager):
         """Testa confirmação de alerta inexistente."""
-        result = alert_manager.acknowledge_alert('NONEXISTENT', 'user-1')
+        result = alert_manager.acknowledge_alert("NONEXISTENT", "user-1")
 
         assert result == False
 
     def test_resolve_nonexistent_alert(self, alert_manager):
         """Testa resolução de alerta inexistente."""
-        result = alert_manager.resolve_alert('NONEXISTENT', 'user-1')
+        result = alert_manager.resolve_alert("NONEXISTENT", "user-1")
 
         assert result == False
 
     def test_top_entities_in_stats(self, alert_manager, sample_assessment):
         """Testa top entidades nas estatísticas."""
         # Criar alertas para diferentes entidades
-        entity_counts = {'entity-1': 3, 'entity-2': 2, 'entity-3': 1}
+        entity_counts = {"entity-1": 3, "entity-2": 2, "entity-3": 1}
 
         for entity_id, count in entity_counts.items():
             for _ in range(count):
-                alert_manager.process_assessment(
-                    sample_assessment,
-                    entity_id
-                )
+                alert_manager.process_assessment(sample_assessment, entity_id)
 
         stats = alert_manager.get_alert_stats()
 
         # top_entities deve ter até 10 entidades
         # A contagem inclui alertas gerados pelas regras padrão
         # então o valor exato pode variar
-        assert len(stats['top_entities']) >= 3
+        assert len(stats["top_entities"]) >= 3
 
     def test_cross_domain_spike_detection(self, alert_manager):
         """Testa detecção de spike em múltiplos domínios."""
         # Criar regra
         spike_rule = AlertRule(
-            name='cross_domain_spike',
+            name="cross_domain_spike",
             alert_type=AlertType.CROSS_DOMAIN_SPIKE,
             cooldown_minutes=0,
-            conditions={'min_domains': 2}
+            conditions={"min_domains": 2},
         )
         alert_manager.add_rule(spike_rule)
 
@@ -685,16 +651,12 @@ class TestRiskAlertManager:
 
         for domain in high_domains:
             assessment = RiskAssessment(
-                score=0.9,
-                band=RiskBand.CRITICAL,
-                domain=domain,
-                factors={},
-                reasoning='high risk'
+                score=0.9, band=RiskBand.CRITICAL, domain=domain, factors={}, reasoning="high risk"
             )
-            alert_manager.process_assessment(assessment, 'spike-entity')
+            alert_manager.process_assessment(assessment, "spike-entity")
 
         # Deve ter registrado contagens de alto risco
-        assert alert_manager._consecutive_high_risk['spike-entity'] >= len(high_domains)
+        assert alert_manager._consecutive_high_risk["spike-entity"] >= len(high_domains)
 
     def test_alert_timestamp_ordering(self, alert_manager):
         """Testa ordenação de alertas por timestamp."""
@@ -703,16 +665,16 @@ class TestRiskAlertManager:
         # Criar alertas em ordem reversa
         for i in range(5):
             alert = RiskAlert(
-                id=f'ALT-{i:03d}',
+                id=f"ALT-{i:03d}",
                 alert_type=AlertType.THRESHOLD_VIOLATION,
                 severity=AlertSeverity.INFO,
-                entity_id=f'entity-{i}',
+                entity_id=f"entity-{i}",
                 domain=UnifiedDomain.BUSINESS,
                 score=0.5,
                 band=RiskBand.MEDIUM,
-                message=f'Alert {i}',
+                message=f"Alert {i}",
                 details={},
-                timestamp=now - timedelta(hours=5 - i)
+                timestamp=now - timedelta(hours=5 - i),
             )
             alert_manager._store_alert(alert)
 
@@ -728,15 +690,15 @@ class TestRiskAlertManager:
         # Criar mais de 1000 alertas
         for i in range(1010):
             alert = RiskAlert(
-                id=f'ALT-{i:04d}',
+                id=f"ALT-{i:04d}",
                 alert_type=AlertType.THRESHOLD_VIOLATION,
                 severity=AlertSeverity.INFO,
-                entity_id='test-entity',
+                entity_id="test-entity",
                 domain=UnifiedDomain.BUSINESS,
                 score=0.5,
                 band=RiskBand.MEDIUM,
-                message='Test',
-                details={}
+                message="Test",
+                details={},
             )
             alert_manager._store_alert(alert)
 
@@ -752,38 +714,34 @@ class TestRiskAlertManager:
                 band=RiskBand.HIGH,
                 domain=UnifiedDomain.SECURITY,
                 factors={},
-                reasoning='high'
+                reasoning="high",
             )
-            alert_manager.process_assessment(assessment, 'reset-entity')
+            alert_manager.process_assessment(assessment, "reset-entity")
 
-        assert alert_manager._consecutive_high_risk['reset-entity'] >= 3
+        assert alert_manager._consecutive_high_risk["reset-entity"] >= 3
 
         # Avaliação de baixo risco deve resetar
         low = RiskAssessment(
-            score=0.2,
-            band=RiskBand.LOW,
-            domain=UnifiedDomain.SECURITY,
-            factors={},
-            reasoning='low'
+            score=0.2, band=RiskBand.LOW, domain=UnifiedDomain.SECURITY, factors={}, reasoning="low"
         )
-        alert_manager.process_assessment(low, 'reset-entity')
+        alert_manager.process_assessment(low, "reset-entity")
 
-        assert alert_manager._consecutive_high_risk['reset-entity'] == 0
+        assert alert_manager._consecutive_high_risk["reset-entity"] == 0
 
     def test_multiple_handlers_execution(self, alert_manager):
         """Testa execução de múltiplos handlers."""
         execution_log = []
 
         def handler1(alert):
-            execution_log.append('handler1')
+            execution_log.append("handler1")
             return True
 
         def handler2(alert):
-            execution_log.append('handler2')
+            execution_log.append("handler2")
             return True
 
-        alert_manager.add_handler(CallbackAlertHandler('h1', handler1))
-        alert_manager.add_handler(CallbackAlertHandler('h2', handler2))
+        alert_manager.add_handler(CallbackAlertHandler("h1", handler1))
+        alert_manager.add_handler(CallbackAlertHandler("h2", handler2))
 
         # Processar avaliação que gera alerta
         assessment = RiskAssessment(
@@ -791,25 +749,25 @@ class TestRiskAlertManager:
             band=RiskBand.CRITICAL,
             domain=UnifiedDomain.SECURITY,
             factors={},
-            reasoning='critical'
+            reasoning="critical",
         )
 
-        alert_manager.process_assessment(assessment, 'test-entity')
+        alert_manager.process_assessment(assessment, "test-entity")
 
         # Ambos handlers devem ter sido executados
-        assert 'handler1' in execution_log
-        assert 'handler2' in execution_log
+        assert "handler1" in execution_log
+        assert "handler2" in execution_log
 
     def test_alert_details_completeness(self, alert_manager, sample_assessment):
         """Testa completude dos detalhes do alerta."""
-        alerts = alert_manager.process_assessment(sample_assessment, 'test-entity')
+        alerts = alert_manager.process_assessment(sample_assessment, "test-entity")
 
         if alerts:
             alert = alerts[0]
 
             # Verificar que detalhes contêm informações esperadas
-            assert 'rule_name' in alert.details
-            assert 'factors' in alert.details
+            assert "rule_name" in alert.details
+            assert "factors" in alert.details
 
             # Pode conter violação, anomalia ou tendência
-            assert any(key in alert.details for key in ['violation', 'anomaly', 'trend'])
+            assert any(key in alert.details for key in ["violation", "anomaly", "trend"])

@@ -31,6 +31,7 @@ try:
         JWTSVID,
         X509SVID,
     )
+
     SECURITY_LIB_AVAILABLE = True
 except ImportError:
     SECURITY_LIB_AVAILABLE = False
@@ -169,9 +170,7 @@ async def vault_client_real(settings_e2e: OrchestratorSettings) -> AsyncMock:
     # Setup inicial com token root (para testes)
     client.token = VAULT_TOKEN
     client.client = httpx.AsyncClient(
-        base_url=VAULT_ADDR,
-        timeout=10.0,
-        headers={"X-Vault-Token": VAULT_TOKEN}
+        base_url=VAULT_ADDR, timeout=10.0, headers={"X-Vault-Token": VAULT_TOKEN}
     )
     client.token_expiry = datetime.now(timezone.utc) + timedelta(hours=1)
 
@@ -193,27 +192,35 @@ def vault_client_mock() -> AsyncMock:
     client = AsyncMock()
     client.token = "mock_token"
     client.token_expiry = datetime.now(timezone.utc) + timedelta(hours=1)
-    client.read_secret = AsyncMock(return_value={
-        "uri": "mongodb://mock:mock@localhost:27017/test",
-        "password": "mock_password"
-    })
+    client.read_secret = AsyncMock(
+        return_value={
+            "uri": "mongodb://mock:mock@localhost:27017/test",
+            "password": "mock_password",
+        }
+    )
     client.write_secret = AsyncMock()
-    client.get_database_credentials = AsyncMock(return_value={
-        "username": "v_test_user_abc123",
-        "password": "v_test_pass_xyz789",
-        "ttl": 3600
-    })
+    client.get_database_credentials = AsyncMock(
+        return_value={
+            "username": "v_test_user_abc123",
+            "password": "v_test_pass_xyz789",
+            "ttl": 3600,
+        }
+    )
     client.renew_token = AsyncMock(return_value=True)
-    client.issue_certificate = AsyncMock(return_value={
-        "certificate": "-----BEGIN CERTIFICATE-----\nmock_cert\n-----END CERTIFICATE-----",
-        "private_key": "-----BEGIN PRIVATE KEY-----\nmock_key\n-----END PRIVATE KEY-----",
-        "ca_chain": "-----BEGIN CERTIFICATE-----\nmock_ca\n-----END CERTIFICATE-----"
-    })
+    client.issue_certificate = AsyncMock(
+        return_value={
+            "certificate": "-----BEGIN CERTIFICATE-----\nmock_cert\n-----END CERTIFICATE-----",
+            "private_key": "-----BEGIN PRIVATE KEY-----\nmock_key\n-----END PRIVATE KEY-----",
+            "ca_chain": "-----BEGIN CERTIFICATE-----\nmock_ca\n-----END CERTIFICATE-----",
+        }
+    )
     return client
 
 
 @pytest.fixture
-async def vault_client(settings_e2e: OrchestratorSettings, vault_client_real: AsyncMock, vault_client_mock: AsyncMock) -> Any:
+async def vault_client(
+    settings_e2e: OrchestratorSettings, vault_client_real: AsyncMock, vault_client_mock: AsyncMock
+) -> Any:
     """
     Cliente Vault (real ou mock dependendo do modo).
     """
@@ -280,14 +287,20 @@ def spiffe_manager_mock() -> AsyncMock:
     manager.close = AsyncMock()
     manager.fetch_jwt_svid = AsyncMock(return_value=mock_jwt_svid)
     manager.fetch_x509_svid = AsyncMock(return_value=mock_x509_svid)
-    manager.get_trust_bundle = AsyncMock(return_value="-----BEGIN CERTIFICATE-----\nmock_ca\n-----END CERTIFICATE-----")
+    manager.get_trust_bundle = AsyncMock(
+        return_value="-----BEGIN CERTIFICATE-----\nmock_ca\n-----END CERTIFICATE-----"
+    )
     manager.get_trust_bundle_keys = AsyncMock(return_value={"kid1": "mock_key"})
 
     return manager
 
 
 @pytest.fixture
-async def spiffe_manager(settings_e2e: OrchestratorSettings, spiffe_manager_real: AsyncMock, spiffe_manager_mock: MagicMock) -> Any:
+async def spiffe_manager(
+    settings_e2e: OrchestratorSettings,
+    spiffe_manager_real: AsyncMock,
+    spiffe_manager_mock: MagicMock,
+) -> Any:
     """
     SPIFFE Manager (real ou mock dependendo do modo).
     """
@@ -298,7 +311,9 @@ async def spiffe_manager(settings_e2e: OrchestratorSettings, spiffe_manager_real
 
 
 @pytest.fixture
-async def orchestrator_vault_client_real(settings_e2e: OrchestratorSettings) -> OrchestratorVaultClient:
+async def orchestrator_vault_client_real(
+    settings_e2e: OrchestratorSettings,
+) -> OrchestratorVaultClient:
     """
     Cliente Vault do Orchestrator real para testes E2E.
     """
@@ -348,7 +363,7 @@ def orchestrator_vault_client_mock() -> OrchestratorVaultClient:
 async def orchestrator_vault_client(
     settings_e2e: OrchestratorSettings,
     orchestrator_vault_client_real: OrchestratorVaultClient,
-    orchestrator_vault_client_mock: OrchestratorVaultClient
+    orchestrator_vault_client_mock: OrchestratorVaultClient,
 ) -> OrchestratorVaultClient:
     """
     Cliente Vault do Orchestrator (real ou mock dependendo do modo).

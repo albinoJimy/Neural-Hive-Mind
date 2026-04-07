@@ -10,8 +10,7 @@ from pathlib import Path
 import importlib.util
 
 spec = importlib.util.spec_from_file_location(
-    "seniority",
-    Path(__file__).parent.parent / 'src' / 'models' / 'seniority.py'
+    "seniority", Path(__file__).parent.parent / "src" / "models" / "seniority.py"
 )
 seniority_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(seniority_module)
@@ -119,13 +118,16 @@ class TestGetSeniorityDescription:
 class TestParseSeniorityLevel:
     """Testes da função parse_seniority_level."""
 
-    @pytest.mark.parametrize("input_str,expected", [
-        ("trainee", SeniorityLevel.TRAINEE),
-        ("TRAINEE", SeniorityLevel.TRAINEE),
-        ("Trainee", SeniorityLevel.TRAINEE),
-        ("senior", SeniorityLevel.SENIOR),
-        ("expert", SeniorityLevel.EXPERT),
-    ])
+    @pytest.mark.parametrize(
+        "input_str,expected",
+        [
+            ("trainee", SeniorityLevel.TRAINEE),
+            ("TRAINEE", SeniorityLevel.TRAINEE),
+            ("Trainee", SeniorityLevel.TRAINEE),
+            ("senior", SeniorityLevel.SENIOR),
+            ("expert", SeniorityLevel.EXPERT),
+        ],
+    )
     def test_parse_valid_strings(self, input_str, expected):
         """Deve fazer parse de strings válidas (case-insensitive)."""
         assert parse_seniority_level(input_str) == expected

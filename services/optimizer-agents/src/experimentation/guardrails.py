@@ -8,6 +8,7 @@ e aborta experimentos automaticamente quando limites sao violados.
 import math
 from dataclasses import dataclass
 from datetime import datetime, timezone
+
 UTC = timezone.utc  # type: ignore
 
 import numpy as np

@@ -15,7 +15,11 @@ async def test_genetic_selection_with_real_execution(genetic_selector, tool_exec
         language="python",
         complexity_score=0.5,
         required_categories=["ANALYSIS", "VALIDATION"],
-        constraints={"max_execution_time_ms": 60000, "max_cost_score": 0.5, "min_reputation_score": 0.7},
+        constraints={
+            "max_execution_time_ms": 60000,
+            "max_cost_score": 0.5,
+            "min_reputation_score": 0.7,
+        },
         context={"framework": "fastapi"},
     )
 
@@ -30,14 +34,18 @@ async def test_genetic_selection_with_real_execution(genetic_selector, tool_exec
 
         if tool_descriptor.integration_type in ["CLI", "CONTAINER"]:
             result = await tool_executor.execute_tool(
-                tool=tool_descriptor, execution_params={"verbose": True}, context={"working_dir": "/tmp"}
+                tool=tool_descriptor,
+                execution_params={"verbose": True},
+                context={"working_dir": "/tmp"},
             )
 
             assert result is not None
             assert result.execution_time_ms > 0
 
             await genetic_selector.tool_registry.update_reputation(
-                tool_id=selected_tool.tool_id, success=result.success, execution_time_ms=result.execution_time_ms
+                tool_id=selected_tool.tool_id,
+                success=result.success,
+                execution_time_ms=result.execution_time_ms,
             )
 
 

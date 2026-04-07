@@ -40,8 +40,8 @@ class TestBuildExecutorWithMockCodeForge:
 
         # Create mock Code Forge client
         mock_client = create_mock_code_forge_client(
-            pipeline_id='pipeline-123',
-            status='completed',
+            pipeline_id="pipeline-123",
+            status="completed",
         )
 
         executor = BuildExecutor(
@@ -52,9 +52,9 @@ class TestBuildExecutorWithMockCodeForge:
         )
 
         ticket = ExecutorTestHelper.create_build_ticket(
-            artifact_id='test-artifact',
-            branch='main',
-            commit_sha='abc123def456',
+            artifact_id="test-artifact",
+            branch="main",
+            commit_sha="abc123def456",
         )
 
         result = await executor.execute(ticket)
@@ -62,15 +62,15 @@ class TestBuildExecutorWithMockCodeForge:
         # Validate result
         ResultValidator.assert_success(result)
         ResultValidator.assert_simulated(result, expected=False)
-        ResultValidator.assert_has_output(result, 'pipeline_id', 'artifact_id', 'branch')
-        ResultValidator.assert_output_value(result, 'pipeline_id', 'pipeline-123')
-        ResultValidator.assert_output_value(result, 'artifact_id', 'test-artifact')
+        ResultValidator.assert_has_output(result, "pipeline_id", "artifact_id", "branch")
+        ResultValidator.assert_output_value(result, "pipeline_id", "pipeline-123")
+        ResultValidator.assert_output_value(result, "artifact_id", "test-artifact")
         ResultValidator.assert_has_logs(result, min_count=2)
-        ResultValidator.assert_log_contains(result, 'Build started')
-        ResultValidator.assert_log_contains(result, 'pipeline')
+        ResultValidator.assert_log_contains(result, "Build started")
+        ResultValidator.assert_log_contains(result, "pipeline")
 
         # Verify Code Forge client was called
-        mock_client.trigger_pipeline.assert_called_once_with('test-artifact')
+        mock_client.trigger_pipeline.assert_called_once_with("test-artifact")
         mock_client.wait_for_pipeline_completion.assert_called_once()
 
         # Verify metrics were recorded
@@ -100,7 +100,7 @@ class TestBuildExecutorWithMockCodeForge:
         # Should fall back to simulation and still succeed
         ResultValidator.assert_success(result)
         ResultValidator.assert_simulated(result, expected=True)
-        ResultValidator.assert_has_output(result, 'artifact_url', 'build_id')
+        ResultValidator.assert_has_output(result, "artifact_url", "build_id")
 
     @pytest.mark.asyncio
     async def test_build_executor_pipeline_timeout(
@@ -111,8 +111,8 @@ class TestBuildExecutorWithMockCodeForge:
 
         # Create mock that returns timeout status
         mock_client = create_mock_code_forge_client(
-            pipeline_id='pipeline-timeout',
-            status='timeout',
+            pipeline_id="pipeline-timeout",
+            status="timeout",
         )
 
         executor = BuildExecutor(
@@ -129,7 +129,7 @@ class TestBuildExecutorWithMockCodeForge:
         # Pipeline timeout should result in failure
         ResultValidator.assert_failure(result)
         ResultValidator.assert_simulated(result, expected=False)
-        ResultValidator.assert_output_value(result, 'pipeline_id', 'pipeline-timeout')
+        ResultValidator.assert_output_value(result, "pipeline_id", "pipeline-timeout")
 
     @pytest.mark.asyncio
     async def test_build_executor_pipeline_failed_status(
@@ -140,8 +140,8 @@ class TestBuildExecutorWithMockCodeForge:
 
         # Create mock that returns failed status
         mock_client = create_mock_code_forge_client(
-            pipeline_id='pipeline-failed',
-            status='failed',
+            pipeline_id="pipeline-failed",
+            status="failed",
         )
 
         executor = BuildExecutor(
@@ -167,19 +167,20 @@ class TestBuildExecutorWithMockCodeForge:
         from src.executors.build_executor import BuildExecutor
 
         # Track call count for retry verification
-        call_count = {'value': 0}
+        call_count = {"value": 0}
+
         async def trigger_with_retry(artifact_id):
-            call_count['value'] += 1
-            if call_count['value'] < 3:
-                raise ConnectionError('Temporary failure')
-            return 'pipeline-retry-success'
+            call_count["value"] += 1
+            if call_count["value"] < 3:
+                raise ConnectionError("Temporary failure")
+            return "pipeline-retry-success"
 
         mock_client = AsyncMock()
         mock_client.trigger_pipeline = AsyncMock(side_effect=trigger_with_retry)
         mock_client.wait_for_pipeline_completion = AsyncMock(
             return_value=create_pipeline_status(
-                pipeline_id='pipeline-retry-success',
-                status='completed',
+                pipeline_id="pipeline-retry-success",
+                status="completed",
             )
         )
 
@@ -202,7 +203,7 @@ class TestBuildExecutorWithMockCodeForge:
         # Should succeed after retries
         ResultValidator.assert_success(result)
         ResultValidator.assert_simulated(result, expected=False)
-        assert call_count['value'] == 3, 'Expected 3 calls (2 failures + 1 success)'
+        assert call_count["value"] == 3, "Expected 3 calls (2 failures + 1 success)"
 
     @pytest.mark.asyncio
     async def test_build_executor_retry_exhausted(
@@ -213,9 +214,7 @@ class TestBuildExecutorWithMockCodeForge:
 
         # Mock that always fails
         mock_client = AsyncMock()
-        mock_client.trigger_pipeline = AsyncMock(
-            side_effect=ConnectionError('Persistent failure')
-        )
+        mock_client.trigger_pipeline = AsyncMock(side_effect=ConnectionError("Persistent failure"))
 
         # Configure for quick retries
         worker_config.code_forge_retry_attempts = 2
@@ -263,8 +262,8 @@ class TestBuildExecutorSimulation:
         # Simulation should always succeed
         ResultValidator.assert_success(result)
         ResultValidator.assert_simulated(result, expected=True)
-        ResultValidator.assert_has_output(result, 'artifact_url', 'build_id', 'commit_sha')
-        ResultValidator.assert_log_contains(result, 'simulated')
+        ResultValidator.assert_has_output(result, "artifact_url", "build_id", "commit_sha")
+        ResultValidator.assert_log_contains(result, "simulated")
 
     @pytest.mark.asyncio
     async def test_build_executor_simulation_metrics(
@@ -285,49 +284,45 @@ class TestBuildExecutorSimulation:
         result = await executor.execute(ticket)
 
         # Verify metrics were recorded
-        mock_metrics.build_tasks_executed_total.labels.assert_called_with(status='success')
-        mock_metrics.build_duration_seconds.labels.assert_called_with(stage='simulated')
+        mock_metrics.build_tasks_executed_total.labels.assert_called_with(status="success")
+        mock_metrics.build_duration_seconds.labels.assert_called_with(stage="simulated")
 
 
 class TestBuildExecutorValidation:
     """Tests for BuildExecutor input validation."""
 
     @pytest.mark.asyncio
-    async def test_build_executor_missing_ticket_id(
-        self, build_executor
-    ):
+    async def test_build_executor_missing_ticket_id(self, build_executor):
         """Test that missing ticket_id raises ValidationError."""
         from executors.base_executor import ValidationError
 
         ticket = {
-            'task_id': 'task-123',
-            'task_type': 'BUILD',
-            'parameters': {},
+            "task_id": "task-123",
+            "task_type": "BUILD",
+            "parameters": {},
         }
 
         with pytest.raises(ValidationError) as exc_info:
             await build_executor.execute(ticket)
 
-        assert 'ticket_id' in str(exc_info.value)
+        assert "ticket_id" in str(exc_info.value)
 
     @pytest.mark.asyncio
-    async def test_build_executor_wrong_task_type(
-        self, build_executor
-    ):
+    async def test_build_executor_wrong_task_type(self, build_executor):
         """Test that wrong task_type raises ValidationError."""
         from executors.base_executor import ValidationError
 
         ticket = {
-            'ticket_id': 'ticket-123',
-            'task_id': 'task-123',
-            'task_type': 'DEPLOY',  # Wrong type
-            'parameters': {},
+            "ticket_id": "ticket-123",
+            "task_id": "task-123",
+            "task_type": "DEPLOY",  # Wrong type
+            "parameters": {},
         }
 
         with pytest.raises(ValidationError) as exc_info:
             await build_executor.execute(ticket)
 
-        assert 'task type mismatch' in str(exc_info.value).lower()
+        assert "task type mismatch" in str(exc_info.value).lower()
 
 
 @pytest.mark.real_integration
@@ -336,14 +331,16 @@ class TestBuildExecutorRealCodeForge:
     """Tests that require a real Code Forge instance."""
 
     @pytest.mark.asyncio
-    async def test_build_executor_with_real_code_forge(self, worker_config, mock_vault_client, mock_metrics):
+    async def test_build_executor_with_real_code_forge(
+        self, worker_config, mock_vault_client, mock_metrics
+    ):
         """Test with real Code Forge (requires CODE_FORGE_URL env var)."""
         from src.executors.build_executor import BuildExecutor
         from neural_hive_integration.clients.code_forge_client import CodeForgeClient
 
-        code_forge_url = os.getenv('CODE_FORGE_URL')
+        code_forge_url = os.getenv("CODE_FORGE_URL")
         if not code_forge_url:
-            pytest.skip('CODE_FORGE_URL not configured')
+            pytest.skip("CODE_FORGE_URL not configured")
 
         # Create real Code Forge client
         real_client = CodeForgeClient(base_url=code_forge_url, timeout=60)
@@ -358,16 +355,16 @@ class TestBuildExecutorRealCodeForge:
 
             # Use a test artifact that exists in the Code Forge
             ticket = ExecutorTestHelper.create_build_ticket(
-                artifact_id='test-integration-artifact',
-                branch='main',
+                artifact_id="test-integration-artifact",
+                branch="main",
             )
 
             result = await executor.execute(ticket)
 
             # With real service, expect either success or graceful failure
-            assert 'success' in result
-            assert 'output' in result
-            assert 'metadata' in result
+            assert "success" in result
+            assert "output" in result
+            assert "metadata" in result
 
         finally:
             await real_client.close()

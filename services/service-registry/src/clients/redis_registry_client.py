@@ -304,4 +304,3 @@ class RedisRegistryClient:
         except Exception as e:
             logger.error("redis_health_check_failed", error=str(e))
             return False
-

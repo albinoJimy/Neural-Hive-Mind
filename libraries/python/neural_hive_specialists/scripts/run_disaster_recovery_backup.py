@@ -178,9 +178,7 @@ def run_backup(
 
         for spec_type in specialist_types:
             for tenant in tenants:
-                logger.info(
-                    "Executando backup", specialist_type=spec_type, tenant_id=tenant
-                )
+                logger.info("Executando backup", specialist_type=spec_type, tenant_id=tenant)
 
                 if dry_run:
                     logger.info(
@@ -207,9 +205,7 @@ def run_backup(
                     class SpecialistStub:
                         def __init__(self, config):
                             self.config = config
-                            self.mlflow_client = (
-                                None  # Seria inicializado se necessário
-                            )
+                            self.mlflow_client = None  # Seria inicializado se necessário
                             # Importar aqui para evitar problemas de importação circular
                             from neural_hive_specialists.metrics import (
                                 SpecialistMetrics,
@@ -239,9 +235,7 @@ def run_backup(
                             specialist_type=spec_type,
                             tenant_id=tenant,
                             backup_id=result["backup_id"],
-                            size_mb=round(
-                                result["total_size_bytes"] / (1024 * 1024), 2
-                            ),
+                            size_mb=round(result["total_size_bytes"] / (1024 * 1024), 2),
                             duration_seconds=result["duration_seconds"],
                             components=result["components_included"],
                         )
@@ -351,9 +345,7 @@ def run_backup(
                         1 if failed_backups == 0 else 0
                     )
 
-                push_to_gateway(
-                    pushgateway_url, job="disaster_recovery_backup", registry=registry
-                )
+                push_to_gateway(pushgateway_url, job="disaster_recovery_backup", registry=registry)
 
                 logger.info("Métricas enviadas para Pushgateway", url=pushgateway_url)
 
@@ -384,13 +376,9 @@ def main():
         help="Tipo de especialista (technical, business, etc). Default: todos",
     )
 
-    parser.add_argument(
-        "--tenant-id", type=str, help="Tenant ID específico. Default: todos"
-    )
+    parser.add_argument("--tenant-id", type=str, help="Tenant ID específico. Default: todos")
 
-    parser.add_argument(
-        "--dry-run", action="store_true", help="Simular execução sem fazer backup"
-    )
+    parser.add_argument("--dry-run", action="store_true", help="Simular execução sem fazer backup")
 
     parser.add_argument("--verbose", action="store_true", help="Logging detalhado")
 

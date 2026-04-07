@@ -21,14 +21,15 @@ import httpx
 def opa_client():
     """Fixture para OPAClient."""
     from clients.opa_client import OPAClient
+
     return OPAClient(
-        base_url='http://opa.test:8181',
-        token='test-token',
+        base_url="http://opa.test:8181",
+        token="test-token",
         timeout=30,
         verify_ssl=True,
         retry_attempts=3,
         retry_backoff_base=1,
-        retry_backoff_max=5
+        retry_backoff_max=5,
     )
 
 
@@ -36,10 +37,9 @@ def opa_client():
 def policy_request():
     """Fixture para PolicyEvaluationRequest."""
     from clients.opa_client import PolicyEvaluationRequest
+
     return PolicyEvaluationRequest(
-        policy_path='policy/allow',
-        input_data={'user': 'admin', 'action': 'read'},
-        decision=None
+        policy_path="policy/allow", input_data={"user": "admin", "action": "read"}, decision=None
     )
 
 
@@ -49,47 +49,41 @@ class TestOPAClientInit:
     def test_init_with_token(self):
         """Deve inicializar com token."""
         from clients.opa_client import OPAClient
-        client = OPAClient(
-            base_url='http://opa.test:8181',
-            token='my-token',
-            timeout=60
-        )
-        assert client.base_url == 'http://opa.test:8181'
-        assert client.token == 'my-token'
+
+        client = OPAClient(base_url="http://opa.test:8181", token="my-token", timeout=60)
+        assert client.base_url == "http://opa.test:8181"
+        assert client.token == "my-token"
         assert client.timeout == 60
 
     def test_init_without_token(self):
         """Deve inicializar sem token."""
         from clients.opa_client import OPAClient
-        client = OPAClient(
-            base_url='http://opa.test:8181',
-            timeout=30
-        )
-        assert client.base_url == 'http://opa.test:8181'
+
+        client = OPAClient(base_url="http://opa.test:8181", timeout=30)
+        assert client.base_url == "http://opa.test:8181"
         assert client.token is None
 
     def test_init_strips_trailing_slash(self):
         """Deve remover barra final da URL."""
         from clients.opa_client import OPAClient
-        client = OPAClient(
-            base_url='http://opa.test:8181/',
-            timeout=30
-        )
-        assert client.base_url == 'http://opa.test:8181'
+
+        client = OPAClient(base_url="http://opa.test:8181/", timeout=30)
+        assert client.base_url == "http://opa.test:8181"
 
     def test_get_headers_with_token(self, opa_client):
         """Deve incluir header Authorization com token."""
         headers = opa_client._get_headers()
-        assert headers['Content-Type'] == 'application/json'
-        assert headers['Authorization'] == 'Bearer test-token'
+        assert headers["Content-Type"] == "application/json"
+        assert headers["Authorization"] == "Bearer test-token"
 
     def test_get_headers_without_token(self):
         """Deve retornar headers sem Authorization sem token."""
         from clients.opa_client import OPAClient
-        client = OPAClient(base_url='http://opa.test:8181', timeout=30)
+
+        client = OPAClient(base_url="http://opa.test:8181", timeout=30)
         headers = client._get_headers()
-        assert headers['Content-Type'] == 'application/json'
-        assert 'Authorization' not in headers
+        assert headers["Content-Type"] == "application/json"
+        assert "Authorization" not in headers
 
 
 class TestEvaluatePolicy:
@@ -100,15 +94,10 @@ class TestEvaluatePolicy:
         """Deve avaliar politica com sucesso (resultado dicionario)."""
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {
-            'result': {
-                'allow': True,
-                'violations': []
-            }
-        }
+        mock_response.json.return_value = {"result": {"allow": True, "violations": []}}
         mock_response.raise_for_status = MagicMock()
 
-        with patch.object(opa_client.client, 'post', new_callable=AsyncMock) as mock_post:
+        with patch.object(opa_client.client, "post", new_callable=AsyncMock) as mock_post:
             mock_post.return_value = mock_response
 
             result = await opa_client.evaluate_policy(policy_request)
@@ -122,10 +111,10 @@ class TestEvaluatePolicy:
         """Deve tratar resultado booleano corretamente."""
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {'result': True}
+        mock_response.json.return_value = {"result": True}
         mock_response.raise_for_status = MagicMock()
 
-        with patch.object(opa_client.client, 'post', new_callable=AsyncMock) as mock_post:
+        with patch.object(opa_client.client, "post", new_callable=AsyncMock) as mock_post:
             mock_post.return_value = mock_response
 
             result = await opa_client.evaluate_policy(policy_request)
@@ -138,10 +127,10 @@ class TestEvaluatePolicy:
         """Deve tratar resultado booleano false corretamente."""
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {'result': False}
+        mock_response.json.return_value = {"result": False}
         mock_response.raise_for_status = MagicMock()
 
-        with patch.object(opa_client.client, 'post', new_callable=AsyncMock) as mock_post:
+        with patch.object(opa_client.client, "post", new_callable=AsyncMock) as mock_post:
             mock_post.return_value = mock_response
 
             result = await opa_client.evaluate_policy(policy_request)
@@ -155,22 +144,22 @@ class TestEvaluatePolicy:
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
-            'result': [
-                {'rule_id': 'rule1', 'message': 'Violation 1'},
-                {'rule_id': 'rule2', 'message': 'Violation 2'}
+            "result": [
+                {"rule_id": "rule1", "message": "Violation 1"},
+                {"rule_id": "rule2", "message": "Violation 2"},
             ]
         }
         mock_response.raise_for_status = MagicMock()
 
-        with patch.object(opa_client.client, 'post', new_callable=AsyncMock) as mock_post:
+        with patch.object(opa_client.client, "post", new_callable=AsyncMock) as mock_post:
             mock_post.return_value = mock_response
 
             result = await opa_client.evaluate_policy(policy_request)
 
             assert result.allow is False
             assert len(result.violations) == 2
-            assert result.violations[0].rule_id == 'rule1'
-            assert result.violations[1].rule_id == 'rule2'
+            assert result.violations[0].rule_id == "rule1"
+            assert result.violations[1].rule_id == "rule2"
 
     @pytest.mark.asyncio
     async def test_evaluate_policy_with_violations(self, opa_client, policy_request):
@@ -178,41 +167,41 @@ class TestEvaluatePolicy:
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
-            'result': {
-                'allow': False,
-                'violations': [
+            "result": {
+                "allow": False,
+                "violations": [
                     {
-                        'rule_id': 'auth_required',
-                        'message': 'Authentication required',
-                        'severity': 'HIGH'
+                        "rule_id": "auth_required",
+                        "message": "Authentication required",
+                        "severity": "HIGH",
                     },
                     {
-                        'rule_id': 'rate_limit',
-                        'message': 'Rate limit exceeded',
-                        'severity': 'MEDIUM'
-                    }
-                ]
+                        "rule_id": "rate_limit",
+                        "message": "Rate limit exceeded",
+                        "severity": "MEDIUM",
+                    },
+                ],
             }
         }
         mock_response.raise_for_status = MagicMock()
 
-        with patch.object(opa_client.client, 'post', new_callable=AsyncMock) as mock_post:
+        with patch.object(opa_client.client, "post", new_callable=AsyncMock) as mock_post:
             mock_post.return_value = mock_response
 
             result = await opa_client.evaluate_policy(policy_request)
 
             assert result.allow is False
             assert len(result.violations) == 2
-            assert result.violations[0].rule_id == 'auth_required'
-            assert result.violations[0].severity.value == 'HIGH'
+            assert result.violations[0].rule_id == "auth_required"
+            assert result.violations[0].severity.value == "HIGH"
 
     @pytest.mark.asyncio
     async def test_evaluate_policy_timeout(self, opa_client, policy_request):
         """Deve lancar OPATimeoutError em timeout."""
         from clients.opa_client import OPATimeoutError
 
-        with patch.object(opa_client.client, 'post', new_callable=AsyncMock) as mock_post:
-            mock_post.side_effect = httpx.TimeoutException('Connection timeout')
+        with patch.object(opa_client.client, "post", new_callable=AsyncMock) as mock_post:
+            mock_post.side_effect = httpx.TimeoutException("Connection timeout")
 
             with pytest.raises(OPATimeoutError):
                 await opa_client.evaluate_policy(policy_request)
@@ -225,11 +214,9 @@ class TestEvaluatePolicy:
         mock_response = MagicMock()
         mock_response.status_code = 500
 
-        with patch.object(opa_client.client, 'post', new_callable=AsyncMock) as mock_post:
+        with patch.object(opa_client.client, "post", new_callable=AsyncMock) as mock_post:
             error = httpx.HTTPStatusError(
-                'Internal Server Error',
-                request=MagicMock(),
-                response=mock_response
+                "Internal Server Error", request=MagicMock(), response=mock_response
             )
             mock_post.side_effect = error
 
@@ -254,31 +241,28 @@ class TestParseViolations:
 
     def test_parse_violations_string_list(self, opa_client):
         """Deve parsear lista de strings."""
-        violations = ['Error 1', 'Error 2']
+        violations = ["Error 1", "Error 2"]
         result = opa_client._parse_violations(violations)
         assert len(result) == 2
-        assert result[0].message == 'Error 1'
-        assert result[1].message == 'Error 2'
+        assert result[0].message == "Error 1"
+        assert result[1].message == "Error 2"
 
     def test_parse_violations_dict_list(self, opa_client):
         """Deve parsear lista de dicionarios."""
         violations = [
-            {'rule_id': 'rule1', 'message': 'Error 1', 'severity': 'HIGH'},
-            {'rule_id': 'rule2', 'message': 'Error 2', 'severity': 'LOW'}
+            {"rule_id": "rule1", "message": "Error 1", "severity": "HIGH"},
+            {"rule_id": "rule2", "message": "Error 2", "severity": "LOW"},
         ]
         result = opa_client._parse_violations(violations)
         assert len(result) == 2
-        assert result[0].rule_id == 'rule1'
-        assert result[0].severity.value == 'HIGH'
-        assert result[1].rule_id == 'rule2'
-        assert result[1].severity.value == 'LOW'
+        assert result[0].rule_id == "rule1"
+        assert result[0].severity.value == "HIGH"
+        assert result[1].rule_id == "rule2"
+        assert result[1].severity.value == "LOW"
 
     def test_parse_violations_nested_dict(self, opa_client):
         """Deve parsear dicionario com listas de violacoes."""
-        violations = {
-            'auth': ['Auth error 1', 'Auth error 2'],
-            'rate_limit': ['Rate exceeded']
-        }
+        violations = {"auth": ["Auth error 1", "Auth error 2"], "rate_limit": ["Rate exceeded"]}
         result = opa_client._parse_violations(violations)
         assert len(result) == 3
 
@@ -289,31 +273,36 @@ class TestClassifySeverity:
     def test_classify_severity_critical(self, opa_client):
         """Deve classificar como CRITICAL."""
         from clients.opa_client import ViolationSeverity
-        result = opa_client._classify_severity('Critical security breach detected')
+
+        result = opa_client._classify_severity("Critical security breach detected")
         assert result == ViolationSeverity.CRITICAL
 
     def test_classify_severity_high(self, opa_client):
         """Deve classificar como HIGH."""
         from clients.opa_client import ViolationSeverity
-        result = opa_client._classify_severity('Error: authentication failed')
+
+        result = opa_client._classify_severity("Error: authentication failed")
         assert result == ViolationSeverity.HIGH
 
     def test_classify_severity_low(self, opa_client):
         """Deve classificar como LOW."""
         from clients.opa_client import ViolationSeverity
-        result = opa_client._classify_severity('Minor issue detected')
+
+        result = opa_client._classify_severity("Minor issue detected")
         assert result == ViolationSeverity.LOW
 
     def test_classify_severity_info(self, opa_client):
         """Deve classificar como INFO."""
         from clients.opa_client import ViolationSeverity
-        result = opa_client._classify_severity('Info: suggestion for improvement')
+
+        result = opa_client._classify_severity("Info: suggestion for improvement")
         assert result == ViolationSeverity.INFO
 
     def test_classify_severity_default_medium(self, opa_client):
         """Deve retornar MEDIUM como padrao."""
         from clients.opa_client import ViolationSeverity
-        result = opa_client._classify_severity('Some random message')
+
+        result = opa_client._classify_severity("Some random message")
         assert result == ViolationSeverity.MEDIUM
 
 
@@ -323,21 +312,24 @@ class TestNormalizeSeverity:
     def test_normalize_severity_already_enum(self, opa_client):
         """Deve retornar enum inalterado."""
         from clients.opa_client import ViolationSeverity
+
         result = opa_client._normalize_severity(ViolationSeverity.HIGH)
         assert result == ViolationSeverity.HIGH
 
     def test_normalize_severity_string(self, opa_client):
         """Deve converter string para enum."""
         from clients.opa_client import ViolationSeverity
-        assert opa_client._normalize_severity('CRITICAL') == ViolationSeverity.CRITICAL
-        assert opa_client._normalize_severity('high') == ViolationSeverity.HIGH
-        assert opa_client._normalize_severity('Warning') == ViolationSeverity.MEDIUM
-        assert opa_client._normalize_severity('MINOR') == ViolationSeverity.LOW
+
+        assert opa_client._normalize_severity("CRITICAL") == ViolationSeverity.CRITICAL
+        assert opa_client._normalize_severity("high") == ViolationSeverity.HIGH
+        assert opa_client._normalize_severity("Warning") == ViolationSeverity.MEDIUM
+        assert opa_client._normalize_severity("MINOR") == ViolationSeverity.LOW
 
     def test_normalize_severity_unknown(self, opa_client):
         """Deve retornar MEDIUM para valor desconhecido."""
         from clients.opa_client import ViolationSeverity
-        result = opa_client._normalize_severity('UNKNOWN')
+
+        result = opa_client._normalize_severity("UNKNOWN")
         assert result == ViolationSeverity.MEDIUM
 
 
@@ -347,17 +339,19 @@ class TestCountViolationsBySeverity:
     def test_count_violations_empty(self, opa_client):
         """Deve retornar zeros para lista vazia."""
         from clients.opa_client import ViolationSeverity
+
         result = opa_client.count_violations_by_severity([])
         assert all(count == 0 for count in result.values())
 
     def test_count_violations_mixed(self, opa_client):
         """Deve contar violacoes por severidade."""
         from clients.opa_client import Violation, ViolationSeverity
+
         violations = [
-            Violation(rule_id='r1', message='m1', severity=ViolationSeverity.HIGH),
-            Violation(rule_id='r2', message='m2', severity=ViolationSeverity.HIGH),
-            Violation(rule_id='r3', message='m3', severity=ViolationSeverity.MEDIUM),
-            Violation(rule_id='r4', message='m4', severity=ViolationSeverity.LOW),
+            Violation(rule_id="r1", message="m1", severity=ViolationSeverity.HIGH),
+            Violation(rule_id="r2", message="m2", severity=ViolationSeverity.HIGH),
+            Violation(rule_id="r3", message="m3", severity=ViolationSeverity.MEDIUM),
+            Violation(rule_id="r4", message="m4", severity=ViolationSeverity.LOW),
         ]
         result = opa_client.count_violations_by_severity(violations)
         assert result[ViolationSeverity.HIGH] == 2
@@ -375,7 +369,7 @@ class TestHealthCheck:
         mock_response = MagicMock()
         mock_response.status_code = 200
 
-        with patch.object(opa_client.client, 'get', new_callable=AsyncMock) as mock_get:
+        with patch.object(opa_client.client, "get", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = mock_response
 
             result = await opa_client.health_check()
@@ -385,8 +379,8 @@ class TestHealthCheck:
     @pytest.mark.asyncio
     async def test_health_check_failure(self, opa_client):
         """Deve retornar False quando OPA esta indisponivel."""
-        with patch.object(opa_client.client, 'get', new_callable=AsyncMock) as mock_get:
-            mock_get.side_effect = httpx.ConnectError('Connection refused')
+        with patch.object(opa_client.client, "get", new_callable=AsyncMock) as mock_get:
+            mock_get.side_effect = httpx.ConnectError("Connection refused")
 
             result = await opa_client.health_check()
 

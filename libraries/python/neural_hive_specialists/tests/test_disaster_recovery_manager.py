@@ -139,9 +139,7 @@ class TestBackupSuccessPath:
                 ]:
                     os.makedirs(os.path.join(backup_dir, component), exist_ok=True)
                     # Create a dummy file in each component
-                    with open(
-                        os.path.join(backup_dir, component, "test.txt"), "w"
-                    ) as f:
+                    with open(os.path.join(backup_dir, component, "test.txt"), "w") as f:
                         f.write("test")
 
                 # Execute backup
@@ -158,9 +156,7 @@ class TestBackupSuccessPath:
                 assert "checksum" in result
 
                 # Verify storage client upload was called
-                assert (
-                    mock_storage_client.upload_backup.call_count >= 2
-                )  # tar.gz + checksum
+                assert mock_storage_client.upload_backup.call_count >= 2  # tar.gz + checksum
         finally:
             # Cleanup
             if os.path.exists(backup_dir):
@@ -275,9 +271,7 @@ class TestPartialComponentFailure:
         try:
             with patch.object(dr_manager, "_backup_model") as mock_model, patch.object(
                 dr_manager, "_backup_config"
-            ) as mock_config, patch.object(
-                dr_manager, "_backup_ledger"
-            ) as mock_ledger, patch(
+            ) as mock_config, patch.object(dr_manager, "_backup_ledger") as mock_ledger, patch(
                 "neural_hive_specialists.disaster_recovery.disaster_recovery_manager.tempfile.mkdtemp",
                 return_value=backup_dir,
             ), patch(
@@ -324,9 +318,7 @@ class TestPartialComponentFailure:
 class TestDeleteExpiredBackups:
     """Test deletion of expired backups."""
 
-    def test_delete_expired_backups_with_timezone(
-        self, dr_manager, mock_storage_client
-    ):
+    def test_delete_expired_backups_with_timezone(self, dr_manager, mock_storage_client):
         """Test that expired backups are deleted using UTC timezone-aware timestamps."""
         # Create mix of expired and current backups
         now = datetime.now(timezone.utc)
@@ -358,9 +350,7 @@ class TestDeleteExpiredBackups:
         # Verify the expired backup key was deleted
         assert "backup-20240101" in mock_storage_client.delete_backup.call_args_list[0][0][0]
 
-    def test_delete_expired_backups_pairs_checksums(
-        self, dr_manager, mock_storage_client
-    ):
+    def test_delete_expired_backups_pairs_checksums(self, dr_manager, mock_storage_client):
         """Test that when deleting .tar.gz, corresponding .sha256 is also deleted."""
         now = datetime.now(timezone.utc)
         expired_date = now - timedelta(days=100)
@@ -381,9 +371,7 @@ class TestDeleteExpiredBackups:
         assert deleted_count == 1
         # Verify both tar.gz and .sha256 delete calls
         assert mock_storage_client.delete_backup.call_count == 2
-        calls = [
-            call[0][0] for call in mock_storage_client.delete_backup.call_args_list
-        ]
+        calls = [call[0][0] for call in mock_storage_client.delete_backup.call_args_list]
         assert any(".tar.gz" in c for c in calls)
         assert any(".sha256" in c for c in calls)
 
@@ -445,9 +433,7 @@ class TestRestoreModel:
             ):
                 mock_client = Mock()
                 mock_client_class.return_value = mock_client
-                mock_client.get_experiment_by_name.return_value = Mock(
-                    experiment_id="exp1"
-                )
+                mock_client.get_experiment_by_name.return_value = Mock(experiment_id="exp1")
                 mock_client.search_model_versions.return_value = [Mock(version="1")]
                 mock_client.transition_model_version_stage.return_value = None
 
@@ -480,9 +466,7 @@ class TestRestoreLedger:
 
             with patch("pymongo.MongoClient") as mock_mongo:
                 mock_collection = Mock()
-                mock_collection.bulk_write.return_value = Mock(
-                    upserted_count=2, modified_count=0
-                )
+                mock_collection.bulk_write.return_value = Mock(upserted_count=2, modified_count=0)
                 mock_mongo.return_value.__getitem__.return_value.__getitem__.return_value = (
                     mock_collection
                 )
@@ -521,9 +505,7 @@ class TestRestoreFeatureStore:
 
             with patch("pymongo.MongoClient") as mock_mongo:
                 mock_collection = Mock()
-                mock_collection.bulk_write.return_value = Mock(
-                    upserted_count=2, modified_count=0
-                )
+                mock_collection.bulk_write.return_value = Mock(upserted_count=2, modified_count=0)
                 mock_collection.delete_many.return_value = Mock(deleted_count=0)
                 mock_collection.create_index.return_value = None
                 mock_mongo.return_value.__getitem__.return_value.__getitem__.return_value = (
@@ -584,6 +566,7 @@ class TestRecoveryValidation:
             # Mock download to return our test archive
             def mock_download(remote_key, local_path):
                 import shutil
+
                 shutil.copy2(backup_archive, local_path)
                 return True
 
@@ -591,6 +574,7 @@ class TestRecoveryValidation:
 
             # Mock tarfile extraction to avoid Unicode decode issues
             import shutil
+
             with patch("tarfile.open") as mock_tar_open:
                 # Setup mock for reading tar
                 mock_tar = MagicMock()
@@ -707,7 +691,9 @@ class TestErrorHandling:
             ), patch(
                 "neural_hive_specialists.disaster_recovery.disaster_recovery_manager.tempfile.mkdtemp",
                 return_value=backup_dir,
-            ), patch("shutil.rmtree"), patch(
+            ), patch(
+                "shutil.rmtree"
+            ), patch(
                 "os.remove"
             ):
                 os.makedirs(os.path.join(backup_dir, "model"), exist_ok=True)
@@ -746,9 +732,7 @@ class TestIncrementalBackup:
     def dr_manager_incremental(self, mock_config, mock_specialist, mock_storage_client):
         """DisasterRecoveryManager configured for incremental backup."""
         mock_config.backup_mode = "incremental"
-        return DisasterRecoveryManager(
-            mock_config, mock_specialist, mock_storage_client
-        )
+        return DisasterRecoveryManager(mock_config, mock_specialist, mock_storage_client)
 
     def test_incremental_backup_skips_unchanged_components(
         self, dr_manager_incremental, mock_storage_client
@@ -792,9 +776,7 @@ class TestIncrementalBackup:
                 # Criar diretórios de componentes
                 for component in ["model", "config", "ledger"]:
                     os.makedirs(os.path.join(backup_dir, component), exist_ok=True)
-                    with open(
-                        os.path.join(backup_dir, component, "test.txt"), "w"
-                    ) as f:
+                    with open(os.path.join(backup_dir, component, "test.txt"), "w") as f:
                         f.write("data")
 
                 result = dr_manager_incremental.backup_specialist_state()
@@ -806,30 +788,18 @@ class TestIncrementalBackup:
 
                 # Verificar que upload foi chamado para snapshot, mas blob model foi pulado
                 upload_calls = [
-                    call[0][1]
-                    for call in mock_storage_client.upload_backup.call_args_list
+                    call[0][1] for call in mock_storage_client.upload_backup.call_args_list
                 ]
 
                 # Deve ter upload de snapshot JSON
-                assert any(
-                    "snapshots/" in key and key.endswith(".json")
-                    for key in upload_calls
-                )
+                assert any("snapshots/" in key and key.endswith(".json") for key in upload_calls)
 
                 # Blobs novos (config, ledger) devem ter upload, model deve pular
-                config_uploads = [
-                    key for key in upload_calls if "components/config/" in key
-                ]
-                ledger_uploads = [
-                    key for key in upload_calls if "components/ledger/" in key
-                ]
-                model_uploads = [
-                    key for key in upload_calls if "components/model/" in key
-                ]
+                config_uploads = [key for key in upload_calls if "components/config/" in key]
+                ledger_uploads = [key for key in upload_calls if "components/ledger/" in key]
+                model_uploads = [key for key in upload_calls if "components/model/" in key]
 
-                assert (
-                    len(config_uploads) > 0 or len(ledger_uploads) > 0
-                )  # Pelo menos um blob novo
+                assert len(config_uploads) > 0 or len(ledger_uploads) > 0  # Pelo menos um blob novo
                 # model já existe, então não deve ter upload (verificado por _blob_exists)
         finally:
             if os.path.exists(backup_dir):
@@ -877,9 +847,7 @@ class TestIncrementalBackup:
                 # Criar diretórios de componentes
                 for component in ["model", "config"]:
                     os.makedirs(os.path.join(backup_dir, component), exist_ok=True)
-                    with open(
-                        os.path.join(backup_dir, component, "test.txt"), "w"
-                    ) as f:
+                    with open(os.path.join(backup_dir, component, "test.txt"), "w") as f:
                         f.write("new data")
 
                 result = dr_manager_incremental.backup_specialist_state()
@@ -890,15 +858,12 @@ class TestIncrementalBackup:
 
                 # Verificar que novos blobs foram uploadados
                 upload_calls = [
-                    call[0][1]
-                    for call in mock_storage_client.upload_backup.call_args_list
+                    call[0][1] for call in mock_storage_client.upload_backup.call_args_list
                 ]
 
                 # Deve ter upload de blobs de componentes
                 component_blobs = [
-                    key
-                    for key in upload_calls
-                    if "components/" in key and key.endswith(".tar.gz")
+                    key for key in upload_calls if "components/" in key and key.endswith(".tar.gz")
                 ]
                 assert len(component_blobs) >= 2  # model e config
         finally:
@@ -907,9 +872,7 @@ class TestIncrementalBackup:
 
                 shutil.rmtree(backup_dir, ignore_errors=True)
 
-    def test_snapshot_assembly_from_refs(
-        self, dr_manager_incremental, mock_storage_client
-    ):
+    def test_snapshot_assembly_from_refs(self, dr_manager_incremental, mock_storage_client):
         """Test que restore monta corretamente de múltiplos blobs via snapshot."""
         # Simular snapshot JSON
         snapshot_data = {
@@ -952,6 +915,7 @@ class TestIncrementalBackup:
                 "config": "sha256_config_def",
                 "ledger": "sha256_ledger_ghi",
             }
+
             def mock_checksum_func(path):
                 # Extract component name from path
                 for comp in expected_checksums:
@@ -973,9 +937,7 @@ class TestIncrementalBackup:
             ), patch(
                 "os.remove"
             ):
-                result = dr_manager_incremental.restore_specialist_state(
-                    "snapshot-20250211-120000"
-                )
+                result = dr_manager_incremental.restore_specialist_state("snapshot-20250211-120000")
 
                 # Verificar sucesso
                 assert result["status"] == "success"
@@ -1072,16 +1034,10 @@ class TestIncrementalBackup:
             assert result["freed_bytes"] == 2200  # 1500 + 700
 
             # Verificar que delete foi chamado para blobs órfãos
-            delete_calls = [
-                call[0][0] for call in mock_storage_client.delete_backup.call_args_list
-            ]
+            delete_calls = [call[0][0] for call in mock_storage_client.delete_backup.call_args_list]
+            assert "specialists/backups/components/model/sha256_model_orphan.tar.gz" in delete_calls
             assert (
-                "specialists/backups/components/model/sha256_model_orphan.tar.gz"
-                in delete_calls
-            )
-            assert (
-                "specialists/backups/components/config/sha256_config_orphan.tar.gz"
-                in delete_calls
+                "specialists/backups/components/config/sha256_config_orphan.tar.gz" in delete_calls
             )
 
 
@@ -1145,20 +1101,14 @@ class TestBackwardCompatibility:
 
                 # Verificar que é backup full tradicional
                 assert result["status"] == "success"
-                assert (
-                    "backup_mode" not in result
-                    or result.get("backup_mode") != "incremental"
-                )
+                assert "backup_mode" not in result or result.get("backup_mode") != "incremental"
 
                 # Verificar que upload foi de tar.gz completo, não componentes separados
                 upload_calls = [
-                    call[0][1]
-                    for call in mock_storage_client.upload_backup.call_args_list
+                    call[0][1] for call in mock_storage_client.upload_backup.call_args_list
                 ]
                 tarball_uploads = [
-                    key
-                    for key in upload_calls
-                    if key.endswith(".tar.gz") and "specialist-" in key
+                    key for key in upload_calls if key.endswith(".tar.gz") and "specialist-" in key
                 ]
                 assert len(tarball_uploads) >= 1  # Upload de backup completo
         finally:
@@ -1167,9 +1117,7 @@ class TestBackwardCompatibility:
 
                 shutil.rmtree(backup_dir, ignore_errors=True)
 
-    def test_restore_detects_backup_type_automatically(
-        self, dr_manager, mock_storage_client
-    ):
+    def test_restore_detects_backup_type_automatically(self, dr_manager, mock_storage_client):
         """Test que restore detecta automaticamente se backup é full ou snapshot."""
         # Test 1: Backup full (.tar.gz)
         mock_storage_client.list_backups.return_value = [

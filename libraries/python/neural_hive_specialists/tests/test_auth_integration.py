@@ -214,9 +214,7 @@ class TestHealthCheckBypass:
 class TestAuthenticatedRequests:
     """Testes de requisições autenticadas."""
 
-    def test_evaluate_plan_with_valid_token(
-        self, server, config, valid_token, mock_specialist
-    ):
+    def test_evaluate_plan_with_valid_token(self, server, config, valid_token, mock_specialist):
         """Testa EvaluatePlan com token válido."""
         channel = grpc.insecure_channel(f"localhost:{TEST_PORT}")
         stub = specialist_pb2_grpc.SpecialistServiceStub(channel)
@@ -228,21 +226,24 @@ class TestAuthenticatedRequests:
             # Chamar EvaluatePlan
             # cognitive_plan é bytes JSON serializado
             import json
-            cognitive_plan_json = json.dumps({
-                "plan_id": "test-plan-123",
-                "intent_id": "test-intent-456",
-                "version": "1.0.0",
-                "tasks": [],
-                "execution_order": [],
-                "original_domain": "test",
-                "original_priority": "normal",
-                "risk_score": 0.3,
-            })
+
+            cognitive_plan_json = json.dumps(
+                {
+                    "plan_id": "test-plan-123",
+                    "intent_id": "test-intent-456",
+                    "version": "1.0.0",
+                    "tasks": [],
+                    "execution_order": [],
+                    "original_domain": "test",
+                    "original_priority": "normal",
+                    "risk_score": 0.3,
+                }
+            )
             request = specialist_pb2.EvaluatePlanRequest(
                 plan_id="test-plan-123",
                 intent_id="test-intent-456",
                 trace_id="test-trace-789",
-                cognitive_plan=cognitive_plan_json.encode('utf-8'),
+                cognitive_plan=cognitive_plan_json.encode("utf-8"),
             )
             response = stub.EvaluatePlan(request, metadata=metadata, timeout=2)
 
@@ -329,9 +330,7 @@ class TestAuthenticatedRequests:
         finally:
             channel.close()
 
-    def test_get_capabilities_with_valid_token(
-        self, server, config, valid_token, mock_specialist
-    ):
+    def test_get_capabilities_with_valid_token(self, server, config, valid_token, mock_specialist):
         """Testa GetCapabilities com token válido."""
         channel = grpc.insecure_channel(f"localhost:{TEST_PORT}")
         stub = specialist_pb2_grpc.SpecialistServiceStub(channel)
@@ -356,9 +355,7 @@ class TestAuthenticatedRequests:
 class TestMetricsIntegration:
     """Testes de integração de métricas de autenticação."""
 
-    def test_metrics_recorded_for_bypassed_requests(
-        self, server, config, mock_specialist
-    ):
+    def test_metrics_recorded_for_bypassed_requests(self, server, config, mock_specialist):
         """Testa que métricas são registradas para requisições bypassed."""
         metrics = mock_specialist.metrics
 

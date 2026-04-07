@@ -15,10 +15,10 @@ _mock_proto.TicketResponse = MagicMock()
 _mock_proto_grpc = MagicMock()
 _mock_proto_grpc.TicketServiceStub = MagicMock()
 
-sys.modules['neural_hive_integration'] = MagicMock()
-sys.modules['neural_hive_integration.proto_stubs'] = MagicMock()
-sys.modules['neural_hive_integration.proto_stubs'].ticket_service_pb2 = _mock_proto
-sys.modules['neural_hive_integration.proto_stubs'].ticket_service_pb2_grpc = _mock_proto_grpc
+sys.modules["neural_hive_integration"] = MagicMock()
+sys.modules["neural_hive_integration.proto_stubs"] = MagicMock()
+sys.modules["neural_hive_integration.proto_stubs"].ticket_service_pb2 = _mock_proto
+sys.modules["neural_hive_integration.proto_stubs"].ticket_service_pb2_grpc = _mock_proto_grpc
 
 
 class TestKafkaProducerCircuitBreaker:
@@ -28,15 +28,15 @@ class TestKafkaProducerCircuitBreaker:
     def mock_config(self):
         """Fixture para configuração mock."""
         config = Mock()
-        config.service_name = 'test-service'
-        config.kafka_bootstrap_servers = 'localhost:9092'
-        config.kafka_tickets_topic = 'test.tickets'
-        config.kafka_schema_registry_url = 'http://localhost:8081'
-        config.kafka_security_protocol = 'PLAINTEXT'
+        config.service_name = "test-service"
+        config.kafka_bootstrap_servers = "localhost:9092"
+        config.kafka_tickets_topic = "test.tickets"
+        config.kafka_schema_registry_url = "http://localhost:8081"
+        config.kafka_security_protocol = "PLAINTEXT"
         config.kafka_sasl_mechanism = None
         config.kafka_sasl_username = None
         config.kafka_sasl_password = None
-        config.schemas_base_path = '/tmp/schemas'
+        config.schemas_base_path = "/tmp/schemas"
         config.KAFKA_CIRCUIT_BREAKER_ENABLED = True
         config.KAFKA_CIRCUIT_BREAKER_FAIL_MAX = 3
         config.KAFKA_CIRCUIT_BREAKER_TIMEOUT = 60
@@ -63,11 +63,11 @@ class TestKafkaProducerCircuitBreaker:
         producer = KafkaProducerClient(mock_config)
 
         # Simular inicialização sem conectar ao Kafka real
-        with patch.object(producer, '_configure_security', return_value={}):
-            with patch('confluent_kafka.Producer'):
-                with patch('confluent_kafka.schema_registry.SchemaRegistryClient'):
-                    with patch('pathlib.Path.read_text', return_value='{}'):
-                        with patch('confluent_kafka.schema_registry.avro.AvroSerializer'):
+        with patch.object(producer, "_configure_security", return_value={}):
+            with patch("confluent_kafka.Producer"):
+                with patch("confluent_kafka.schema_registry.SchemaRegistryClient"):
+                    with patch("pathlib.Path.read_text", return_value="{}"):
+                        with patch("confluent_kafka.schema_registry.avro.AvroSerializer"):
                             await producer.initialize()
 
         assert producer.circuit_breaker_enabled is True
@@ -81,13 +81,13 @@ class TestKafkaProducerCircuitBreaker:
 
         producer = KafkaProducerClient(mock_config)
         producer.producer_breaker = MagicMock()
-        producer.producer_breaker.call_async = AsyncMock(return_value='success')
+        producer.producer_breaker.call_async = AsyncMock(return_value="success")
 
         async def mock_func():
-            return 'success'
+            return "success"
 
         result = await producer._execute_with_breaker(mock_func)
-        assert result == 'success'
+        assert result == "success"
         producer.producer_breaker.call_async.assert_called_once()
 
     @pytest.mark.asyncio
@@ -99,10 +99,10 @@ class TestKafkaProducerCircuitBreaker:
         producer.circuit_breaker_enabled = False
 
         async def mock_func():
-            return 'direct_result'
+            return "direct_result"
 
         result = await producer._execute_with_breaker(mock_func)
-        assert result == 'direct_result'
+        assert result == "direct_result"
 
 
 class TestTemporalClientCircuitBreaker:
@@ -123,11 +123,11 @@ class TestTemporalClientCircuitBreaker:
 
         wrapper = TemporalClientWrapper(
             client=mock_temporal_client,
-            service_name='test-service',
+            service_name="test-service",
             circuit_breaker_enabled=True,
             fail_max=3,
             timeout_duration=60,
-            recovery_timeout=30
+            recovery_timeout=30,
         )
 
         assert wrapper.circuit_breaker_enabled is True
@@ -140,9 +140,7 @@ class TestTemporalClientCircuitBreaker:
         from src.temporal_client import TemporalClientWrapper
 
         wrapper = TemporalClientWrapper(
-            client=mock_temporal_client,
-            service_name='test-service',
-            circuit_breaker_enabled=False
+            client=mock_temporal_client, service_name="test-service", circuit_breaker_enabled=False
         )
 
         assert wrapper.circuit_breaker_enabled is False
@@ -155,9 +153,9 @@ class TestTemporalClientCircuitBreaker:
 
         wrapper = TemporalClientWrapper(
             client=mock_temporal_client,
-            service_name='test-service',
+            service_name="test-service",
             circuit_breaker_enabled=True,
-            fail_max=3
+            fail_max=3,
         )
 
         # Mock do circuit breaker para simular sucesso
@@ -165,10 +163,7 @@ class TestTemporalClientCircuitBreaker:
         wrapper.breaker.call_async = AsyncMock(return_value=Mock())
 
         handle = await wrapper.start_workflow(
-            'TestWorkflow',
-            {'arg': 'value'},
-            id='test-workflow-1',
-            task_queue='test-queue'
+            "TestWorkflow", {"arg": "value"}, id="test-workflow-1", task_queue="test-queue"
         )
 
         assert handle is not None
@@ -180,9 +175,7 @@ class TestTemporalClientCircuitBreaker:
         from src.temporal_client import TemporalClientWrapper
 
         wrapper = TemporalClientWrapper(
-            client=mock_temporal_client,
-            service_name='test-service',
-            circuit_breaker_enabled=True
+            client=mock_temporal_client, service_name="test-service", circuit_breaker_enabled=True
         )
 
         # Mock do circuit breaker para simular circuito aberto
@@ -190,27 +183,19 @@ class TestTemporalClientCircuitBreaker:
         wrapper.breaker.call_async = AsyncMock(side_effect=CircuitBreakerError())
 
         with pytest.raises(CircuitBreakerError):
-            await wrapper.start_workflow(
-                'TestWorkflow',
-                {},
-                id='test-1',
-                task_queue='test'
-            )
+            await wrapper.start_workflow("TestWorkflow", {}, id="test-1", task_queue="test")
 
     @pytest.mark.asyncio
     async def test_getattr_delegates_to_client(self, mock_temporal_client):
         """Testa que atributos não implementados são delegados."""
         from src.temporal_client import TemporalClientWrapper
 
-        mock_temporal_client.some_method = Mock(return_value='delegated')
+        mock_temporal_client.some_method = Mock(return_value="delegated")
 
-        wrapper = TemporalClientWrapper(
-            client=mock_temporal_client,
-            service_name='test-service'
-        )
+        wrapper = TemporalClientWrapper(client=mock_temporal_client, service_name="test-service")
 
         result = wrapper.some_method()
-        assert result == 'delegated'
+        assert result == "delegated"
 
 
 class TestRedisCircuitBreaker:
@@ -223,20 +208,20 @@ class TestRedisCircuitBreaker:
         from src.clients.redis_client import (
             redis_get_safe,
             _redis_client_instance,
-            _circuit_breaker
+            _circuit_breaker,
         )
         import src.clients.redis_client as redis_client_module
 
         # Resetar estado global
         redis_client_module._redis_client_instance = AsyncMock()
-        redis_client_module._redis_client_instance.get = AsyncMock(return_value='test-value')
+        redis_client_module._redis_client_instance.get = AsyncMock(return_value="test-value")
 
         redis_client_module._circuit_breaker = MagicMock()
-        redis_client_module._circuit_breaker.call_async = AsyncMock(return_value='test-value')
+        redis_client_module._circuit_breaker.call_async = AsyncMock(return_value="test-value")
 
-        result = await redis_client_module.redis_get_safe('test-key')
+        result = await redis_client_module.redis_get_safe("test-key")
 
-        assert result == 'test-value'
+        assert result == "test-value"
         redis_client_module._circuit_breaker.call_async.assert_called_once()
 
     @pytest.mark.asyncio
@@ -246,9 +231,11 @@ class TestRedisCircuitBreaker:
 
         redis_client_module._redis_client_instance = AsyncMock()
         redis_client_module._circuit_breaker = MagicMock()
-        redis_client_module._circuit_breaker.call_async = AsyncMock(side_effect=CircuitBreakerError())
+        redis_client_module._circuit_breaker.call_async = AsyncMock(
+            side_effect=CircuitBreakerError()
+        )
 
-        result = await redis_client_module.redis_get_safe('test-key')
+        result = await redis_client_module.redis_get_safe("test-key")
 
         assert result is None
 
@@ -263,7 +250,7 @@ class TestRedisCircuitBreaker:
         redis_client_module._circuit_breaker = MagicMock()
         redis_client_module._circuit_breaker.call_async = AsyncMock(return_value=True)
 
-        result = await redis_client_module.redis_setex_safe('test-key', 60, 'test-value')
+        result = await redis_client_module.redis_setex_safe("test-key", 60, "test-value")
 
         assert result is True
         redis_client_module._circuit_breaker.call_async.assert_called_once()
@@ -275,9 +262,11 @@ class TestRedisCircuitBreaker:
 
         redis_client_module._redis_client_instance = AsyncMock()
         redis_client_module._circuit_breaker = MagicMock()
-        redis_client_module._circuit_breaker.call_async = AsyncMock(side_effect=CircuitBreakerError())
+        redis_client_module._circuit_breaker.call_async = AsyncMock(
+            side_effect=CircuitBreakerError()
+        )
 
-        result = await redis_client_module.redis_setex_safe('test-key', 60, 'test-value')
+        result = await redis_client_module.redis_setex_safe("test-key", 60, "test-value")
 
         assert result is False
 
@@ -303,7 +292,9 @@ class TestRedisCircuitBreaker:
 
         redis_client_module._redis_client_instance = AsyncMock()
         redis_client_module._circuit_breaker = MagicMock()
-        redis_client_module._circuit_breaker.call_async = AsyncMock(side_effect=CircuitBreakerError())
+        redis_client_module._circuit_breaker.call_async = AsyncMock(
+            side_effect=CircuitBreakerError()
+        )
 
         result = await redis_client_module.redis_ping_safe()
 
@@ -317,15 +308,15 @@ class TestRedisCircuitBreaker:
 
         state = redis_client_module.get_circuit_breaker_state()
 
-        assert state['state'] == 'not_initialized'
-        assert state['failure_count'] == 0
+        assert state["state"] == "not_initialized"
+        assert state["failure_count"] == 0
 
     def test_get_circuit_breaker_state_initialized(self):
         """Testa estado quando circuit breaker inicializado."""
         import src.clients.redis_client as redis_client_module
 
         mock_breaker = MagicMock()
-        mock_breaker.current_state = 'closed'
+        mock_breaker.current_state = "closed"
         mock_breaker.fail_counter = 2
         mock_breaker.fail_max = 5
         mock_breaker.recovery_timeout = 60
@@ -334,7 +325,7 @@ class TestRedisCircuitBreaker:
 
         state = redis_client_module.get_circuit_breaker_state()
 
-        assert state['state'] == 'CLOSED'
-        assert state['failure_count'] == 2
-        assert state['failure_threshold'] == 5
-        assert state['recovery_timeout'] == 60
+        assert state["state"] == "CLOSED"
+        assert state["failure_count"] == 2
+        assert state["failure_threshold"] == 5
+        assert state["recovery_timeout"] == 60

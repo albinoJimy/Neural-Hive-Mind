@@ -47,9 +47,7 @@ class AggregatedMetricsCollector:
     def mongo_client(self) -> MongoClient:
         """Lazy initialization do cliente MongoDB."""
         if self._mongo_client is None:
-            self._mongo_client = MongoClient(
-                self.mongodb_uri, serverSelectionTimeoutMS=5000
-            )
+            self._mongo_client = MongoClient(self.mongodb_uri, serverSelectionTimeoutMS=5000)
         return self._mongo_client
 
     @property
@@ -186,9 +184,7 @@ class AggregatedMetricsCollector:
             logger.info("Aggregated metrics collection completed")
 
         except Exception as e:
-            logger.error(
-                "Failed to collect aggregated metrics", error=str(e), exc_info=True
-            )
+            logger.error("Failed to collect aggregated metrics", error=str(e), exc_info=True)
 
     async def _collect_consensus_metrics(self):
         """Coleta métricas de consenso entre especialistas."""
@@ -237,9 +233,7 @@ class AggregatedMetricsCollector:
                 total_consensus_score += consensus_score
                 plan_count += 1
 
-            avg_consensus_rate = (
-                total_consensus_score / plan_count if plan_count > 0 else 0.0
-            )
+            avg_consensus_rate = total_consensus_score / plan_count if plan_count > 0 else 0.0
 
             self.consensus_rate.set(avg_consensus_rate)
 
@@ -279,9 +273,7 @@ class AggregatedMetricsCollector:
                     spec["avg_confidence"]
                 )
 
-                self.avg_risk_by_specialist.labels(specialist_type).set(
-                    spec["avg_risk"]
-                )
+                self.avg_risk_by_specialist.labels(specialist_type).set(spec["avg_risk"])
 
                 buffered_rate = (
                     (spec["buffered_count"] / spec["total_count"]) * 100
@@ -349,9 +341,7 @@ class AggregatedMetricsCollector:
                 recommendation_type = rec["_id"]
                 percentage = (rec["count"] / total * 100) if total > 0 else 0.0
 
-                self.recommendation_distribution.labels(recommendation_type).set(
-                    percentage
-                )
+                self.recommendation_distribution.labels(recommendation_type).set(percentage)
 
             # Calcular taxa de alto risco
             high_risk_count = self.collection.count_documents(
@@ -404,14 +394,10 @@ class AggregatedMetricsCollector:
                 if doc.get("buffered", False):
                     total_buffered_count += 1
 
-            buffered_rate = (
-                total_buffered_count / total_count if total_count > 0 else 0.0
-            )
+            buffered_rate = total_buffered_count / total_count if total_count > 0 else 0.0
 
             # Calcular taxa de mascaramento (compliance)
-            masked_count = self.collection.count_documents(
-                {"masked_fields": {"$exists": True}}
-            )
+            masked_count = self.collection.count_documents({"masked_fields": {"$exists": True}})
             total_all = self.collection.count_documents({})
             masked_rate = masked_count / total_all if total_all > 0 else 0.0
             self.masked_documents_rate.set(masked_rate * 100)
@@ -476,11 +462,7 @@ class AggregatedMetricsCollector:
                         spec_b = op_b["specialist_type"]
 
                         # Concordância binária (mesma recomendação = 1, diferente = 0)
-                        agreement = (
-                            1.0
-                            if op_a["recommendation"] == op_b["recommendation"]
-                            else 0.0
-                        )
+                        agreement = 1.0 if op_a["recommendation"] == op_b["recommendation"] else 0.0
 
                         agreement_matrix[spec_a][spec_b].append(agreement)
                         agreement_matrix[spec_b][spec_a].append(agreement)
@@ -490,15 +472,11 @@ class AggregatedMetricsCollector:
             for spec_a, inner_dict in agreement_matrix.items():
                 final_matrix[spec_a] = {}
                 for spec_b, agreements in inner_dict.items():
-                    avg_agreement = (
-                        sum(agreements) / len(agreements) if agreements else 0.0
-                    )
+                    avg_agreement = sum(agreements) / len(agreements) if agreements else 0.0
                     final_matrix[spec_a][spec_b] = avg_agreement
 
                     # Exportar para Prometheus
-                    self.specialist_agreement_score.labels(spec_a, spec_b).set(
-                        avg_agreement
-                    )
+                    self.specialist_agreement_score.labels(spec_a, spec_b).set(avg_agreement)
 
             logger.info(
                 "Specialist agreement matrix calculated",

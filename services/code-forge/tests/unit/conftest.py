@@ -22,7 +22,7 @@ import pytest
 # ============================================
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def event_loop():
     """Cria event loop para sessao de testes."""
     loop = asyncio.new_event_loop()
@@ -40,24 +40,24 @@ def event_loop():
 def code_forge_settings():
     """Configuracoes do Code Forge para testes."""
     settings = MagicMock()
-    settings.service_name = 'code-forge-test'
-    settings.mongodb_uri = 'mongodb://localhost:27017'
-    settings.mongodb_database = 'code_forge_test'
-    settings.redis_url = 'redis://localhost:6379'
-    settings.kafka_bootstrap_servers = 'localhost:9092'
-    settings.mcp_tool_catalog_url = 'http://localhost:8080'
+    settings.service_name = "code-forge-test"
+    settings.mongodb_uri = "mongodb://localhost:27017"
+    settings.mongodb_database = "code_forge_test"
+    settings.redis_url = "redis://localhost:6379"
+    settings.kafka_bootstrap_servers = "localhost:9092"
+    settings.mcp_tool_catalog_url = "http://localhost:8080"
     settings.mcp_timeout_seconds = 5
-    settings.sonarqube_url = 'http://localhost:9000'
-    settings.sonarqube_token = 'test-token'
-    settings.snyk_token = 'test-snyk-token'
+    settings.sonarqube_url = "http://localhost:9000"
+    settings.sonarqube_token = "test-token"
+    settings.snyk_token = "test-snyk-token"
     settings.trivy_enabled = True
-    settings.llm_provider = 'openai'
-    settings.openai_api_key = 'test-key'
-    settings.anthropic_api_key = 'test-anthropic-key'
-    settings.ollama_url = 'http://localhost:11434'
-    settings.analyst_agents_url = 'http://localhost:8082'
-    settings.s3_bucket = 'code-forge-test'
-    settings.s3_region = 'us-east-1'
+    settings.llm_provider = "openai"
+    settings.openai_api_key = "test-key"
+    settings.anthropic_api_key = "test-anthropic-key"
+    settings.ollama_url = "http://localhost:11434"
+    settings.analyst_agents_url = "http://localhost:8082"
+    settings.s3_bucket = "code-forge-test"
+    settings.s3_region = "us-east-1"
     return settings
 
 
@@ -129,10 +129,10 @@ def mock_metrics():
 def mock_git_client():
     """Mock para GitClient."""
     client = AsyncMock()
-    client.clone_templates_repo = AsyncMock(return_value='/tmp/templates')
-    client.create_merge_request = AsyncMock(return_value='https://github.com/org/repo/pull/123')
-    client.create_branch = AsyncMock(return_value='code-forge-abc123')
-    client.commit_artifacts = AsyncMock(return_value='commit-sha-123456')
+    client.clone_templates_repo = AsyncMock(return_value="/tmp/templates")
+    client.create_merge_request = AsyncMock(return_value="https://github.com/org/repo/pull/123")
+    client.create_branch = AsyncMock(return_value="code-forge-abc123")
+    client.commit_artifacts = AsyncMock(return_value="commit-sha-123456")
     client.push_branch = AsyncMock(return_value=True)
     return client
 
@@ -154,7 +154,7 @@ def mock_mongodb_client():
     """Mock para MongoDBClient."""
     client = AsyncMock()
     client.save_artifact_content = AsyncMock(return_value=True)
-    client.get_artifact_content = AsyncMock(return_value='# Generated code')
+    client.get_artifact_content = AsyncMock(return_value="# Generated code")
     client.save_pipeline_result = AsyncMock(return_value=True)
     client.get_pipeline_result = AsyncMock(return_value=None)
     return client
@@ -164,25 +164,27 @@ def mock_mongodb_client():
 def mock_mcp_client():
     """Mock para MCPToolCatalogClient."""
     client = AsyncMock()
-    client.request_tool_selection = AsyncMock(return_value={
-        'request_id': str(uuid.uuid4()),
-        'selected_tools': [
-            {
-                'tool_id': 'tool-001',
-                'tool_name': 'SonarQube',
-                'category': 'VALIDATION',
-                'fitness_score': 0.85
-            },
-            {
-                'tool_id': 'tool-002',
-                'tool_name': 'GitHub Copilot',
-                'category': 'GENERATION',
-                'fitness_score': 0.92
-            }
-        ],
-        'total_fitness_score': 0.88,
-        'selection_method': 'GENETIC_ALGORITHM'
-    })
+    client.request_tool_selection = AsyncMock(
+        return_value={
+            "request_id": str(uuid.uuid4()),
+            "selected_tools": [
+                {
+                    "tool_id": "tool-001",
+                    "tool_name": "SonarQube",
+                    "category": "VALIDATION",
+                    "fitness_score": 0.85,
+                },
+                {
+                    "tool_id": "tool-002",
+                    "tool_name": "GitHub Copilot",
+                    "category": "GENERATION",
+                    "fitness_score": 0.92,
+                },
+            ],
+            "total_fitness_score": 0.88,
+            "selection_method": "GENETIC_ALGORITHM",
+        }
+    )
     client.send_tool_feedback = AsyncMock(return_value=True)
     return client
 
@@ -191,16 +193,20 @@ def mock_mcp_client():
 def mock_llm_client():
     """Mock para LLMClient."""
     client = AsyncMock()
-    client.generate_code = AsyncMock(return_value={
-        'code': '# Generated by LLM\ndef main():\n    pass',
-        'confidence_score': 0.85,
-        'tokens_used': 150,
-        'model': 'gpt-4'
-    })
-    client.enhance_code = AsyncMock(return_value={
-        'code': '# Enhanced code\ndef main():\n    print("Hello")',
-        'confidence_score': 0.9
-    })
+    client.generate_code = AsyncMock(
+        return_value={
+            "code": "# Generated by LLM\ndef main():\n    pass",
+            "confidence_score": 0.85,
+            "tokens_used": 150,
+            "model": "gpt-4",
+        }
+    )
+    client.enhance_code = AsyncMock(
+        return_value={
+            "code": '# Enhanced code\ndef main():\n    print("Hello")',
+            "confidence_score": 0.9,
+        }
+    )
     return client
 
 
@@ -209,96 +215,90 @@ def mock_analyst_client():
     """Mock para AnalystAgentsClient."""
     client = AsyncMock()
     client.get_embedding = AsyncMock(return_value=[0.1, 0.2, 0.3] * 512)
-    client.find_similar_templates = AsyncMock(return_value=[
-        {'text': 'Similar template 1', 'similarity': 0.92},
-        {'text': 'Similar template 2', 'similarity': 0.85}
-    ])
-    client.get_architectural_patterns = AsyncMock(return_value=[
-        'Repository Pattern',
-        'Service Layer',
-        'Dependency Injection'
-    ])
+    client.find_similar_templates = AsyncMock(
+        return_value=[
+            {"text": "Similar template 1", "similarity": 0.92},
+            {"text": "Similar template 2", "similarity": 0.85},
+        ]
+    )
+    client.get_architectural_patterns = AsyncMock(
+        return_value=["Repository Pattern", "Service Layer", "Dependency Injection"]
+    )
     return client
 
 
 @pytest.fixture
 def mock_sonarqube_client():
     """Mock para SonarQubeClient."""
-    from src.models.artifact import (
-        ValidationResult,
-        ValidationType,
-        ValidationStatus
-    )
+    from src.models.artifact import ValidationResult, ValidationType, ValidationStatus
 
     client = AsyncMock()
-    client.analyze_code = AsyncMock(return_value=ValidationResult(
-        validation_type=ValidationType.SAST,
-        tool_name='SonarQube',
-        tool_version='10.0.0',
-        status=ValidationStatus.PASSED,
-        score=0.85,
-        issues_count=3,
-        critical_issues=0,
-        high_issues=1,
-        medium_issues=2,
-        low_issues=0,
-        executed_at=datetime.now(),
-        duration_ms=5000
-    ))
+    client.analyze_code = AsyncMock(
+        return_value=ValidationResult(
+            validation_type=ValidationType.SAST,
+            tool_name="SonarQube",
+            tool_version="10.0.0",
+            status=ValidationStatus.PASSED,
+            score=0.85,
+            issues_count=3,
+            critical_issues=0,
+            high_issues=1,
+            medium_issues=2,
+            low_issues=0,
+            executed_at=datetime.now(),
+            duration_ms=5000,
+        )
+    )
     return client
 
 
 @pytest.fixture
 def mock_snyk_client():
     """Mock para SnykClient."""
-    from src.models.artifact import (
-        ValidationResult,
-        ValidationType,
-        ValidationStatus
-    )
+    from src.models.artifact import ValidationResult, ValidationType, ValidationStatus
 
     client = AsyncMock()
-    client.scan_dependencies = AsyncMock(return_value=ValidationResult(
-        validation_type=ValidationType.SECURITY_SCAN,
-        tool_name='Snyk',
-        tool_version='1.1200.0',
-        status=ValidationStatus.PASSED,
-        score=0.95,
-        issues_count=1,
-        critical_issues=0,
-        high_issues=0,
-        medium_issues=1,
-        low_issues=0,
-        executed_at=datetime.now(),
-        duration_ms=3000
-    ))
+    client.scan_dependencies = AsyncMock(
+        return_value=ValidationResult(
+            validation_type=ValidationType.SECURITY_SCAN,
+            tool_name="Snyk",
+            tool_version="1.1200.0",
+            status=ValidationStatus.PASSED,
+            score=0.95,
+            issues_count=1,
+            critical_issues=0,
+            high_issues=0,
+            medium_issues=1,
+            low_issues=0,
+            executed_at=datetime.now(),
+            duration_ms=3000,
+        )
+    )
     return client
 
 
 @pytest.fixture
 def mock_trivy_client():
     """Mock para TrivyClient."""
-    from src.models.artifact import (
-        ValidationResult,
-        ValidationType,
-        ValidationStatus
-    )
+    from src.models.artifact import ValidationResult, ValidationType, ValidationStatus
 
     client = AsyncMock()
-    client.scan_filesystem = AsyncMock(return_value=ValidationResult(
-        validation_type=ValidationType.SECURITY_SCAN,
-        tool_name='Trivy',
-        tool_version='0.50.0',
-        status=ValidationStatus.PASSED,
-        score=0.90,
-        issues_count=2,
-        critical_issues=0,
-        high_issues=0,
-        medium_issues=1,
-        low_issues=1,
-        executed_at=datetime.now(),
-        duration_ms=2000
-    ))
+    client.scan_filesystem = AsyncMock(
+        return_value=ValidationResult(
+            validation_type=ValidationType.SECURITY_SCAN,
+            tool_name="Trivy",
+            tool_version="0.50.0",
+            status=ValidationStatus.PASSED,
+            score=0.90,
+            issues_count=2,
+            critical_issues=0,
+            high_issues=0,
+            medium_issues=1,
+            low_issues=1,
+            executed_at=datetime.now(),
+            duration_ms=2000,
+        )
+    )
     return client
 
 
@@ -306,8 +306,8 @@ def mock_trivy_client():
 def mock_sigstore_client():
     """Mock para SigstoreClient."""
     client = AsyncMock()
-    client.generate_sbom = AsyncMock(return_value='s3://code-forge/sboms/artifact-123.json')
-    client.sign_artifact = AsyncMock(return_value='signature-abc123')
+    client.generate_sbom = AsyncMock(return_value="s3://code-forge/sboms/artifact-123.json")
+    client.sign_artifact = AsyncMock(return_value="signature-abc123")
     client.verify_signature = AsyncMock(return_value=True)
     return client
 
@@ -316,8 +316,8 @@ def mock_sigstore_client():
 def mock_s3_client():
     """Mock para S3ArtifactClient."""
     client = AsyncMock()
-    client.upload_sbom = AsyncMock(return_value='s3://code-forge/sboms/artifact-123.json')
-    client.download_sbom = AsyncMock(return_value={'components': []})
+    client.upload_sbom = AsyncMock(return_value="s3://code-forge/sboms/artifact-123.json")
+    client.download_sbom = AsyncMock(return_value={"components": []})
     client.verify_sbom_integrity = AsyncMock(return_value=True)
     return client
 
@@ -326,8 +326,8 @@ def mock_s3_client():
 def mock_artifact_registry_client():
     """Mock para ArtifactRegistryClient."""
     client = AsyncMock()
-    client.register_sbom = AsyncMock(return_value='registry://sboms/artifact-123')
-    client.get_sbom_reference = AsyncMock(return_value='registry://sboms/artifact-123')
+    client.register_sbom = AsyncMock(return_value="registry://sboms/artifact-123")
+    client.get_sbom_reference = AsyncMock(return_value="registry://sboms/artifact-123")
     return client
 
 
@@ -352,7 +352,7 @@ def mock_ticket_client():
     client.stop = AsyncMock(return_value=True)
     client.update_status = AsyncMock(return_value=True)
     client.get_ticket = AsyncMock(return_value=None)
-    client.create_compensation_ticket = AsyncMock(return_value='comp-123')
+    client.create_compensation_ticket = AsyncMock(return_value="comp-123")
     return client
 
 
@@ -384,7 +384,7 @@ def mock_pipeline_engine(
     mock_sigstore_client,
     mock_s3_client,
     mock_artifact_registry_client,
-    mock_redis_client
+    mock_redis_client,
 ):
     """Mock para PipelineEngine sem métricas."""
     from src.services.pipeline_engine import PipelineEngine
@@ -418,7 +418,7 @@ def mock_pipeline_engine(
         pipeline_timeout=60,
         auto_approval_threshold=0.0,  # Permite aprovação automática em testes
         min_quality_score=0.0,  # Permite score zero em testes
-        metrics=None
+        metrics=None,
     )
     return engine
 
@@ -437,7 +437,7 @@ def mock_pipeline_engine_with_metrics(
     mock_s3_client,
     mock_artifact_registry_client,
     mock_redis_client,
-    mock_metrics
+    mock_metrics,
 ):
     """Mock para PipelineEngine com métricas."""
     from src.services.pipeline_engine import PipelineEngine
@@ -465,7 +465,7 @@ def mock_pipeline_engine_with_metrics(
         pipeline_timeout=60,
         auto_approval_threshold=0.0,  # Permite aprovação automática em testes
         min_quality_score=0.0,  # Permite score zero em testes
-        metrics=mock_metrics
+        metrics=mock_metrics,
     )
     return engine
 
@@ -474,16 +474,25 @@ def mock_pipeline_engine_with_metrics(
 def sample_execution_ticket():
     """Ticket de execução BUILD sample."""
     from src.models.execution_ticket import (
-        ExecutionTicket, TaskType, TicketStatus, Priority, RiskBand,
-        SLA, QoS, SecurityLevel, DeliveryMode, Consistency, Durability
+        ExecutionTicket,
+        TaskType,
+        TicketStatus,
+        Priority,
+        RiskBand,
+        SLA,
+        QoS,
+        SecurityLevel,
+        DeliveryMode,
+        Consistency,
+        Durability,
     )
 
     ticket_id = str(uuid.uuid4())
     return ExecutionTicket(
         ticket_id=ticket_id,
-        plan_id=f'plan-{ticket_id[:8]}',
-        intent_id=f'intent-{ticket_id[:8]}',
-        decision_id=f'decision-{ticket_id[:8]}',
+        plan_id=f"plan-{ticket_id[:8]}",
+        intent_id=f"intent-{ticket_id[:8]}",
+        decision_id=f"decision-{ticket_id[:8]}",
         correlation_id=str(uuid.uuid4()),
         trace_id=str(uuid.uuid4()),
         span_id=str(uuid.uuid4()),
@@ -492,24 +501,20 @@ def sample_execution_ticket():
         priority=Priority.NORMAL,
         risk_band=RiskBand.MEDIUM,
         parameters={
-            'artifact_type': 'MICROSERVICE',
-            'language': 'python',
-            'service_name': 'test-service',
-            'description': 'Test service'
+            "artifact_type": "MICROSERVICE",
+            "language": "python",
+            "service_name": "test-service",
+            "description": "Test service",
         },
-        sla=SLA(
-            deadline=datetime.now(),
-            timeout_ms=300000,
-            max_retries=3
-        ),
+        sla=SLA(deadline=datetime.now(), timeout_ms=300000, max_retries=3),
         qos=QoS(
             delivery_mode=DeliveryMode.AT_LEAST_ONCE,
             consistency=Consistency.EVENTUAL,
-            durability=Durability.PERSISTENT
+            durability=Durability.PERSISTENT,
         ),
         security_level=SecurityLevel.INTERNAL,
         dependencies=[],
-        created_at=datetime.now()
+        created_at=datetime.now(),
     )
 
 
@@ -522,16 +527,25 @@ def sample_execution_ticket():
 def sample_ticket():
     """Ticket de execucao sample."""
     from src.models.execution_ticket import (
-        ExecutionTicket, TaskType, TicketStatus, Priority, RiskBand,
-        SLA, QoS, SecurityLevel, DeliveryMode, Consistency, Durability
+        ExecutionTicket,
+        TaskType,
+        TicketStatus,
+        Priority,
+        RiskBand,
+        SLA,
+        QoS,
+        SecurityLevel,
+        DeliveryMode,
+        Consistency,
+        Durability,
     )
 
     ticket_id = str(uuid.uuid4())
     return ExecutionTicket(
         ticket_id=ticket_id,
-        plan_id=f'plan-{ticket_id[:8]}',
-        intent_id=f'intent-{ticket_id[:8]}',
-        decision_id=f'decision-{ticket_id[:8]}',
+        plan_id=f"plan-{ticket_id[:8]}",
+        intent_id=f"intent-{ticket_id[:8]}",
+        decision_id=f"decision-{ticket_id[:8]}",
         correlation_id=str(uuid.uuid4()),
         trace_id=str(uuid.uuid4()),
         span_id=str(uuid.uuid4()),
@@ -540,29 +554,25 @@ def sample_ticket():
         priority=Priority.NORMAL,
         risk_band=RiskBand.MEDIUM,
         parameters={
-            'artifact_type': 'MICROSERVICE',
-            'language': 'python',
-            'service_name': 'test-service',
-            'description': 'A test microservice for unit testing',
-            'requirements': ['FastAPI', 'PostgreSQL', 'Redis'],
-            'framework': 'fastapi',
-            'patterns': ['repository', 'service_layer'],
-            'tasks': ['task-1', 'task-2', 'task-3'],
-            'project_key': 'test-project'
+            "artifact_type": "MICROSERVICE",
+            "language": "python",
+            "service_name": "test-service",
+            "description": "A test microservice for unit testing",
+            "requirements": ["FastAPI", "PostgreSQL", "Redis"],
+            "framework": "fastapi",
+            "patterns": ["repository", "service_layer"],
+            "tasks": ["task-1", "task-2", "task-3"],
+            "project_key": "test-project",
         },
-        sla=SLA(
-            deadline=datetime.now(),
-            timeout_ms=300000,
-            max_retries=3
-        ),
+        sla=SLA(deadline=datetime.now(), timeout_ms=300000, max_retries=3),
         qos=QoS(
             delivery_mode=DeliveryMode.AT_LEAST_ONCE,
             consistency=Consistency.EVENTUAL,
-            durability=Durability.PERSISTENT
+            durability=Durability.PERSISTENT,
         ),
         security_level=SecurityLevel.INTERNAL,
         dependencies=[],
-        created_at=datetime.now()
+        created_at=datetime.now(),
     )
 
 
@@ -570,15 +580,24 @@ def sample_ticket():
 def sample_ticket_llm():
     """Ticket configurado para geracao LLM."""
     from src.models.execution_ticket import (
-        ExecutionTicket, TaskType, TicketStatus, Priority, RiskBand,
-        SLA, QoS, SecurityLevel, DeliveryMode, Consistency, Durability
+        ExecutionTicket,
+        TaskType,
+        TicketStatus,
+        Priority,
+        RiskBand,
+        SLA,
+        QoS,
+        SecurityLevel,
+        DeliveryMode,
+        Consistency,
+        Durability,
     )
 
     ticket_id = str(uuid.uuid4())
     return ExecutionTicket(
         ticket_id=ticket_id,
-        plan_id=f'plan-{ticket_id[:8]}',
-        intent_id=f'intent-{ticket_id[:8]}',
+        plan_id=f"plan-{ticket_id[:8]}",
+        intent_id=f"intent-{ticket_id[:8]}",
         correlation_id=str(uuid.uuid4()),
         trace_id=str(uuid.uuid4()),
         span_id=str(uuid.uuid4()),
@@ -587,27 +606,23 @@ def sample_ticket_llm():
         priority=Priority.NORMAL,
         risk_band=RiskBand.MEDIUM,
         parameters={
-            'artifact_type': 'MICROSERVICE',
-            'language': 'python',
-            'service_name': 'llm-service',
-            'description': 'A service generated via LLM',
-            'requirements': ['Authentication', 'Authorization', 'Logging'],
-            'framework': 'fastapi',
-            'max_lines': 500
+            "artifact_type": "MICROSERVICE",
+            "language": "python",
+            "service_name": "llm-service",
+            "description": "A service generated via LLM",
+            "requirements": ["Authentication", "Authorization", "Logging"],
+            "framework": "fastapi",
+            "max_lines": 500,
         },
-        sla=SLA(
-            deadline=datetime.now(),
-            timeout_ms=300000,
-            max_retries=3
-        ),
+        sla=SLA(deadline=datetime.now(), timeout_ms=300000, max_retries=3),
         qos=QoS(
             delivery_mode=DeliveryMode.AT_LEAST_ONCE,
             consistency=Consistency.EVENTUAL,
-            durability=Durability.PERSISTENT
+            durability=Durability.PERSISTENT,
         ),
         security_level=SecurityLevel.INTERNAL,
         dependencies=[],
-        created_at=datetime.now()
+        created_at=datetime.now(),
     )
 
 
@@ -615,15 +630,24 @@ def sample_ticket_llm():
 def sample_ticket_library():
     """Ticket para geracao de biblioteca."""
     from src.models.execution_ticket import (
-        ExecutionTicket, TaskType, TicketStatus, Priority, RiskBand,
-        SLA, QoS, SecurityLevel, DeliveryMode, Consistency, Durability
+        ExecutionTicket,
+        TaskType,
+        TicketStatus,
+        Priority,
+        RiskBand,
+        SLA,
+        QoS,
+        SecurityLevel,
+        DeliveryMode,
+        Consistency,
+        Durability,
     )
 
     ticket_id = str(uuid.uuid4())
     return ExecutionTicket(
         ticket_id=ticket_id,
-        plan_id=f'plan-{ticket_id[:8]}',
-        intent_id=f'intent-{ticket_id[:8]}',
+        plan_id=f"plan-{ticket_id[:8]}",
+        intent_id=f"intent-{ticket_id[:8]}",
         correlation_id=str(uuid.uuid4()),
         trace_id=str(uuid.uuid4()),
         span_id=str(uuid.uuid4()),
@@ -631,24 +655,16 @@ def sample_ticket_library():
         status=TicketStatus.PENDING,
         priority=Priority.NORMAL,
         risk_band=RiskBand.LOW,
-        parameters={
-            'artifact_type': 'LIBRARY',
-            'language': 'python',
-            'service_name': 'my-lib'
-        },
-        sla=SLA(
-            deadline=datetime.now(),
-            timeout_ms=300000,
-            max_retries=3
-        ),
+        parameters={"artifact_type": "LIBRARY", "language": "python", "service_name": "my-lib"},
+        sla=SLA(deadline=datetime.now(), timeout_ms=300000, max_retries=3),
         qos=QoS(
             delivery_mode=DeliveryMode.AT_LEAST_ONCE,
             consistency=Consistency.EVENTUAL,
-            durability=Durability.PERSISTENT
+            durability=Durability.PERSISTENT,
         ),
         security_level=SecurityLevel.INTERNAL,
         dependencies=[],
-        created_at=datetime.now()
+        created_at=datetime.now(),
     )
 
 
@@ -656,15 +672,24 @@ def sample_ticket_library():
 def sample_ticket_script():
     """Ticket para geracao de script."""
     from src.models.execution_ticket import (
-        ExecutionTicket, TaskType, TicketStatus, Priority, RiskBand,
-        SLA, QoS, SecurityLevel, DeliveryMode, Consistency, Durability
+        ExecutionTicket,
+        TaskType,
+        TicketStatus,
+        Priority,
+        RiskBand,
+        SLA,
+        QoS,
+        SecurityLevel,
+        DeliveryMode,
+        Consistency,
+        Durability,
     )
 
     ticket_id = str(uuid.uuid4())
     return ExecutionTicket(
         ticket_id=ticket_id,
-        plan_id=f'plan-{ticket_id[:8]}',
-        intent_id=f'intent-{ticket_id[:8]}',
+        plan_id=f"plan-{ticket_id[:8]}",
+        intent_id=f"intent-{ticket_id[:8]}",
         correlation_id=str(uuid.uuid4()),
         trace_id=str(uuid.uuid4()),
         span_id=str(uuid.uuid4()),
@@ -672,24 +697,16 @@ def sample_ticket_script():
         status=TicketStatus.PENDING,
         priority=Priority.NORMAL,
         risk_band=RiskBand.LOW,
-        parameters={
-            'artifact_type': 'SCRIPT',
-            'language': 'python',
-            'service_name': 'my-script'
-        },
-        sla=SLA(
-            deadline=datetime.now(),
-            timeout_ms=300000,
-            max_retries=3
-        ),
+        parameters={"artifact_type": "SCRIPT", "language": "python", "service_name": "my-script"},
+        sla=SLA(deadline=datetime.now(), timeout_ms=300000, max_retries=3),
         qos=QoS(
             delivery_mode=DeliveryMode.AT_LEAST_ONCE,
             consistency=Consistency.EVENTUAL,
-            durability=Durability.PERSISTENT
+            durability=Durability.PERSISTENT,
         ),
         security_level=SecurityLevel.INTERNAL,
         dependencies=[],
-        created_at=datetime.now()
+        created_at=datetime.now(),
     )
 
 
@@ -710,24 +727,24 @@ def sample_pipeline_context(sample_ticket):
         ticket=sample_ticket,
         trace_id=str(uuid.uuid4()),
         span_id=str(uuid.uuid4()),
-        metadata={'risk_band': 'MEDIUM'}
+        metadata={"risk_band": "MEDIUM"},
     )
 
     # Template sample
     template = Template(
-        template_id='microservice-python-v1',
+        template_id="microservice-python-v1",
         metadata=TemplateMetadata(
-            name='Python Microservice',
-            version='1.0.0',
-            description='Template base para microservico Python',
-            author='Neural Hive Team',
-            tags=['microservice', 'python', 'fastapi'],
+            name="Python Microservice",
+            version="1.0.0",
+            description="Template base para microservico Python",
+            author="Neural Hive Team",
+            tags=["microservice", "python", "fastapi"],
             language=CodeLanguage.PYTHON,
-            type=TemplateType.MICROSERVICE
+            type=TemplateType.MICROSERVICE,
         ),
         parameters=[],
-        content_path='/app/templates/microservice-python',
-        examples={}
+        content_path="/app/templates/microservice-python",
+        examples={},
     )
     context.selected_template = template
 
@@ -740,28 +757,26 @@ def sample_pipeline_context_with_mcp(sample_pipeline_context):
     sample_pipeline_context.mcp_selection_id = str(uuid.uuid4())
     sample_pipeline_context.selected_tools = [
         {
-            'tool_id': 'tool-001',
-            'tool_name': 'SonarQube',
-            'category': 'VALIDATION',
-            'fitness_score': 0.85
+            "tool_id": "tool-001",
+            "tool_name": "SonarQube",
+            "category": "VALIDATION",
+            "fitness_score": 0.85,
         },
         {
-            'tool_id': 'tool-002',
-            'tool_name': 'GitHub Copilot',
-            'category': 'GENERATION',
-            'fitness_score': 0.92
-        }
+            "tool_id": "tool-002",
+            "tool_name": "GitHub Copilot",
+            "category": "GENERATION",
+            "fitness_score": 0.92,
+        },
     ]
-    sample_pipeline_context.generation_method = 'LLM'
+    sample_pipeline_context.generation_method = "LLM"
     return sample_pipeline_context
 
 
 @pytest.fixture
 def sample_pipeline_context_with_artifacts(sample_pipeline_context):
     """PipelineContext com artefatos gerados."""
-    from src.models.artifact import (
-        CodeForgeArtifact, GenerationMethod
-    )
+    from src.models.artifact import CodeForgeArtifact, GenerationMethod
     from src.types.artifact_types import ArtifactCategory
 
     artifact = CodeForgeArtifact(
@@ -773,14 +788,14 @@ def sample_pipeline_context_with_artifacts(sample_pipeline_context):
         trace_id=sample_pipeline_context.trace_id,
         span_id=sample_pipeline_context.span_id,
         artifact_type=ArtifactCategory.CODE,
-        language='python',
-        template_id='microservice-python-v1',
+        language="python",
+        template_id="microservice-python-v1",
         confidence_score=0.85,
         generation_method=GenerationMethod.TEMPLATE,
-        content_uri='mongodb://artifacts/test-123',
-        content_hash='abc123',
+        content_uri="mongodb://artifacts/test-123",
+        content_hash="abc123",
         created_at=datetime.now(),
-        metadata={}
+        metadata={},
     )
     sample_pipeline_context.add_artifact(artifact)
 
@@ -790,14 +805,12 @@ def sample_pipeline_context_with_artifacts(sample_pipeline_context):
 @pytest.fixture
 def sample_pipeline_context_with_validations(sample_pipeline_context_with_artifacts):
     """PipelineContext com validacoes."""
-    from src.models.artifact import (
-        ValidationResult, ValidationType, ValidationStatus
-    )
+    from src.models.artifact import ValidationResult, ValidationType, ValidationStatus
 
     validation = ValidationResult(
         validation_type=ValidationType.SAST,
-        tool_name='SonarQube',
-        tool_version='10.0.0',
+        tool_name="SonarQube",
+        tool_version="10.0.0",
         status=ValidationStatus.PASSED,
         score=0.85,
         issues_count=3,
@@ -806,7 +819,7 @@ def sample_pipeline_context_with_validations(sample_pipeline_context_with_artifa
         medium_issues=2,
         low_issues=0,
         executed_at=datetime.now(),
-        duration_ms=5000
+        duration_ms=5000,
     )
     sample_pipeline_context_with_artifacts.add_validation(validation)
 
@@ -825,19 +838,19 @@ def sample_template():
     from src.types.artifact_types import CodeLanguage
 
     return Template(
-        template_id='microservice-python-v1',
+        template_id="microservice-python-v1",
         metadata=TemplateMetadata(
-            name='Python Microservice',
-            version='1.0.0',
-            description='Template base para microservico Python',
-            author='Neural Hive Team',
-            tags=['microservice', 'python', 'fastapi'],
+            name="Python Microservice",
+            version="1.0.0",
+            description="Template base para microservico Python",
+            author="Neural Hive Team",
+            tags=["microservice", "python", "fastapi"],
             language=CodeLanguage.PYTHON,
-            type=TemplateType.MICROSERVICE
+            type=TemplateType.MICROSERVICE,
         ),
         parameters=[],
-        content_path='/app/templates/microservice-python',
-        examples={}
+        content_path="/app/templates/microservice-python",
+        examples={},
     )
 
 
@@ -856,23 +869,23 @@ def cached_template(sample_template):
 def sample_mcp_response():
     """Resposta MCP Tool Catalog sample."""
     return {
-        'request_id': str(uuid.uuid4()),
-        'selected_tools': [
+        "request_id": str(uuid.uuid4()),
+        "selected_tools": [
             {
-                'tool_id': 'tool-001',
-                'tool_name': 'SonarQube',
-                'category': 'VALIDATION',
-                'fitness_score': 0.85
+                "tool_id": "tool-001",
+                "tool_name": "SonarQube",
+                "category": "VALIDATION",
+                "fitness_score": 0.85,
             },
             {
-                'tool_id': 'tool-002',
-                'tool_name': 'Cookiecutter',
-                'category': 'GENERATION',
-                'fitness_score': 0.80
-            }
+                "tool_id": "tool-002",
+                "tool_name": "Cookiecutter",
+                "category": "GENERATION",
+                "fitness_score": 0.80,
+            },
         ],
-        'total_fitness_score': 0.82,
-        'selection_method': 'GENETIC_ALGORITHM'
+        "total_fitness_score": 0.82,
+        "selection_method": "GENETIC_ALGORITHM",
     }
 
 
@@ -880,17 +893,17 @@ def sample_mcp_response():
 def sample_mcp_response_llm_tools():
     """Resposta MCP com ferramentas LLM."""
     return {
-        'request_id': str(uuid.uuid4()),
-        'selected_tools': [
+        "request_id": str(uuid.uuid4()),
+        "selected_tools": [
             {
-                'tool_id': 'tool-003',
-                'tool_name': 'GitHub Copilot',
-                'category': 'GENERATION',
-                'fitness_score': 0.95
+                "tool_id": "tool-003",
+                "tool_name": "GitHub Copilot",
+                "category": "GENERATION",
+                "fitness_score": 0.95,
             }
         ],
-        'total_fitness_score': 0.95,
-        'selection_method': 'GENETIC_ALGORITHM'
+        "total_fitness_score": 0.95,
+        "selection_method": "GENETIC_ALGORITHM",
     }
 
 
@@ -898,23 +911,23 @@ def sample_mcp_response_llm_tools():
 def sample_mcp_response_hybrid_tools():
     """Resposta MCP com ferramentas hibridas (LLM + Template)."""
     return {
-        'request_id': str(uuid.uuid4()),
-        'selected_tools': [
+        "request_id": str(uuid.uuid4()),
+        "selected_tools": [
             {
-                'tool_id': 'tool-003',
-                'tool_name': 'GitHub Copilot',
-                'category': 'GENERATION',
-                'fitness_score': 0.95
+                "tool_id": "tool-003",
+                "tool_name": "GitHub Copilot",
+                "category": "GENERATION",
+                "fitness_score": 0.95,
             },
             {
-                'tool_id': 'tool-004',
-                'tool_name': 'Cookiecutter',
-                'category': 'GENERATION',
-                'fitness_score': 0.80
-            }
+                "tool_id": "tool-004",
+                "tool_name": "Cookiecutter",
+                "category": "GENERATION",
+                "fitness_score": 0.80,
+            },
         ],
-        'total_fitness_score': 0.87,
-        'selection_method': 'GENETIC_ALGORITHM'
+        "total_fitness_score": 0.87,
+        "selection_method": "GENETIC_ALGORITHM",
     }
 
 
@@ -926,14 +939,12 @@ def sample_mcp_response_hybrid_tools():
 @pytest.fixture
 def sample_validation_result():
     """ValidationResult sample."""
-    from src.models.artifact import (
-        ValidationResult, ValidationType, ValidationStatus
-    )
+    from src.models.artifact import ValidationResult, ValidationType, ValidationStatus
 
     return ValidationResult(
         validation_type=ValidationType.SAST,
-        tool_name='SonarQube',
-        tool_version='10.0.0',
+        tool_name="SonarQube",
+        tool_version="10.0.0",
         status=ValidationStatus.PASSED,
         score=0.85,
         issues_count=3,
@@ -942,21 +953,19 @@ def sample_validation_result():
         medium_issues=2,
         low_issues=0,
         executed_at=datetime.now(),
-        duration_ms=5000
+        duration_ms=5000,
     )
 
 
 @pytest.fixture
 def sample_validation_result_failed():
     """ValidationResult com falha."""
-    from src.models.artifact import (
-        ValidationResult, ValidationType, ValidationStatus
-    )
+    from src.models.artifact import ValidationResult, ValidationType, ValidationStatus
 
     return ValidationResult(
         validation_type=ValidationType.SAST,
-        tool_name='SonarQube',
-        tool_version='10.0.0',
+        tool_name="SonarQube",
+        tool_version="10.0.0",
         status=ValidationStatus.FAILED,
         score=0.35,
         issues_count=15,
@@ -965,5 +974,5 @@ def sample_validation_result_failed():
         medium_issues=4,
         low_issues=3,
         executed_at=datetime.now(),
-        duration_ms=8000
+        duration_ms=8000,
     )

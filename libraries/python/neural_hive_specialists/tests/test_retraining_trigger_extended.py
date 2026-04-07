@@ -61,6 +61,7 @@ class TestRetrainingTrigger:
     def config(self):
         """Configuração de teste."""
         from neural_hive_specialists.config import SpecialistConfig
+
         return SpecialistConfig(
             specialist_type="technical",
             service_name="test_service",

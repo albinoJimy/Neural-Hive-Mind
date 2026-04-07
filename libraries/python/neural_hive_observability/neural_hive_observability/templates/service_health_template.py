@@ -15,11 +15,16 @@ import logging
 
 from fastapi import FastAPI, JSONResponse
 from neural_hive_observability.health import (
-    HealthManager, RedisHealthCheck, DatabaseHealthCheck, KafkaHealthCheck,
-    CustomHealthCheck, HealthStatus
+    HealthManager,
+    RedisHealthCheck,
+    DatabaseHealthCheck,
+    KafkaHealthCheck,
+    CustomHealthCheck,
+    HealthStatus,
 )
 
 logger = logging.getLogger(__name__)
+
 
 class ServiceHealthManager:
     """
@@ -56,25 +61,17 @@ class ServiceHealthManager:
     def add_database_check(self, connection_check, name: str = "database"):
         """Add database health check."""
         if connection_check:
-            self.health_manager.add_check(
-                DatabaseHealthCheck(name, connection_check)
-            )
+            self.health_manager.add_check(DatabaseHealthCheck(name, connection_check))
 
     def add_kafka_check(self, producer_check, name: str = "kafka"):
         """Add Kafka health check."""
         if producer_check:
-            self.health_manager.add_check(
-                KafkaHealthCheck(name, producer_check)
-            )
+            self.health_manager.add_check(KafkaHealthCheck(name, producer_check))
 
     def add_custom_check(self, name: str, check_func, description: str = None):
         """Add custom health check for service-specific components."""
         self.health_manager.add_check(
-            CustomHealthCheck(
-                name,
-                check_func,
-                description or f"{name} component"
-            )
+            CustomHealthCheck(name, check_func, description or f"{name} component")
         )
 
     def mark_initialized(self):
@@ -93,7 +90,7 @@ class ServiceHealthManager:
                 "message": "Health manager not initialized",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "version": self.version,
-                "service_name": self.service_name
+                "service_name": self.service_name,
             }
 
         try:
@@ -109,7 +106,7 @@ class ServiceHealthManager:
                     "message": result.message,
                     "duration_seconds": result.duration_seconds,
                     "timestamp": result.timestamp,
-                    "details": result.details
+                    "details": result.details,
                 }
 
             return {
@@ -119,7 +116,7 @@ class ServiceHealthManager:
                 "service_name": self.service_name,
                 "neural_hive_component": self.component,
                 "neural_hive_layer": self.layer,
-                "components": component_statuses
+                "components": component_statuses,
             }
 
         except Exception as e:
@@ -129,7 +126,7 @@ class ServiceHealthManager:
                 "message": f"Health check error: {str(e)}",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "version": self.version,
-                "service_name": self.service_name
+                "service_name": self.service_name,
             }
 
     async def get_readiness_response(self, critical_checks: list = None) -> Dict[str, Any]:
@@ -145,7 +142,7 @@ class ServiceHealthManager:
             return {
                 "status": "not_ready",
                 "message": "Health manager not initialized",
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
         try:
@@ -166,7 +163,7 @@ class ServiceHealthManager:
                 "status": "ready" if overall_ready else "not_ready",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "service_name": self.service_name,
-                "neural_hive_component": self.component
+                "neural_hive_component": self.component,
             }
 
         except Exception as e:
@@ -174,10 +171,13 @@ class ServiceHealthManager:
             return {
                 "status": "not_ready",
                 "message": f"Readiness check error: {str(e)}",
-                "timestamp": datetime.now(timezone.utc).isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
-def setup_health_endpoints(app: FastAPI, health_manager: ServiceHealthManager, critical_checks: list = None):
+
+def setup_health_endpoints(
+    app: FastAPI, health_manager: ServiceHealthManager, critical_checks: list = None
+):
     """
     Setup standardized health and readiness endpoints for a FastAPI app.
 
@@ -217,8 +217,8 @@ def setup_health_endpoints(app: FastAPI, health_manager: ServiceHealthManager, c
                 content={
                     "status": "unhealthy",
                     "message": "Health manager not initialized",
-                    "timestamp": datetime.now(timezone.utc).isoformat()
-                }
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                },
             )
 
         try:
@@ -229,8 +229,8 @@ def setup_health_endpoints(app: FastAPI, health_manager: ServiceHealthManager, c
                     content={
                         "status": "not_found",
                         "message": f"Component '{component_name}' not found",
-                        "timestamp": datetime.now(timezone.utc).isoformat()
-                    }
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    },
                 )
 
             response_data = {
@@ -239,7 +239,7 @@ def setup_health_endpoints(app: FastAPI, health_manager: ServiceHealthManager, c
                 "message": result.message,
                 "duration_seconds": result.duration_seconds,
                 "timestamp": result.timestamp,
-                "details": result.details
+                "details": result.details,
             }
 
             status_code = 503 if result.status == HealthStatus.UNHEALTHY else 200
@@ -253,20 +253,25 @@ def setup_health_endpoints(app: FastAPI, health_manager: ServiceHealthManager, c
                     "component": component_name,
                     "status": "unhealthy",
                     "message": f"Health check error: {str(e)}",
-                    "timestamp": datetime.now(timezone.utc).isoformat()
-                }
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                },
             )
 
 
 # Example usage for different types of services:
 
-def setup_gateway_health(app: FastAPI, redis_client=None, kafka_producer=None,
-                        asr_pipeline=None, nlu_pipeline=None, oauth2_validator=None):
+
+def setup_gateway_health(
+    app: FastAPI,
+    redis_client=None,
+    kafka_producer=None,
+    asr_pipeline=None,
+    nlu_pipeline=None,
+    oauth2_validator=None,
+):
     """Example setup for Gateway service health checks."""
     health_manager = ServiceHealthManager(
-        service_name="gateway-intencoes",
-        component="gateway",
-        layer="experiencia"
+        service_name="gateway-intencoes", component="gateway", layer="experiencia"
     )
 
     # Add component-specific health checks
@@ -282,21 +287,21 @@ def setup_gateway_health(app: FastAPI, redis_client=None, kafka_producer=None,
         health_manager.add_custom_check(
             "asr_pipeline",
             lambda: asr_pipeline.is_ready() if asr_pipeline else False,
-            "ASR Pipeline"
+            "ASR Pipeline",
         )
 
     if nlu_pipeline:
         health_manager.add_custom_check(
             "nlu_pipeline",
             lambda: nlu_pipeline.is_ready() if nlu_pipeline else False,
-            "NLU Pipeline"
+            "NLU Pipeline",
         )
 
     if oauth2_validator:
         health_manager.add_custom_check(
             "oauth2_validator",
             lambda: True,  # OAuth2 validator is healthy if initialized
-            "OAuth2 Validator"
+            "OAuth2 Validator",
         )
 
     health_manager.mark_initialized()
@@ -310,9 +315,7 @@ def setup_gateway_health(app: FastAPI, redis_client=None, kafka_producer=None,
 def setup_processor_health(app: FastAPI, database_conn=None, message_queue=None):
     """Example setup for Processor service health checks."""
     health_manager = ServiceHealthManager(
-        service_name="plan-processor",
-        component="processor",
-        layer="cognicao"
+        service_name="plan-processor", component="processor", layer="cognicao"
     )
 
     if database_conn:
@@ -324,7 +327,7 @@ def setup_processor_health(app: FastAPI, database_conn=None, message_queue=None)
         health_manager.add_custom_check(
             "message_queue",
             lambda: message_queue.is_healthy() if message_queue else False,
-            "Message Queue"
+            "Message Queue",
         )
 
     health_manager.mark_initialized()

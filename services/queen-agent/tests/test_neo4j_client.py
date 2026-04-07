@@ -12,10 +12,10 @@ from src.clients.neo4j_client import Neo4jClient
 def mock_settings():
     """Mock de configurações"""
     settings = MagicMock()
-    settings.NEO4J_URI = 'bolt://localhost:7687'
-    settings.NEO4J_USER = 'neo4j'
-    settings.NEO4J_PASSWORD = 'password'
-    settings.NEO4J_DATABASE = 'neo4j'
+    settings.NEO4J_URI = "bolt://localhost:7687"
+    settings.NEO4J_USER = "neo4j"
+    settings.NEO4J_PASSWORD = "password"
+    settings.NEO4J_DATABASE = "neo4j"
     settings.NEO4J_MAX_CONNECTION_POOL_SIZE = 50
     return settings
 
@@ -43,16 +43,8 @@ async def test_list_active_conflicts_success(neo4j_client):
     # Configurar mock para retornar dados
     mock_result = AsyncMock()
     mock_data = [
-        {
-            'decision_id': 'dec-001',
-            'conflicts_with': 'dec-002',
-            'created_at': 1638360000000
-        },
-        {
-            'decision_id': 'dec-003',
-            'conflicts_with': 'dec-004',
-            'created_at': 1638360001000
-        }
+        {"decision_id": "dec-001", "conflicts_with": "dec-002", "created_at": 1638360000000},
+        {"decision_id": "dec-003", "conflicts_with": "dec-004", "created_at": 1638360001000},
     ]
     mock_result.data.return_value = mock_data
 
@@ -65,9 +57,9 @@ async def test_list_active_conflicts_success(neo4j_client):
 
     # Verificar resultado
     assert len(conflicts) == 2
-    assert conflicts[0]['decision_id'] == 'dec-001'
-    assert conflicts[0]['conflicts_with'] == 'dec-002'
-    assert conflicts[1]['decision_id'] == 'dec-003'
+    assert conflicts[0]["decision_id"] == "dec-001"
+    assert conflicts[0]["conflicts_with"] == "dec-002"
+    assert conflicts[1]["decision_id"] == "dec-003"
 
 
 @pytest.mark.asyncio
@@ -104,15 +96,15 @@ async def test_list_active_conflicts_partial_data(neo4j_client):
     # Dados com campos faltando
     mock_data = [
         {
-            'decision_id': 'dec-001',
+            "decision_id": "dec-001",
             # conflicts_with está faltando
-            'created_at': 1638360000000
+            "created_at": 1638360000000,
         },
         {
-            'decision_id': 'dec-002',
-            'conflicts_with': 'dec-003'
+            "decision_id": "dec-002",
+            "conflicts_with": "dec-003"
             # created_at está faltando
-        }
+        },
     ]
 
     mock_result.data.return_value = mock_data
@@ -124,6 +116,6 @@ async def test_list_active_conflicts_partial_data(neo4j_client):
 
     # Deve retornar dados mesmo com campos faltando (usando .get())
     assert len(conflicts) == 2
-    assert conflicts[0]['decision_id'] == 'dec-001'
-    assert conflicts[0]['conflicts_with'] is None
-    assert conflicts[1]['created_at'] is None
+    assert conflicts[0]["decision_id"] == "dec-001"
+    assert conflicts[0]["conflicts_with"] is None
+    assert conflicts[1]["created_at"] is None

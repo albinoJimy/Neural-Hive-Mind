@@ -136,9 +136,7 @@ class StrategicDecisionEngine:
             logger.exception("process_telemetry_event_failed", error=str(e))
             return None
 
-    async def process_critical_incident(
-        self, incident: dict[str, Any]
-    ) -> StrategicDecision | None:
+    async def process_critical_incident(self, incident: dict[str, Any]) -> StrategicDecision | None:
         """Processar incidente crítico dos Guards"""
         try:
             incident_id = incident.get("incident_id")

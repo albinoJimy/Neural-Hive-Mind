@@ -30,7 +30,6 @@ class JenkinsTimeoutError(Exception):
     """Timeout aguardando build do Jenkins."""
 
 
-
 @dataclass
 class JenkinsBuildStatus:
     """Representa status de um build Jenkins."""

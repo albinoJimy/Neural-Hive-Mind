@@ -23,8 +23,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 async def kafka_producer():
     """Fixture Kafka producer."""
     producer = AIOKafkaProducer(
-        bootstrap_servers='localhost:9092',
-        value_serializer=lambda v: json.dumps(v).encode('utf-8')
+        bootstrap_servers="localhost:9092", value_serializer=lambda v: json.dumps(v).encode("utf-8")
     )
     await producer.start()
     yield producer
@@ -34,7 +33,7 @@ async def kafka_producer():
 @pytest.fixture
 async def mongodb_client():
     """Fixture MongoDB client."""
-    client = AsyncIOMotorClient('mongodb://localhost:27017')
+    client = AsyncIOMotorClient("mongodb://localhost:27017")
     db = client.neural_hive
     yield db
     # Cleanup
@@ -52,11 +51,8 @@ def create_sample_ticket():
         "security_level": "INTERNAL",
         "service_account": "default",
         "namespace": "default",
-        "parameters": {
-            "repo": "test-repo",
-            "branch": "main"
-        },
-        "required_capabilities": []
+        "parameters": {"repo": "test-repo", "branch": "main"},
+        "required_capabilities": [],
     }
 
 
@@ -74,19 +70,19 @@ async def test_e2e_ticket_approved(kafka_producer, mongodb_client):
     """
     # 1. Publicar ticket
     ticket = create_sample_ticket()
-    await kafka_producer.send('execution.tickets', value=ticket)
+    await kafka_producer.send("execution.tickets", value=ticket)
 
     # 2. Aguardar processamento (max 5s)
     await asyncio.sleep(5)
 
     # 3. Verificar MongoDB
     validation = await mongodb_client.security_validations.find_one(
-        {'ticket_id': ticket['ticket_id']}
+        {"ticket_id": ticket["ticket_id"]}
     )
 
     assert validation is not None
-    assert validation['validation_status'] == 'APPROVED'
-    assert validation['ticket_id'] == ticket['ticket_id']
+    assert validation["validation_status"] == "APPROVED"
+    assert validation["ticket_id"] == ticket["ticket_id"]
 
 
 @pytest.mark.asyncio
@@ -105,19 +101,19 @@ async def test_e2e_ticket_rejected_secrets(kafka_producer, mongodb_client):
     ticket = create_sample_ticket()
     ticket["parameters"]["aws_access_key"] = "AKIAIOSFODNN7EXAMPLE"
 
-    await kafka_producer.send('execution.tickets', value=ticket)
+    await kafka_producer.send("execution.tickets", value=ticket)
 
     # 2. Aguardar processamento
     await asyncio.sleep(5)
 
     # 3. Verificar MongoDB
     validation = await mongodb_client.security_validations.find_one(
-        {'ticket_id': ticket['ticket_id']}
+        {"ticket_id": ticket["ticket_id"]}
     )
 
     assert validation is not None
-    assert validation['validation_status'] == 'REJECTED'
-    assert len(validation['violations']) > 0
+    assert validation["validation_status"] == "REJECTED"
+    assert len(validation["violations"]) > 0
 
 
 @pytest.mark.asyncio
@@ -137,19 +133,19 @@ async def test_e2e_ticket_requires_approval(kafka_producer, mongodb_client):
     ticket["task_type"] = "DEPLOY"
     ticket["environment"] = "production"
 
-    await kafka_producer.send('execution.tickets', value=ticket)
+    await kafka_producer.send("execution.tickets", value=ticket)
 
     # 2. Aguardar processamento
     await asyncio.sleep(5)
 
     # 3. Verificar MongoDB
     validation = await mongodb_client.security_validations.find_one(
-        {'ticket_id': ticket['ticket_id']}
+        {"ticket_id": ticket["ticket_id"]}
     )
 
     assert validation is not None
     # Pode ser REQUIRES_APPROVAL ou REJECTED dependendo das políticas
-    assert validation['validation_status'] in ['REQUIRES_APPROVAL', 'REJECTED']
+    assert validation["validation_status"] in ["REQUIRES_APPROVAL", "REJECTED"]
 
 
 @pytest.mark.asyncio
@@ -171,23 +167,23 @@ async def test_e2e_multiple_violations(kafka_producer, mongodb_client):
         "aws_secret": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
         "affected_percentage": 0.5,  # Blast radius alto
         "rollback_plan": False,
-        "tests_passed": False
+        "tests_passed": False,
     }
 
-    await kafka_producer.send('execution.tickets', value=ticket)
+    await kafka_producer.send("execution.tickets", value=ticket)
 
     # 2. Aguardar processamento
     await asyncio.sleep(5)
 
     # 3. Verificar MongoDB
     validation = await mongodb_client.security_validations.find_one(
-        {'ticket_id': ticket['ticket_id']}
+        {"ticket_id": ticket["ticket_id"]}
     )
 
     assert validation is not None
-    assert validation['validation_status'] == 'REJECTED'
+    assert validation["validation_status"] == "REJECTED"
     # Deve ter múltiplas violations
-    assert len(validation['violations']) >= 2
+    assert len(validation["violations"]) >= 2
 
 
 @pytest.mark.asyncio
@@ -212,14 +208,14 @@ async def test_e2e_manual_approval_flow(kafka_producer, mongodb_client):
     ticket["environment"] = "production"
     ticket["security_level"] = "CRITICAL"
 
-    await kafka_producer.send('execution.tickets', value=ticket)
+    await kafka_producer.send("execution.tickets", value=ticket)
 
     # 2. Aguardar processamento inicial
     await asyncio.sleep(5)
 
     # 3. Verificar status REQUIRES_APPROVAL no MongoDB
     validation = await mongodb_client.security_validations.find_one(
-        {'ticket_id': ticket['ticket_id']}
+        {"ticket_id": ticket["ticket_id"]}
     )
 
     # Se não encontrou validação, pode ser que o serviço não está rodando
@@ -227,10 +223,10 @@ async def test_e2e_manual_approval_flow(kafka_producer, mongodb_client):
         pytest.skip("Validation not found - service may not be running")
 
     # Verificar que requer aprovação (pode ser REQUIRES_APPROVAL ou similar)
-    assert validation['validation_status'] in ['REQUIRES_APPROVAL', 'PENDING_APPROVAL', 'REJECTED']
+    assert validation["validation_status"] in ["REQUIRES_APPROVAL", "PENDING_APPROVAL", "REJECTED"]
 
     # Se está REJECTED, não precisa aprovar
-    if validation['validation_status'] == 'REJECTED':
+    if validation["validation_status"] == "REJECTED":
         pytest.skip("Ticket was rejected - cannot test approval flow")
 
     # 4. Aprovar via API
@@ -240,20 +236,19 @@ async def test_e2e_manual_approval_flow(kafka_producer, mongodb_client):
         try:
             response = await client.post(
                 f"{api_base_url}/api/v1/validation/approve/{ticket['ticket_id']}",
-                json={
-                    "approver": "test-user",
-                    "reason": "E2E test approval",
-                    "approved": True
-                },
-                timeout=10.0
+                json={"approver": "test-user", "reason": "E2E test approval", "approved": True},
+                timeout=10.0,
             )
 
             # API pode não estar implementada ainda
             if response.status_code == 404:
                 pytest.skip("Approval API endpoint not implemented")
 
-            assert response.status_code in [200, 201, 202], \
-                f"Unexpected status code: {response.status_code}, body: {response.text}"
+            assert response.status_code in [
+                200,
+                201,
+                202,
+            ], f"Unexpected status code: {response.status_code}, body: {response.text}"
 
         except httpx.ConnectError:
             pytest.skip("API server not available")
@@ -265,13 +260,14 @@ async def test_e2e_manual_approval_flow(kafka_producer, mongodb_client):
 
     # 6. Verificar status APPROVED no MongoDB
     validation = await mongodb_client.security_validations.find_one(
-        {'ticket_id': ticket['ticket_id']}
+        {"ticket_id": ticket["ticket_id"]}
     )
 
     assert validation is not None
-    assert validation['validation_status'] == 'APPROVED', \
-        f"Expected APPROVED, got {validation['validation_status']}"
-    assert validation.get('approved_by') == 'test-user'
+    assert (
+        validation["validation_status"] == "APPROVED"
+    ), f"Expected APPROVED, got {validation['validation_status']}"
+    assert validation.get("approved_by") == "test-user"
 
 
 @pytest.mark.asyncio
@@ -288,7 +284,7 @@ async def test_e2e_validation_flow_timing(kafka_producer, mongodb_client):
     ticket = create_sample_ticket()
     start_time = time.time()
 
-    await kafka_producer.send('execution.tickets', value=ticket)
+    await kafka_producer.send("execution.tickets", value=ticket)
 
     # Polling para verificar processamento
     max_wait = 10  # segundos
@@ -296,7 +292,7 @@ async def test_e2e_validation_flow_timing(kafka_producer, mongodb_client):
 
     while time.time() - start_time < max_wait:
         validation = await mongodb_client.security_validations.find_one(
-            {'ticket_id': ticket['ticket_id']}
+            {"ticket_id": ticket["ticket_id"]}
         )
 
         if validation:
@@ -310,13 +306,12 @@ async def test_e2e_validation_flow_timing(kafka_producer, mongodb_client):
         pytest.skip("Validation not processed - service may not be running")
 
     # Verificar tempo de processamento (deve ser < 5 segundos)
-    assert processing_time < 5.0, \
-        f"Processing took too long: {processing_time:.2f}s"
+    assert processing_time < 5.0, f"Processing took too long: {processing_time:.2f}s"
 
     # Verificar que validação tem campos esperados
-    assert 'ticket_id' in validation
-    assert 'validation_status' in validation
-    assert 'created_at' in validation or 'timestamp' in validation
+    assert "ticket_id" in validation
+    assert "validation_status" in validation
+    assert "created_at" in validation or "timestamp" in validation
 
 
 if __name__ == "__main__":

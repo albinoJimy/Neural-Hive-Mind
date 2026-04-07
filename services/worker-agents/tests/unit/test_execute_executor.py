@@ -21,20 +21,20 @@ from unittest.mock import AsyncMock, MagicMock, patch
 def mock_config():
     """Fixture para configurações."""
     config = MagicMock()
-    config.default_runtime = 'local'
-    config.runtime_fallback_chain = ['k8s', 'docker', 'local', 'simulation']
+    config.default_runtime = "local"
+    config.runtime_fallback_chain = ["k8s", "docker", "local", "simulation"]
     config.docker_timeout_seconds = 600
     config.docker_default_cpu_limit = 1.0
-    config.docker_default_memory_limit = '512m'
-    config.docker_network_mode = 'bridge'
-    config.k8s_jobs_namespace = 'neural-hive-execution'
+    config.docker_default_memory_limit = "512m"
+    config.docker_network_mode = "bridge"
+    config.k8s_jobs_namespace = "neural-hive-execution"
     config.k8s_jobs_timeout_seconds = 600
-    config.k8s_jobs_default_cpu_request = '100m'
-    config.k8s_jobs_default_cpu_limit = '1000m'
-    config.k8s_jobs_default_memory_request = '128Mi'
-    config.k8s_jobs_default_memory_limit = '512Mi'
-    config.k8s_jobs_service_account = 'worker-agent-executor'
-    config.lambda_function_name = 'neural-hive-executor'
+    config.k8s_jobs_default_cpu_request = "100m"
+    config.k8s_jobs_default_cpu_limit = "1000m"
+    config.k8s_jobs_default_memory_request = "128Mi"
+    config.k8s_jobs_default_memory_limit = "512Mi"
+    config.k8s_jobs_service_account = "worker-agent-executor"
+    config.lambda_function_name = "neural-hive-executor"
     config.local_runtime_timeout_seconds = 300
     return config
 
@@ -45,11 +45,11 @@ def mock_local_client():
     client = MagicMock()
     result = MagicMock()
     result.exit_code = 0
-    result.stdout = 'test output'
-    result.stderr = ''
+    result.stdout = "test output"
+    result.stderr = ""
     result.duration_ms = 100
     result.pid = 12345
-    result.command_executed = 'echo test'
+    result.command_executed = "echo test"
     client.execute_local = AsyncMock(return_value=result)
     return client
 
@@ -60,10 +60,10 @@ def mock_docker_client():
     client = MagicMock()
     result = MagicMock()
     result.exit_code = 0
-    result.stdout = 'docker output'
-    result.stderr = ''
+    result.stdout = "docker output"
+    result.stderr = ""
     result.duration_ms = 200
-    result.container_id = 'abc123'
+    result.container_id = "abc123"
     result.image_pulled = False
     client.execute_command = AsyncMock(return_value=result)
     return client
@@ -78,10 +78,10 @@ def mock_k8s_client():
     result = MagicMock()
     result.status = K8sJobStatus.SUCCEEDED
     result.exit_code = 0
-    result.logs = 'k8s output'
+    result.logs = "k8s output"
     result.duration_ms = 300
-    result.job_name = 'exec-abc123'
-    result.pod_name = 'exec-abc123-pod'
+    result.job_name = "exec-abc123"
+    result.pod_name = "exec-abc123-pod"
     client.execute_job = AsyncMock(return_value=result)
     return client
 
@@ -91,7 +91,7 @@ def mock_lambda_client():
     """Fixture para LambdaRuntimeClient mockado."""
     client = MagicMock()
     result = MagicMock()
-    result.request_id = 'req-123'
+    result.request_id = "req-123"
     result.status_code = 200
     result.function_error = None
     result.duration_ms = 150
@@ -99,8 +99,8 @@ def mock_lambda_client():
     result.memory_used_mb = 128
     result.response = MagicMock()
     result.response.exit_code = 0
-    result.response.stdout = 'lambda output'
-    result.response.stderr = ''
+    result.response.stdout = "lambda output"
+    result.response.stderr = ""
     client.invoke_lambda = AsyncMock(return_value=result)
     return client
 
@@ -109,6 +109,7 @@ def mock_lambda_client():
 def execute_executor(mock_config, mock_local_client):
     """Fixture para ExecuteExecutor com local client."""
     from executors.execute_executor import ExecuteExecutor
+
     return ExecuteExecutor(
         config=mock_config,
         local_client=mock_local_client,
@@ -116,9 +117,12 @@ def execute_executor(mock_config, mock_local_client):
 
 
 @pytest.fixture
-def execute_executor_all_runtimes(mock_config, mock_local_client, mock_docker_client, mock_k8s_client, mock_lambda_client):
+def execute_executor_all_runtimes(
+    mock_config, mock_local_client, mock_docker_client, mock_k8s_client, mock_lambda_client
+):
     """Fixture para ExecuteExecutor com todos os runtimes."""
     from executors.execute_executor import ExecuteExecutor
+
     return ExecuteExecutor(
         config=mock_config,
         local_client=mock_local_client,
@@ -134,40 +138,40 @@ class TestRuntimeSelection:
     def test_get_available_runtimes_local_only(self, execute_executor):
         """Deve listar apenas local e simulation."""
         available = execute_executor._get_available_runtimes()
-        assert 'local' in available
-        assert 'simulation' in available
-        assert 'docker' not in available
-        assert 'k8s' not in available
+        assert "local" in available
+        assert "simulation" in available
+        assert "docker" not in available
+        assert "k8s" not in available
 
     def test_get_available_runtimes_all(self, execute_executor_all_runtimes):
         """Deve listar todos os runtimes disponíveis."""
         available = execute_executor_all_runtimes._get_available_runtimes()
-        assert 'local' in available
-        assert 'docker' in available
-        assert 'k8s' in available
-        assert 'lambda' in available
-        assert 'simulation' in available
+        assert "local" in available
+        assert "docker" in available
+        assert "k8s" in available
+        assert "lambda" in available
+        assert "simulation" in available
 
     def test_select_runtime_requested_available(self, execute_executor_all_runtimes):
         """Deve selecionar runtime solicitado se disponível."""
-        selected = execute_executor_all_runtimes._select_runtime('docker')
-        assert selected == 'docker'
+        selected = execute_executor_all_runtimes._select_runtime("docker")
+        assert selected == "docker"
 
     def test_select_runtime_requested_unavailable(self, execute_executor):
         """Deve usar fallback se runtime solicitado não disponível."""
-        selected = execute_executor._select_runtime('docker')
-        assert selected == 'local'  # Fallback para local
+        selected = execute_executor._select_runtime("docker")
+        assert selected == "local"  # Fallback para local
 
     def test_select_runtime_default(self, execute_executor):
         """Deve usar runtime padrão quando nenhum especificado."""
         selected = execute_executor._select_runtime(None)
-        assert selected == 'local'
+        assert selected == "local"
 
     def test_select_runtime_fallback_chain(self, mock_config, mock_docker_client):
         """Deve seguir cadeia de fallback."""
         from executors.execute_executor import ExecuteExecutor
 
-        mock_config.default_runtime = 'k8s'  # K8s não disponível
+        mock_config.default_runtime = "k8s"  # K8s não disponível
 
         executor = ExecuteExecutor(
             config=mock_config,
@@ -175,7 +179,7 @@ class TestRuntimeSelection:
         )
 
         selected = executor._select_runtime(None)
-        assert selected == 'docker'  # Primeiro disponível na cadeia
+        assert selected == "docker"  # Primeiro disponível na cadeia
 
 
 class TestLocalExecution:
@@ -185,40 +189,40 @@ class TestLocalExecution:
     async def test_execute_local_success(self, execute_executor, mock_local_client):
         """Deve executar localmente com sucesso."""
         ticket = {
-            'ticket_id': 'test-123',
-            'task_type': 'EXECUTE',
-            'parameters': {
-                'command': 'echo',
-                'args': ['hello'],
-                'runtime': 'local',
-            }
+            "ticket_id": "test-123",
+            "task_type": "EXECUTE",
+            "parameters": {
+                "command": "echo",
+                "args": ["hello"],
+                "runtime": "local",
+            },
         }
 
         result = await execute_executor.execute(ticket)
 
-        assert result['success'] is True
-        assert result['metadata']['runtime'] == 'local'
-        assert result['metadata']['simulated'] is False
+        assert result["success"] is True
+        assert result["metadata"]["runtime"] == "local"
+        assert result["metadata"]["simulated"] is False
         mock_local_client.execute_local.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_execute_local_with_env_vars(self, execute_executor, mock_local_client):
         """Deve passar variáveis de ambiente."""
         ticket = {
-            'ticket_id': 'test-123',
-            'task_type': 'EXECUTE',
-            'parameters': {
-                'command': 'printenv',
-                'env_vars': {'TEST_VAR': 'test_value'},
-                'runtime': 'local',
-            }
+            "ticket_id": "test-123",
+            "task_type": "EXECUTE",
+            "parameters": {
+                "command": "printenv",
+                "env_vars": {"TEST_VAR": "test_value"},
+                "runtime": "local",
+            },
         }
 
         await execute_executor.execute(ticket)
 
         call_args = mock_local_client.execute_local.call_args
         request = call_args[0][0]
-        assert request.env_vars == {'TEST_VAR': 'test_value'}
+        assert request.env_vars == {"TEST_VAR": "test_value"}
 
 
 class TestDockerExecution:
@@ -228,20 +232,20 @@ class TestDockerExecution:
     async def test_execute_docker_success(self, execute_executor_all_runtimes, mock_docker_client):
         """Deve executar via Docker com sucesso."""
         ticket = {
-            'ticket_id': 'test-123',
-            'task_type': 'EXECUTE',
-            'parameters': {
-                'command': ['python', '-c', 'print("hello")'],
-                'image': 'python:3.11-slim',
-                'runtime': 'docker',
-            }
+            "ticket_id": "test-123",
+            "task_type": "EXECUTE",
+            "parameters": {
+                "command": ["python", "-c", 'print("hello")'],
+                "image": "python:3.11-slim",
+                "runtime": "docker",
+            },
         }
 
         result = await execute_executor_all_runtimes.execute(ticket)
 
-        assert result['success'] is True
-        assert result['metadata']['runtime'] == 'docker'
-        assert 'container_id' in result['output']
+        assert result["success"] is True
+        assert result["metadata"]["runtime"] == "docker"
+        assert "container_id" in result["output"]
         mock_docker_client.execute_command.assert_called_once()
 
 
@@ -252,21 +256,21 @@ class TestK8sExecution:
     async def test_execute_k8s_success(self, execute_executor_all_runtimes, mock_k8s_client):
         """Deve executar via K8s Jobs com sucesso."""
         ticket = {
-            'ticket_id': 'test-123',
-            'task_type': 'EXECUTE',
-            'parameters': {
-                'command': 'python',
-                'args': ['-c', 'print("hello")'],
-                'image': 'python:3.11-slim',
-                'runtime': 'k8s',
-            }
+            "ticket_id": "test-123",
+            "task_type": "EXECUTE",
+            "parameters": {
+                "command": "python",
+                "args": ["-c", 'print("hello")'],
+                "image": "python:3.11-slim",
+                "runtime": "k8s",
+            },
         }
 
         result = await execute_executor_all_runtimes.execute(ticket)
 
-        assert result['success'] is True
-        assert result['metadata']['runtime'] == 'k8s'
-        assert 'job_name' in result['output']
+        assert result["success"] is True
+        assert result["metadata"]["runtime"] == "k8s"
+        assert "job_name" in result["output"]
         mock_k8s_client.execute_job.assert_called_once()
 
 
@@ -277,20 +281,20 @@ class TestLambdaExecution:
     async def test_execute_lambda_success(self, execute_executor_all_runtimes, mock_lambda_client):
         """Deve executar via Lambda com sucesso."""
         ticket = {
-            'ticket_id': 'test-123',
-            'task_type': 'EXECUTE',
-            'parameters': {
-                'command': 'echo',
-                'args': ['hello'],
-                'runtime': 'lambda',
-            }
+            "ticket_id": "test-123",
+            "task_type": "EXECUTE",
+            "parameters": {
+                "command": "echo",
+                "args": ["hello"],
+                "runtime": "lambda",
+            },
         }
 
         result = await execute_executor_all_runtimes.execute(ticket)
 
-        assert result['success'] is True
-        assert result['metadata']['runtime'] == 'lambda'
-        assert 'request_id' in result['output']
+        assert result["success"] is True
+        assert result["metadata"]["runtime"] == "lambda"
+        assert "request_id" in result["output"]
         mock_lambda_client.invoke_lambda.assert_called_once()
 
 
@@ -305,19 +309,19 @@ class TestSimulationExecution:
         executor = ExecuteExecutor(config=mock_config)  # Sem clients
 
         ticket = {
-            'ticket_id': 'test-123',
-            'task_type': 'EXECUTE',
-            'parameters': {
-                'command': 'echo',
-                'args': ['hello'],
-            }
+            "ticket_id": "test-123",
+            "task_type": "EXECUTE",
+            "parameters": {
+                "command": "echo",
+                "args": ["hello"],
+            },
         }
 
         result = await executor.execute(ticket)
 
-        assert result['success'] is True
-        assert result['metadata']['runtime'] == 'simulation'
-        assert result['metadata']['simulated'] is True
+        assert result["success"] is True
+        assert result["metadata"]["runtime"] == "simulation"
+        assert result["metadata"]["simulated"] is True
 
 
 class TestRuntimeFallback:
@@ -329,7 +333,7 @@ class TestRuntimeFallback:
         from executors.execute_executor import ExecuteExecutor
 
         # Docker falha, deve fazer fallback para local
-        mock_docker_client.execute_command = AsyncMock(side_effect=Exception('Docker failed'))
+        mock_docker_client.execute_command = AsyncMock(side_effect=Exception("Docker failed"))
 
         executor = ExecuteExecutor(
             config=mock_config,
@@ -338,19 +342,19 @@ class TestRuntimeFallback:
         )
 
         ticket = {
-            'ticket_id': 'test-123',
-            'task_type': 'EXECUTE',
-            'parameters': {
-                'command': 'echo',
-                'runtime': 'docker',
-            }
+            "ticket_id": "test-123",
+            "task_type": "EXECUTE",
+            "parameters": {
+                "command": "echo",
+                "runtime": "docker",
+            },
         }
 
         result = await executor.execute(ticket)
 
         # Deve ter feito fallback para local
-        assert result['success'] is True
-        assert result['metadata']['runtime'] == 'local'
+        assert result["success"] is True
+        assert result["metadata"]["runtime"] == "local"
         mock_local_client.execute_local.assert_called_once()
 
 
@@ -363,12 +367,12 @@ class TestCodeForgeExecution:
         from executors.execute_executor import ExecuteExecutor
 
         mock_code_forge = MagicMock()
-        mock_code_forge.submit_generation_request = AsyncMock(return_value='req-123')
+        mock_code_forge.submit_generation_request = AsyncMock(return_value="req-123")
 
         mock_status = MagicMock()
-        mock_status.status = 'completed'
-        mock_status.artifacts = ['artifact1.py', 'artifact2.py']
-        mock_status.pipeline_id = 'pipeline-123'
+        mock_status.status = "completed"
+        mock_status.artifacts = ["artifact1.py", "artifact2.py"]
+        mock_status.pipeline_id = "pipeline-123"
         mock_code_forge.get_generation_status = AsyncMock(return_value=mock_status)
 
         executor = ExecuteExecutor(
@@ -378,19 +382,19 @@ class TestCodeForgeExecution:
         )
 
         ticket = {
-            'ticket_id': 'test-123',
-            'task_type': 'EXECUTE',
-            'parameters': {
-                'template_id': 'my-template',
-                'params': {'key': 'value'},
-            }
+            "ticket_id": "test-123",
+            "task_type": "EXECUTE",
+            "parameters": {
+                "template_id": "my-template",
+                "params": {"key": "value"},
+            },
         }
 
         result = await executor.execute(ticket)
 
-        assert result['success'] is True
-        assert result['metadata']['runtime'] == 'code_forge'
-        assert len(result['output']['artifacts']) == 2
+        assert result["success"] is True
+        assert result["metadata"]["runtime"] == "code_forge"
+        assert len(result["output"]["artifacts"]) == 2
         mock_code_forge.submit_generation_request.assert_called_once()
 
     @pytest.mark.asyncio
@@ -399,7 +403,9 @@ class TestCodeForgeExecution:
         from executors.execute_executor import ExecuteExecutor
 
         mock_code_forge = MagicMock()
-        mock_code_forge.submit_generation_request = AsyncMock(side_effect=Exception('Code Forge failed'))
+        mock_code_forge.submit_generation_request = AsyncMock(
+            side_effect=Exception("Code Forge failed")
+        )
 
         executor = ExecuteExecutor(
             config=mock_config,
@@ -408,20 +414,20 @@ class TestCodeForgeExecution:
         )
 
         ticket = {
-            'ticket_id': 'test-123',
-            'task_type': 'EXECUTE',
-            'parameters': {
-                'template_id': 'my-template',
-                'command': 'echo',
-                'args': ['fallback'],
-            }
+            "ticket_id": "test-123",
+            "task_type": "EXECUTE",
+            "parameters": {
+                "template_id": "my-template",
+                "command": "echo",
+                "args": ["fallback"],
+            },
         }
 
         result = await executor.execute(ticket)
 
         # Deve ter feito fallback para local
-        assert result['success'] is True
-        assert result['metadata']['runtime'] == 'local'
+        assert result["success"] is True
+        assert result["metadata"]["runtime"] == "local"
 
 
 class TestMetricsRecording:
@@ -437,24 +443,26 @@ class TestMetricsRecording:
         execute_executor.metrics = mock_metrics
 
         ticket = {
-            'ticket_id': 'test-123',
-            'task_type': 'EXECUTE',
-            'parameters': {
-                'command': 'echo',
-                'runtime': 'local',
-            }
+            "ticket_id": "test-123",
+            "task_type": "EXECUTE",
+            "parameters": {
+                "command": "echo",
+                "runtime": "local",
+            },
         }
 
         await execute_executor.execute(ticket)
 
-        mock_metrics.execute_tasks_executed_total.labels.assert_called_with(status='success')
+        mock_metrics.execute_tasks_executed_total.labels.assert_called_with(status="success")
 
     @pytest.mark.asyncio
-    async def test_fallback_metrics_recorded(self, mock_config, mock_docker_client, mock_local_client):
+    async def test_fallback_metrics_recorded(
+        self, mock_config, mock_docker_client, mock_local_client
+    ):
         """Deve registrar métricas de fallback."""
         from executors.execute_executor import ExecuteExecutor
 
-        mock_docker_client.execute_command = AsyncMock(side_effect=Exception('Docker failed'))
+        mock_docker_client.execute_command = AsyncMock(side_effect=Exception("Docker failed"))
 
         mock_metrics = MagicMock()
         mock_metrics.execute_tasks_executed_total = MagicMock()
@@ -470,12 +478,12 @@ class TestMetricsRecording:
         )
 
         ticket = {
-            'ticket_id': 'test-123',
-            'task_type': 'EXECUTE',
-            'parameters': {
-                'command': 'echo',
-                'runtime': 'docker',
-            }
+            "ticket_id": "test-123",
+            "task_type": "EXECUTE",
+            "parameters": {
+                "command": "echo",
+                "runtime": "docker",
+            },
         }
 
         await executor.execute(ticket)
@@ -489,4 +497,4 @@ class TestTaskType:
 
     def test_get_task_type(self, execute_executor):
         """Deve retornar EXECUTE como tipo de tarefa."""
-        assert execute_executor.get_task_type() == 'EXECUTE'
+        assert execute_executor.get_task_type() == "EXECUTE"

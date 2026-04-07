@@ -15,11 +15,7 @@ class TestIntentEnvelope:
         envelope = IntentEnvelope(
             id="test-id",
             correlation_id="test-correlation",
-            actor={
-                "id": "user-123",
-                "actor_type": "human",
-                "name": "Test User"
-            },
+            actor={"id": "user-123", "actor_type": "human", "name": "Test User"},
             intent={
                 "text": "test intent",
                 "domain": "BUSINESS",
@@ -27,11 +23,11 @@ class TestIntentEnvelope:
                 "original_language": "pt-BR",
                 "processed_text": "test intent processed",
                 "entities": [],
-                "keywords": ["test"]
+                "keywords": ["test"],
             },
             confidence=0.85,
             context=sample_user_context,
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(timezone.utc),
         )
 
         assert envelope.id == "test-id"
@@ -45,19 +41,16 @@ class TestIntentEnvelope:
         envelope = IntentEnvelope(
             id="test-id",
             correlation_id="test-correlation",
-            actor={
-                "id": "user-123",
-                "actor_type": "human"
-            },
+            actor={"id": "user-123", "actor_type": "human"},
             intent={
                 "text": "test",
                 "domain": "BUSINESS",
                 "classification": "request",
                 "entities": [],
-                "keywords": []
+                "keywords": [],
             },
             confidence=0.85,
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(timezone.utc),
         )
 
         partition_key = envelope.get_partition_key()
@@ -68,19 +61,16 @@ class TestIntentEnvelope:
         envelope = IntentEnvelope(
             id="test-id-123",
             correlation_id="test-correlation",
-            actor={
-                "id": "user-123",
-                "actor_type": "human"
-            },
+            actor={"id": "user-123", "actor_type": "human"},
             intent={
                 "text": "test",
                 "domain": "BUSINESS",
                 "classification": "request",
                 "entities": [],
-                "keywords": []
+                "keywords": [],
             },
             confidence=0.85,
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(timezone.utc),
         )
 
         idempotency_key = envelope.get_idempotency_key()
@@ -92,11 +82,7 @@ class TestIntentEnvelope:
         envelope = IntentEnvelope(
             id="test-id",
             correlation_id="test-correlation",
-            actor={
-                "id": "user-123",
-                "actor_type": "human",
-                "name": "Test User"
-            },
+            actor={"id": "user-123", "actor_type": "human", "name": "Test User"},
             intent={
                 "text": "test intent",
                 "domain": "BUSINESS",
@@ -109,14 +95,14 @@ class TestIntentEnvelope:
                         "value": "test",
                         "confidence": 0.9,
                         "start": 0,
-                        "end": 4
+                        "end": 4,
                     }
                 ],
-                "keywords": ["test", "intent"]
+                "keywords": ["test", "intent"],
             },
             confidence=0.85,
             context=sample_user_context,
-            timestamp=timestamp
+            timestamp=timestamp,
         )
 
         avro_dict = envelope.to_avro_dict()
@@ -135,7 +121,7 @@ class TestIntentEnvelope:
             IntentEnvelope(
                 # Missing required fields
                 id="",
-                timestamp=datetime.now(timezone.utc)
+                timestamp=datetime.now(timezone.utc),
             )
 
     def test_confidence_bounds(self):
@@ -143,56 +129,47 @@ class TestIntentEnvelope:
         # Test valid confidence values
         envelope = IntentEnvelope(
             id="test-id",
-            actor={
-                "id": "user-123",
-                "actor_type": "human"
-            },
+            actor={"id": "user-123", "actor_type": "human"},
             intent={
                 "text": "test",
                 "domain": "BUSINESS",
                 "classification": "request",
                 "entities": [],
-                "keywords": []
+                "keywords": [],
             },
             confidence=0.5,  # Valid range [0, 1]
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(timezone.utc),
         )
         assert 0.0 <= envelope.confidence <= 1.0
 
         # Test boundary values
         envelope_min = IntentEnvelope(
             id="test-id-min",
-            actor={
-                "id": "user-123",
-                "actor_type": "human"
-            },
+            actor={"id": "user-123", "actor_type": "human"},
             intent={
                 "text": "test",
                 "domain": "BUSINESS",
                 "classification": "request",
                 "entities": [],
-                "keywords": []
+                "keywords": [],
             },
             confidence=0.0,
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(timezone.utc),
         )
         assert envelope_min.confidence == 0.0
 
         envelope_max = IntentEnvelope(
             id="test-id-max",
-            actor={
-                "id": "user-123",
-                "actor_type": "human"
-            },
+            actor={"id": "user-123", "actor_type": "human"},
             intent={
                 "text": "test",
                 "domain": "BUSINESS",
                 "classification": "request",
                 "entities": [],
-                "keywords": []
+                "keywords": [],
             },
             confidence=1.0,
-            timestamp=datetime.now(timezone.utc)
+            timestamp=datetime.now(timezone.utc),
         )
         assert envelope_max.confidence == 1.0
 
@@ -205,7 +182,7 @@ class TestIntentRequest:
         request = IntentRequest(
             text="Implementar nova funcionalidade",
             language="pt-BR",
-            correlation_id="correlation-123"
+            correlation_id="correlation-123",
         )
 
         assert request.text == "Implementar nova funcionalidade"
@@ -243,9 +220,7 @@ class TestVoiceIntentRequest:
     def test_voice_intent_request_creation(self, audio_file_mock):
         """Teste de criação do request de voz"""
         request = VoiceIntentRequest(
-            audio_file=audio_file_mock,
-            language="pt-BR",
-            correlation_id="voice-correlation-123"
+            audio_file=audio_file_mock, language="pt-BR", correlation_id="voice-correlation-123"
         )
 
         assert request.audio_file == audio_file_mock

@@ -30,7 +30,6 @@ class ArgoCDTimeoutError(Exception):
     """Timeout aguardando health check do ArgoCD."""
 
 
-
 class ApplicationSource(BaseModel):
     """Fonte da aplicacao ArgoCD."""
 

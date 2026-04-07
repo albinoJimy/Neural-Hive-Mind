@@ -11,7 +11,7 @@ import sys
 import os
 
 # Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 
 class TestAuthMiddleware:
@@ -52,33 +52,36 @@ class TestAuthMiddleware:
     @pytest.fixture
     def auth_middleware(self, mock_app, mock_settings, mock_rate_limiter):
         """Fixture do middleware de autenticação"""
-        with patch('middleware.auth_middleware.get_settings', return_value=mock_settings), \
-             patch('middleware.auth_middleware.get_oauth2_validator') as mock_validator:
-
+        with patch("middleware.auth_middleware.get_settings", return_value=mock_settings), patch(
+            "middleware.auth_middleware.get_oauth2_validator"
+        ) as mock_validator:
             validator = MagicMock()
-            validator.validate_token = AsyncMock(return_value={
-                "sub": "user-123",
-                "preferred_username": "testuser",
-                "email": "test@example.com",
-                "realm_access": {"roles": ["neural-hive-user"]},
-                "client_id": "client-123",
-                "session_state": "session-abc"
-            })
-            validator.extract_user_context = MagicMock(return_value={
-                "user_id": "user-123",
-                "username": "testuser",
-                "email": "test@example.com",
-                "roles": ["neural-hive-user"],
-                "client_id": "client-123",
-                "session_id": "session-abc"
-            })
+            validator.validate_token = AsyncMock(
+                return_value={
+                    "sub": "user-123",
+                    "preferred_username": "testuser",
+                    "email": "test@example.com",
+                    "realm_access": {"roles": ["neural-hive-user"]},
+                    "client_id": "client-123",
+                    "session_state": "session-abc",
+                }
+            )
+            validator.extract_user_context = MagicMock(
+                return_value={
+                    "user_id": "user-123",
+                    "username": "testuser",
+                    "email": "test@example.com",
+                    "roles": ["neural-hive-user"],
+                    "client_id": "client-123",
+                    "session_id": "session-abc",
+                }
+            )
             mock_validator.return_value = validator
 
             from middleware.auth_middleware import AuthMiddleware
+
             middleware = AuthMiddleware(
-                mock_app,
-                exclude_paths=["/health", "/metrics"],
-                rate_limiter=mock_rate_limiter
+                mock_app, exclude_paths=["/health", "/metrics"], rate_limiter=mock_rate_limiter
             )
             yield middleware
 
@@ -89,9 +92,7 @@ class TestAuthMiddleware:
         request = MagicMock(spec=Request)
         request.url.path = "/api/v1/intentions"
         request.method = "POST"
-        request.headers = Headers({
-            "authorization": "Bearer valid-token-123"
-        })
+        request.headers = Headers({"authorization": "Bearer valid-token-123"})
         request.state = MagicMock()
 
         # Mock do call_next
@@ -104,9 +105,9 @@ class TestAuthMiddleware:
         response = await auth_middleware.dispatch(request, call_next)
 
         # Verificar que request foi enriquecido
-        assert hasattr(request.state, 'user')
-        assert request.state.user['username'] == "testuser"
-        assert hasattr(request.state, 'authenticated')
+        assert hasattr(request.state, "user")
+        assert request.state.user["username"] == "testuser"
+        assert hasattr(request.state, "authenticated")
         assert request.state.authenticated is True
 
     @pytest.mark.asyncio
@@ -115,19 +116,15 @@ class TestAuthMiddleware:
         from middleware.auth_middleware import AuthenticationError
 
         # Mock validator que lança exceção
-        with patch('middleware.auth_middleware.get_oauth2_validator') as mock_validator:
+        with patch("middleware.auth_middleware.get_oauth2_validator") as mock_validator:
             validator = MagicMock()
-            validator.validate_token = AsyncMock(
-                side_effect=Exception("Invalid token")
-            )
+            validator.validate_token = AsyncMock(side_effect=Exception("Invalid token"))
             mock_validator.return_value = validator
 
             request = MagicMock(spec=Request)
             request.url.path = "/api/v1/intentions"
             request.method = "GET"
-            request.headers = Headers({
-                "authorization": "Bearer invalid-token"
-            })
+            request.headers = Headers({"authorization": "Bearer invalid-token"})
             request.state = MagicMock()
 
             async def call_next(req):
@@ -175,21 +172,19 @@ class TestAuthMiddleware:
         response = await auth_middleware.dispatch(request, call_next)
 
         # Não deve ter usuário autenticado
-        assert not hasattr(request.state, 'user') or not getattr(request.state, 'user', None)
+        assert not hasattr(request.state, "user") or not getattr(request.state, "user", None)
 
     @pytest.mark.asyncio
-    async def test_disabled_validation_allows_request(self, mock_app, mock_settings, mock_rate_limiter):
+    async def test_disabled_validation_allows_request(
+        self, mock_app, mock_settings, mock_rate_limiter
+    ):
         """Testar que com validação desabilitada, request passa"""
         mock_settings.token_validation_enabled = False
 
-        with patch('middleware.auth_middleware.get_settings', return_value=mock_settings):
+        with patch("middleware.auth_middleware.get_settings", return_value=mock_settings):
             from middleware.auth_middleware import AuthMiddleware
 
-            middleware = AuthMiddleware(
-                mock_app,
-                exclude_paths=[],
-                rate_limiter=mock_rate_limiter
-            )
+            middleware = AuthMiddleware(mock_app, exclude_paths=[], rate_limiter=mock_rate_limiter)
 
             request = MagicMock(spec=Request)
             request.url.path = "/api/v1/intentions"
@@ -212,33 +207,35 @@ class TestAuthMiddleware:
     async def test_admin_endpoint_requires_admin_role(self, auth_middleware, mock_settings):
         """Testar que endpoint admin requer role admin"""
         # Mock com role admin
-        with patch('middleware.auth_middleware.get_oauth2_validator') as mock_validator:
+        with patch("middleware.auth_middleware.get_oauth2_validator") as mock_validator:
             validator = MagicMock()
-            validator.validate_token = AsyncMock(return_value={
-                "sub": "admin-123",
-                "preferred_username": "admin",
-                "email": "admin@example.com",
-                "realm_access": {"roles": ["neural-hive-admin"]},
-                "client_id": "admin-client",
-                "session_state": "session-admin"
-            })
-            validator.extract_user_context = MagicMock(return_value={
-                "user_id": "admin-123",
-                "username": "admin",
-                "email": "admin@example.com",
-                "roles": ["neural-hive-admin"],
-                "client_id": "admin-client",
-                "session_id": "session-admin",
-                "is_admin": True
-            })
+            validator.validate_token = AsyncMock(
+                return_value={
+                    "sub": "admin-123",
+                    "preferred_username": "admin",
+                    "email": "admin@example.com",
+                    "realm_access": {"roles": ["neural-hive-admin"]},
+                    "client_id": "admin-client",
+                    "session_state": "session-admin",
+                }
+            )
+            validator.extract_user_context = MagicMock(
+                return_value={
+                    "user_id": "admin-123",
+                    "username": "admin",
+                    "email": "admin@example.com",
+                    "roles": ["neural-hive-admin"],
+                    "client_id": "admin-client",
+                    "session_id": "session-admin",
+                    "is_admin": True,
+                }
+            )
             mock_validator.return_value = validator
 
             request = MagicMock(spec=Request)
             request.url.path = "/api/v1/admin/users"
             request.method = "GET"
-            request.headers = Headers({
-                "authorization": "Bearer admin-token"
-            })
+            request.headers = Headers({"authorization": "Bearer admin-token"})
             request.state = MagicMock()
 
             async def call_next(req):
@@ -248,10 +245,9 @@ class TestAuthMiddleware:
 
             # Recarregar middleware com novo mock
             from middleware.auth_middleware import AuthMiddleware
+
             middleware = AuthMiddleware(
-                MagicMock(),
-                exclude_paths=[],
-                rate_limiter=mock_rate_limiter
+                MagicMock(), exclude_paths=[], rate_limiter=mock_rate_limiter
             )
 
             response = await middleware.dispatch(request, call_next)
@@ -263,43 +259,44 @@ class TestAuthMiddleware:
     async def test_non_admin_blocked_from_admin_endpoint(self, auth_middleware, mock_settings):
         """Testar que usuário sem role admin é bloqueado de endpoints admin"""
         # Mock sem role admin
-        with patch('middleware.auth_middleware.get_oauth2_validator') as mock_validator:
+        with patch("middleware.auth_middleware.get_oauth2_validator") as mock_validator:
             validator = MagicMock()
-            validator.validate_token = AsyncMock(return_value={
-                "sub": "user-123",
-                "preferred_username": "regularuser",
-                "email": "user@example.com",
-                "realm_access": {"roles": ["neural-hive-user"]},
-                "client_id": "client-123",
-                "session_state": "session-abc"
-            })
-            validator.extract_user_context = MagicMock(return_value={
-                "user_id": "user-123",
-                "username": "regularuser",
-                "email": "user@example.com",
-                "roles": ["neural-hive-user"],  # Sem role admin
-                "client_id": "client-123",
-                "session_id": "session-abc",
-                "is_admin": False
-            })
+            validator.validate_token = AsyncMock(
+                return_value={
+                    "sub": "user-123",
+                    "preferred_username": "regularuser",
+                    "email": "user@example.com",
+                    "realm_access": {"roles": ["neural-hive-user"]},
+                    "client_id": "client-123",
+                    "session_state": "session-abc",
+                }
+            )
+            validator.extract_user_context = MagicMock(
+                return_value={
+                    "user_id": "user-123",
+                    "username": "regularuser",
+                    "email": "user@example.com",
+                    "roles": ["neural-hive-user"],  # Sem role admin
+                    "client_id": "client-123",
+                    "session_id": "session-abc",
+                    "is_admin": False,
+                }
+            )
             mock_validator.return_value = validator
 
             request = MagicMock(spec=Request)
             request.url.path = "/api/v1/admin/config"
             request.method = "GET"
-            request.headers = Headers({
-                "authorization": "Bearer user-token"
-            })
+            request.headers = Headers({"authorization": "Bearer user-token"})
             request.state = MagicMock()
 
             async def call_next(req):
                 return MagicMock(spec=Response)
 
             from middleware.auth_middleware import AuthMiddleware
+
             middleware = AuthMiddleware(
-                MagicMock(),
-                exclude_paths=[],
-                rate_limiter=mock_rate_limiter
+                MagicMock(), exclude_paths=[], rate_limiter=mock_rate_limiter
             )
 
             response = await middleware.dispatch(request, call_next)
@@ -308,14 +305,14 @@ class TestAuthMiddleware:
             assert response.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_rate_limit_checked_for_authenticated_user(self, auth_middleware, mock_settings, mock_rate_limiter):
+    async def test_rate_limit_checked_for_authenticated_user(
+        self, auth_middleware, mock_settings, mock_rate_limiter
+    ):
         """Testar que rate limit é verificado para usuário autenticado"""
         request = MagicMock(spec=Request)
         request.url.path = "/api/v1/intentions"
         request.method = "GET"
-        request.headers = Headers({
-            "authorization": "Bearer valid-token-123"
-        })
+        request.headers = Headers({"authorization": "Bearer valid-token-123"})
         request.state = MagicMock()
 
         async def call_next(req):
@@ -342,41 +339,40 @@ class TestAuthMiddleware:
         result.retry_after = 30
         rl.check_rate_limit = AsyncMock(return_value=result)
 
-        with patch('middleware.auth_middleware.get_settings', return_value=mock_settings), \
-             patch('middleware.auth_middleware.get_oauth2_validator') as mock_validator:
-
+        with patch("middleware.auth_middleware.get_settings", return_value=mock_settings), patch(
+            "middleware.auth_middleware.get_oauth2_validator"
+        ) as mock_validator:
             validator = MagicMock()
-            validator.validate_token = AsyncMock(return_value={
-                "sub": "user-123",
-                "preferred_username": "testuser",
-                "email": "test@example.com",
-                "realm_access": {"roles": ["neural-hive-user"]},
-                "client_id": "client-123",
-                "session_state": "session-abc"
-            })
-            validator.extract_user_context = MagicMock(return_value={
-                "user_id": "user-123",
-                "username": "testuser",
-                "email": "test@example.com",
-                "roles": ["neural-hive-user"],
-                "client_id": "client-123",
-                "session_id": "session-abc"
-            })
+            validator.validate_token = AsyncMock(
+                return_value={
+                    "sub": "user-123",
+                    "preferred_username": "testuser",
+                    "email": "test@example.com",
+                    "realm_access": {"roles": ["neural-hive-user"]},
+                    "client_id": "client-123",
+                    "session_state": "session-abc",
+                }
+            )
+            validator.extract_user_context = MagicMock(
+                return_value={
+                    "user_id": "user-123",
+                    "username": "testuser",
+                    "email": "test@example.com",
+                    "roles": ["neural-hive-user"],
+                    "client_id": "client-123",
+                    "session_id": "session-abc",
+                }
+            )
             mock_validator.return_value = validator
 
             from middleware.auth_middleware import AuthMiddleware
-            middleware = AuthMiddleware(
-                mock_app,
-                exclude_paths=[],
-                rate_limiter=rl
-            )
+
+            middleware = AuthMiddleware(mock_app, exclude_paths=[], rate_limiter=rl)
 
             request = MagicMock(spec=Request)
             request.url.path = "/api/v1/intentions"
             request.method = "GET"
-            request.headers = Headers({
-                "authorization": "Bearer valid-token-123"
-            })
+            request.headers = Headers({"authorization": "Bearer valid-token-123"})
             request.state = MagicMock()
 
             async def call_next(req):
@@ -393,9 +389,7 @@ class TestAuthMiddleware:
         request = MagicMock(spec=Request)
         request.url.path = "/api/v1/intentions"
         request.method = "GET"
-        request.headers = Headers({
-            "authorization": "Bearer valid-token-123"
-        })
+        request.headers = Headers({"authorization": "Bearer valid-token-123"})
         request.state = MagicMock()
 
         async def call_next(req):
@@ -407,7 +401,7 @@ class TestAuthMiddleware:
         await auth_middleware.dispatch(request, call_next)
 
         # Verificar headers de contexto
-        assert hasattr(request.state, 'context_headers')
+        assert hasattr(request.state, "context_headers")
         headers = request.state.context_headers
         assert "X-User-ID" in headers
         assert headers["X-User-ID"] == "user-123"
@@ -426,34 +420,31 @@ class TestOptionalAuthMiddleware:
     @pytest.fixture
     def optional_auth_middleware(self, mock_app):
         """Fixture do middleware de autenticação opcional"""
-        with patch('middleware.auth_middleware.get_settings') as mock_settings:
+        with patch("middleware.auth_middleware.get_settings") as mock_settings:
             settings = MagicMock()
             settings.environment = "test"
             mock_settings.return_value = settings
 
             from middleware.auth_middleware import OptionalAuthMiddleware
+
             middleware = OptionalAuthMiddleware(mock_app)
             yield middleware
 
     @pytest.mark.asyncio
     async def test_valid_token_sets_user_context(self, optional_auth_middleware):
         """Testar que token válido define contexto do usuário"""
-        with patch('middleware.auth_middleware.get_oauth2_validator') as mock_validator:
+        with patch("middleware.auth_middleware.get_oauth2_validator") as mock_validator:
             validator = MagicMock()
-            validator.validate_token = AsyncMock(return_value={
-                "sub": "user-123",
-                "preferred_username": "testuser"
-            })
-            validator.extract_user_context = MagicMock(return_value={
-                "user_id": "user-123",
-                "username": "testuser"
-            })
+            validator.validate_token = AsyncMock(
+                return_value={"sub": "user-123", "preferred_username": "testuser"}
+            )
+            validator.extract_user_context = MagicMock(
+                return_value={"user_id": "user-123", "username": "testuser"}
+            )
             mock_validator.return_value = validator
 
             request = MagicMock(spec=Request)
-            request.headers = Headers({
-                "authorization": "Bearer valid-token"
-            })
+            request.headers = Headers({"authorization": "Bearer valid-token"})
             request.state = MagicMock()
 
             async def call_next(req):
@@ -463,7 +454,7 @@ class TestOptionalAuthMiddleware:
 
             assert request.state.authenticated is True
             assert request.state.user is not None
-            assert request.state.user['username'] == "testuser"
+            assert request.state.user["username"] == "testuser"
 
     @pytest.mark.asyncio
     async def test_no_token_still_passes(self, optional_auth_middleware):
@@ -485,17 +476,13 @@ class TestOptionalAuthMiddleware:
     @pytest.mark.asyncio
     async def test_invalid_token_ignored(self, optional_auth_middleware):
         """Testar que token inválido é ignorado (não bloqueia)"""
-        with patch('middleware.auth_middleware.get_oauth2_validator') as mock_validator:
+        with patch("middleware.auth_middleware.get_oauth2_validator") as mock_validator:
             validator = MagicMock()
-            validator.validate_token = AsyncMock(
-                side_effect=Exception("Invalid token")
-            )
+            validator.validate_token = AsyncMock(side_effect=Exception("Invalid token"))
             mock_validator.return_value = validator
 
             request = MagicMock(spec=Request)
-            request.headers = Headers({
-                "authorization": "Bearer invalid-token"
-            })
+            request.headers = Headers({"authorization": "Bearer invalid-token"})
             request.state = MagicMock()
 
             async def call_next(req):
@@ -518,10 +505,7 @@ class TestGetCurrentUser:
         request = MagicMock(spec=Request)
         request.state = MagicMock()
         request.state.authenticated = True
-        request.state.user = {
-            "user_id": "user-123",
-            "username": "testuser"
-        }
+        request.state.user = {"user_id": "user-123", "username": "testuser"}
 
         user = await get_current_user(request)
 
@@ -555,21 +539,20 @@ class TestMTLSValidation:
         mock_settings.token_validation_enabled = True
         mock_settings.keycloak_realm = "neural-hive"
 
-        with patch('middleware.auth_middleware.get_settings', return_value=mock_settings), \
-             patch('middleware.auth_middleware.get_oauth2_validator') as mock_validator:
-
+        with patch("middleware.auth_middleware.get_settings", return_value=mock_settings), patch(
+            "middleware.auth_middleware.get_oauth2_validator"
+        ) as mock_validator:
             validator = MagicMock()
-            validator.validate_token = AsyncMock(return_value={
-                "sub": "user-123",
-                "preferred_username": "testuser"
-            })
-            validator.extract_user_context = MagicMock(return_value={
-                "user_id": "user-123",
-                "username": "testuser"
-            })
+            validator.validate_token = AsyncMock(
+                return_value={"sub": "user-123", "preferred_username": "testuser"}
+            )
+            validator.extract_user_context = MagicMock(
+                return_value={"user_id": "user-123", "username": "testuser"}
+            )
             mock_validator.return_value = validator
 
             from middleware.auth_middleware import AuthMiddleware
+
             middleware = AuthMiddleware(mock_app, exclude_paths=[])
             yield middleware
 
@@ -579,14 +562,16 @@ class TestMTLSValidation:
         request = MagicMock(spec=Request)
         request.url.path = "/api/v1/intentions"
         request.method = "GET"
-        request.headers = Headers({
-            "authorization": "Bearer valid-token",
-            "x-ssl-client-cert": "-----BEGIN CERTIFICATE-----\nMIIC...",  # Certificado PEM
-            "x-ssl-client-subject": "CN=user123,O=ExampleCorp",
-            "x-ssl-client-issuer": "CN=ExampleCA",
-            "x-ssl-client-fingerprint": "a1:b2:c3:d4:e5:f6",
-            "x-ssl-client-verify": "SUCCESS"
-        })
+        request.headers = Headers(
+            {
+                "authorization": "Bearer valid-token",
+                "x-ssl-client-cert": "-----BEGIN CERTIFICATE-----\nMIIC...",  # Certificado PEM
+                "x-ssl-client-subject": "CN=user123,O=ExampleCorp",
+                "x-ssl-client-issuer": "CN=ExampleCA",
+                "x-ssl-client-fingerprint": "a1:b2:c3:d4:e5:f6",
+                "x-ssl-client-verify": "SUCCESS",
+            }
+        )
         request.state = MagicMock()
 
         async def call_next(req):
@@ -597,10 +582,10 @@ class TestMTLSValidation:
         await auth_middleware_with_mtls.dispatch(request, call_next)
 
         # Verificar contexto mTLS
-        assert hasattr(request.state, 'mtls')
+        assert hasattr(request.state, "mtls")
         mtls_context = request.state.mtls
         assert mtls_context is not None
-        assert mtls_context.get('verified') is True
+        assert mtls_context.get("verified") is True
 
     @pytest.mark.asyncio
     async def test_missing_mtls_certificate_skips_validation(self, auth_middleware_with_mtls):
@@ -608,10 +593,12 @@ class TestMTLSValidation:
         request = MagicMock(spec=Request)
         request.url.path = "/api/v1/intentions"
         request.method = "GET"
-        request.headers = Headers({
-            "authorization": "Bearer valid-token"
-            # Sem headers mTLS
-        })
+        request.headers = Headers(
+            {
+                "authorization": "Bearer valid-token"
+                # Sem headers mTLS
+            }
+        )
         request.state = MagicMock()
 
         async def call_next(req):
@@ -631,11 +618,13 @@ class TestMTLSValidation:
         request = MagicMock(spec=Request)
         request.url.path = "/api/v1/intentions"
         request.method = "GET"
-        request.headers = Headers({
-            "authorization": "Bearer valid-token",
-            "x-ssl-client-cert": "-----BEGIN CERTIFICATE-----\n...",
-            "x-ssl-client-verify": "FAILED"  # Verificação falhou
-        })
+        request.headers = Headers(
+            {
+                "authorization": "Bearer valid-token",
+                "x-ssl-client-cert": "-----BEGIN CERTIFICATE-----\n...",
+                "x-ssl-client-verify": "FAILED",  # Verificação falhou
+            }
+        )
         request.state = MagicMock()
 
         async def call_next(req):
@@ -647,4 +636,4 @@ class TestMTLSValidation:
 
         # Contexto mTLS deve ser None ou não verificado
         mtls_context = request.state.mtls
-        assert mtls_context is None or mtls_context.get('verified') is not True
+        assert mtls_context is None or mtls_context.get("verified") is not True

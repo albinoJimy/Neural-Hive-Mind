@@ -64,9 +64,7 @@ class ABTestingSpecialist(BaseSpecialist):
         model_b_name = self.config.ab_test_model_b_name
 
         if not model_b_name:
-            logger.error(
-                "ab_test_model_b_name não configurado, A/B testing desabilitado"
-            )
+            logger.error("ab_test_model_b_name não configurado, A/B testing desabilitado")
             return super()._load_model()
 
         logger.info(
@@ -165,9 +163,7 @@ class ABTestingSpecialist(BaseSpecialist):
         # Retornar modelo A como padrão
         return self.model_a
 
-    def _select_model_for_request(
-        self, plan_id: str, intent_id: str
-    ) -> Tuple[str, Optional[Any]]:
+    def _select_model_for_request(self, plan_id: str, intent_id: str) -> Tuple[str, Optional[Any]]:
         """
         Seleciona modelo (A ou B) para request usando hash determinístico.
 
@@ -189,9 +185,7 @@ class ABTestingSpecialist(BaseSpecialist):
             hash_value = self._calculate_hash_value(plan_id, intent_id)
 
             span.set_attribute("ab_test.hash_value", hash_value)
-            span.set_attribute(
-                "ab_test.traffic_split", self.config.ab_test_traffic_split
-            )
+            span.set_attribute("ab_test.traffic_split", self.config.ab_test_traffic_split)
 
             # Selecionar variante baseado em hash
             if hash_value < self.config.ab_test_traffic_split:
@@ -259,9 +253,7 @@ class ABTestingSpecialist(BaseSpecialist):
             import uuid
 
             plan_id = str(uuid.uuid4())
-            logger.warning(
-                "plan_id não fornecido, usando ID temporário", plan_id=plan_id
-            )
+            logger.warning("plan_id não fornecido, usando ID temporário", plan_id=plan_id)
 
         # Selecionar modelo
         variant, model = self._select_model_for_request(plan_id, intent_id)
@@ -310,9 +302,7 @@ class ABTestingSpecialist(BaseSpecialist):
                 self.metrics.observe_ab_test_variant_confidence(
                     variant, result.get("confidence_score", 0.5)
                 )
-                self.metrics.observe_ab_test_variant_risk(
-                    variant, result.get("risk_score", 0.5)
-                )
+                self.metrics.observe_ab_test_variant_risk(variant, result.get("risk_score", 0.5))
 
                 # Incrementar contador de recomendação
                 recommendation = result.get("recommendation", "review_required")
@@ -320,9 +310,7 @@ class ABTestingSpecialist(BaseSpecialist):
 
                 # Adicionar metadados de A/B test
                 model_metadata = (
-                    self.model_a_metadata
-                    if variant == "model_a"
-                    else self.model_b_metadata
+                    self.model_a_metadata if variant == "model_a" else self.model_b_metadata
                 )
                 result["metadata"] = result.get("metadata", {})
                 result["metadata"].update(
@@ -333,9 +321,7 @@ class ABTestingSpecialist(BaseSpecialist):
                         "ab_test_model_version": model_metadata.get("version"),
                         "ab_test_model_run_id": model_metadata.get("run_id"),
                         "ab_test_traffic_split": self.config.ab_test_traffic_split,
-                        "ab_test_hash_value": self._calculate_hash_value(
-                            plan_id, intent_id
-                        ),
+                        "ab_test_hash_value": self._calculate_hash_value(plan_id, intent_id),
                     }
                 )
 
@@ -446,15 +432,11 @@ class ABTestingSpecialist(BaseSpecialist):
 
                     # Simular tabela de contingência usando recommendation distribution
                     # Como proxy: usar approve vs não-approve
-                    approve_a = stats["model_a"]["recommendation_distribution"].get(
-                        "approve", 0
-                    )
+                    approve_a = stats["model_a"]["recommendation_distribution"].get("approve", 0)
                     total_a = stats["model_a"]["sample_size"]
                     reject_a = total_a - approve_a
 
-                    approve_b = stats["model_b"]["recommendation_distribution"].get(
-                        "approve", 0
-                    )
+                    approve_b = stats["model_b"]["recommendation_distribution"].get("approve", 0)
                     total_b = stats["model_b"]["sample_size"]
                     reject_b = total_b - approve_b
 
@@ -490,9 +472,7 @@ class ABTestingSpecialist(BaseSpecialist):
                     )
                     stats["recommendation"] = "scipy_not_available"
                 except Exception as e:
-                    logger.error(
-                        "Erro ao calcular significância estatística", error=str(e)
-                    )
+                    logger.error("Erro ao calcular significância estatística", error=str(e))
             else:
                 stats[
                     "recommendation"
@@ -508,9 +488,7 @@ class ABTestingSpecialist(BaseSpecialist):
             return stats
 
         except Exception as e:
-            logger.error(
-                "Erro ao coletar estatísticas de A/B test", error=str(e), exc_info=True
-            )
+            logger.error("Erro ao coletar estatísticas de A/B test", error=str(e), exc_info=True)
             return {
                 "error": str(e),
                 "model_a": {"sample_size": 0},
@@ -548,11 +526,9 @@ class ABTestingSpecialist(BaseSpecialist):
             # Coletar agreement rate
             agreement_rate = 0.0
             try:
-                agreement_rate = (
-                    self.metrics.ab_test_variant_consensus_agreement.labels(
-                        self.specialist_type, variant
-                    )._value.get()
-                )
+                agreement_rate = self.metrics.ab_test_variant_consensus_agreement.labels(
+                    self.specialist_type, variant
+                )._value.get()
             except Exception:
                 logger.debug(f"Não foi possível obter agreement_rate para {variant}")
 

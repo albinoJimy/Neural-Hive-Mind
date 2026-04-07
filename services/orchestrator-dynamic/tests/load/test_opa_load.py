@@ -30,6 +30,7 @@ REAL_OPA_LOAD = os.getenv("RUN_OPA_LOAD_TESTS", "").lower() == "true"
 @dataclass
 class OPALoadTestMetrics:
     """Coleta métricas de performance durante testes de carga OPA."""
+
     latencies_ms: List[float] = field(default_factory=list)
     success_count: int = 0
     cache_hit_count: int = 0
@@ -105,17 +106,17 @@ class OPALoadTestMetrics:
 
     def summary(self) -> Dict[str, Any]:
         return {
-            'total_requests': self.total_count,
-            'success_count': self.success_count,
-            'error_count': self.error_count,
-            'circuit_breaker_rejections': self.circuit_breaker_rejections,
-            'duration_seconds': round(self.duration_seconds, 2),
-            'throughput_per_second': round(self.throughput, 2),
-            'p50_latency_ms': round(self.p50_latency, 2),
-            'p95_latency_ms': round(self.p95_latency, 2),
-            'p99_latency_ms': round(self.p99_latency, 2),
-            'cache_hit_rate': round(self.cache_hit_rate * 100, 2),
-            'error_rate': round(self.error_rate * 100, 2)
+            "total_requests": self.total_count,
+            "success_count": self.success_count,
+            "error_count": self.error_count,
+            "circuit_breaker_rejections": self.circuit_breaker_rejections,
+            "duration_seconds": round(self.duration_seconds, 2),
+            "throughput_per_second": round(self.throughput, 2),
+            "p50_latency_ms": round(self.p50_latency, 2),
+            "p95_latency_ms": round(self.p95_latency, 2),
+            "p99_latency_ms": round(self.p99_latency, 2),
+            "cache_hit_rate": round(self.cache_hit_rate * 100, 2),
+            "error_rate": round(self.error_rate * 100, 2),
         }
 
 
@@ -123,8 +124,8 @@ class OPALoadTestMetrics:
 def load_test_config():
     """Configuração para testes de carga."""
     config = Mock(spec=OrchestratorSettings)
-    config.opa_host = os.getenv('OPA_HOST', 'localhost')
-    config.opa_port = int(os.getenv('OPA_PORT', '8181'))
+    config.opa_host = os.getenv("OPA_HOST", "localhost")
+    config.opa_port = int(os.getenv("OPA_PORT", "8181"))
     config.opa_timeout_seconds = 5
     config.opa_retry_attempts = 1  # Sem retries em load test para métricas precisas
     config.opa_cache_ttl_seconds = 30
@@ -154,26 +155,21 @@ def mock_metrics():
     return metrics
 
 
-def generate_resource_limits_input(ticket_id: str, risk_band: str = 'medium') -> dict:
+def generate_resource_limits_input(ticket_id: str, risk_band: str = "medium") -> dict:
     """Gera input válido para resource_limits."""
     return {
-        'input': {
-            'resource': {
-                'ticket_id': ticket_id,
-                'risk_band': risk_band,
-                'sla': {
-                    'timeout_ms': 60000,
-                    'max_retries': 2
-                },
-                'required_capabilities': ['code_generation']
+        "input": {
+            "resource": {
+                "ticket_id": ticket_id,
+                "risk_band": risk_band,
+                "sla": {"timeout_ms": 60000, "max_retries": 2},
+                "required_capabilities": ["code_generation"],
             },
-            'parameters': {
-                'allowed_capabilities': ['code_generation', 'testing'],
-                'max_concurrent_tickets': 100
+            "parameters": {
+                "allowed_capabilities": ["code_generation", "testing"],
+                "max_concurrent_tickets": 100,
             },
-            'context': {
-                'total_tickets': 50
-            }
+            "context": {"total_tickets": 50},
         }
     }
 
@@ -184,24 +180,16 @@ def generate_sla_enforcement_input(ticket_id: str, deadline_offset_hours: int = 
     deadline = int((datetime.now() + timedelta(hours=deadline_offset_hours)).timestamp() * 1000)
 
     return {
-        'input': {
-            'resource': {
-                'ticket_id': ticket_id,
-                'risk_band': 'high',
-                'sla': {
-                    'timeout_ms': 120000,
-                    'deadline': deadline
-                },
-                'qos': {
-                    'delivery_mode': 'EXACTLY_ONCE',
-                    'consistency': 'STRONG'
-                },
-                'priority': 'HIGH',
-                'estimated_duration_ms': 60000
+        "input": {
+            "resource": {
+                "ticket_id": ticket_id,
+                "risk_band": "high",
+                "sla": {"timeout_ms": 120000, "deadline": deadline},
+                "qos": {"delivery_mode": "EXACTLY_ONCE", "consistency": "STRONG"},
+                "priority": "HIGH",
+                "estimated_duration_ms": 60000,
             },
-            'context': {
-                'current_time': current_time
-            }
+            "context": {"current_time": current_time},
         }
     }
 
@@ -217,12 +205,12 @@ class TestOPALoadSinglePolicy:
 
         metrics = OPALoadTestMetrics()
         num_requests = 100
-        policy_path = 'neuralhive/orchestrator/resource_limits'
+        policy_path = "neuralhive/orchestrator/resource_limits"
 
         metrics.start_time = time.perf_counter()
 
         for i in range(num_requests):
-            input_data = generate_resource_limits_input(f'load-seq-{i}')
+            input_data = generate_resource_limits_input(f"load-seq-{i}")
             start = time.perf_counter()
 
             try:
@@ -252,10 +240,10 @@ class TestOPALoadSinglePolicy:
         metrics = OPALoadTestMetrics()
         num_requests = 200
         concurrency = 20
-        policy_path = 'neuralhive/orchestrator/resource_limits'
+        policy_path = "neuralhive/orchestrator/resource_limits"
 
         async def evaluate_once(idx: int):
-            input_data = generate_resource_limits_input(f'load-conc-{idx}')
+            input_data = generate_resource_limits_input(f"load-conc-{idx}")
             start = time.perf_counter()
             try:
                 await client.evaluate_policy(policy_path, input_data)
@@ -290,13 +278,10 @@ class TestOPALoadSinglePolicy:
         await client.initialize()
 
         metrics = OPALoadTestMetrics()
-        policy_path = 'neuralhive/orchestrator/resource_limits'
+        policy_path = "neuralhive/orchestrator/resource_limits"
 
         # Usar apenas 10 inputs diferentes para 100 requests
-        unique_inputs = [
-            generate_resource_limits_input(f'load-cache-{i}')
-            for i in range(10)
-        ]
+        unique_inputs = [generate_resource_limits_input(f"load-cache-{i}") for i in range(10)]
 
         metrics.start_time = time.perf_counter()
 
@@ -323,7 +308,7 @@ class TestOPALoadSinglePolicy:
         print(f"Cache Stats: {cache_stats}")
 
         # Com 10 inputs únicos e 100 requests, esperamos ~90% cache hit
-        assert cache_stats['hit_ratio'] > 0.8, "Cache hit ratio muito baixo"
+        assert cache_stats["hit_ratio"] > 0.8, "Cache hit ratio muito baixo"
 
 
 class TestOPALoadBatchEvaluation:
@@ -344,8 +329,8 @@ class TestOPALoadBatchEvaluation:
         for batch_idx in range(num_batches):
             evaluations = [
                 (
-                    'neuralhive/orchestrator/resource_limits',
-                    generate_resource_limits_input(f'batch-{batch_idx}-{i}')
+                    "neuralhive/orchestrator/resource_limits",
+                    generate_resource_limits_input(f"batch-{batch_idx}-{i}"),
                 )
                 for i in range(batch_size)
             ]
@@ -358,7 +343,7 @@ class TestOPALoadBatchEvaluation:
 
                 # Contar sucessos e erros no batch
                 for result in results:
-                    if 'error' in result:
+                    if "error" in result:
                         metrics.record_error()
                     else:
                         metrics.record_success()
@@ -385,10 +370,10 @@ class TestOPALoadBatchEvaluation:
         num_batches = 10
 
         policies = [
-            'neuralhive/orchestrator/resource_limits',
-            'neuralhive/orchestrator/sla_enforcement',
-            'neuralhive/orchestrator/feature_flags',
-            'neuralhive/orchestrator/security_constraints'
+            "neuralhive/orchestrator/resource_limits",
+            "neuralhive/orchestrator/sla_enforcement",
+            "neuralhive/orchestrator/feature_flags",
+            "neuralhive/orchestrator/security_constraints",
         ]
 
         metrics.start_time = time.perf_counter()
@@ -396,15 +381,15 @@ class TestOPALoadBatchEvaluation:
         for batch_idx in range(num_batches):
             evaluations = []
             for i, policy in enumerate(policies):
-                if policy == 'neuralhive/orchestrator/resource_limits':
-                    input_data = generate_resource_limits_input(f'mixed-{batch_idx}-{i}')
-                elif policy == 'neuralhive/orchestrator/sla_enforcement':
-                    input_data = generate_sla_enforcement_input(f'mixed-{batch_idx}-{i}')
+                if policy == "neuralhive/orchestrator/resource_limits":
+                    input_data = generate_resource_limits_input(f"mixed-{batch_idx}-{i}")
+                elif policy == "neuralhive/orchestrator/sla_enforcement":
+                    input_data = generate_sla_enforcement_input(f"mixed-{batch_idx}-{i}")
                 else:
                     input_data = {
-                        'input': {
-                            'resource': {'ticket_id': f'mixed-{batch_idx}-{i}'},
-                            'context': {'current_time': int(datetime.now().timestamp() * 1000)}
+                        "input": {
+                            "resource": {"ticket_id": f"mixed-{batch_idx}-{i}"},
+                            "context": {"current_time": int(datetime.now().timestamp() * 1000)},
                         }
                     }
                 evaluations.append((policy, input_data))
@@ -416,7 +401,7 @@ class TestOPALoadBatchEvaluation:
                 metrics.record_latency(latency_ms)
 
                 for result in results:
-                    if 'error' in result:
+                    if "error" in result:
                         metrics.record_error()
                     else:
                         metrics.record_success()
@@ -453,15 +438,12 @@ class TestOPALoadCircuitBreaker:
         metrics.start_time = time.perf_counter()
 
         for i in range(20):
-            input_data = generate_resource_limits_input(f'cb-test-{i}')
+            input_data = generate_resource_limits_input(f"cb-test-{i}")
             try:
-                await client.evaluate_policy(
-                    'neuralhive/orchestrator/resource_limits',
-                    input_data
-                )
+                await client.evaluate_policy("neuralhive/orchestrator/resource_limits", input_data)
                 metrics.record_success()
             except Exception as e:
-                if 'Circuit breaker' in str(e):
+                if "Circuit breaker" in str(e):
                     metrics.record_circuit_breaker_rejection()
                 else:
                     metrics.record_error()
@@ -479,7 +461,10 @@ class TestOPALoadCircuitBreaker:
         print(f"Circuit Breaker State: {cb_state}")
 
         # Circuit breaker deve ter aberto após falhas
-        assert cb_state['state'] in ('open', 'half_open'), "Circuit breaker deveria estar aberto ou half_open"
+        assert cb_state["state"] in (
+            "open",
+            "half_open",
+        ), "Circuit breaker deveria estar aberto ou half_open"
 
 
 class TestOPALoadStress:
@@ -494,13 +479,13 @@ class TestOPALoadStress:
         metrics = OPALoadTestMetrics()
         num_requests = 500
         concurrency = 50
-        policy_path = 'neuralhive/orchestrator/resource_limits'
+        policy_path = "neuralhive/orchestrator/resource_limits"
 
         semaphore = asyncio.Semaphore(concurrency)
 
         async def evaluate_with_semaphore(idx: int):
             async with semaphore:
-                input_data = generate_resource_limits_input(f'stress-{idx}')
+                input_data = generate_resource_limits_input(f"stress-{idx}")
                 start = time.perf_counter()
                 try:
                     await client.evaluate_policy(policy_path, input_data)
@@ -533,7 +518,7 @@ class TestOPALoadStress:
         metrics = OPALoadTestMetrics()
         duration_seconds = 10  # 10 segundos de carga sustentada
         requests_per_second = 20
-        policy_path = 'neuralhive/orchestrator/resource_limits'
+        policy_path = "neuralhive/orchestrator/resource_limits"
 
         metrics.start_time = time.perf_counter()
         request_idx = 0
@@ -544,7 +529,7 @@ class TestOPALoadStress:
             # Executar batch de requests
             tasks = []
             for _ in range(requests_per_second):
-                input_data = generate_resource_limits_input(f'sustained-{request_idx}')
+                input_data = generate_resource_limits_input(f"sustained-{request_idx}")
                 request_idx += 1
 
                 async def evaluate_once(data):
@@ -598,12 +583,12 @@ class TestOPARealServerLoad:
 
         metrics = OPALoadTestMetrics()
         num_requests = 100
-        policy_path = 'neuralhive/orchestrator/resource_limits'
+        policy_path = "neuralhive/orchestrator/resource_limits"
 
         metrics.start_time = time.perf_counter()
 
         for i in range(num_requests):
-            input_data = generate_resource_limits_input(f'real-{i}')
+            input_data = generate_resource_limits_input(f"real-{i}")
             start = time.perf_counter()
 
             try:
@@ -611,7 +596,7 @@ class TestOPARealServerLoad:
                 latency_ms = (time.perf_counter() - start) * 1000
                 metrics.record_latency(latency_ms)
 
-                if 'result' in result:
+                if "result" in result:
                     metrics.record_success()
                 else:
                     metrics.record_error()

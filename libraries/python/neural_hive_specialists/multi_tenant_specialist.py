@@ -40,9 +40,7 @@ class TenantConfig(BaseModel):
     mlflow_model_name: Optional[str] = Field(
         default=None, description="Nome do modelo MLflow específico"
     )
-    mlflow_model_stage: Optional[str] = Field(
-        default=None, description="Stage do modelo MLflow"
-    )
+    mlflow_model_stage: Optional[str] = Field(default=None, description="Stage do modelo MLflow")
     min_confidence_score: Optional[float] = Field(
         default=None,
         ge=0.0,
@@ -58,9 +56,7 @@ class TenantConfig(BaseModel):
     rate_limit_per_second: int = Field(
         default=100, ge=0, description="Rate limit específico em req/s"
     )
-    metadata: Dict[str, Any] = Field(
-        default_factory=dict, description="Metadados adicionais"
-    )
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais")
 
     @field_validator("tenant_id")
     def validate_tenant_id(cls, v):
@@ -106,9 +102,7 @@ class MultiTenantSpecialist(BaseSpecialist):
         """
         # Validar configuração de multi-tenancy
         if config.enable_multi_tenancy and not config.tenant_configs_path:
-            raise ValueError(
-                "enable_multi_tenancy=True requer tenant_configs_path configurado"
-            )
+            raise ValueError("enable_multi_tenancy=True requer tenant_configs_path configurado")
 
         # Inicializar BaseSpecialist primeiro
         super().__init__(config)
@@ -143,9 +137,7 @@ class MultiTenantSpecialist(BaseSpecialist):
         config_path = Path(self.config.tenant_configs_path)
 
         if not config_path.exists():
-            raise FileNotFoundError(
-                f"Arquivo de tenant configs não encontrado: {config_path}"
-            )
+            raise FileNotFoundError(f"Arquivo de tenant configs não encontrado: {config_path}")
 
         logger.info("Carregando tenant configs", path=str(config_path))
 
@@ -193,9 +185,7 @@ class MultiTenantSpecialist(BaseSpecialist):
             )
 
         except Exception as e:
-            logger.error(
-                "Erro ao carregar tenant configs", path=str(config_path), error=str(e)
-            )
+            logger.error("Erro ao carregar tenant configs", path=str(config_path), error=str(e))
             raise
 
     def _load_model(self) -> Any:
@@ -212,9 +202,7 @@ class MultiTenantSpecialist(BaseSpecialist):
                     model_name=self.config.mlflow_model_name,
                     model_stage=self.config.mlflow_model_stage,
                 )
-                logger.info(
-                    "Modelo padrão carregado", model_name=self.config.mlflow_model_name
-                )
+                logger.info("Modelo padrão carregado", model_name=self.config.mlflow_model_name)
                 return model
             except Exception as e:
                 logger.warning("Falha ao carregar modelo padrão", error=str(e))
@@ -257,9 +245,7 @@ class MultiTenantSpecialist(BaseSpecialist):
                             "specialist.load_tenant_model"
                         ) as span:
                             span.set_attribute("tenant.id", tenant_id)
-                            span.set_attribute(
-                                "model.name", tenant_config.mlflow_model_name
-                            )
+                            span.set_attribute("model.name", tenant_config.mlflow_model_name)
 
                             model = self.mlflow_client.load_model_with_fallback(
                                 model_name=tenant_config.mlflow_model_name,
@@ -364,9 +350,7 @@ class MultiTenantSpecialist(BaseSpecialist):
         try:
             # Adicionar span OpenTelemetry
             if self.tracer:
-                with self.tracer.start_as_current_span(
-                    "specialist.multi_tenant.evaluate"
-                ) as span:
+                with self.tracer.start_as_current_span("specialist.multi_tenant.evaluate") as span:
                     span.set_attribute("tenant.id", tenant_id)
                     span.set_attribute("tenant.name", tenant_config.tenant_name)
                     span.set_attribute("specialist.type", self.specialist_type)
@@ -422,9 +406,7 @@ class MultiTenantSpecialist(BaseSpecialist):
                 metadata = dict(context.invocation_metadata())
                 tenant_id = metadata.get("x-tenant-id")
                 if tenant_id:
-                    logger.debug(
-                        "tenant_id extraído de gRPC metadata", tenant_id=tenant_id
-                    )
+                    logger.debug("tenant_id extraído de gRPC metadata", tenant_id=tenant_id)
             except Exception as e:
                 logger.debug("Erro ao extrair metadata gRPC", error=str(e))
 
@@ -438,18 +420,14 @@ class MultiTenantSpecialist(BaseSpecialist):
                     tenant_id = request.context.get("tenant_id", None)
 
                 if tenant_id:
-                    logger.debug(
-                        "tenant_id extraído de request.context", tenant_id=tenant_id
-                    )
+                    logger.debug("tenant_id extraído de request.context", tenant_id=tenant_id)
             except Exception as e:
                 logger.debug("Erro ao extrair context de request", error=str(e))
 
         # Fallback: usar tenant padrão
         if not tenant_id:
             tenant_id = self.config.default_tenant_id
-            logger.debug(
-                "tenant_id não fornecido - usando padrão", default_tenant_id=tenant_id
-            )
+            logger.debug("tenant_id não fornecido - usando padrão", default_tenant_id=tenant_id)
 
         return tenant_id
 
@@ -473,9 +451,7 @@ class MultiTenantSpecialist(BaseSpecialist):
             logger.error("Tenant inativo", tenant_id=tenant_id)
             raise ValueError(f"Tenant inativo: {tenant_id}")
 
-    def _apply_tenant_config_overrides(
-        self, tenant_config: TenantConfig
-    ) -> Dict[str, Any]:
+    def _apply_tenant_config_overrides(self, tenant_config: TenantConfig) -> Dict[str, Any]:
         """
         Aplica overrides de configuração do tenant.
 
@@ -538,8 +514,4 @@ class MultiTenantSpecialist(BaseSpecialist):
         Returns:
             Lista de tenant_ids ativos
         """
-        return [
-            tenant_id
-            for tenant_id, config in self.tenant_configs.items()
-            if config.is_active
-        ]
+        return [tenant_id for tenant_id, config in self.tenant_configs.items() if config.is_active]

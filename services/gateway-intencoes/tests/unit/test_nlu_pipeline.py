@@ -14,10 +14,7 @@ class TestNLUPipeline:
     @pytest.fixture
     def nlu_pipeline(self):
         """Fixture do pipeline NLU"""
-        pipeline = NLUPipeline(
-            language_model="pt_core_news_sm",
-            confidence_threshold=0.5
-        )
+        pipeline = NLUPipeline(language_model="pt_core_news_sm", confidence_threshold=0.5)
         # Carregar regras padrão
         pipeline.classification_rules = pipeline._get_default_classification_rules()
         return pipeline
@@ -25,7 +22,7 @@ class TestNLUPipeline:
     @pytest.mark.asyncio
     async def test_initialize_pipeline(self, nlu_pipeline):
         """Teste de inicialização do pipeline"""
-        with patch('spacy.load') as mock_spacy_load:
+        with patch("spacy.load") as mock_spacy_load:
             mock_nlp = MagicMock()
             mock_spacy_load.return_value = mock_nlp
 
@@ -81,19 +78,21 @@ class TestNLUPipeline:
         nlu_pipeline.nlp = mock_nlp
         nlu_pipeline._ready = True
 
-        user_context = {
-            "userId": "user-123",
-            "tenantId": "tenant-456"
-        }
+        user_context = {"userId": "user-123", "tenantId": "tenant-456"}
 
         result = await nlu_pipeline.process(
             text="João precisa implementar novo sistema na Empresa",
             language="pt-BR",
-            context=user_context
+            context=user_context,
         )
 
         assert isinstance(result, NLUResult)
-        assert result.domain in [UnifiedDomain.BUSINESS, UnifiedDomain.TECHNICAL, UnifiedDomain.INFRASTRUCTURE, UnifiedDomain.SECURITY]
+        assert result.domain in [
+            UnifiedDomain.BUSINESS,
+            UnifiedDomain.TECHNICAL,
+            UnifiedDomain.INFRASTRUCTURE,
+            UnifiedDomain.SECURITY,
+        ]
         assert result.classification is not None
         assert result.confidence >= 0.0  # Can be any valid confidence
         assert result.confidence_status in ["high", "medium", "low"]
@@ -119,13 +118,13 @@ class TestNLUPipeline:
         nlu_pipeline._ready = True
 
         # Mock classification with low confidence
-        with patch.object(nlu_pipeline, '_classify_intent_advanced', new_callable=AsyncMock) as mock_classify:
+        with patch.object(
+            nlu_pipeline, "_classify_intent_advanced", new_callable=AsyncMock
+        ) as mock_classify:
             mock_classify.return_value = (UnifiedDomain.BUSINESS, "request", 0.35)  # Low confidence
 
             result = await nlu_pipeline.process(
-                text="texto ambíguo sem contexto claro",
-                language="pt-BR",
-                context={}
+                text="texto ambíguo sem contexto claro", language="pt-BR", context={}
             )
 
             assert result.confidence == 0.35
@@ -162,7 +161,7 @@ class TestNLUPipeline:
         result = await nlu_pipeline.process(
             text="Maria Silva precisa acessar maria@exemplo.com para configurar",
             language="pt-BR",
-            context={}
+            context={},
         )
 
         # Check that PII was masked in processed text
@@ -184,7 +183,7 @@ class TestNLUPipeline:
             ("Criar relatório de faturamento", UnifiedDomain.BUSINESS),
             ("Corrigir bug no sistema de login", UnifiedDomain.TECHNICAL),
             ("Configurar backup automático", UnifiedDomain.INFRASTRUCTURE),
-            ("Implementar criptografia de dados", UnifiedDomain.SECURITY)
+            ("Implementar criptografia de dados", UnifiedDomain.SECURITY),
         ]
 
         for text, expected_domain in test_cases:
@@ -209,13 +208,17 @@ class TestNLUPipeline:
         mock_nlp.return_value = mock_doc
         nlu_pipeline.nlp = mock_nlp
 
-        with patch.object(nlu_pipeline, '_classify_intent_advanced', new_callable=AsyncMock) as mock_classify:
-            mock_classify.return_value = (UnifiedDomain.BUSINESS, "unknown", 0.40)  # Below threshold
+        with patch.object(
+            nlu_pipeline, "_classify_intent_advanced", new_callable=AsyncMock
+        ) as mock_classify:
+            mock_classify.return_value = (
+                UnifiedDomain.BUSINESS,
+                "unknown",
+                0.40,
+            )  # Below threshold
 
             result = await nlu_pipeline.process(
-                text=low_confidence_text,
-                language="pt-BR",
-                context={}
+                text=low_confidence_text, language="pt-BR", context={}
             )
 
             # Should return result but marked as low confidence
@@ -254,9 +257,7 @@ class TestNLUPipeline:
         nlu_pipeline._ready = True
 
         result = await nlu_pipeline.process(
-            text="João trabalha na xyz",
-            language="pt-BR",
-            context={}
+            text="João trabalha na xyz", language="pt-BR", context={}
         )
 
         # Should include entities extracted from spaCy
@@ -320,16 +321,14 @@ class TestNLUPipeline:
         nlu_pipeline._ready = True
 
         result = await nlu_pipeline.process(
-            text="implementar autenticação de usuários.",
-            language="pt-BR",
-            context={}
+            text="implementar autenticação de usuários.", language="pt-BR", context={}
         )
 
         keywords = result.keywords
         assert "implementar" in keywords
         assert "autenticação" in keywords
         assert "de" not in keywords  # Stop word filtered out
-        assert "." not in keywords   # Punctuation filtered out
+        assert "." not in keywords  # Punctuation filtered out
 
     @pytest.mark.asyncio
     async def test_process_not_ready(self, nlu_pipeline):
@@ -337,11 +336,7 @@ class TestNLUPipeline:
         nlu_pipeline._ready = False
 
         with pytest.raises(RuntimeError, match="Pipeline NLU não inicializado"):
-            await nlu_pipeline.process(
-                text="test text",
-                language="pt-BR",
-                context={}
-            )
+            await nlu_pipeline.process(text="test text", language="pt-BR", context={})
 
     @pytest.mark.asyncio
     async def test_close_pipeline(self, nlu_pipeline):
@@ -393,7 +388,7 @@ class TestNLUPipeline:
             "keywords": ["test"],
             "requires_manual_validation": False,
             "confidence_status": "high",
-            "adaptive_threshold": 0.5
+            "adaptive_threshold": 0.5,
         }
         mock_redis.get = AsyncMock(return_value=cached_dict)
         nlu_pipeline.redis_client = mock_redis
@@ -413,17 +408,19 @@ class TestNLUPipeline:
         import json
 
         mock_redis = MagicMock()
-        cached_json = json.dumps({
-            "processed_text": "test text",
-            "domain": "BUSINESS",
-            "classification": "request",
-            "confidence": 0.75,
-            "entities": [],
-            "keywords": ["business"],
-            "requires_manual_validation": False,
-            "confidence_status": "medium",
-            "adaptive_threshold": 0.5
-        })
+        cached_json = json.dumps(
+            {
+                "processed_text": "test text",
+                "domain": "BUSINESS",
+                "classification": "request",
+                "confidence": 0.75,
+                "entities": [],
+                "keywords": ["business"],
+                "requires_manual_validation": False,
+                "confidence_status": "medium",
+                "adaptive_threshold": 0.5,
+            }
+        )
         mock_redis.get = AsyncMock(return_value=cached_json)
         nlu_pipeline.redis_client = mock_redis
 
@@ -457,18 +454,20 @@ class TestNLUPipeline:
         import json
 
         mock_redis = MagicMock()
-        cached_data = json.dumps({
-            "processed_text": "test text",
-            "domain": "SECURITY",
-            "classification": "security_check",
-            "confidence": 0.90,
-            "entities": [],
-            "keywords": ["security"],
-            "requires_manual_validation": False,
-            "confidence_status": "high",
-            "adaptive_threshold": 0.5
-        })
-        mock_redis.get = AsyncMock(return_value=cached_data.encode('utf-8'))
+        cached_data = json.dumps(
+            {
+                "processed_text": "test text",
+                "domain": "SECURITY",
+                "classification": "security_check",
+                "confidence": 0.90,
+                "entities": [],
+                "keywords": ["security"],
+                "requires_manual_validation": False,
+                "confidence_status": "high",
+                "adaptive_threshold": 0.5,
+            }
+        )
+        mock_redis.get = AsyncMock(return_value=cached_data.encode("utf-8"))
         nlu_pipeline.redis_client = mock_redis
 
         result = await nlu_pipeline._get_cached_result("test_key")
@@ -506,14 +505,12 @@ class TestNLUPipeline:
         mock_nlp.return_value = mock_doc
         nlu_pipeline.nlp = mock_nlp
 
-        with patch.object(nlu_pipeline, '_classify_intent_advanced', new_callable=AsyncMock) as mock_classify:
+        with patch.object(
+            nlu_pipeline, "_classify_intent_advanced", new_callable=AsyncMock
+        ) as mock_classify:
             mock_classify.return_value = (UnifiedDomain.UNKNOWN, "empty", 0.0)
 
-            result = await nlu_pipeline.process(
-                text="",
-                language="pt-BR",
-                context={}
-            )
+            result = await nlu_pipeline.process(text="", language="pt-BR", context={})
 
             assert result.confidence == 0.0
             assert result.classification == "empty"
@@ -534,9 +531,7 @@ class TestNLUPipeline:
 
         # Idioma não suportado - deve usar fallback
         result = await nlu_pipeline.process(
-            text="teste",
-            language="xx-YY",  # Idioma inválido
-            context={}
+            text="teste", language="xx-YY", context={}  # Idioma inválido
         )
 
         # Deve processar mesmo com idioma inválido (fallback para pt)
@@ -559,16 +554,16 @@ class TestNLUPipeline:
         user_context = {
             "userId": "user-123",
             "previous_intents": ["authentication", "database"],
-            "preferred_domain": "technical"
+            "preferred_domain": "technical",
         }
 
-        with patch.object(nlu_pipeline, '_classify_intent_advanced', new_callable=AsyncMock) as mock_classify:
+        with patch.object(
+            nlu_pipeline, "_classify_intent_advanced", new_callable=AsyncMock
+        ) as mock_classify:
             mock_classify.return_value = (UnifiedDomain.TECHNICAL, "implementation", 0.85)
 
             result = await nlu_pipeline.process(
-                text="implementar",
-                language="pt-BR",
-                context=user_context
+                text="implementar", language="pt-BR", context=user_context
             )
 
             # Contexto deve influenciar na classificação
@@ -589,15 +584,13 @@ class TestNLUPipeline:
         mock_nlp.return_value = mock_doc
         nlu_pipeline.nlp = mock_nlp
 
-        with patch.object(nlu_pipeline, '_classify_intent_advanced', new_callable=AsyncMock) as mock_classify:
+        with patch.object(
+            nlu_pipeline, "_classify_intent_advanced", new_callable=AsyncMock
+        ) as mock_classify:
             # Abaixo do threshold
             mock_classify.return_value = (UnifiedDomain.BUSINESS, "unknown", 0.5)
 
-            result = await nlu_pipeline.process(
-                text="texto ambíguo",
-                language="pt-BR",
-                context={}
-            )
+            result = await nlu_pipeline.process(text="texto ambíguo", language="pt-BR", context={})
 
             assert result.confidence < nlu_pipeline.confidence_threshold
             assert result.confidence_status == "low"
@@ -617,14 +610,14 @@ class TestNLUPipeline:
         mock_nlp.return_value = mock_doc
         nlu_pipeline.nlp = mock_nlp
 
-        with patch.object(nlu_pipeline, '_classify_intent_advanced', new_callable=AsyncMock) as mock_classify:
+        with patch.object(
+            nlu_pipeline, "_classify_intent_advanced", new_callable=AsyncMock
+        ) as mock_classify:
             # Acima do threshold
             mock_classify.return_value = (UnifiedDomain.TECHNICAL, "implementation", 0.92)
 
             result = await nlu_pipeline.process(
-                text="implementar autenticação OAuth2",
-                language="pt-BR",
-                context={}
+                text="implementar autenticação OAuth2", language="pt-BR", context={}
             )
 
             assert result.confidence >= nlu_pipeline.confidence_threshold
@@ -641,11 +634,7 @@ class TestNLUPipeline:
 
         # Deve lançar exceção ou retornar resultado de fallback
         with pytest.raises(Exception):
-            await nlu_pipeline.process(
-                text="teste",
-                language="pt-BR",
-                context={}
-            )
+            await nlu_pipeline.process(text="teste", language="pt-BR", context={})
 
     @pytest.mark.asyncio
     async def test_timeout_handling(self, nlu_pipeline):
@@ -656,21 +645,16 @@ class TestNLUPipeline:
 
         async def slow_process(*args, **kwargs):
             await asyncio.sleep(2)
-            return MagicMock(
-                domain=UnifiedDomain.TECHNICAL,
-                classification="test",
-                confidence=0.8
-            )
+            return MagicMock(domain=UnifiedDomain.TECHNICAL, classification="test", confidence=0.8)
 
         # Simular timeout curto
-        with patch.object(nlu_pipeline, '_classify_intent_advanced', new_callable=AsyncMock) as mock_classify:
+        with patch.object(
+            nlu_pipeline, "_classify_intent_advanced", new_callable=AsyncMock
+        ) as mock_classify:
             mock_classify.side_effect = slow_process
 
             with pytest.raises((asyncio.TimeoutError, Exception)):
-                await asyncio.wait_for(
-                    nlu_pipeline.process("teste", "pt-BR", {}),
-                    timeout=0.1
-                )
+                await asyncio.wait_for(nlu_pipeline.process("teste", "pt-BR", {}), timeout=0.1)
 
     @pytest.mark.asyncio
     async def test_metrics_emission(self, nlu_pipeline):
@@ -686,14 +670,12 @@ class TestNLUPipeline:
         mock_nlp.return_value = mock_doc
         nlu_pipeline.nlp = mock_nlp
 
-        with patch.object(nlu_pipeline, '_classify_intent_advanced', new_callable=AsyncMock) as mock_classify:
+        with patch.object(
+            nlu_pipeline, "_classify_intent_advanced", new_callable=AsyncMock
+        ) as mock_classify:
             mock_classify.return_value = (UnifiedDomain.TECHNICAL, "test", 0.85)
 
-            result = await nlu_pipeline.process(
-                text="teste",
-                language="pt-BR",
-                context={}
-            )
+            result = await nlu_pipeline.process(text="teste", language="pt-BR", context={})
 
             # Verificar que processamento_time_ms foi calculado
             assert result.processing_time_ms >= 0
@@ -716,7 +698,9 @@ class TestNLUPipeline:
         results = []
 
         for text in texts:
-            with patch.object(nlu_pipeline, '_classify_intent_advanced', new_callable=AsyncMock) as mock_classify:
+            with patch.object(
+                nlu_pipeline, "_classify_intent_advanced", new_callable=AsyncMock
+            ) as mock_classify:
                 mock_classify.return_value = (UnifiedDomain.TECHNICAL, "test", 0.8)
                 result = await nlu_pipeline.process(text, "pt-BR", {})
                 results.append(result)
@@ -758,7 +742,9 @@ class TestNLUPipeline:
             mock_nlp.return_value = mock_doc
             nlu_pipeline.nlp = mock_nlp
 
-            with patch.object(nlu_pipeline, '_classify_intent_advanced', new_callable=AsyncMock) as mock_classify:
+            with patch.object(
+                nlu_pipeline, "_classify_intent_advanced", new_callable=AsyncMock
+            ) as mock_classify:
                 mock_classify.return_value = (expected_domain, "implementation", 0.8)
 
                 result = await nlu_pipeline.process(text, lang, {})

@@ -57,9 +57,7 @@ class SemanticPipeline:
             Dicionário com resultado da avaliação
         """
         try:
-            logger.info(
-                "Starting semantic evaluation", plan_id=cognitive_plan.get("plan_id")
-            )
+            logger.info("Starting semantic evaluation", plan_id=cognitive_plan.get("plan_id"))
 
             # Extrair features estruturadas
             features_result = self.feature_extractor.extract_features(cognitive_plan)
@@ -80,10 +78,8 @@ class SemanticPipeline:
                 cognitive_plan, extracted_features
             )
 
-            ontology_architecture = (
-                self.ontology_evaluator.evaluate_architecture_compliance(
-                    cognitive_plan, extracted_features
-                )
+            ontology_architecture = self.ontology_evaluator.evaluate_architecture_compliance(
+                cognitive_plan, extracted_features
             )
 
             # Avaliar complexidade e risco via ontologia
@@ -98,8 +94,7 @@ class SemanticPipeline:
             # === Combinar Scores Semânticos e Ontológicos ===
 
             security_score = (
-                semantic_security * self.semantic_weight
-                + ontology_security * self.ontology_weight
+                semantic_security * self.semantic_weight + ontology_security * self.ontology_weight
             )
 
             architecture_score = (
@@ -123,15 +118,11 @@ class SemanticPipeline:
 
             # Risk: combinar complexidade + risk_patterns + inverso dos scores
             base_risk = 1.0 - confidence_score
-            risk_score = (
-                base_risk * 0.4 + complexity_score * 0.3 + risk_patterns_score * 0.3
-            )
+            risk_score = base_risk * 0.4 + complexity_score * 0.3 + risk_patterns_score * 0.3
 
             # === Determinar Recomendação ===
 
-            domain = extracted_features.get("metadata_features", {}).get(
-                "domain", "unknown"
-            )
+            domain = extracted_features.get("metadata_features", {}).get("domain", "unknown")
 
             recommendation = self.ontology_evaluator.get_domain_recommendations(
                 domain, risk_score, confidence_score

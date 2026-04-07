@@ -53,6 +53,7 @@ def mock_settings():
 def reset_mongo_singleton():
     """Reseta o singleton do MongoDB entre testes."""
     import src.repositories.base as base_module
+
     original_client = base_module._mongo_client
     base_module._mongo_client = None
     yield
@@ -104,7 +105,13 @@ async def test_architecture_repo_get_by_plan_id(mock_settings):
             "plan_id": "test-plan",
             "architecture_type": "microservices",
             "components": [
-                {"name": "api", "stack": "python/fastapi", "replicas": 1, "ha": False, "resources": {}}
+                {
+                    "name": "api",
+                    "stack": "python/fastapi",
+                    "replicas": 1,
+                    "ha": False,
+                    "resources": {},
+                }
             ],
             "patterns": ["repository"],
             "rationale": "Test",

@@ -13,17 +13,17 @@ from httpx import AsyncClient, ASGITransport
 @pytest.fixture
 def mock_app_state():
     """Mock do app_state para testes."""
-    with patch('src.main.app_state') as mock_state:
+    with patch("src.main.app_state") as mock_state:
         yield mock_state
 
 
 @pytest.fixture
 def mock_settings():
     """Mock das configurações."""
-    with patch('src.main.get_settings') as mock_get_settings:
+    with patch("src.main.get_settings") as mock_get_settings:
         mock_config = MagicMock()
-        mock_config.temporal_workflow_id_prefix = 'nhm-'
-        mock_config.temporal_task_queue = 'orchestration-tasks'
+        mock_config.temporal_workflow_id_prefix = "nhm-"
+        mock_config.temporal_task_queue = "orchestration-tasks"
         mock_get_settings.return_value = mock_config
         yield mock_config
 
@@ -49,12 +49,12 @@ class TestWorkflowStartSuccess:
                         "plan_id": "plan-123",
                         "intent_id": "intent-456",
                         "decision_id": "decision-789",
-                        "tasks": []
+                        "tasks": [],
                     },
                     "correlation_id": "corr-abc",
                     "priority": 7,
-                    "sla_deadline_seconds": 7200
-                }
+                    "sla_deadline_seconds": 7200,
+                },
             )
 
         assert response.status_code == 200
@@ -82,12 +82,9 @@ class TestWorkflowStartSuccess:
             response = await ac.post(
                 "/api/v1/workflows/start",
                 json={
-                    "cognitive_plan": {
-                        "plan_id": "plan-123",
-                        "intent_id": "intent-456"
-                    },
-                    "correlation_id": "corr-def"
-                }
+                    "cognitive_plan": {"plan_id": "plan-123", "intent_id": "intent-456"},
+                    "correlation_id": "corr-def",
+                },
             )
 
         assert response.status_code == 200
@@ -111,10 +108,7 @@ class TestWorkflowStartSuccess:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             response = await ac.post(
                 "/api/v1/workflows/start",
-                json={
-                    "cognitive_plan": {"plan_id": "plan-123"},
-                    "correlation_id": "corr-ghi"
-                }
+                json={"cognitive_plan": {"plan_id": "plan-123"}, "correlation_id": "corr-ghi"},
             )
 
         assert response.status_code == 200
@@ -137,10 +131,7 @@ class TestWorkflowStartTemporalUnavailable:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             response = await ac.post(
                 "/api/v1/workflows/start",
-                json={
-                    "cognitive_plan": {"plan_id": "plan-123"},
-                    "correlation_id": "corr-xyz"
-                }
+                json={"cognitive_plan": {"plan_id": "plan-123"}, "correlation_id": "corr-xyz"},
             )
 
         assert response.status_code == 503
@@ -156,18 +147,13 @@ class TestWorkflowStartErrors:
         from src.main import app
 
         mock_temporal = AsyncMock()
-        mock_temporal.start_workflow = AsyncMock(
-            side_effect=Exception("Connection refused")
-        )
+        mock_temporal.start_workflow = AsyncMock(side_effect=Exception("Connection refused"))
         mock_app_state.temporal_client = mock_temporal
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             response = await ac.post(
                 "/api/v1/workflows/start",
-                json={
-                    "cognitive_plan": {"plan_id": "plan-123"},
-                    "correlation_id": "corr-err"
-                }
+                json={"cognitive_plan": {"plan_id": "plan-123"}, "correlation_id": "corr-err"},
             )
 
         assert response.status_code == 500
@@ -180,18 +166,13 @@ class TestWorkflowStartErrors:
         from src.main import app
 
         mock_temporal = AsyncMock()
-        mock_temporal.start_workflow = AsyncMock(
-            side_effect=Exception("Workflow already exists")
-        )
+        mock_temporal.start_workflow = AsyncMock(side_effect=Exception("Workflow already exists"))
         mock_app_state.temporal_client = mock_temporal
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             response = await ac.post(
                 "/api/v1/workflows/start",
-                json={
-                    "cognitive_plan": {"plan_id": "plan-123"},
-                    "correlation_id": "corr-dup"
-                }
+                json={"cognitive_plan": {"plan_id": "plan-123"}, "correlation_id": "corr-dup"},
             )
 
         assert response.status_code == 500
@@ -209,12 +190,7 @@ class TestWorkflowStartValidation:
         mock_app_state.temporal_client = MagicMock()
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-            response = await ac.post(
-                "/api/v1/workflows/start",
-                json={
-                    "correlation_id": "corr-xyz"
-                }
-            )
+            response = await ac.post("/api/v1/workflows/start", json={"correlation_id": "corr-xyz"})
 
         assert response.status_code == 422
         assert "cognitive_plan" in str(response.json())
@@ -228,10 +204,7 @@ class TestWorkflowStartValidation:
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             response = await ac.post(
-                "/api/v1/workflows/start",
-                json={
-                    "cognitive_plan": {"plan_id": "plan-123"}
-                }
+                "/api/v1/workflows/start", json={"cognitive_plan": {"plan_id": "plan-123"}}
             )
 
         assert response.status_code == 422
@@ -250,8 +223,8 @@ class TestWorkflowStartValidation:
                 json={
                     "cognitive_plan": {"plan_id": "plan-123"},
                     "correlation_id": "corr-xyz",
-                    "priority": 0
-                }
+                    "priority": 0,
+                },
             )
 
         assert response.status_code == 422
@@ -270,8 +243,8 @@ class TestWorkflowStartValidation:
                 json={
                     "cognitive_plan": {"plan_id": "plan-123"},
                     "correlation_id": "corr-xyz",
-                    "priority": 11
-                }
+                    "priority": 11,
+                },
             )
 
         assert response.status_code == 422
@@ -285,10 +258,7 @@ class TestWorkflowStartValidation:
         mock_app_state.temporal_client = MagicMock()
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-            response = await ac.post(
-                "/api/v1/workflows/start",
-                json={}
-            )
+            response = await ac.post("/api/v1/workflows/start", json={})
 
         assert response.status_code == 422
 
@@ -309,12 +279,9 @@ class TestWorkflowStartDecisionIdFallback:
             response = await ac.post(
                 "/api/v1/workflows/start",
                 json={
-                    "cognitive_plan": {
-                        "plan_id": "plan-123",
-                        "decision_id": "decision-from-plan"
-                    },
-                    "correlation_id": "corr-xyz"
-                }
+                    "cognitive_plan": {"plan_id": "plan-123", "decision_id": "decision-from-plan"},
+                    "correlation_id": "corr-xyz",
+                },
             )
 
         assert response.status_code == 200
@@ -340,8 +307,8 @@ class TestWorkflowStartDecisionIdFallback:
                         "plan_id": "plan-123"
                         # decision_id ausente
                     },
-                    "correlation_id": "corr-fallback"
-                }
+                    "correlation_id": "corr-fallback",
+                },
             )
 
         assert response.status_code == 200
@@ -351,7 +318,9 @@ class TestWorkflowStartDecisionIdFallback:
         assert input_data["consolidated_decision"]["decision_id"] == "corr-fallback"
 
     @pytest.mark.asyncio
-    async def test_workflow_start_fallback_with_empty_decision_id(self, mock_app_state, mock_settings):
+    async def test_workflow_start_fallback_with_empty_decision_id(
+        self, mock_app_state, mock_settings
+    ):
         """Testa fallback quando decision_id é string vazia."""
         from src.main import app
 
@@ -363,12 +332,9 @@ class TestWorkflowStartDecisionIdFallback:
             response = await ac.post(
                 "/api/v1/workflows/start",
                 json={
-                    "cognitive_plan": {
-                        "plan_id": "plan-123",
-                        "decision_id": ""  # String vazia
-                    },
-                    "correlation_id": "corr-empty"
-                }
+                    "cognitive_plan": {"plan_id": "plan-123", "decision_id": ""},  # String vazia
+                    "correlation_id": "corr-empty",
+                },
             )
 
         assert response.status_code == 200
@@ -396,8 +362,8 @@ class TestWorkflowIdGeneration:
                 "/api/v1/workflows/start",
                 json={
                     "cognitive_plan": {"plan_id": "plan-123"},
-                    "correlation_id": "test-correlation-id"
-                }
+                    "correlation_id": "test-correlation-id",
+                },
             )
 
         assert response.status_code == 200
@@ -415,19 +381,16 @@ class TestWorkflowIdGeneration:
         mock_app_state.temporal_client = mock_temporal
 
         # Mock com prefixo diferente
-        with patch('src.main.get_settings') as mock_get_settings:
+        with patch("src.main.get_settings") as mock_get_settings:
             mock_config = MagicMock()
-            mock_config.temporal_workflow_id_prefix = 'custom-prefix-'
-            mock_config.temporal_task_queue = 'test-queue'
+            mock_config.temporal_workflow_id_prefix = "custom-prefix-"
+            mock_config.temporal_task_queue = "test-queue"
             mock_get_settings.return_value = mock_config
 
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
                 response = await ac.post(
                     "/api/v1/workflows/start",
-                    json={
-                        "cognitive_plan": {"plan_id": "plan-123"},
-                        "correlation_id": "corr-id"
-                    }
+                    json={"cognitive_plan": {"plan_id": "plan-123"}, "correlation_id": "corr-id"},
                 )
 
         assert response.status_code == 200
@@ -450,8 +413,8 @@ class TestWorkflowIdGeneration:
                 "/api/v1/workflows/start",
                 json={
                     "cognitive_plan": {"plan_id": "plan-123"},
-                    "correlation_id": uuid_correlation
-                }
+                    "correlation_id": uuid_correlation,
+                },
             )
 
         assert response.status_code == 200
@@ -478,12 +441,12 @@ class TestWorkflowStartInputData:
                     "cognitive_plan": {
                         "plan_id": "plan-123",
                         "intent_id": "intent-456",
-                        "decision_id": "decision-789"
+                        "decision_id": "decision-789",
                     },
                     "correlation_id": "corr-xyz",
                     "priority": 8,
-                    "sla_deadline_seconds": 3600
-                }
+                    "sla_deadline_seconds": 3600,
+                },
             )
 
         assert response.status_code == 200
@@ -514,17 +477,14 @@ class TestWorkflowStartInputData:
             "intent_id": "intent-456",
             "tasks": [
                 {"task_id": "task-1", "type": "BUILD"},
-                {"task_id": "task-2", "type": "DEPLOY"}
-            ]
+                {"task_id": "task-2", "type": "DEPLOY"},
+            ],
         }
 
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             response = await ac.post(
                 "/api/v1/workflows/start",
-                json={
-                    "cognitive_plan": cognitive_plan,
-                    "correlation_id": "corr-xyz"
-                }
+                json={"cognitive_plan": cognitive_plan, "correlation_id": "corr-xyz"},
             )
 
         assert response.status_code == 200
@@ -546,10 +506,7 @@ class TestWorkflowStartInputData:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             response = await ac.post(
                 "/api/v1/workflows/start",
-                json={
-                    "cognitive_plan": {},  # Sem plan_id
-                    "correlation_id": "corr-xyz"
-                }
+                json={"cognitive_plan": {}, "correlation_id": "corr-xyz"},  # Sem plan_id
             )
 
         assert response.status_code == 200
@@ -564,6 +521,7 @@ class TestWorkflowStartInputData:
 # =============================================================================
 # Testes para GET /api/v1/tickets/{ticket_id}
 # =============================================================================
+
 
 class TestGetTicketEndpoint:
     """Testes para o endpoint GET /api/v1/tickets/{ticket_id}."""
@@ -581,10 +539,10 @@ class TestGetTicketEndpoint:
         from src.main import app
 
         expected_ticket = {
-            'ticket_id': 'ticket-123',
-            'plan_id': 'plan-456',
-            'status': 'COMPLETED',
-            'task_type': 'BUILD'
+            "ticket_id": "ticket-123",
+            "plan_id": "plan-456",
+            "status": "COMPLETED",
+            "task_type": "BUILD",
         }
         mock_mongodb_client.get_ticket.return_value = expected_ticket
         mock_app_state.mongodb_client = mock_mongodb_client
@@ -595,9 +553,9 @@ class TestGetTicketEndpoint:
 
         assert response.status_code == 200
         data = response.json()
-        assert data['ticket_id'] == 'ticket-123'
-        assert data['status'] == 'COMPLETED'
-        assert data['cached'] is False
+        assert data["ticket_id"] == "ticket-123"
+        assert data["status"] == "COMPLETED"
+        assert data["cached"] is False
 
     @pytest.mark.asyncio
     async def test_get_ticket_not_found(self, mock_app_state, mock_mongodb_client):
@@ -633,6 +591,7 @@ class TestGetTicketEndpoint:
 # Testes para GET /api/v1/tickets/by-plan/{plan_id}
 # =============================================================================
 
+
 class TestGetTicketsByPlanEndpoint:
     """Testes para o endpoint GET /api/v1/tickets/by-plan/{plan_id}."""
 
@@ -649,8 +608,8 @@ class TestGetTicketsByPlanEndpoint:
         from src.main import app
 
         expected_tickets = [
-            {'ticket_id': 'ticket-1', 'status': 'COMPLETED'},
-            {'ticket_id': 'ticket-2', 'status': 'RUNNING'}
+            {"ticket_id": "ticket-1", "status": "COMPLETED"},
+            {"ticket_id": "ticket-2", "status": "RUNNING"},
         ]
 
         # Mock collection methods
@@ -658,7 +617,9 @@ class TestGetTicketsByPlanEndpoint:
         mock_cursor.to_list = AsyncMock(return_value=expected_tickets)
 
         mock_mongodb_client.execution_tickets.count_documents = AsyncMock(return_value=2)
-        mock_mongodb_client.execution_tickets.find.return_value.sort.return_value.skip.return_value.limit.return_value = mock_cursor
+        mock_mongodb_client.execution_tickets.find.return_value.sort.return_value.skip.return_value.limit.return_value = (
+            mock_cursor
+        )
 
         mock_app_state.mongodb_client = mock_mongodb_client
         mock_app_state.redis_client = None
@@ -668,22 +629,26 @@ class TestGetTicketsByPlanEndpoint:
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data['tickets']) == 2
-        assert data['total'] == 2
-        assert data['cached'] is False
+        assert len(data["tickets"]) == 2
+        assert data["total"] == 2
+        assert data["cached"] is False
 
     @pytest.mark.asyncio
-    async def test_get_tickets_by_plan_with_status_filter(self, mock_app_state, mock_mongodb_client):
+    async def test_get_tickets_by_plan_with_status_filter(
+        self, mock_app_state, mock_mongodb_client
+    ):
         """Testa filtragem por status."""
         from src.main import app
 
-        expected_tickets = [{'ticket_id': 'ticket-1', 'status': 'COMPLETED'}]
+        expected_tickets = [{"ticket_id": "ticket-1", "status": "COMPLETED"}]
 
         mock_cursor = AsyncMock()
         mock_cursor.to_list = AsyncMock(return_value=expected_tickets)
 
         mock_mongodb_client.execution_tickets.count_documents = AsyncMock(return_value=1)
-        mock_mongodb_client.execution_tickets.find.return_value.sort.return_value.skip.return_value.limit.return_value = mock_cursor
+        mock_mongodb_client.execution_tickets.find.return_value.sort.return_value.skip.return_value.limit.return_value = (
+            mock_cursor
+        )
 
         mock_app_state.mongodb_client = mock_mongodb_client
         mock_app_state.redis_client = None
@@ -693,7 +658,7 @@ class TestGetTicketsByPlanEndpoint:
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data['tickets']) == 1
+        assert len(data["tickets"]) == 1
 
     @pytest.mark.asyncio
     async def test_get_tickets_by_plan_invalid_limit(self, mock_app_state, mock_mongodb_client):
@@ -743,6 +708,7 @@ class TestGetTicketsByPlanEndpoint:
 # Testes para GET /api/v1/workflows/{workflow_id}
 # =============================================================================
 
+
 class TestGetWorkflowStatusEndpoint:
     """Testes para o endpoint GET /api/v1/workflows/{workflow_id}."""
 
@@ -755,13 +721,13 @@ class TestGetWorkflowStatusEndpoint:
         mock_handle = AsyncMock()
         mock_description = MagicMock()
         mock_description.workflow_execution_info = MagicMock()
-        mock_description.workflow_execution_info.status.name = 'RUNNING'
+        mock_description.workflow_execution_info.status.name = "RUNNING"
         mock_description.workflow_execution_info.start_time = None
         mock_description.workflow_execution_info.close_time = None
         mock_description.workflow_execution_info.execution_time = None
         mock_description.workflow_execution_info.type = MagicMock()
-        mock_description.workflow_execution_info.type.name = 'OrchestrationWorkflow'
-        mock_description.workflow_execution_info.task_queue = 'orchestration-tasks'
+        mock_description.workflow_execution_info.type.name = "OrchestrationWorkflow"
+        mock_description.workflow_execution_info.task_queue = "orchestration-tasks"
         mock_handle.describe = AsyncMock(return_value=mock_description)
 
         mock_temporal = MagicMock()
@@ -774,9 +740,9 @@ class TestGetWorkflowStatusEndpoint:
 
         assert response.status_code == 200
         data = response.json()
-        assert data['workflow_id'] == 'flow-c-test-123'
-        assert data['status'] == 'RUNNING'
-        assert data['cached'] is False
+        assert data["workflow_id"] == "flow-c-test-123"
+        assert data["status"] == "RUNNING"
+        assert data["cached"] is False
 
     @pytest.mark.asyncio
     async def test_get_workflow_status_not_found(self, mock_app_state):

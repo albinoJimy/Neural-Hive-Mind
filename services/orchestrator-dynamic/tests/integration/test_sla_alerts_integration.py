@@ -154,9 +154,7 @@ class TestSLAAlertConsumerIntegration:
         assert ":warning:" in slack_call[1]["text"]
         assert slack_call[1]["channel"] == "#sla-alerts"
 
-    async def test_emergency_alert_sent_to_correct_slack_channel(
-        self, sla_consumer, slack_client
-    ):
+    async def test_emergency_alert_sent_to_correct_slack_channel(self, sla_consumer, slack_client):
         """Testa que alerta EMERGENCY vai para canal correto."""
         alert_data = {
             "alert_id": "alert-789",
@@ -173,9 +171,7 @@ class TestSLAAlertConsumerIntegration:
         # EMERGENCY deve usar #sla-alerts (não critical)
         assert slack_call[1]["channel"] == "#sla-alerts"
 
-    async def test_alert_dispatched_with_correct_formatting(
-        self, sla_consumer, slack_client
-    ):
+    async def test_alert_dispatched_with_correct_formatting(self, sla_consumer, slack_client):
         """Testa que alertas são formatados corretamente."""
         alert_data = {
             "alert_id": "fmt-123",
@@ -199,12 +195,12 @@ class TestSLAAlertConsumerIntegration:
         assert "CRITICAL" in blocks[0]["text"]["text"]
 
         # Verificar seção com workflow ID
-        workflow_section = next(s for s in blocks if s["type"] == "section" and "Workflow" in s["text"]["text"])
+        workflow_section = next(
+            s for s in blocks if s["type"] == "section" and "Workflow" in s["text"]["text"]
+        )
         assert "wf-test" in workflow_section["text"]["text"]
 
-    async def test_alert_not_sent_when_slack_not_configured(
-        self, sla_consumer, slack_client
-    ):
+    async def test_alert_not_sent_when_slack_not_configured(self, sla_consumer, slack_client):
         """Testa que alerta não é enviado quando Slack não configurado."""
         alert_data = {
             "alert_id": "no-conf-123",
@@ -264,9 +260,7 @@ class TestSLAAlertConsumerIntegration:
         assert "HIGH_LATENCY" in message
         assert ":warning:" in message
 
-    async def test_consume_loop_processes_messages(
-        self, sla_consumer, mock_settings
-    ):
+    async def test_consume_loop_processes_messages(self, sla_consumer, mock_settings):
         """Testa que o loop de consumo processa mensagens."""
         with patch("src.consumers.sla_alert_consumer.get_settings", return_value=mock_settings):
             with patch("src.consumers.sla_alert_consumer.AIOKafkaConsumer") as mock_consumer_class:
@@ -282,9 +276,7 @@ class TestSLAAlertConsumerIntegration:
                 # Verificar que consumer foi inicializado
                 assert sla_consumer.consumer is not None
 
-    async def test_severity_routing(
-        self, sla_consumer, slack_client, pagerduty_client
-    ):
+    async def test_severity_routing(self, sla_consumer, slack_client, pagerduty_client):
         """Testa roteamento baseado em severidade."""
         test_cases = [
             ("CRITICAL", True, True),  # PagerDuty + Slack
@@ -330,9 +322,7 @@ class TestSLAAlertConsumerIntegration:
 class TestSLAAlertsE2EFlow:
     """Testes E2E do fluxo de alertas SLA."""
 
-    async def test_full_alert_flow_from_kafka_to_notifications(
-        self, mock_settings
-    ):
+    async def test_full_alert_flow_from_kafka_to_notifications(self, mock_settings):
         """Testa fluxo completo: Kafka → Consumer → Slack/PagerDuty."""
         with patch("src.consumers.sla_alert_consumer.get_settings", return_value=mock_settings):
             with patch("src.consumers.sla_alert_consumer.AIOKafkaConsumer") as mock_consumer_class:
@@ -348,7 +338,7 @@ class TestSLAAlertsE2EFlow:
                         mock_pd_class.return_value = mock_pd
 
                         # Criar mensagem de alerta crítico
-                        alert_json = b'''{
+                        alert_json = b"""{
                             "alert_id": "e2e-123",
                             "title": "Workflow Exceeded SLA",
                             "severity": "CRITICAL",
@@ -356,7 +346,7 @@ class TestSLAAlertsE2EFlow:
                             "workflow_id": "wf-e2e-456",
                             "service_name": "orchestrator-dynamic",
                             "timestamp": "2026-04-06T10:30:00Z"
-                        }'''
+                        }"""
 
                         mock_message = MagicMock()
                         mock_message.value = alert_json
@@ -407,9 +397,7 @@ class TestSLAAlertsE2EFlow:
                         assert ":rotating_light:" in slack_call[1]["text"]
                         assert slack_call[1]["channel"] == "#sla-alerts-critical"
 
-    async def test_multiple_alerts_batch_processing(
-        self, mock_settings
-    ):
+    async def test_multiple_alerts_batch_processing(self, mock_settings):
         """Testa processamento em lote de múltiplos alertas."""
         with patch("src.consumers.sla_alert_consumer.get_settings", return_value=mock_settings):
             with patch("src.consumers.sla_alert_consumer.SlackClient") as mock_slack_class:

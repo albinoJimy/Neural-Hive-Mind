@@ -89,6 +89,7 @@ class TestDatabaseConnectionCheckAction:
             with patch("src.services.playbook_executor.client"):
                 with patch("src.services.playbook_executor.config"):
                     from kubernetes import client
+
                     executor.core_v1 = MagicMock(spec=client.CoreV1Api)
                     executor.apps_v1 = MagicMock(spec=client.AppsV1Api)
                     yield executor

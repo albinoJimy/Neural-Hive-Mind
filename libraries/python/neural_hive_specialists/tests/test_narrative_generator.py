@@ -67,12 +67,8 @@ class TestNarrativeGeneration:
         assert len(narrative) > 0
 
         # Deve conter seções
-        assert (
-            "Fatores que aumentaram a confiança" in narrative or "positiva" in narrative
-        )
-        assert (
-            "Fatores que reduziram a confiança" in narrative or "negativa" in narrative
-        )
+        assert "Fatores que aumentaram a confiança" in narrative or "positiva" in narrative
+        assert "Fatores que reduziram a confiança" in narrative or "negativa" in narrative
 
         # Deve mencionar features importantes
         assert "num_tasks" in narrative or "tarefas" in narrative.lower()
@@ -96,9 +92,7 @@ class TestNarrativeGeneration:
             },
         ]
 
-        narrative = generator.generate_narrative(
-            lime_importances, top_n=2, explanation_type="lime"
-        )
+        narrative = generator.generate_narrative(lime_importances, top_n=2, explanation_type="lime")
 
         assert isinstance(narrative, str)
         assert len(narrative) > 0
@@ -109,9 +103,7 @@ class TestNarrativeGeneration:
 
         assert narrative == "Não foi possível gerar explicação detalhada."
 
-    def test_narrative_separates_positive_negative(
-        self, generator, sample_shap_importances
-    ):
+    def test_narrative_separates_positive_negative(self, generator, sample_shap_importances):
         """Testa que narrativa separa contribuições positivas e negativas."""
         narrative = generator.generate_narrative(
             sample_shap_importances, top_n=5, explanation_type="shap"
@@ -141,9 +133,7 @@ class TestSummaryGeneration:
 
     def test_generate_summary_with_shap(self, generator, sample_shap_importances):
         """Testa geração de resumo executivo."""
-        summary = generator.generate_summary(
-            sample_shap_importances, explanation_type="shap"
-        )
+        summary = generator.generate_summary(sample_shap_importances, explanation_type="shap")
 
         assert isinstance(summary, str)
         assert len(summary) > 0
@@ -158,16 +148,11 @@ class TestSummaryGeneration:
 
         assert summary == "Sem explicação disponível."
 
-    def test_summary_indicates_contribution_direction(
-        self, generator, sample_shap_importances
-    ):
+    def test_summary_indicates_contribution_direction(self, generator, sample_shap_importances):
         """Testa que resumo indica se contribuição é positiva ou negativa."""
         # Feature mais importante é positiva
         summary_positive = generator.generate_summary(sample_shap_importances)
-        assert (
-            "influenciada" in summary_positive.lower()
-            or "principal" in summary_positive.lower()
-        )
+        assert "influenciada" in summary_positive.lower() or "principal" in summary_positive.lower()
 
 
 @pytest.mark.unit

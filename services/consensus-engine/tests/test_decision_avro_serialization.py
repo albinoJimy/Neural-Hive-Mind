@@ -121,9 +121,7 @@ def consolidated_decision_with_plan(
 class TestCognitivePlanAvroSerialization:
     """Testes de serialização do campo cognitive_plan para formato Avro."""
 
-    def test_cognitive_plan_serialized_as_json_string(
-        self, consolidated_decision_with_plan
-    ):
+    def test_cognitive_plan_serialized_as_json_string(self, consolidated_decision_with_plan):
         """Valida que cognitive_plan é serializado como JSON string no Avro dict."""
         avro_dict = consolidated_decision_with_plan.to_avro_dict()
 
@@ -252,9 +250,7 @@ class TestCognitivePlanAvroSerialization:
         assert parsed["metadata"]["annotations"]["key2"] == ["a", "b", "c"]
         assert parsed["metadata"]["numbers"] == [1.5, 2.5, 3.5]
 
-    def test_avro_dict_field_order_includes_cognitive_plan(
-        self, consolidated_decision_with_plan
-    ):
+    def test_avro_dict_field_order_includes_cognitive_plan(self, consolidated_decision_with_plan):
         """Valida que cognitive_plan está presente no Avro dict na posição correta."""
         avro_dict = consolidated_decision_with_plan.to_avro_dict()
 
@@ -277,9 +273,7 @@ class TestCognitivePlanAvroSerialization:
 class TestCognitivePlanDeserialization:
     """Testes simulando deserialização do formato Avro (JSON string -> dict)."""
 
-    def test_deserialize_cognitive_plan_json_string(
-        self, sample_cognitive_plan_for_avro
-    ):
+    def test_deserialize_cognitive_plan_json_string(self, sample_cognitive_plan_for_avro):
         """Simula deserialização de cognitive_plan vindo do Avro como JSON string."""
         # Simular mensagem Avro deserializada
         avro_message = {
@@ -299,9 +293,7 @@ class TestCognitivePlanDeserialization:
         assert cognitive_plan["plan_id"] == sample_cognitive_plan_for_avro["plan_id"]
         assert len(cognitive_plan["tasks"]) == 2
 
-    def test_deserialize_cognitive_plan_already_dict(
-        self, sample_cognitive_plan_for_avro
-    ):
+    def test_deserialize_cognitive_plan_already_dict(self, sample_cognitive_plan_for_avro):
         """Valida que cognitive_plan já como dict não quebra a deserialização."""
         # Simular mensagem com cognitive_plan já como dict (fallback JSON sem Avro)
         message = {
@@ -336,9 +328,7 @@ class TestCognitivePlanDeserialization:
 class TestAvroSchemaCompatibility:
     """Testes de compatibilidade com o schema Avro definido."""
 
-    def test_to_avro_dict_produces_valid_avro_types(
-        self, consolidated_decision_with_plan
-    ):
+    def test_to_avro_dict_produces_valid_avro_types(self, consolidated_decision_with_plan):
         """Valida que to_avro_dict() produz tipos compatíveis com o schema Avro."""
         avro_dict = consolidated_decision_with_plan.to_avro_dict()
 
@@ -348,7 +338,12 @@ class TestAvroSchemaCompatibility:
         assert isinstance(avro_dict["intent_id"], str)
 
         # Campos enum (string no Avro)
-        assert avro_dict["final_decision"] in ["approve", "reject", "review_required", "conditional"]
+        assert avro_dict["final_decision"] in [
+            "approve",
+            "reject",
+            "review_required",
+            "conditional",
+        ]
         assert avro_dict["consensus_method"] in ["bayesian", "voting", "unanimous", "fallback"]
 
         # Campos double

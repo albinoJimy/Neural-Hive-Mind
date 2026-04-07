@@ -25,7 +25,7 @@ from src.proto import orchestrator_strategic_pb2, orchestrator_strategic_pb2_grp
 def get_free_port() -> int:
     """Obtém uma porta livre para o servidor gRPC"""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(('', 0))
+        s.bind(("", 0))
         return s.getsockname()[1]
 
 
@@ -43,17 +43,21 @@ def mock_intelligent_scheduler():
     """Mock do IntelligentScheduler"""
     scheduler = AsyncMock()
     scheduler.update_workflow_priority = AsyncMock(return_value=True)
-    scheduler.reallocate_resources = AsyncMock(return_value={
-        'success': True,
-        'workflow_id': 'wf-001',
-        'message': 'Recursos realocados com sucesso'
-    })
-    scheduler.get_workflow_allocation = AsyncMock(return_value={
-        'cpu_millicores': 2000,
-        'memory_mb': 4096,
-        'max_parallel_tickets': 20,
-        'scheduling_priority': 5
-    })
+    scheduler.reallocate_resources = AsyncMock(
+        return_value={
+            "success": True,
+            "workflow_id": "wf-001",
+            "message": "Recursos realocados com sucesso",
+        }
+    )
+    scheduler.get_workflow_allocation = AsyncMock(
+        return_value={
+            "cpu_millicores": 2000,
+            "memory_mb": 4096,
+            "max_parallel_tickets": 20,
+            "scheduling_priority": 5,
+        }
+    )
     return scheduler
 
 
@@ -61,7 +65,7 @@ def mock_intelligent_scheduler():
 def mock_opa_client():
     """Mock do cliente OPA"""
     client = AsyncMock()
-    client.evaluate_policy = AsyncMock(return_value={'allow': True, 'violations': []})
+    client.evaluate_policy = AsyncMock(return_value={"allow": True, "violations": []})
     return client
 
 
@@ -87,7 +91,7 @@ def mock_kafka_producer():
 def mock_config():
     """Mock de configuração"""
     config = MagicMock()
-    config.KAFKA_TOPICS_STRATEGIC = 'strategic.adjustments'
+    config.KAFKA_TOPICS_STRATEGIC = "strategic.adjustments"
     return config
 
 
@@ -98,7 +102,7 @@ def servicer(
     mock_opa_client,
     mock_mongodb_client,
     mock_kafka_producer,
-    mock_config
+    mock_config,
 ):
     """Instância do servicer com mocks"""
     return OrchestratorStrategicServicer(
@@ -107,7 +111,7 @@ def servicer(
         opa_client=mock_opa_client,
         mongodb_client=mock_mongodb_client,
         kafka_producer=mock_kafka_producer,
-        config=mock_config
+        config=mock_config,
     )
 
 
@@ -118,7 +122,7 @@ async def grpc_server_and_stub(
     mock_opa_client,
     mock_mongodb_client,
     mock_kafka_producer,
-    mock_config
+    mock_config,
 ):
     """
     Fixture que inicia um servidor gRPC real em porta efêmera
@@ -133,26 +137,26 @@ async def grpc_server_and_stub(
         opa_client=mock_opa_client,
         mongodb_client=mock_mongodb_client,
         kafka_producer=mock_kafka_producer,
-        config=mock_config
+        config=mock_config,
     )
 
     orchestrator_strategic_pb2_grpc.add_OrchestratorStrategicServicer_to_server(servicer, server)
-    server.add_insecure_port(f'[::]:{port}')
+    server.add_insecure_port(f"[::]:{port}")
     await server.start()
 
-    channel = aio.insecure_channel(f'localhost:{port}')
+    channel = aio.insecure_channel(f"localhost:{port}")
     stub = orchestrator_strategic_pb2_grpc.OrchestratorStrategicStub(channel)
 
     yield {
-        'server': server,
-        'channel': channel,
-        'stub': stub,
-        'servicer': servicer,
-        'temporal_client': mock_temporal_client,
-        'intelligent_scheduler': mock_intelligent_scheduler,
-        'opa_client': mock_opa_client,
-        'mongodb_client': mock_mongodb_client,
-        'kafka_producer': mock_kafka_producer
+        "server": server,
+        "channel": channel,
+        "stub": stub,
+        "servicer": servicer,
+        "temporal_client": mock_temporal_client,
+        "intelligent_scheduler": mock_intelligent_scheduler,
+        "opa_client": mock_opa_client,
+        "mongodb_client": mock_mongodb_client,
+        "kafka_producer": mock_kafka_producer,
     }
 
     await channel.close()
@@ -165,10 +169,9 @@ def mock_context():
     context = MagicMock()
     context.set_code = MagicMock()
     context.set_details = MagicMock()
-    context.invocation_metadata = MagicMock(return_value=[
-        ('traceparent', '00-trace123-span456-01'),
-        ('x-correlation-id', 'corr-789')
-    ])
+    context.invocation_metadata = MagicMock(
+        return_value=[("traceparent", "00-trace123-span456-01"), ("x-correlation-id", "corr-789")]
+    )
     return context
 
 
@@ -184,11 +187,11 @@ async def test_adjust_priorities_success(servicer, mock_intelligent_scheduler, m
     Teste: ajuste de prioridade bem-sucedido
     """
     request = orchestrator_strategic_pb2.AdjustPrioritiesRequest(
-        workflow_id='wf-001',
-        plan_id='plan-001',
+        workflow_id="wf-001",
+        plan_id="plan-001",
         new_priority=9,
-        reason='Urgência alta',
-        adjustment_id='adj-001'
+        reason="Urgência alta",
+        adjustment_id="adj-001",
     )
 
     response = await servicer.AdjustPriorities(request, mock_context)
@@ -206,16 +209,16 @@ async def test_adjust_priorities_opa_denied(servicer, mock_opa_client, mock_cont
     Teste: ajuste negado por OPA
     """
     mock_opa_client.evaluate_policy.return_value = {
-        'allow': False,
-        'violations': [{'rule': 'priority_limit', 'message': 'Prioridade excede limite'}]
+        "allow": False,
+        "violations": [{"rule": "priority_limit", "message": "Prioridade excede limite"}],
     }
 
     request = orchestrator_strategic_pb2.AdjustPrioritiesRequest(
-        workflow_id='wf-001',
-        plan_id='plan-001',
+        workflow_id="wf-001",
+        plan_id="plan-001",
         new_priority=11,
-        reason='Teste negação OPA',
-        adjustment_id='adj-002'
+        reason="Teste negação OPA",
+        adjustment_id="adj-002",
     )
 
     response = await servicer.AdjustPriorities(request, mock_context)
@@ -230,15 +233,15 @@ async def test_adjust_priorities_via_stub(grpc_server_and_stub):
     """
     Teste E2E: ajuste de prioridade via stub
     """
-    stub = grpc_server_and_stub['stub']
-    intelligent_scheduler = grpc_server_and_stub['intelligent_scheduler']
+    stub = grpc_server_and_stub["stub"]
+    intelligent_scheduler = grpc_server_and_stub["intelligent_scheduler"]
 
     request = orchestrator_strategic_pb2.AdjustPrioritiesRequest(
-        workflow_id='wf-001',
-        plan_id='plan-001',
+        workflow_id="wf-001",
+        plan_id="plan-001",
         new_priority=8,
-        reason='Teste via stub',
-        adjustment_id='adj-003'
+        reason="Teste via stub",
+        adjustment_id="adj-003",
     )
 
     response = await stub.AdjustPriorities(request)
@@ -260,24 +263,21 @@ async def test_rebalance_resources_success(servicer, mock_intelligent_scheduler,
     Teste: rebalanceamento de recursos bem-sucedido
     """
     allocation = orchestrator_strategic_pb2.ResourceAllocation(
-        cpu_millicores=3000,
-        memory_mb=8192,
-        max_parallel_tickets=30,
-        scheduling_priority=9
+        cpu_millicores=3000, memory_mb=8192, max_parallel_tickets=30, scheduling_priority=9
     )
 
     request = orchestrator_strategic_pb2.RebalanceResourcesRequest(
-        workflow_ids=['wf-001'],
-        target_allocation={'wf-001': allocation},
-        reason='Aumentar capacidade',
-        rebalance_id='reb-001'
+        workflow_ids=["wf-001"],
+        target_allocation={"wf-001": allocation},
+        reason="Aumentar capacidade",
+        rebalance_id="reb-001",
     )
 
     response = await servicer.RebalanceResources(request, mock_context)
 
     assert response.success is True
     assert len(response.results) == 1
-    assert response.results[0].workflow_id == 'wf-001'
+    assert response.results[0].workflow_id == "wf-001"
     assert response.results[0].success is True
     mock_context.set_code.assert_not_called()
 
@@ -292,11 +292,11 @@ async def test_rebalance_resources_multiple_workflows(servicer, mock_context):
     alloc2 = orchestrator_strategic_pb2.ResourceAllocation(cpu_millicores=3000, memory_mb=8192)
 
     request = orchestrator_strategic_pb2.RebalanceResourcesRequest(
-        workflow_ids=['wf-001', 'wf-002'],
-        target_allocation={'wf-001': alloc1, 'wf-002': alloc2},
-        reason='Rebalanceamento em massa',
-        rebalance_id='reb-002',
-        force=True
+        workflow_ids=["wf-001", "wf-002"],
+        target_allocation={"wf-001": alloc1, "wf-002": alloc2},
+        reason="Rebalanceamento em massa",
+        rebalance_id="reb-002",
+        force=True,
     )
 
     response = await servicer.RebalanceResources(request, mock_context)
@@ -311,18 +311,15 @@ async def test_rebalance_resources_via_stub(grpc_server_and_stub):
     """
     Teste E2E: rebalanceamento via stub
     """
-    stub = grpc_server_and_stub['stub']
+    stub = grpc_server_and_stub["stub"]
 
-    allocation = orchestrator_strategic_pb2.ResourceAllocation(
-        cpu_millicores=4000,
-        memory_mb=16384
-    )
+    allocation = orchestrator_strategic_pb2.ResourceAllocation(cpu_millicores=4000, memory_mb=16384)
 
     request = orchestrator_strategic_pb2.RebalanceResourcesRequest(
-        workflow_ids=['wf-001'],
-        target_allocation={'wf-001': allocation},
-        reason='Teste via stub',
-        rebalance_id='reb-003'
+        workflow_ids=["wf-001"],
+        target_allocation={"wf-001": allocation},
+        reason="Teste via stub",
+        rebalance_id="reb-003",
     )
 
     response = await stub.RebalanceResources(request)
@@ -343,9 +340,7 @@ async def test_pause_workflow_success(servicer, mock_temporal_client, mock_conte
     Teste: pausar workflow bem-sucedido
     """
     request = orchestrator_strategic_pb2.PauseWorkflowRequest(
-        workflow_id='wf-001',
-        reason='Manutenção programada',
-        adjustment_id='adj-pause-001'
+        workflow_id="wf-001", reason="Manutenção programada", adjustment_id="adj-pause-001"
     )
 
     response = await servicer.PauseWorkflow(request, mock_context)
@@ -363,10 +358,10 @@ async def test_pause_workflow_with_duration(servicer, mock_context):
     Teste: pausar workflow com duração definida
     """
     request = orchestrator_strategic_pb2.PauseWorkflowRequest(
-        workflow_id='wf-001',
-        reason='Pausa temporária',
+        workflow_id="wf-001",
+        reason="Pausa temporária",
         pause_duration_seconds=3600,
-        adjustment_id='adj-pause-002'
+        adjustment_id="adj-pause-002",
     )
 
     response = await servicer.PauseWorkflow(request, mock_context)
@@ -381,13 +376,11 @@ async def test_pause_workflow_via_stub(grpc_server_and_stub):
     """
     Teste E2E: pausar workflow via stub
     """
-    stub = grpc_server_and_stub['stub']
-    temporal_client = grpc_server_and_stub['temporal_client']
+    stub = grpc_server_and_stub["stub"]
+    temporal_client = grpc_server_and_stub["temporal_client"]
 
     request = orchestrator_strategic_pb2.PauseWorkflowRequest(
-        workflow_id='wf-001',
-        reason='Teste via stub',
-        adjustment_id='adj-pause-003'
+        workflow_id="wf-001", reason="Teste via stub", adjustment_id="adj-pause-003"
     )
 
     response = await stub.PauseWorkflow(request)
@@ -408,9 +401,7 @@ async def test_resume_workflow_success(servicer, mock_temporal_client, mock_cont
     Teste: retomar workflow bem-sucedido
     """
     request = orchestrator_strategic_pb2.ResumeWorkflowRequest(
-        workflow_id='wf-001',
-        reason='Manutenção concluída',
-        adjustment_id='adj-resume-001'
+        workflow_id="wf-001", reason="Manutenção concluída", adjustment_id="adj-resume-001"
     )
 
     response = await servicer.ResumeWorkflow(request, mock_context)
@@ -427,12 +418,10 @@ async def test_resume_workflow_via_stub(grpc_server_and_stub):
     """
     Teste E2E: retomar workflow via stub
     """
-    stub = grpc_server_and_stub['stub']
+    stub = grpc_server_and_stub["stub"]
 
     request = orchestrator_strategic_pb2.ResumeWorkflowRequest(
-        workflow_id='wf-001',
-        reason='Teste via stub',
-        adjustment_id='adj-resume-002'
+        workflow_id="wf-001", reason="Teste via stub", adjustment_id="adj-resume-002"
     )
 
     response = await stub.ResumeWorkflow(request)
@@ -452,18 +441,18 @@ async def test_trigger_replanning_success(servicer, mock_temporal_client, mock_c
     Teste: acionar replanejamento bem-sucedido
     """
     request = orchestrator_strategic_pb2.TriggerReplanningRequest(
-        plan_id='plan-001',
-        reason='SLA violation',
+        plan_id="plan-001",
+        reason="SLA violation",
         trigger_type=orchestrator_strategic_pb2.TRIGGER_TYPE_SLA_VIOLATION,
-        adjustment_id='adj-replan-001',
+        adjustment_id="adj-replan-001",
         preserve_progress=True,
-        priority=8
+        priority=8,
     )
 
     response = await servicer.TriggerReplanning(request, mock_context)
 
     assert response.success is True
-    assert response.replanning_id != ''
+    assert response.replanning_id != ""
     assert response.triggered_at > 0
     mock_context.set_code.assert_not_called()
 
@@ -475,13 +464,13 @@ async def test_trigger_replanning_with_context(servicer, mock_context):
     Teste: acionar replanejamento com contexto adicional
     """
     request = orchestrator_strategic_pb2.TriggerReplanningRequest(
-        plan_id='plan-002',
-        reason='Drift detectado',
+        plan_id="plan-002",
+        reason="Drift detectado",
         trigger_type=orchestrator_strategic_pb2.TRIGGER_TYPE_DRIFT,
-        adjustment_id='adj-replan-002',
-        context={'drift_score': '0.15', 'affected_models': 'model-a'},
+        adjustment_id="adj-replan-002",
+        context={"drift_score": "0.15", "affected_models": "model-a"},
         preserve_progress=True,
-        priority=7
+        priority=7,
     )
 
     response = await servicer.TriggerReplanning(request, mock_context)
@@ -495,19 +484,19 @@ async def test_trigger_replanning_via_stub(grpc_server_and_stub):
     """
     Teste E2E: acionar replanejamento via stub
     """
-    stub = grpc_server_and_stub['stub']
+    stub = grpc_server_and_stub["stub"]
 
     request = orchestrator_strategic_pb2.TriggerReplanningRequest(
-        plan_id='plan-001',
-        reason='Teste via stub',
+        plan_id="plan-001",
+        reason="Teste via stub",
         trigger_type=orchestrator_strategic_pb2.TRIGGER_TYPE_STRATEGIC,
-        adjustment_id='adj-replan-003'
+        adjustment_id="adj-replan-003",
     )
 
     response = await stub.TriggerReplanning(request)
 
     assert response.success is True
-    assert response.replanning_id != ''
+    assert response.replanning_id != ""
 
 
 # =============================================================================
@@ -521,13 +510,11 @@ async def test_get_workflow_status_success(servicer, mock_intelligent_scheduler,
     """
     Teste: obter status de workflow bem-sucedido
     """
-    request = orchestrator_strategic_pb2.GetWorkflowStatusRequest(
-        workflow_id='wf-001'
-    )
+    request = orchestrator_strategic_pb2.GetWorkflowStatusRequest(workflow_id="wf-001")
 
     response = await servicer.GetWorkflowStatus(request, mock_context)
 
-    assert response.workflow_id == 'wf-001'
+    assert response.workflow_id == "wf-001"
     assert response.current_priority >= 1
     mock_context.set_code.assert_not_called()
 
@@ -538,16 +525,15 @@ async def test_get_workflow_status_via_stub(grpc_server_and_stub):
     """
     Teste E2E: obter status via stub
     """
-    stub = grpc_server_and_stub['stub']
+    stub = grpc_server_and_stub["stub"]
 
     request = orchestrator_strategic_pb2.GetWorkflowStatusRequest(
-        workflow_id='wf-001',
-        include_tickets=True
+        workflow_id="wf-001", include_tickets=True
     )
 
     response = await stub.GetWorkflowStatus(request)
 
-    assert response.workflow_id == 'wf-001'
+    assert response.workflow_id == "wf-001"
 
 
 # =============================================================================
@@ -562,11 +548,11 @@ async def test_audit_logging_on_adjustment(servicer, mock_mongodb_client, mock_c
     Teste: verificar que ajustes são registrados no MongoDB
     """
     request = orchestrator_strategic_pb2.AdjustPrioritiesRequest(
-        workflow_id='wf-001',
-        plan_id='plan-001',
+        workflow_id="wf-001",
+        plan_id="plan-001",
         new_priority=9,
-        reason='Teste auditoria',
-        adjustment_id='adj-audit-001'
+        reason="Teste auditoria",
+        adjustment_id="adj-audit-001",
     )
 
     await servicer.AdjustPriorities(request, mock_context)
@@ -582,11 +568,11 @@ async def test_kafka_event_on_adjustment(servicer, mock_kafka_producer, mock_con
     Teste: verificar que ajustes são publicados no Kafka
     """
     request = orchestrator_strategic_pb2.AdjustPrioritiesRequest(
-        workflow_id='wf-001',
-        plan_id='plan-001',
+        workflow_id="wf-001",
+        plan_id="plan-001",
         new_priority=9,
-        reason='Teste Kafka',
-        adjustment_id='adj-kafka-001'
+        reason="Teste Kafka",
+        adjustment_id="adj-kafka-001",
     )
 
     await servicer.AdjustPriorities(request, mock_context)
@@ -612,10 +598,10 @@ async def test_full_strategic_adjustment_flow(grpc_server_and_stub):
     5. Rebalancear recursos
     6. Acionar replanejamento
     """
-    stub = grpc_server_and_stub['stub']
+    stub = grpc_server_and_stub["stub"]
 
-    workflow_id = 'wf-e2e-001'
-    plan_id = 'plan-e2e-001'
+    workflow_id = "wf-e2e-001"
+    plan_id = "plan-e2e-001"
 
     # 1. Obter status atual
     status_response = await stub.GetWorkflowStatus(
@@ -629,8 +615,8 @@ async def test_full_strategic_adjustment_flow(grpc_server_and_stub):
             workflow_id=workflow_id,
             plan_id=plan_id,
             new_priority=10,
-            reason='E2E test - alta prioridade',
-            adjustment_id='adj-e2e-001'
+            reason="E2E test - alta prioridade",
+            adjustment_id="adj-e2e-001",
         )
     )
     assert priority_response.success is True
@@ -638,9 +624,7 @@ async def test_full_strategic_adjustment_flow(grpc_server_and_stub):
     # 3. Pausar workflow
     pause_response = await stub.PauseWorkflow(
         orchestrator_strategic_pb2.PauseWorkflowRequest(
-            workflow_id=workflow_id,
-            reason='E2E test - pausa',
-            adjustment_id='adj-e2e-002'
+            workflow_id=workflow_id, reason="E2E test - pausa", adjustment_id="adj-e2e-002"
         )
     )
     assert pause_response.success is True
@@ -648,25 +632,21 @@ async def test_full_strategic_adjustment_flow(grpc_server_and_stub):
     # 4. Retomar workflow
     resume_response = await stub.ResumeWorkflow(
         orchestrator_strategic_pb2.ResumeWorkflowRequest(
-            workflow_id=workflow_id,
-            reason='E2E test - retomar',
-            adjustment_id='adj-e2e-003'
+            workflow_id=workflow_id, reason="E2E test - retomar", adjustment_id="adj-e2e-003"
         )
     )
     assert resume_response.success is True
 
     # 5. Rebalancear recursos
     allocation = orchestrator_strategic_pb2.ResourceAllocation(
-        cpu_millicores=4000,
-        memory_mb=16384,
-        max_parallel_tickets=50
+        cpu_millicores=4000, memory_mb=16384, max_parallel_tickets=50
     )
     rebalance_response = await stub.RebalanceResources(
         orchestrator_strategic_pb2.RebalanceResourcesRequest(
             workflow_ids=[workflow_id],
             target_allocation={workflow_id: allocation},
-            reason='E2E test - rebalanceamento',
-            rebalance_id='reb-e2e-001'
+            reason="E2E test - rebalanceamento",
+            rebalance_id="reb-e2e-001",
         )
     )
     assert rebalance_response.success is True
@@ -675,10 +655,10 @@ async def test_full_strategic_adjustment_flow(grpc_server_and_stub):
     replanning_response = await stub.TriggerReplanning(
         orchestrator_strategic_pb2.TriggerReplanningRequest(
             plan_id=plan_id,
-            reason='E2E test - replanejamento',
+            reason="E2E test - replanejamento",
             trigger_type=orchestrator_strategic_pb2.TRIGGER_TYPE_STRATEGIC,
-            adjustment_id='adj-e2e-004'
+            adjustment_id="adj-e2e-004",
         )
     )
     assert replanning_response.success is True
-    assert replanning_response.replanning_id != ''
+    assert replanning_response.replanning_id != ""

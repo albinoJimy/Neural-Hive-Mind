@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 import httpx
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from src.clients.mcp_tool_catalog_client import MCPToolCatalogClient
 
@@ -23,7 +23,10 @@ async def test_request_tool_selection_success(client):
     """Deve retornar dict quando HTTP 200."""
     response = MagicMock()
     response.raise_for_status = MagicMock()
-    response.json.return_value = {"selected_tools": [{"tool_id": "t1"}], "selection_method": "genetic"}
+    response.json.return_value = {
+        "selected_tools": [{"tool_id": "t1"}],
+        "selection_method": "genetic",
+    }
     client.client.post = AsyncMock(return_value=response)
 
     result = await client.request_tool_selection({"request_id": "123"})
@@ -49,13 +52,15 @@ async def test_send_tool_feedback_success(client):
     response.raise_for_status = MagicMock()
     client.client.post = AsyncMock(return_value=response)
 
-    success = await client.send_tool_feedback({
-        "tool_id": "tool-1",
-        "selection_id": "sel-1",
-        "success": True,
-        "execution_time_ms": 100,
-        "metadata": {}
-    })
+    success = await client.send_tool_feedback(
+        {
+            "tool_id": "tool-1",
+            "selection_id": "sel-1",
+            "success": True,
+            "execution_time_ms": 100,
+            "metadata": {},
+        }
+    )
 
     assert success is True
     client.client.post.assert_awaited_once()
@@ -66,13 +71,15 @@ async def test_send_tool_feedback_failure(client):
     """Deve retornar False em erro HTTP."""
     client.client.post = AsyncMock(side_effect=httpx.HTTPError("fail"))
 
-    success = await client.send_tool_feedback({
-        "tool_id": "tool-1",
-        "selection_id": "sel-1",
-        "success": False,
-        "execution_time_ms": 10,
-        "metadata": {}
-    })
+    success = await client.send_tool_feedback(
+        {
+            "tool_id": "tool-1",
+            "selection_id": "sel-1",
+            "success": False,
+            "execution_time_ms": 10,
+            "metadata": {},
+        }
+    )
 
     assert success is False
 

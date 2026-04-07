@@ -28,9 +28,7 @@ except ImportError:
 logger = structlog.get_logger()
 
 
-def create_grpc_server_with_observability(
-    specialist: Any, config: SpecialistConfig
-) -> grpc.Server:
+def create_grpc_server_with_observability(specialist: Any, config: SpecialistConfig) -> grpc.Server:
     """
     Cria servidor gRPC com observabilidade integrada.
 
@@ -159,9 +157,7 @@ class SpecialistServicer:
         # Obter o span atual do gRPC instrumentor
         current_span = trace.get_current_span()
         if current_span and current_span.get_span_context().is_valid:
-            current_span.set_attribute(
-                "specialist.type", self.specialist.specialist_type
-            )
+            current_span.set_attribute("specialist.type", self.specialist.specialist_type)
             current_span.set_attribute("specialist.version", self.specialist.version)
             current_span.set_attribute("plan.id", request.plan_id)
             current_span.set_attribute("intent.id", request.intent_id)
@@ -219,9 +215,7 @@ class SpecialistServicer:
                 current_span.set_attribute(
                     "opinion.confidence_score", opinion.get("confidence_score", 0.0)
                 )
-                current_span.set_attribute(
-                    "opinion.risk_score", opinion.get("risk_score", 0.0)
-                )
+                current_span.set_attribute("opinion.risk_score", opinion.get("risk_score", 0.0))
                 current_span.set_attribute(
                     "opinion.recommendation", opinion.get("recommendation", "")
                 )
@@ -244,23 +238,12 @@ class SpecialistServicer:
         except ValueError as e:
             # Capturar erros relacionados a tenant
             error_msg = str(e)
-            if (
-                "Tenant desconhecido" in error_msg
-                or "Tenant não encontrado" in error_msg
-            ):
-                logger.warning(
-                    "Unknown tenant", plan_id=request.plan_id, error=error_msg
-                )
-                context.abort(
-                    grpc.StatusCode.INVALID_ARGUMENT, f"Tenant inválido: {error_msg}"
-                )
+            if "Tenant desconhecido" in error_msg or "Tenant não encontrado" in error_msg:
+                logger.warning("Unknown tenant", plan_id=request.plan_id, error=error_msg)
+                context.abort(grpc.StatusCode.INVALID_ARGUMENT, f"Tenant inválido: {error_msg}")
             elif "Tenant inativo" in error_msg:
-                logger.warning(
-                    "Inactive tenant", plan_id=request.plan_id, error=error_msg
-                )
-                context.abort(
-                    grpc.StatusCode.PERMISSION_DENIED, f"Acesso negado: {error_msg}"
-                )
+                logger.warning("Inactive tenant", plan_id=request.plan_id, error=error_msg)
+                context.abort(grpc.StatusCode.PERMISSION_DENIED, f"Acesso negado: {error_msg}")
             else:
                 logger.error(
                     "Validation error in EvaluatePlan",
@@ -405,9 +388,7 @@ class SpecialistServicer:
 
             # Validar que timestamp foi criado corretamente
             if timestamp.seconds <= 0:
-                raise ValueError(
-                    f"Invalid timestamp seconds: {timestamp.seconds} (must be > 0)"
-                )
+                raise ValueError(f"Invalid timestamp seconds: {timestamp.seconds} (must be > 0)")
             if not (0 <= timestamp.nanos < 1_000_000_000):
                 raise ValueError(
                     f"Invalid timestamp nanos: {timestamp.nanos} (must be 0-999999999)"
@@ -420,9 +401,7 @@ class SpecialistServicer:
                 iso=timestamp.ToDatetime().isoformat(),
             )
         except (ValueError, TypeError, AttributeError) as e:
-            logger.error(
-                "Failed to create timestamp", error=str(e), error_type=type(e).__name__
-            )
+            logger.error("Failed to create timestamp", error=str(e), error_type=type(e).__name__)
             raise ValueError(f"Failed to create evaluated_at timestamp: {e}")
 
         return specialist_pb2.EvaluatePlanResponse(
@@ -482,13 +461,9 @@ class SpecialistServicer:
 
                     # Validar que timestamp foi criado corretamente
                     if last_update.seconds <= 0:
-                        raise ValueError(
-                            f"Invalid timestamp seconds: {last_update.seconds}"
-                        )
+                        raise ValueError(f"Invalid timestamp seconds: {last_update.seconds}")
                     if not (0 <= last_update.nanos < 1_000_000_000):
-                        raise ValueError(
-                            f"Invalid timestamp nanos: {last_update.nanos}"
-                        )
+                        raise ValueError(f"Invalid timestamp nanos: {last_update.nanos}")
 
                     logger.debug(
                         "Capabilities timestamp created",
@@ -508,9 +483,7 @@ class SpecialistServicer:
             # Construir métricas (se last_update for None, o campo ficará com valor padrão)
             if last_update:
                 metrics = specialist_pb2.CapabilityMetrics(
-                    average_processing_time_ms=metrics_data.get(
-                        "average_processing_time_ms", 0.0
-                    ),
+                    average_processing_time_ms=metrics_data.get("average_processing_time_ms", 0.0),
                     accuracy_score=metrics_data.get("accuracy_score", 0.0),
                     total_evaluations=metrics_data.get("total_evaluations", 0),
                     last_model_update=last_update,
@@ -518,9 +491,7 @@ class SpecialistServicer:
             else:
                 # Omitir last_model_update se não disponível
                 metrics = specialist_pb2.CapabilityMetrics(
-                    average_processing_time_ms=metrics_data.get(
-                        "average_processing_time_ms", 0.0
-                    ),
+                    average_processing_time_ms=metrics_data.get("average_processing_time_ms", 0.0),
                     accuracy_score=metrics_data.get("accuracy_score", 0.0),
                     total_evaluations=metrics_data.get("total_evaluations", 0),
                 )

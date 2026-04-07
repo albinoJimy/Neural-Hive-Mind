@@ -6,7 +6,7 @@ import pytest
 from typing import Dict, Any, List
 
 # Configurar paths
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 
 class EvolutionAnalysisTestHelper:
@@ -29,7 +29,7 @@ class EvolutionAnalysisTestHelper:
         else:
             complexity_score = 0.5
 
-        total_dependencies = sum(len(task.get('dependencies', [])) for task in tasks)
+        total_dependencies = sum(len(task.get("dependencies", [])) for task in tasks)
         avg_dependencies = total_dependencies / num_tasks if num_tasks > 0 else 0
 
         if avg_dependencies <= 1:
@@ -39,17 +39,10 @@ class EvolutionAnalysisTestHelper:
         else:
             coupling_score = 0.5
 
-        clear_tasks = sum(
-            1 for task in tasks
-            if task.get('name') and task.get('task_type')
-        )
+        clear_tasks = sum(1 for task in tasks if task.get("name") and task.get("task_type"))
         clarity_score = clear_tasks / num_tasks if num_tasks > 0 else 0
 
-        maintainability_score = (
-            complexity_score * 0.3 +
-            coupling_score * 0.4 +
-            clarity_score * 0.3
-        )
+        maintainability_score = complexity_score * 0.3 + coupling_score * 0.4 + clarity_score * 0.3
 
         return max(0.0, min(1.0, maintainability_score))
 
@@ -61,7 +54,7 @@ class EvolutionAnalysisTestHelper:
         if num_tasks == 0:
             return 0.5
 
-        total_dependencies = sum(len(task.get('dependencies', [])) for task in tasks)
+        total_dependencies = sum(len(task.get("dependencies", [])) for task in tasks)
         max_possible_deps = num_tasks * (num_tasks - 1) / 2
 
         if max_possible_deps > 0:
@@ -70,7 +63,7 @@ class EvolutionAnalysisTestHelper:
         else:
             parallelization_potential = 1.0
 
-        total_duration_ms = sum(task.get('estimated_duration_ms', 0) for task in tasks)
+        total_duration_ms = sum(task.get("estimated_duration_ms", 0) for task in tasks)
         avg_duration_ms = total_duration_ms / num_tasks if num_tasks > 0 else 0
 
         if avg_duration_ms <= 1000:
@@ -82,10 +75,7 @@ class EvolutionAnalysisTestHelper:
         else:
             resource_efficiency = 0.4
 
-        scalability_score = (
-            parallelization_potential * 0.6 +
-            resource_efficiency * 0.4
-        )
+        scalability_score = parallelization_potential * 0.6 + resource_efficiency * 0.4
 
         return max(0.0, min(1.0, scalability_score))
 
@@ -97,7 +87,7 @@ class EvolutionAnalysisTestHelper:
         if num_tasks == 0:
             return 0.5
 
-        task_types = set(task.get('task_type', 'unknown') for task in tasks)
+        task_types = set(task.get("task_type", "unknown") for task in tasks)
         type_diversity = len(task_types) / num_tasks if num_tasks > 0 else 0
 
         if type_diversity >= 0.3 and type_diversity <= 0.6:
@@ -107,16 +97,10 @@ class EvolutionAnalysisTestHelper:
         else:
             modularity_score = 0.6
 
-        tasks_with_few_deps = sum(
-            1 for task in tasks
-            if len(task.get('dependencies', [])) <= 2
-        )
+        tasks_with_few_deps = sum(1 for task in tasks if len(task.get("dependencies", [])) <= 2)
         flexibility_score = tasks_with_few_deps / num_tasks if num_tasks > 0 else 0
 
-        extensibility_score = (
-            modularity_score * 0.5 +
-            flexibility_score * 0.5
-        )
+        extensibility_score = modularity_score * 0.5 + flexibility_score * 0.5
 
         return max(0.0, min(1.0, extensibility_score))
 
@@ -137,7 +121,7 @@ class EvolutionAnalysisTestHelper:
         else:
             size_score = 0.5
 
-        task_types = [task.get('task_type', 'unknown') for task in tasks]
+        task_types = [task.get("task_type", "unknown") for task in tasks]
         unique_types = len(set(task_types))
 
         if unique_types >= 3 and unique_types <= 7:
@@ -147,7 +131,7 @@ class EvolutionAnalysisTestHelper:
         else:
             separation_score = 0.6
 
-        modularity_score = (size_score * 0.5 + separation_score * 0.5)
+        modularity_score = size_score * 0.5 + separation_score * 0.5
 
         return max(0.0, min(1.0, modularity_score))
 
@@ -160,9 +144,9 @@ class EvolutionAnalysisTestHelper:
             return 0.5
 
         test_tasks = sum(
-            1 for task in tasks
-            if 'test' in (task.get('name') or '').lower() or
-            task.get('task_type', '') == 'testing'
+            1
+            for task in tasks
+            if "test" in (task.get("name") or "").lower() or task.get("task_type", "") == "testing"
         )
         test_coverage_score = min(1.0, test_tasks / max(1, num_tasks * 0.3))
 
@@ -173,7 +157,7 @@ class EvolutionAnalysisTestHelper:
         else:
             complexity_risk = 0.5
 
-        total_dependencies = sum(len(task.get('dependencies', [])) for task in tasks)
+        total_dependencies = sum(len(task.get("dependencies", [])) for task in tasks)
         avg_dependencies = total_dependencies / num_tasks if num_tasks > 0 else 0
 
         if avg_dependencies <= 1.5:
@@ -184,9 +168,7 @@ class EvolutionAnalysisTestHelper:
             coupling_risk = 0.4
 
         tech_debt_prevention_score = (
-            test_coverage_score * 0.4 +
-            complexity_risk * 0.3 +
-            coupling_risk * 0.3
+            test_coverage_score * 0.4 + complexity_risk * 0.3 + coupling_risk * 0.3
         )
 
         return max(0.0, min(1.0, tech_debt_prevention_score))
@@ -197,15 +179,15 @@ class EvolutionAnalysisTestHelper:
         scalability: float,
         extensibility: float,
         modularity: float,
-        tech_debt: float
+        tech_debt: float,
     ) -> float:
         """Calcula risco de evolução."""
         weighted_avg = (
-            maintainability * 0.25 +
-            scalability * 0.25 +
-            extensibility * 0.20 +
-            modularity * 0.15 +
-            tech_debt * 0.15
+            maintainability * 0.25
+            + scalability * 0.25
+            + extensibility * 0.20
+            + modularity * 0.15
+            + tech_debt * 0.15
         )
         return 1.0 - weighted_avg
 
@@ -213,46 +195,46 @@ class EvolutionAnalysisTestHelper:
     def determine_recommendation(confidence_score: float, risk_score: float) -> str:
         """Determina recomendação baseada em scores."""
         if confidence_score >= 0.8 and risk_score < 0.3:
-            return 'approve'
+            return "approve"
         elif confidence_score < 0.5 or risk_score > 0.7:
-            return 'reject'
+            return "reject"
         elif risk_score > 0.5:
-            return 'review_required'
+            return "review_required"
         else:
-            return 'conditional'
+            return "conditional"
 
 
 @pytest.fixture
 def sample_cognitive_plan():
     """Plano cognitivo de exemplo para testes."""
     return {
-        'plan_id': 'test-plan-001',
-        'original_domain': 'evolution-test',
-        'original_priority': 'high',
-        'description': 'Test maintainability and scalability improvements',
-        'tasks': [
+        "plan_id": "test-plan-001",
+        "original_domain": "evolution-test",
+        "original_priority": "high",
+        "description": "Test maintainability and scalability improvements",
+        "tasks": [
             {
-                'name': 'refactor-module',
-                'task_type': 'refactoring',
-                'description': 'Refactor module for better maintainability',
-                'estimated_duration_ms': 50000,
-                'dependencies': []
+                "name": "refactor-module",
+                "task_type": "refactoring",
+                "description": "Refactor module for better maintainability",
+                "estimated_duration_ms": 50000,
+                "dependencies": [],
             },
             {
-                'name': 'add-tests',
-                'task_type': 'testing',
-                'description': 'Add unit tests for improved coverage',
-                'estimated_duration_ms': 30000,
-                'dependencies': ['refactor-module']
+                "name": "add-tests",
+                "task_type": "testing",
+                "description": "Add unit tests for improved coverage",
+                "estimated_duration_ms": 30000,
+                "dependencies": ["refactor-module"],
             },
             {
-                'name': 'optimize-performance',
-                'task_type': 'optimization',
-                'description': 'Optimize for better scalability',
-                'estimated_duration_ms': 40000,
-                'dependencies': []
-            }
-        ]
+                "name": "optimize-performance",
+                "task_type": "optimization",
+                "description": "Optimize for better scalability",
+                "estimated_duration_ms": 40000,
+                "dependencies": [],
+            },
+        ],
     }
 
 
@@ -261,9 +243,7 @@ class TestMaintainabilityAnalysis:
 
     def test_maintainability_with_few_tasks(self):
         """Testa manutenibilidade com poucas tarefas."""
-        tasks = [
-            {'name': 'task1', 'task_type': 'refactoring', 'dependencies': []}
-        ]
+        tasks = [{"name": "task1", "task_type": "refactoring", "dependencies": []}]
 
         score = EvolutionAnalysisTestHelper.analyze_maintainability(tasks, {})
 
@@ -272,7 +252,7 @@ class TestMaintainabilityAnalysis:
     def test_maintainability_with_many_dependencies(self):
         """Testa manutenibilidade com muitas dependências."""
         tasks = [
-            {'name': f'task{i}', 'task_type': 'dev', 'dependencies': [f'task{j}' for j in range(i)]}
+            {"name": f"task{i}", "task_type": "dev", "dependencies": [f"task{j}" for j in range(i)]}
             for i in range(1, 11)
         ]
 
@@ -288,7 +268,7 @@ class TestScalabilityAnalysis:
     def test_scalability_with_parallel_tasks(self):
         """Testa escalabilidade com tarefas paralelas."""
         tasks = [
-            {'name': f'task{i}', 'estimated_duration_ms': 1000, 'dependencies': []}
+            {"name": f"task{i}", "estimated_duration_ms": 1000, "dependencies": []}
             for i in range(5)
         ]
 
@@ -299,9 +279,7 @@ class TestScalabilityAnalysis:
 
     def test_scalability_with_long_tasks(self):
         """Testa escalabilidade com tarefas longas."""
-        tasks = [
-            {'name': 'long-task', 'estimated_duration_ms': 20000, 'dependencies': []}
-        ]
+        tasks = [{"name": "long-task", "estimated_duration_ms": 20000, "dependencies": []}]
 
         score = EvolutionAnalysisTestHelper.analyze_scalability(tasks, {})
 
@@ -319,7 +297,7 @@ class TestMLModelIntegration:
             "extensibility_score",
             "tech_debt_score",
             "modularity_score",
-            "long_term_viability"
+            "long_term_viability",
         ]
 
         features = {
@@ -328,7 +306,7 @@ class TestMLModelIntegration:
             "extensibility_score": 0.75,
             "tech_debt_score": 0.7,  # Alta prevenção = bom
             "modularity_score": 0.8,
-            "long_term_viability": 0.75
+            "long_term_viability": 0.75,
         }
 
         for feature in expected_features:
@@ -344,10 +322,12 @@ class TestMLModelIntegration:
 
         model = GradientBoostingClassifier(n_estimators=10, max_depth=3, random_state=42)
 
-        X_train = np.array([
-            [0.9, 0.85, 0.8, 0.75, 0.8, 0.8],  # Boa evolução
-            [0.3, 0.4, 0.3, 0.3, 0.4, 0.3],    # Má evolução
-        ])
+        X_train = np.array(
+            [
+                [0.9, 0.85, 0.8, 0.75, 0.8, 0.8],  # Boa evolução
+                [0.3, 0.4, 0.3, 0.3, 0.4, 0.3],  # Má evolução
+            ]
+        )
         y_train = np.array([1, 0])
 
         model.fit(X_train, y_train)
@@ -367,9 +347,9 @@ class TestMLModelIntegration:
         modularity = 0.6
 
         should_approve = (
-            (maintainability + scalability + extensibility) > 2.0 and
-            tech_debt > 0.5 and
-            modularity > 0.4
+            (maintainability + scalability + extensibility) > 2.0
+            and tech_debt > 0.5
+            and modularity > 0.4
         )
 
         assert should_approve is True
@@ -383,9 +363,9 @@ class TestMLModelIntegration:
         modularity = 0.3
 
         should_approve = (
-            (maintainability + scalability + extensibility) > 2.0 and
-            tech_debt > 0.5 and
-            modularity > 0.4
+            (maintainability + scalability + extensibility) > 2.0
+            and tech_debt > 0.5
+            and modularity > 0.4
         )
 
         assert should_approve is False
@@ -398,7 +378,7 @@ class TestMLModelIntegration:
             "scalability": 0.25,
             "extensibility": 0.20,
             "modularity": 0.15,
-            "tech_debt_prevention": 0.15
+            "tech_debt_prevention": 0.15,
         }
 
         # Scores
@@ -407,14 +387,11 @@ class TestMLModelIntegration:
             "scalability": 0.7,
             "extensibility": 0.75,
             "modularity": 0.6,
-            "tech_debt_prevention": 0.7
+            "tech_debt_prevention": 0.7,
         }
 
         # Calcular score ponderado
-        weighted_score = sum(
-            scores[k] * default_weights[k]
-            for k in default_weights.keys()
-        )
+        weighted_score = sum(scores[k] * default_weights[k] for k in default_weights.keys())
 
         assert 0.65 < weighted_score < 0.75
 
@@ -426,12 +403,18 @@ class TestMLModelIntegration:
         model = GradientBoostingClassifier(n_estimators=10, random_state=42)
 
         X = np.random.rand(100, 6)
-        y = (X[:, 0] + X[:, 1] + X[:, 2] > 1.5).astype(int)  # maintainability + scalability + extensibility
+        y = (X[:, 0] + X[:, 1] + X[:, 2] > 1.5).astype(
+            int
+        )  # maintainability + scalability + extensibility
         model.fit(X, y)
 
         feature_names = [
-            "maintainability_score", "scalability_score", "extensibility_score",
-            "tech_debt_score", "modularity_score", "long_term_viability"
+            "maintainability_score",
+            "scalability_score",
+            "extensibility_score",
+            "tech_debt_score",
+            "modularity_score",
+            "long_term_viability",
         ]
 
         importances = dict(zip(feature_names, model.feature_importances_))
@@ -450,20 +433,24 @@ class TestCompleteEvaluationFlow:
 
     def test_complete_evaluation(self, sample_cognitive_plan):
         """Testa avaliação completa."""
-        tasks = sample_cognitive_plan['tasks']
+        tasks = sample_cognitive_plan["tasks"]
 
-        maintainability = EvolutionAnalysisTestHelper.analyze_maintainability(tasks, sample_cognitive_plan)
+        maintainability = EvolutionAnalysisTestHelper.analyze_maintainability(
+            tasks, sample_cognitive_plan
+        )
         scalability = EvolutionAnalysisTestHelper.analyze_scalability(tasks, sample_cognitive_plan)
-        extensibility = EvolutionAnalysisTestHelper.analyze_extensibility(tasks, sample_cognitive_plan)
+        extensibility = EvolutionAnalysisTestHelper.analyze_extensibility(
+            tasks, sample_cognitive_plan
+        )
         modularity = EvolutionAnalysisTestHelper.analyze_modularity(tasks)
         tech_debt = EvolutionAnalysisTestHelper.analyze_tech_debt_risk(tasks, sample_cognitive_plan)
 
         confidence = (
-            maintainability * 0.25 +
-            scalability * 0.25 +
-            extensibility * 0.20 +
-            modularity * 0.15 +
-            tech_debt * 0.15
+            maintainability * 0.25
+            + scalability * 0.25
+            + extensibility * 0.20
+            + modularity * 0.15
+            + tech_debt * 0.15
         )
 
         risk = EvolutionAnalysisTestHelper.calculate_evolution_risk(
@@ -474,4 +461,4 @@ class TestCompleteEvaluationFlow:
 
         assert 0.0 <= confidence <= 1.0
         assert 0.0 <= risk <= 1.0
-        assert recommendation in ['approve', 'reject', 'review_required', 'conditional']
+        assert recommendation in ["approve", "reject", "review_required", "conditional"]

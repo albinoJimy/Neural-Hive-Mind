@@ -76,9 +76,7 @@ class SpecialistHealthChecker:
         self._cache_timestamp: Optional[datetime] = None
         self._cache_ttl_seconds = 30
 
-        logger.info(
-            "SpecialistHealthChecker initialized", specialist_type=specialist_type
-        )
+        logger.info("SpecialistHealthChecker initialized", specialist_type=specialist_type)
 
     async def check_all_health(self) -> Dict[str, Any]:
         """
@@ -157,9 +155,7 @@ class SpecialistHealthChecker:
         start_time = datetime.now(timezone.utc)
 
         try:
-            client = MongoClient(
-                self.config.get("mongodb_uri"), serverSelectionTimeoutMS=5000
-            )
+            client = MongoClient(self.config.get("mongodb_uri"), serverSelectionTimeoutMS=5000)
 
             # Ping MongoDB
             client.admin.command("ping")
@@ -232,9 +228,7 @@ class SpecialistHealthChecker:
             if model_name:
                 try:
                     registered_model = client.get_registered_model(model_name)
-                    latest_versions = client.get_latest_versions(
-                        model_name, stages=["Production"]
-                    )
+                    latest_versions = client.get_latest_versions(model_name, stages=["Production"])
 
                     model_status = "registered"
                     if latest_versions:
@@ -382,9 +376,7 @@ class SpecialistHealthChecker:
         start_time = datetime.now(timezone.utc)
 
         try:
-            client = MongoClient(
-                self.config.get("mongodb_uri"), serverSelectionTimeoutMS=5000
-            )
+            client = MongoClient(self.config.get("mongodb_uri"), serverSelectionTimeoutMS=5000)
 
             db = client[self.config.get("mongodb_database", "neural_hive")]
             collection = db["cognitive_ledger"]
@@ -407,9 +399,7 @@ class SpecialistHealthChecker:
                 }
             )
 
-            buffered_rate = (
-                (buffered_count / recent_count * 100) if recent_count > 0 else 0.0
-            )
+            buffered_rate = (buffered_count / recent_count * 100) if recent_count > 0 else 0.0
 
             status = HealthStatus.HEALTHY
             message = "Ledger operational"
@@ -443,9 +433,7 @@ class SpecialistHealthChecker:
                 latency_ms=latency_ms,
             )
 
-    def _determine_overall_status(
-        self, components: List[ComponentHealth]
-    ) -> HealthStatus:
+    def _determine_overall_status(self, components: List[ComponentHealth]) -> HealthStatus:
         """
         Determina status geral baseado nos componentes.
 
@@ -490,9 +478,7 @@ class SpecialistHealthChecker:
         """
         healthy_count = sum(1 for c in components if c.status == HealthStatus.HEALTHY)
         degraded_count = sum(1 for c in components if c.status == HealthStatus.DEGRADED)
-        unhealthy_count = sum(
-            1 for c in components if c.status == HealthStatus.UNHEALTHY
-        )
+        unhealthy_count = sum(1 for c in components if c.status == HealthStatus.UNHEALTHY)
 
         avg_latency = (
             sum(c.latency_ms for c in components if c.latency_ms) / len(components)

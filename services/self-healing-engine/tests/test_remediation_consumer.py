@@ -31,13 +31,16 @@ class FakeKafkaConsumer:
 
 @pytest.mark.asyncio
 async def test_remediation_consumer_start_and_stop(monkeypatch):
-    monkeypatch.setattr("src.consumers.remediation_consumer.AIOKafkaConsumer", lambda *args, **kwargs: FakeKafkaConsumer())
+    monkeypatch.setattr(
+        "src.consumers.remediation_consumer.AIOKafkaConsumer",
+        lambda *args, **kwargs: FakeKafkaConsumer(),
+    )
 
     consumer = RemediationConsumer(
         bootstrap_servers="kafka:9092",
         group_id="test-group",
         topic="remediation-actions",
-        playbook_executor=FakeExecutor()
+        playbook_executor=FakeExecutor(),
     )
 
     await consumer.start()

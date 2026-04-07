@@ -16,13 +16,13 @@ class TestUnifiedDomainValues:
     def test_expected_domains_exist(self):
         """Verify all expected domains are defined."""
         expected = [
-            'BUSINESS',
-            'TECHNICAL',
-            'SECURITY',
-            'INFRASTRUCTURE',
-            'BEHAVIOR',
-            'OPERATIONAL',
-            'COMPLIANCE',
+            "BUSINESS",
+            "TECHNICAL",
+            "SECURITY",
+            "INFRASTRUCTURE",
+            "BEHAVIOR",
+            "OPERATIONAL",
+            "COMPLIANCE",
         ]
         for domain_name in expected:
             assert hasattr(UnifiedDomain, domain_name)
@@ -40,13 +40,13 @@ class TestUnifiedDomainSerialization:
 
     def test_string_conversion(self):
         """Verify domains convert to strings correctly."""
-        assert str(UnifiedDomain.BUSINESS) == 'BUSINESS'
-        assert str(UnifiedDomain.SECURITY) == 'SECURITY'
+        assert str(UnifiedDomain.BUSINESS) == "BUSINESS"
+        assert str(UnifiedDomain.SECURITY) == "SECURITY"
 
     def test_string_equality(self):
         """Verify domains are equal to their string values."""
-        assert UnifiedDomain.BUSINESS == 'BUSINESS'
-        assert UnifiedDomain.TECHNICAL == 'TECHNICAL'
+        assert UnifiedDomain.BUSINESS == "BUSINESS"
+        assert UnifiedDomain.TECHNICAL == "TECHNICAL"
 
     def test_json_serialization(self):
         """Verify domains serialize to JSON correctly."""
@@ -83,7 +83,7 @@ class TestUnifiedDomainPydanticIntegration:
         class TestModel(BaseModel):
             domain: UnifiedDomain
 
-        model = TestModel(domain='SECURITY')
+        model = TestModel(domain="SECURITY")
         assert model.domain == UnifiedDomain.SECURITY
 
     def test_pydantic_model_serialization(self):
@@ -94,7 +94,7 @@ class TestUnifiedDomainPydanticIntegration:
 
         model = TestModel(domain=UnifiedDomain.INFRASTRUCTURE)
         data = model.model_dump()
-        assert data['domain'] == 'INFRASTRUCTURE'
+        assert data["domain"] == "INFRASTRUCTURE"
 
     def test_pydantic_model_json_serialization(self):
         """Verify Pydantic model JSON serializes UnifiedDomain correctly."""
@@ -114,7 +114,7 @@ class TestUnifiedDomainPydanticIntegration:
             domain: UnifiedDomain
 
         with pytest.raises(ValidationError):
-            TestModel(domain='INVALID_DOMAIN')
+            TestModel(domain="INVALID_DOMAIN")
 
 
 class TestUnifiedDomainComparison:
@@ -137,10 +137,10 @@ class TestUnifiedDomainComparison:
     def test_as_dict_key(self):
         """Verify domains can be used as dictionary keys."""
         domain_dict = {
-            UnifiedDomain.BUSINESS: 'business_value',
-            UnifiedDomain.SECURITY: 'security_value',
+            UnifiedDomain.BUSINESS: "business_value",
+            UnifiedDomain.SECURITY: "security_value",
         }
-        assert domain_dict[UnifiedDomain.BUSINESS] == 'business_value'
+        assert domain_dict[UnifiedDomain.BUSINESS] == "business_value"
 
 
 class TestUnifiedDomainIteration:
@@ -154,5 +154,5 @@ class TestUnifiedDomainIteration:
 
     def test_contains_check(self):
         """Verify membership check works correctly."""
-        assert 'BUSINESS' in [d.value for d in UnifiedDomain]
-        assert 'INVALID' not in [d.value for d in UnifiedDomain]
+        assert "BUSINESS" in [d.value for d in UnifiedDomain]
+        assert "INVALID" not in [d.value for d in UnifiedDomain]

@@ -10,12 +10,16 @@ class TestMemoryLeakDetectionPlaybook:
 
     def test_memory_leak_detection_playbook_exists(self):
         """Verifica que o ficheiro do playbook existe."""
-        playbook_path = Path(__file__).parent.parent.parent.parent / "playbooks" / "memory_leak_detection.yaml"
+        playbook_path = (
+            Path(__file__).parent.parent.parent.parent / "playbooks" / "memory_leak_detection.yaml"
+        )
         assert playbook_path.exists(), "Playbook file does not exist"
 
     def test_memory_leak_detection_playbook_valid_schema(self):
         """Verifica que o playbook tem o schema válido."""
-        playbook_path = Path(__file__).parent.parent.parent.parent / "playbooks" / "memory_leak_detection.yaml"
+        playbook_path = (
+            Path(__file__).parent.parent.parent.parent / "playbooks" / "memory_leak_detection.yaml"
+        )
         with open(playbook_path) as f:
             playbook = yaml.safe_load(f)
 
@@ -30,7 +34,9 @@ class TestMemoryLeakDetectionPlaybook:
 
     def test_memory_leak_detection_playbook_trigger(self):
         """Verifica que o playbook tem o trigger correto."""
-        playbook_path = Path(__file__).parent.parent.parent.parent / "playbooks" / "memory_leak_detection.yaml"
+        playbook_path = (
+            Path(__file__).parent.parent.parent.parent / "playbooks" / "memory_leak_detection.yaml"
+        )
         with open(playbook_path) as f:
             playbook = yaml.safe_load(f)
 
@@ -86,7 +92,7 @@ class TestPodMetricsAction:
         }
         """
 
-        with patch.object(executor.core_v1.api_client, 'call_api', return_value=mock_response):
+        with patch.object(executor.core_v1.api_client, "call_api", return_value=mock_response):
             # Act
             result = await executor._get_pod_metrics(
                 {"pod_name": "test-pod", "namespace": "default"}, {}
@@ -107,7 +113,7 @@ class TestPodMetricsAction:
 
         mock_error = ApiException(status=404, reason="Pod not found")
 
-        with patch.object(executor.core_v1.api_client, 'call_api', side_effect=mock_error):
+        with patch.object(executor.core_v1.api_client, "call_api", side_effect=mock_error):
             # Act
             result = await executor._get_pod_metrics(
                 {"pod_name": "nonexistent-pod", "namespace": "default"}, {}
@@ -135,7 +141,7 @@ class TestPodMetricsAction:
         }
         """
 
-        with patch.object(executor.core_v1.api_client, 'call_api', return_value=mock_response):
+        with patch.object(executor.core_v1.api_client, "call_api", return_value=mock_response):
             # Act
             result = await executor._get_pod_metrics(
                 {"pod_name": "test-pod", "namespace": "default", "memory_threshold_mb": 256}, {}

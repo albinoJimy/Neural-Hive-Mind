@@ -92,9 +92,7 @@ def mock_metrics_registry():
 @pytest.fixture
 def collector(mock_config, mock_metrics_registry):
     """Instância de BusinessMetricsCollector para testes."""
-    with patch(
-        "neural_hive_specialists.observability.business_metrics_collector.MongoClient"
-    ):
+    with patch("neural_hive_specialists.observability.business_metrics_collector.MongoClient"):
         collector = BusinessMetricsCollector(mock_config, mock_metrics_registry)
 
         # Mock das collections - precisam ser subscriptáveis (client[db][collection])
@@ -105,10 +103,14 @@ def collector(mock_config, mock_metrics_registry):
         # Configurar cliente mock para retornar a collection correta
         # ledger_client[database][collection] -> mock_ledger_collection
         collector._ledger_client = MagicMock()
-        collector._ledger_client.__getitem__.return_value.__getitem__.return_value = mock_ledger_collection
+        collector._ledger_client.__getitem__.return_value.__getitem__.return_value = (
+            mock_ledger_collection
+        )
 
         collector._consensus_client = MagicMock()
-        collector._consensus_client.__getitem__.return_value.__getitem__.return_value = mock_consensus_collection
+        collector._consensus_client.__getitem__.return_value.__getitem__.return_value = (
+            mock_consensus_collection
+        )
 
         return collector
 
@@ -533,8 +535,12 @@ class TestCollectBusinessMetrics:
         ]
 
         # Mock das collections diretamente (já criadas pelo fixture)
-        mock_ledger_collection = collector._ledger_client.__getitem__.return_value.__getitem__.return_value
-        mock_consensus_collection = collector._consensus_client.__getitem__.return_value.__getitem__.return_value
+        mock_ledger_collection = (
+            collector._ledger_client.__getitem__.return_value.__getitem__.return_value
+        )
+        mock_consensus_collection = (
+            collector._consensus_client.__getitem__.return_value.__getitem__.return_value
+        )
 
         mock_ledger_collection.find.return_value = opinions
         mock_consensus_collection.find.return_value = decisions
@@ -542,9 +548,7 @@ class TestCollectBusinessMetrics:
         # Mock execution outcomes
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "tickets": [{"plan_id": "plan1", "status": "COMPLETED"}]
-        }
+        mock_response.json.return_value = {"tickets": [{"plan_id": "plan1", "status": "COMPLETED"}]}
         mock_post.return_value = mock_response
 
         result = collector.collect_business_metrics()
@@ -581,8 +585,12 @@ class TestCollectBusinessMetrics:
         ]
 
         # Mock das collections diretamente (já criadas pelo fixture)
-        mock_ledger_collection = collector._ledger_client.__getitem__.return_value.__getitem__.return_value
-        mock_consensus_collection = collector._consensus_client.__getitem__.return_value.__getitem__.return_value
+        mock_ledger_collection = (
+            collector._ledger_client.__getitem__.return_value.__getitem__.return_value
+        )
+        mock_consensus_collection = (
+            collector._consensus_client.__getitem__.return_value.__getitem__.return_value
+        )
 
         mock_ledger_collection.find.return_value = opinions
         mock_consensus_collection.find.return_value = decisions

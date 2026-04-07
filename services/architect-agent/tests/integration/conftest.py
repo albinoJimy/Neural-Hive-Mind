@@ -26,10 +26,7 @@ logger = structlog.get_logger(__name__)
 MANAGE_DOCKER = os.getenv("MANAGE_DOCKER", "true").lower() == "true"
 
 # Compose file path
-COMPOSE_FILE = os.path.join(
-    os.path.dirname(__file__),
-    "docker-compose.integration.yml"
-)
+COMPOSE_FILE = os.path.join(os.path.dirname(__file__), "docker-compose.integration.yml")
 
 
 @pytest.fixture(scope="session")
@@ -52,9 +49,7 @@ def docker_compose():
 
     # Iniciar containers
     subprocess.run(
-        ["docker-compose", "-f", COMPOSE_FILE, "up", "-d"],
-        check=True,
-        capture_output=True
+        ["docker-compose", "-f", COMPOSE_FILE, "up", "-d"], check=True, capture_output=True
     )
 
     # Aguardar serviços ficarem prontos
@@ -65,9 +60,7 @@ def docker_compose():
     # Derrubar containers
     logger.info("docker_compose_stopping")
     subprocess.run(
-        ["docker-compose", "-f", COMPOSE_FILE, "down", "-v"],
-        check=True,
-        capture_output=True
+        ["docker-compose", "-f", COMPOSE_FILE, "down", "-v"], check=True, capture_output=True
     )
 
 
@@ -91,7 +84,7 @@ def _wait_for_services(timeout: int = 60):
         if not services_ready["mongodb"]:
             try:
                 client = AsyncIOMotorClient(settings.mongodb.url, serverSelectionTimeoutMS=2000)
-                client.admin.command('ping')
+                client.admin.command("ping")
                 services_ready["mongodb"] = True
                 logger.info("mongodb_ready")
             except Exception:
@@ -101,9 +94,9 @@ def _wait_for_services(timeout: int = 60):
         if not services_ready["kafka"]:
             try:
                 conf = {
-                    'bootstrap.servers': settings.kafka.bootstrap_servers,
-                    'group.id': 'test-health-check',
-                    'auto.offset.reset': 'earliest',
+                    "bootstrap.servers": settings.kafka.bootstrap_servers,
+                    "group.id": "test-health-check",
+                    "auto.offset.reset": "earliest",
                 }
                 consumer = Consumer(conf)
                 consumer.list_topics(timeout=2)
@@ -117,6 +110,7 @@ def _wait_for_services(timeout: int = 60):
         if not services_ready["opa"]:
             try:
                 import httpx
+
                 response = httpx.get(f"{settings.opa.url}/health", timeout=2)
                 if response.status_code == 200:
                     services_ready["opa"] = True
@@ -162,8 +156,8 @@ def kafka_producer(docker_compose) -> Generator:
     """Producer Kafka para testes."""
     settings = get_settings()
     conf = {
-        'bootstrap.servers': settings.kafka.bootstrap_servers,
-        'client.id': 'architect-agent-test-producer',
+        "bootstrap.servers": settings.kafka.bootstrap_servers,
+        "client.id": "architect-agent-test-producer",
     }
     producer = Producer(conf)
     yield producer
@@ -175,9 +169,9 @@ def kafka_consumer(docker_compose) -> Generator:
     """Consumer Kafka para testes."""
     settings = get_settings()
     conf = {
-        'bootstrap.servers': settings.kafka.bootstrap_servers,
-        'group.id': f'architect-agent-test-{time.time()}',
-        'auto.offset.reset': 'earliest',
+        "bootstrap.servers": settings.kafka.bootstrap_servers,
+        "group.id": f"architect-agent-test-{time.time()}",
+        "auto.offset.reset": "earliest",
     }
     consumer = Consumer(conf)
     yield consumer
@@ -229,12 +223,12 @@ def sample_cognitive_plan():
             "subject": "payment_processing_api",
             "context": {
                 "domain": "technical",
-                "requirements": ["rest", "authentication", "pci_compliance"]
-            }
+                "requirements": ["rest", "authentication", "pci_compliance"],
+            },
         },
         "original_intent_text": "Design a payment processing API with REST endpoints and PCI compliance",
         "specialists": ["technical", "architecture", "security"],
-        "created_at": "2026-03-27T10:00:00Z"
+        "created_at": "2026-03-27T10:00:00Z",
     }
 
 
@@ -270,7 +264,14 @@ def sample_architecture_plan():
 @pytest.fixture
 def sample_validation_report():
     """Relatório de validação de exemplo para testes."""
-    from src.models.validation import ValidationReport, Violation, Suggestion, Trend, ViolationType, Severity
+    from src.models.validation import (
+        ValidationReport,
+        Violation,
+        Suggestion,
+        Trend,
+        ViolationType,
+        Severity,
+    )
 
     return ValidationReport(
         report_id="validation-test-001",

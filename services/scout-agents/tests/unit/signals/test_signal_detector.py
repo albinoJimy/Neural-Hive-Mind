@@ -29,7 +29,9 @@ class TestSignalTypeDetection:
     """Test signal type detection logic."""
 
     @pytest.mark.asyncio
-    async def test_detect_positive_anomaly_business_domain(self, sample_anomalous_raw_event, business_domain):
+    async def test_detect_positive_anomaly_business_domain(
+        self, sample_anomalous_raw_event, business_domain
+    ):
         """Test positive anomaly detection in business domain."""
         detector = SignalDetector("test-scout")
 
@@ -38,8 +40,7 @@ class TestSignalTypeDetection:
         sample_anomalous_raw_event.event_type = "user_action"
 
         signal_type, confidence = detector.detect_signal_type(
-            sample_anomalous_raw_event,
-            business_domain
+            sample_anomalous_raw_event, business_domain
         )
 
         assert signal_type is not None
@@ -51,8 +52,7 @@ class TestSignalTypeDetection:
         detector = SignalDetector("test-scout")
 
         signal_type, confidence = detector.detect_signal_type(
-            sample_anomalous_raw_event,
-            security_domain
+            sample_anomalous_raw_event, security_domain
         )
 
         # High anomaly in security domain should be threat
@@ -65,11 +65,8 @@ class TestSignalTypeDetection:
         detector = SignalDetector("test-scout")
 
         # Add anomaly score to trigger detection
-        with patch.object(sample_raw_event, 'calculate_anomaly_score', return_value=0.7):
-            signal_type, confidence = detector.detect_signal_type(
-                sample_raw_event,
-                business_domain
-            )
+        with patch.object(sample_raw_event, "calculate_anomaly_score", return_value=0.7):
+            signal_type, confidence = detector.detect_signal_type(sample_raw_event, business_domain)
 
             # May detect opportunity or other type
             if signal_type:
@@ -80,11 +77,8 @@ class TestSignalTypeDetection:
         """Test normal event returns no signal."""
         detector = SignalDetector("test-scout")
 
-        with patch.object(sample_raw_event, 'calculate_anomaly_score', return_value=0.2):
-            signal_type, confidence = detector.detect_signal_type(
-                sample_raw_event,
-                business_domain
-            )
+        with patch.object(sample_raw_event, "calculate_anomaly_score", return_value=0.2):
+            signal_type, confidence = detector.detect_signal_type(sample_raw_event, business_domain)
 
             # Low anomaly should not trigger strong signals
             if signal_type is None:
@@ -185,9 +179,7 @@ class TestConfidenceCalculation:
         detector = SignalDetector("test-scout")
 
         confidence = detector.calculate_confidence(
-            sample_raw_event,
-            detection_confidence=0.8,
-            bayesian_posterior=0.7
+            sample_raw_event, detection_confidence=0.8, bayesian_posterior=0.7
         )
 
         # Should be weighted combination
@@ -198,9 +190,7 @@ class TestConfidenceCalculation:
         detector = SignalDetector("test-scout")
 
         confidence = detector.calculate_confidence(
-            sample_raw_event,
-            detection_confidence=0.9,
-            bayesian_posterior=0.9
+            sample_raw_event, detection_confidence=0.9, bayesian_posterior=0.9
         )
 
         # High quality event should have good confidence
@@ -220,11 +210,7 @@ class TestConfidenceCalculation:
         from src.models.raw_event import RawEvent
 
         minimal_event = RawEvent(
-            event_id="minimal",
-            source="test",
-            event_type="test",
-            payload={},
-            metadata={}
+            event_id="minimal", source="test", event_type="test", payload={}, metadata={}
         )
 
         detector = SignalDetector("test-scout")
@@ -299,8 +285,8 @@ class TestDescriptionGeneration:
 
         desc = detector.generate_description(
             SignalType.THREAT,
-            sample_raw_event := type('obj', (object,), {'source': 'test', 'event_type': 'test'})(),
-            UnifiedDomain.SECURITY
+            sample_raw_event := type("obj", (object,), {"source": "test", "event_type": "test"})(),
+            UnifiedDomain.SECURITY,
         )
 
         assert "security" in desc.lower()
@@ -311,18 +297,17 @@ class TestDescriptionGeneration:
         detector = SignalDetector("test-scout")
 
         from src.models.raw_event import RawEvent
+
         event = RawEvent(
             event_id="test",
             source="api-gateway",
             event_type="http_request",
             payload={},
-            metadata={}
+            metadata={},
         )
 
         desc = detector.generate_description(
-            SignalType.PATTERN_EMERGING,
-            event,
-            UnifiedDomain.BUSINESS
+            SignalType.PATTERN_EMERGING, event, UnifiedDomain.BUSINESS
         )
 
         assert "api-gateway" in desc
@@ -332,13 +317,8 @@ class TestDescriptionGeneration:
         detector = SignalDetector("test-scout")
 
         from src.models.raw_event import RawEvent
-        event = RawEvent(
-            event_id="test",
-            source="test",
-            event_type="test",
-            payload={},
-            metadata={}
-        )
+
+        event = RawEvent(event_id="test", source="test", event_type="test", payload={}, metadata={})
 
         for signal_type in SignalType:
             desc = detector.generate_description(signal_type, event, UnifiedDomain.BUSINESS)
@@ -391,7 +371,7 @@ class TestGeolocationExtraction:
         # Add geolocation to metadata
         sample_raw_event_with_geo.metadata["geolocation"] = {
             "latitude": 51.5074,
-            "longitude": -0.1278
+            "longitude": -0.1278,
         }
 
         geo = detector._extract_geolocation(sample_raw_event_with_geo)
@@ -409,7 +389,7 @@ class TestGeolocationExtraction:
             source="mobile",
             event_type="location",
             payload={"lat": 48.8566, "lon": 2.3522},
-            metadata={}
+            metadata={},
         )
 
         detector = SignalDetector("test-scout")
@@ -428,7 +408,7 @@ class TestGeolocationExtraction:
             source="api",
             event_type="location",
             payload={"location": [35.6762, 139.6503]},  # Tokyo
-            metadata={}
+            metadata={},
         )
 
         detector = SignalDetector("test-scout")
@@ -445,7 +425,7 @@ class TestGeolocationExtraction:
             source="api",
             event_type="location",
             payload={"coordinates": "37.7749 -122.4194"},  # San Francisco
-            metadata={}
+            metadata={},
         )
 
         detector = SignalDetector("test-scout")
@@ -462,7 +442,7 @@ class TestGeolocationExtraction:
             source="test",
             event_type="location",
             payload={"lat": 200.0, "lon": 300.0},  # Invalid coordinates
-            metadata={}
+            metadata={},
         )
 
         detector = SignalDetector("test-scout")
@@ -526,6 +506,7 @@ class TestPositiveAnomalyDetection:
     def test_positive_anomaly_user_action_business(self, sample_raw_event):
         """Test user action in business domain is positive."""
         from src.models.raw_event import RawEvent
+
         detector = SignalDetector("test-scout")
 
         test_event = RawEvent(
@@ -534,7 +515,7 @@ class TestPositiveAnomalyDetection:
             event_type="user_action",
             timestamp=datetime.now(timezone.utc),
             payload={"action": "click"},
-            metadata={}
+            metadata={},
         )
 
         is_positive = detector._is_positive_anomaly(test_event, UnifiedDomain.BUSINESS)
@@ -550,7 +531,7 @@ class TestPositiveAnomalyDetection:
             source="prometheus",
             event_type="metric",
             payload={"throughput": 1500, "requests": 2000},
-            metadata={}
+            metadata={},
         )
 
         detector = SignalDetector("test-scout")
@@ -567,7 +548,7 @@ class TestPositiveAnomalyDetection:
             source="prometheus",
             event_type="metric",
             payload={"errors": 50, "latency": 500},
-            metadata={}
+            metadata={},
         )
 
         detector = SignalDetector("test-scout")
@@ -583,6 +564,7 @@ class TestMainDetectionPipeline:
     async def test_detect_returns_signal(self, sample_raw_event, business_domain):
         """Test detect returns ScoutSignal when thresholds met."""
         from src.models.raw_event import RawEvent
+
         detector = SignalDetector("test-scout")
 
         # Create event with high anomaly
@@ -592,40 +574,33 @@ class TestMainDetectionPipeline:
             event_type="user_action",
             timestamp=datetime.now(timezone.utc),
             payload={"action": "click"},
-            metadata={}
+            metadata={},
         )
 
         # Mock high anomaly score
-        with patch.object(test_event, 'calculate_anomaly_score', return_value=0.9):
-            signal = await detector.detect(
-                test_event,
-                business_domain,
-                "core"
-            )
+        with patch.object(test_event, "calculate_anomaly_score", return_value=0.9):
+            signal = await detector.detect(test_event, business_domain, "core")
 
             # May return signal or None depending on thresholds
             if signal:
-                assert hasattr(signal, 'signal_id')
-                assert hasattr(signal, 'signal_type')
+                assert hasattr(signal, "signal_id")
+                assert hasattr(signal, "signal_type")
 
     @pytest.mark.asyncio
     async def test_detect_returns_none_filtered(self, sample_raw_event, business_domain):
         """Test detect returns None when Bayesian filter rejects."""
         detector = SignalDetector("test-scout")
 
-        signal = await detector.detect(
-            sample_raw_event,
-            business_domain,
-            "core"
-        )
+        signal = await detector.detect(sample_raw_event, business_domain, "core")
 
         # Signal may be None if filtered out
-        assert signal is None or hasattr(signal, 'signal_id')
+        assert signal is None or hasattr(signal, "signal_id")
 
     @pytest.mark.asyncio
     async def test_detect_signal_attributes(self, sample_raw_event, business_domain):
         """Test detected signal has required attributes."""
         from src.models.raw_event import RawEvent
+
         detector = SignalDetector("test-scout")
 
         test_event = RawEvent(
@@ -634,21 +609,17 @@ class TestMainDetectionPipeline:
             event_type="user_action",
             timestamp=datetime.now(timezone.utc),
             payload={"action": "click"},
-            metadata={}
+            metadata={},
         )
 
-        with patch.object(test_event, 'calculate_anomaly_score', return_value=0.9):
-            signal = await detector.detect(
-                test_event,
-                business_domain,
-                "core"
-            )
+        with patch.object(test_event, "calculate_anomaly_score", return_value=0.9):
+            signal = await detector.detect(test_event, business_domain, "core")
 
             if signal:
                 assert signal.scout_agent_id == "test-scout"
                 assert signal.exploration_domain == business_domain
                 assert signal.source.channel == "core"
-                assert hasattr(signal, 'curiosity_score')
-                assert hasattr(signal, 'confidence')
-                assert hasattr(signal, 'relevance_score')
-                assert hasattr(signal, 'risk_score')
+                assert hasattr(signal, "curiosity_score")
+                assert hasattr(signal, "confidence")
+                assert hasattr(signal, "relevance_score")
+                assert hasattr(signal, "risk_score")

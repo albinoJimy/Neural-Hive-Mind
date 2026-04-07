@@ -50,9 +50,7 @@ class EmbeddingsGenerator:
         self.metrics = metrics
         self.cache_ttl_seconds = cache_ttl_seconds
         self.cache_enabled = cache_enabled
-        self._embedding_cache: "OrderedDict[str, Tuple[np.ndarray, float]]" = (
-            OrderedDict()
-        )
+        self._embedding_cache: "OrderedDict[str, Tuple[np.ndarray, float]]" = OrderedDict()
         self._cache_stats: Dict[str, int] = {"hits": 0, "misses": 0}
         self._load_model()
         logger.info(
@@ -156,9 +154,7 @@ class EmbeddingsGenerator:
                 hit_ratio=hit_ratio,
             )
 
-    def _get_embeddings_for_descriptions(
-        self, descriptions: List[str]
-    ) -> List[np.ndarray]:
+    def _get_embeddings_for_descriptions(self, descriptions: List[str]) -> List[np.ndarray]:
         """
         Retorna embeddings preservando ordem, utilizando cache e batch único para misses.
         """
@@ -310,9 +306,7 @@ class EmbeddingsGenerator:
             logger.error("Failed to calculate similarity", error=str(e))
             return 0.0
 
-    def generate_embeddings_batch(
-        self, plans: List[Dict[str, Any]]
-    ) -> List[np.ndarray]:
+    def generate_embeddings_batch(self, plans: List[Dict[str, Any]]) -> List[np.ndarray]:
         """
         Gera embeddings em lote para múltiplos planos em uma única chamada ao modelo.
         """
@@ -322,9 +316,7 @@ class EmbeddingsGenerator:
         for plan in plans:
             tasks = plan.get("tasks", [])
             plan_task_counts.append(len(tasks))
-            flattened_descriptions.extend(
-                [task.get("description", "") for task in tasks]
-            )
+            flattened_descriptions.extend([task.get("description", "") for task in tasks])
 
         embeddings = self._get_embeddings_for_descriptions(flattened_descriptions)
 

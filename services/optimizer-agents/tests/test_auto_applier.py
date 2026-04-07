@@ -335,8 +335,7 @@ class TestCalculateImprovement:
         applier = OptimizationApplier()
 
         result = await applier.validate_application(
-            before={"duration_ms": 100},
-            after={"duration_ms": 80}
+            before={"duration_ms": 100}, after={"duration_ms": 80}
         )
 
         assert result["improvement_pct"] == 20.0
@@ -348,8 +347,7 @@ class TestCalculateImprovement:
         applier = OptimizationApplier()
 
         result = await applier.validate_application(
-            before={"duration_ms": 100},
-            after={"duration_ms": 100}
+            before={"duration_ms": 100}, after={"duration_ms": 100}
         )
 
         assert result["improvement_pct"] == 0.0
@@ -361,7 +359,7 @@ class TestCalculateImprovement:
 
         result = await applier.validate_application(
             before={"duration_ms": 100, "memory_mb": 50, "cpu_pct": 80},
-            after={"duration_ms": 80, "memory_mb": 40, "cpu_pct": 60}
+            after={"duration_ms": 80, "memory_mb": 40, "cpu_pct": 60},
         )
 
         assert result["improvement_pct"] > 0

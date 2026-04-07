@@ -13,12 +13,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / 'src'))
+sys.path.insert(0, str(ROOT / "src"))
 
 # Mock neural_hive_observability antes de importar o módulo
 mock_tracer_module = MagicMock()
 mock_tracer_module.get_tracer = MagicMock()
-sys.modules['neural_hive_observability'] = mock_tracer_module
+sys.modules["neural_hive_observability"] = mock_tracer_module
 
 from engine.execution_engine import ExecutionEngine, TaskExecutionError  # noqa: E402
 
@@ -29,13 +29,17 @@ class StubTicketClient:
     def __init__(self):
         self.status_calls = []
 
-    async def update_ticket_status(self, ticket_id, status, error_message=None, actual_duration_ms=None):
-        self.status_calls.append({
-            'ticket_id': ticket_id,
-            'status': status,
-            'error_message': error_message,
-            'actual_duration_ms': actual_duration_ms,
-        })
+    async def update_ticket_status(
+        self, ticket_id, status, error_message=None, actual_duration_ms=None
+    ):
+        self.status_calls.append(
+            {
+                "ticket_id": ticket_id,
+                "status": status,
+                "error_message": error_message,
+                "actual_duration_ms": actual_duration_ms,
+            }
+        )
 
 
 class StubResultProducer:
@@ -44,14 +48,18 @@ class StubResultProducer:
     def __init__(self):
         self.published = []
 
-    async def publish_result(self, ticket_id, status, result, error_message=None, actual_duration_ms=None):
-        self.published.append({
-            'ticket_id': ticket_id,
-            'status': status,
-            'result': result,
-            'error_message': error_message,
-            'actual_duration_ms': actual_duration_ms,
-        })
+    async def publish_result(
+        self, ticket_id, status, result, error_message=None, actual_duration_ms=None
+    ):
+        self.published.append(
+            {
+                "ticket_id": ticket_id,
+                "status": status,
+                "result": result,
+                "error_message": error_message,
+                "actual_duration_ms": actual_duration_ms,
+            }
+        )
 
 
 class StubDependencyCoordinator:
@@ -65,14 +73,14 @@ class StubExecutorSuccess:
     """Executor que sempre retorna sucesso."""
 
     async def execute(self, ticket):
-        return {'success': True, 'output': {'ok': True}, 'metadata': {}, 'logs': []}
+        return {"success": True, "output": {"ok": True}, "metadata": {}, "logs": []}
 
 
 class StubExecutorFail:
     """Executor que sempre falha."""
 
     async def execute(self, ticket):
-        raise RuntimeError('Executor failure')
+        raise RuntimeError("Executor failure")
 
 
 class StubExecutorTimeout:
@@ -108,14 +116,14 @@ def config():
 def sample_ticket():
     """Ticket de exemplo para testes."""
     return {
-        'ticket_id': 'ticket-metrics-test',
-        'task_id': 'task-1',
-        'task_type': 'BUILD',
-        'status': 'PENDING',
-        'dependencies': [],
-        'plan_id': 'plan-123',
-        'intent_id': 'intent-456',
-        'sla': {'timeout_ms': 5000, 'max_retries': 0},
+        "ticket_id": "ticket-metrics-test",
+        "task_id": "task-1",
+        "task_type": "BUILD",
+        "status": "PENDING",
+        "dependencies": [],
+        "plan_id": "plan-123",
+        "intent_id": "intent-456",
+        "sla": {"timeout_ms": 5000, "max_retries": 0},
     }
 
 
@@ -169,7 +177,9 @@ def mock_tracer():
 
 
 @pytest.mark.asyncio
-async def test_process_ticket_increments_tickets_processing_total(config, sample_ticket, mock_metrics, mock_tracer):
+async def test_process_ticket_increments_tickets_processing_total(
+    config, sample_ticket, mock_metrics, mock_tracer
+):
     """Verifica se tickets_processing_total é incrementado ao iniciar processamento."""
     ticket_client = StubTicketClient()
     result_producer = StubResultProducer()
@@ -178,14 +188,19 @@ async def test_process_ticket_increments_tickets_processing_total(config, sample
     registry = RegistryWrapper(executor)
 
     engine = ExecutionEngine(
-        config, ticket_client, result_producer, dependency_coordinator, registry, metrics=mock_metrics
+        config,
+        ticket_client,
+        result_producer,
+        dependency_coordinator,
+        registry,
+        metrics=mock_metrics,
     )
 
     await engine.process_ticket(sample_ticket)
-    await asyncio.wait_for(engine.active_tasks[sample_ticket['ticket_id']], timeout=5)
+    await asyncio.wait_for(engine.active_tasks[sample_ticket["ticket_id"]], timeout=5)
 
     # Verifica que tickets_processing_total.labels(task_type='BUILD').inc() foi chamado
-    mock_metrics.tickets_processing_total.labels.assert_called_with(task_type='BUILD')
+    mock_metrics.tickets_processing_total.labels.assert_called_with(task_type="BUILD")
     mock_metrics.tickets_processing_total.labels.return_value.inc.assert_called()
 
 
@@ -199,18 +214,25 @@ async def test_process_ticket_sets_active_tasks(config, sample_ticket, mock_metr
     registry = RegistryWrapper(executor)
 
     engine = ExecutionEngine(
-        config, ticket_client, result_producer, dependency_coordinator, registry, metrics=mock_metrics
+        config,
+        ticket_client,
+        result_producer,
+        dependency_coordinator,
+        registry,
+        metrics=mock_metrics,
     )
 
     await engine.process_ticket(sample_ticket)
-    await asyncio.wait_for(engine.active_tasks[sample_ticket['ticket_id']], timeout=5)
+    await asyncio.wait_for(engine.active_tasks[sample_ticket["ticket_id"]], timeout=5)
 
     # Verifica que active_tasks.set() foi chamado
     assert mock_metrics.active_tasks.set.called
 
 
 @pytest.mark.asyncio
-async def test_process_ticket_success_increments_completed_total(config, sample_ticket, mock_metrics, mock_tracer):
+async def test_process_ticket_success_increments_completed_total(
+    config, sample_ticket, mock_metrics, mock_tracer
+):
     """Verifica se tickets_completed_total é incrementado em sucesso."""
     ticket_client = StubTicketClient()
     result_producer = StubResultProducer()
@@ -219,19 +241,26 @@ async def test_process_ticket_success_increments_completed_total(config, sample_
     registry = RegistryWrapper(executor)
 
     engine = ExecutionEngine(
-        config, ticket_client, result_producer, dependency_coordinator, registry, metrics=mock_metrics
+        config,
+        ticket_client,
+        result_producer,
+        dependency_coordinator,
+        registry,
+        metrics=mock_metrics,
     )
 
     await engine.process_ticket(sample_ticket)
-    await asyncio.wait_for(engine.active_tasks[sample_ticket['ticket_id']], timeout=5)
+    await asyncio.wait_for(engine.active_tasks[sample_ticket["ticket_id"]], timeout=5)
 
     # Verifica que tickets_completed_total.labels(task_type='BUILD').inc() foi chamado
-    mock_metrics.tickets_completed_total.labels.assert_called_with(task_type='BUILD')
+    mock_metrics.tickets_completed_total.labels.assert_called_with(task_type="BUILD")
     mock_metrics.tickets_completed_total.labels.return_value.inc.assert_called()
 
 
 @pytest.mark.asyncio
-async def test_process_ticket_success_observes_duration(config, sample_ticket, mock_metrics, mock_tracer):
+async def test_process_ticket_success_observes_duration(
+    config, sample_ticket, mock_metrics, mock_tracer
+):
     """Verifica se task_duration_seconds.observe() é chamado em sucesso."""
     ticket_client = StubTicketClient()
     result_producer = StubResultProducer()
@@ -240,19 +269,26 @@ async def test_process_ticket_success_observes_duration(config, sample_ticket, m
     registry = RegistryWrapper(executor)
 
     engine = ExecutionEngine(
-        config, ticket_client, result_producer, dependency_coordinator, registry, metrics=mock_metrics
+        config,
+        ticket_client,
+        result_producer,
+        dependency_coordinator,
+        registry,
+        metrics=mock_metrics,
     )
 
     await engine.process_ticket(sample_ticket)
-    await asyncio.wait_for(engine.active_tasks[sample_ticket['ticket_id']], timeout=5)
+    await asyncio.wait_for(engine.active_tasks[sample_ticket["ticket_id"]], timeout=5)
 
     # Verifica que task_duration_seconds.labels(task_type='BUILD').observe() foi chamado
-    mock_metrics.task_duration_seconds.labels.assert_called_with(task_type='BUILD')
+    mock_metrics.task_duration_seconds.labels.assert_called_with(task_type="BUILD")
     mock_metrics.task_duration_seconds.labels.return_value.observe.assert_called()
 
 
 @pytest.mark.asyncio
-async def test_process_ticket_failure_increments_failed_total(config, sample_ticket, mock_metrics, mock_tracer):
+async def test_process_ticket_failure_increments_failed_total(
+    config, sample_ticket, mock_metrics, mock_tracer
+):
     """Verifica se tickets_failed_total é incrementado em falha."""
     ticket_client = StubTicketClient()
     result_producer = StubResultProducer()
@@ -261,11 +297,16 @@ async def test_process_ticket_failure_increments_failed_total(config, sample_tic
     registry = RegistryWrapper(executor)
 
     engine = ExecutionEngine(
-        config, ticket_client, result_producer, dependency_coordinator, registry, metrics=mock_metrics
+        config,
+        ticket_client,
+        result_producer,
+        dependency_coordinator,
+        registry,
+        metrics=mock_metrics,
     )
 
     await engine.process_ticket(sample_ticket)
-    await asyncio.wait_for(engine.active_tasks[sample_ticket['ticket_id']], timeout=5)
+    await asyncio.wait_for(engine.active_tasks[sample_ticket["ticket_id"]], timeout=5)
 
     # Verifica que tickets_failed_total.labels(...).inc() foi chamado
     assert mock_metrics.tickets_failed_total.labels.called
@@ -273,7 +314,9 @@ async def test_process_ticket_failure_increments_failed_total(config, sample_tic
 
 
 @pytest.mark.asyncio
-async def test_process_ticket_timeout_increments_failed_total(config, sample_ticket, mock_metrics, mock_tracer):
+async def test_process_ticket_timeout_increments_failed_total(
+    config, sample_ticket, mock_metrics, mock_tracer
+):
     """Verifica se tickets_failed_total é incrementado em timeout (via execution_error após retry)."""
     ticket_client = StubTicketClient()
     result_producer = StubResultProducer()
@@ -282,14 +325,19 @@ async def test_process_ticket_timeout_increments_failed_total(config, sample_tic
     registry = RegistryWrapper(executor)
 
     # Configura timeout curto para o teste
-    sample_ticket['sla']['timeout_ms'] = 100
+    sample_ticket["sla"]["timeout_ms"] = 100
 
     engine = ExecutionEngine(
-        config, ticket_client, result_producer, dependency_coordinator, registry, metrics=mock_metrics
+        config,
+        ticket_client,
+        result_producer,
+        dependency_coordinator,
+        registry,
+        metrics=mock_metrics,
     )
 
     await engine.process_ticket(sample_ticket)
-    await asyncio.wait_for(engine.active_tasks[sample_ticket['ticket_id']], timeout=5)
+    await asyncio.wait_for(engine.active_tasks[sample_ticket["ticket_id"]], timeout=5)
 
     # O timeout interno é capturado por _execute_task_with_retry e convertido em TaskExecutionError
     # que é tratado como 'execution_error'. Verificamos que tickets_failed_total foi incrementado.
@@ -298,7 +346,9 @@ async def test_process_ticket_timeout_increments_failed_total(config, sample_tic
 
 
 @pytest.mark.asyncio
-async def test_active_tasks_reset_after_completion(config, sample_ticket, mock_metrics, mock_tracer):
+async def test_active_tasks_reset_after_completion(
+    config, sample_ticket, mock_metrics, mock_tracer
+):
     """Verifica se active_tasks é resetado após conclusão."""
     ticket_client = StubTicketClient()
     result_producer = StubResultProducer()
@@ -307,12 +357,17 @@ async def test_active_tasks_reset_after_completion(config, sample_ticket, mock_m
     registry = RegistryWrapper(executor)
 
     engine = ExecutionEngine(
-        config, ticket_client, result_producer, dependency_coordinator, registry, metrics=mock_metrics
+        config,
+        ticket_client,
+        result_producer,
+        dependency_coordinator,
+        registry,
+        metrics=mock_metrics,
     )
 
     await engine.process_ticket(sample_ticket)
-    await asyncio.wait_for(engine.active_tasks[sample_ticket['ticket_id']], timeout=5)
+    await asyncio.wait_for(engine.active_tasks[sample_ticket["ticket_id"]], timeout=5)
 
     # Após conclusão, active_tasks deve ter sido chamado com 0
     calls = [call[0][0] for call in mock_metrics.active_tasks.set.call_args_list]
-    assert 0 in calls, 'active_tasks.set(0) deve ser chamado após conclusão'
+    assert 0 in calls, "active_tasks.set(0) deve ser chamado após conclusão"

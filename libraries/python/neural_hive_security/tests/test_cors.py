@@ -23,7 +23,9 @@ class TestCORSConfigOrigins:
     def test_development_variant(self):
         """'development' deve funcionar igual a 'dev'."""
         dev_origins = CORSConfig.get_origins_for_environment("dev", is_public_api=True)
-        development_origins = CORSConfig.get_origins_for_environment("development", is_public_api=True)
+        development_origins = CORSConfig.get_origins_for_environment(
+            "development", is_public_api=True
+        )
 
         assert dev_origins == development_origins
 
@@ -54,7 +56,9 @@ class TestCORSConfigOrigins:
     def test_production_variant(self):
         """'production' deve funcionar igual a 'prod'."""
         prod_origins = CORSConfig.get_origins_for_environment("prod", is_public_api=True)
-        production_origins = CORSConfig.get_origins_for_environment("production", is_public_api=True)
+        production_origins = CORSConfig.get_origins_for_environment(
+            "production", is_public_api=True
+        )
 
         assert prod_origins == production_origins
 
@@ -204,7 +208,9 @@ class TestSecurityCompliance:
     def test_dev_origins_no_wildcard(self):
         """Origens de dev devem ser específicas (localhost)."""
         assert "*" not in CORSConfig.DEV_ORIGINS
-        assert all("localhost" in origin or "127.0.0.1" in origin for origin in CORSConfig.DEV_ORIGINS)
+        assert all(
+            "localhost" in origin or "127.0.0.1" in origin for origin in CORSConfig.DEV_ORIGINS
+        )
 
     def test_internal_services_empty(self):
         """Serviços internos devem ter lista vazia."""

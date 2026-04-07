@@ -17,19 +17,12 @@ import structlog
 from fastmcp import FastMCP
 
 from ..config import get_settings
-from ..observability.metrics import (
-    record_scan,
-    record_scan_duration,
-    record_vulnerabilities
-)
+from ..observability.metrics import record_scan, record_scan_duration, record_vulnerabilities
 
 logger = structlog.get_logger(__name__)
 
 
-async def _execute_trivy(
-    args: list[str],
-    timeout: int | None = None
-) -> dict[str, Any]:
+async def _execute_trivy(args: list[str], timeout: int | None = None) -> dict[str, Any]:
     """
     Executa comando Trivy CLI.
 
@@ -48,7 +41,7 @@ async def _execute_trivy(
     if not trivy_path:
         return {
             "error": "Trivy CLI not found",
-            "message": f"Trivy não está instalado ou não está no PATH: {settings.trivy_path}"
+            "message": f"Trivy não está instalado ou não está no PATH: {settings.trivy_path}",
         }
 
     # Construir comando completo
@@ -59,49 +52,35 @@ async def _execute_trivy(
 
     try:
         process = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
         )
 
-        stdout, stderr = await asyncio.wait_for(
-            process.communicate(),
-            timeout=timeout
-        )
+        stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
 
         duration = time.time() - start_time
 
         if process.returncode != 0:
             logger.error(
-                "trivy_execution_failed",
-                returncode=process.returncode,
-                stderr=stderr.decode()
+                "trivy_execution_failed", returncode=process.returncode, stderr=stderr.decode()
             )
             return {
                 "error": "Trivy execution failed",
                 "returncode": process.returncode,
                 "stderr": stderr.decode(),
-                "duration_seconds": duration
+                "duration_seconds": duration,
             }
 
         # Parsear output JSON
         try:
             result = json.loads(stdout.decode())
-            logger.info(
-                "trivy_scan_completed",
-                duration=duration
-            )
-            return {
-                "success": True,
-                "result": result,
-                "duration_seconds": duration
-            }
+            logger.info("trivy_scan_completed", duration=duration)
+            return {"success": True, "result": result, "duration_seconds": duration}
         except json.JSONDecodeError as e:
             return {
                 "error": "Failed to parse Trivy output",
                 "message": str(e),
                 "stdout": stdout.decode()[:1000],
-                "duration_seconds": duration
+                "duration_seconds": duration,
             }
 
     except asyncio.TimeoutError:
@@ -110,27 +89,17 @@ async def _execute_trivy(
         return {
             "error": "Trivy scan timed out",
             "timeout_seconds": timeout,
-            "duration_seconds": duration
+            "duration_seconds": duration,
         }
     except Exception as e:
         duration = time.time() - start_time
         logger.exception("trivy_execution_error", error=str(e))
-        return {
-            "error": "Trivy execution error",
-            "message": str(e),
-            "duration_seconds": duration
-        }
+        return {"error": "Trivy execution error", "message": str(e), "duration_seconds": duration}
 
 
 def _count_vulnerabilities(result: dict[str, Any]) -> dict[str, int]:
     """Conta vulnerabilidades por severidade."""
-    counts: dict[str, int] = {
-        "CRITICAL": 0,
-        "HIGH": 0,
-        "MEDIUM": 0,
-        "LOW": 0,
-        "UNKNOWN": 0
-    }
+    counts: dict[str, int] = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0, "UNKNOWN": 0}
 
     # Navegar na estrutura do resultado Trivy
     results = result.get("Results", [])
@@ -148,9 +117,7 @@ def register_trivy_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     async def scan_image(
-        image: str,
-        severity: str = "HIGH,CRITICAL",
-        ignore_unfixed: bool = True
+        image: str, severity: str = "HIGH,CRITICAL", ignore_unfixed: bool = True
     ) -> dict[str, Any]:
         """
         Escaneia imagem de container para vulnerabilidades usando Trivy.
@@ -189,16 +156,14 @@ def register_trivy_tools(mcp: FastMCP) -> None:
                 "vulnerability_counts": counts,
                 "total_vulnerabilities": sum(counts.values()),
                 "full_result": result.get("result"),
-                "duration_seconds": duration
+                "duration_seconds": duration,
             }
 
         return result
 
     @mcp.tool()
     async def scan_filesystem(
-        path: str,
-        scanners: str = "vuln,config,secret",
-        severity: str = "HIGH,CRITICAL"
+        path: str, scanners: str = "vuln,config,secret", severity: str = "HIGH,CRITICAL"
     ) -> dict[str, Any]:
         """
         Escaneia sistema de arquivos para vulnerabilidades e misconfigurations.
@@ -231,16 +196,14 @@ def register_trivy_tools(mcp: FastMCP) -> None:
                 "vulnerability_counts": counts,
                 "total_vulnerabilities": sum(counts.values()),
                 "full_result": result.get("result"),
-                "duration_seconds": duration
+                "duration_seconds": duration,
             }
 
         return result
 
     @mcp.tool()
     async def scan_repository(
-        repo_url: str,
-        branch: str = "main",
-        severity: str = "HIGH,CRITICAL"
+        repo_url: str, branch: str = "main", severity: str = "HIGH,CRITICAL"
     ) -> dict[str, Any]:
         """
         Escaneia repositório Git para vulnerabilidades.
@@ -273,7 +236,7 @@ def register_trivy_tools(mcp: FastMCP) -> None:
                 "vulnerability_counts": counts,
                 "total_vulnerabilities": sum(counts.values()),
                 "full_result": result.get("result"),
-                "duration_seconds": duration
+                "duration_seconds": duration,
             }
 
         return result

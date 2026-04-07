@@ -119,9 +119,7 @@ class FieldEncryptor:
             return decrypted_bytes.decode("utf-8")
 
         except InvalidToken:
-            logger.error(
-                "Token de criptografia inválido - valor corrompido ou chave errada"
-            )
+            logger.error("Token de criptografia inválido - valor corrompido ou chave errada")
             return encrypted_value
 
         except Exception as e:

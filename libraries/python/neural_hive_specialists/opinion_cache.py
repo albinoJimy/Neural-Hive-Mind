@@ -150,25 +150,17 @@ class OpinionCache:
 
             if cached_json:
                 opinion = json.loads(cached_json)
-                logger.debug(
-                    "Cache hit", cache_key=cache_key, duration_ms=int(duration * 1000)
-                )
+                logger.debug("Cache hit", cache_key=cache_key, duration_ms=int(duration * 1000))
                 return opinion
             else:
-                logger.debug(
-                    "Cache miss", cache_key=cache_key, duration_ms=int(duration * 1000)
-                )
+                logger.debug("Cache miss", cache_key=cache_key, duration_ms=int(duration * 1000))
                 return None
 
         except (RedisError, RedisConnectionError) as e:
-            logger.warning(
-                "Redis error during cache get", cache_key=cache_key, error=str(e)
-            )
+            logger.warning("Redis error during cache get", cache_key=cache_key, error=str(e))
             return None
         except json.JSONDecodeError as e:
-            logger.error(
-                "Failed to decode cached opinion", cache_key=cache_key, error=str(e)
-            )
+            logger.error("Failed to decode cached opinion", cache_key=cache_key, error=str(e))
             # Invalidar cache corrompido
             self.invalidate_cache(cache_key)
             return None
@@ -221,9 +213,7 @@ class OpinionCache:
             return True
 
         except (RedisError, RedisConnectionError) as e:
-            logger.warning(
-                "Redis error during cache set", cache_key=cache_key, error=str(e)
-            )
+            logger.warning("Redis error during cache set", cache_key=cache_key, error=str(e))
             return False
         except Exception as e:
             logger.error(
@@ -252,9 +242,7 @@ class OpinionCache:
             logger.debug("Cache invalidated", cache_key=cache_key, deleted=deleted > 0)
             return deleted > 0
         except Exception as e:
-            logger.warning(
-                "Failed to invalidate cache", cache_key=cache_key, error=str(e)
-            )
+            logger.warning("Failed to invalidate cache", cache_key=cache_key, error=str(e))
             return False
 
     def is_connected(self) -> bool:

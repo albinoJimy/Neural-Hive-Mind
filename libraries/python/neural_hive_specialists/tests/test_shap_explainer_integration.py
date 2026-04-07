@@ -37,9 +37,7 @@ def background_dataset(sample_data):
 class TestSHAPExplainerWithRandomForest:
     """Testes com RandomForest (TreeExplainer)."""
 
-    def test_explain_random_forest_success(
-        self, sample_data, background_dataset, tmp_path
-    ):
+    def test_explain_random_forest_success(self, sample_data, background_dataset, tmp_path):
         """Testa explicação SHAP com RandomForest."""
         X, y, feature_names = sample_data
 
@@ -107,7 +105,7 @@ class TestSHAPExplainerWithRandomForest:
                 "feature_importances": [],
             }
 
-        with patch.object(explainer, '_compute_shap', side_effect=slow_compute):
+        with patch.object(explainer, "_compute_shap", side_effect=slow_compute):
             result = explainer.explain(model, features, feature_names)
 
         # Deve retornar erro de timeout
@@ -174,9 +172,7 @@ class TestSHAPExplainerWithGradientBoosting:
 class TestSHAPExplainerWithLinearModel:
     """Testes com modelo linear (KernelExplainer)."""
 
-    def test_explain_logistic_regression(
-        self, sample_data, background_dataset, tmp_path
-    ):
+    def test_explain_logistic_regression(self, sample_data, background_dataset, tmp_path):
         """Testa explicação SHAP com LogisticRegression (KernelExplainer)."""
         X, y, feature_names = sample_data
 

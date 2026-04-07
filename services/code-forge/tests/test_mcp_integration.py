@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from src.services.template_selector import TemplateSelector
 from src.services.code_composer import CodeComposer
@@ -49,13 +49,17 @@ def sample_execution_ticket():
             "language": "python",
             "service_name": "test-service",
             "description": "Test MCP integration",
-            "tasks": ["setup", "build"]
+            "tasks": ["setup", "build"],
         },
         sla=SLA(deadline=datetime.now() + timedelta(hours=1), timeout_ms=600000, max_retries=1),
-        qos=QoS(delivery_mode=DeliveryMode.AT_LEAST_ONCE, consistency=Consistency.EVENTUAL, durability=Durability.PERSISTENT),
+        qos=QoS(
+            delivery_mode=DeliveryMode.AT_LEAST_ONCE,
+            consistency=Consistency.EVENTUAL,
+            durability=Durability.PERSISTENT,
+        ),
         security_level=SecurityLevel.INTERNAL,
         dependencies=[],
-        created_at=datetime.now()
+        created_at=datetime.now(),
     )
 
 
@@ -66,7 +70,7 @@ def pipeline_context(sample_execution_ticket):
         pipeline_id="pipeline-123",
         ticket=sample_execution_ticket,
         trace_id="trace-1",
-        span_id="span-1"
+        span_id="span-1",
     )
 
 
@@ -107,20 +111,22 @@ def _validation_result(tool_name: str) -> ValidationResult:
         low_issues=0,
         report_uri=None,
         executed_at=datetime.now(),
-        duration_ms=1000
+        duration_ms=1000,
     )
 
 
 @pytest.mark.asyncio
-async def test_template_selector_with_mcp_success(pipeline_context, mock_git_client, mock_redis_client, mock_mcp_client):
+async def test_template_selector_with_mcp_success(
+    pipeline_context, mock_git_client, mock_redis_client, mock_mcp_client
+):
     """Mock mcp_client.request_tool_selection retornando ferramentas e populando contexto."""
     mock_mcp_client.request_tool_selection.return_value = {
         "request_id": "sel-1",
         "selected_tools": [
             {"tool_id": "t1", "tool_name": "GitHub Copilot", "category": "GENERATION"},
-            {"tool_id": "t2", "tool_name": "Cookiecutter", "category": "VALIDATION"}
+            {"tool_id": "t2", "tool_name": "Cookiecutter", "category": "VALIDATION"},
         ],
-        "selection_method": "genetic"
+        "selection_method": "genetic",
     }
 
     selector = TemplateSelector(mock_git_client, mock_redis_client, mock_mcp_client)
@@ -133,7 +139,9 @@ async def test_template_selector_with_mcp_success(pipeline_context, mock_git_cli
 
 
 @pytest.mark.asyncio
-async def test_template_selector_mcp_timeout_fallback(pipeline_context, mock_git_client, mock_redis_client, mock_mcp_client):
+async def test_template_selector_mcp_timeout_fallback(
+    pipeline_context, mock_git_client, mock_redis_client, mock_mcp_client
+):
     """Timeout do MCP deve acionar fallback para template padrão."""
     mock_mcp_client.request_tool_selection.side_effect = asyncio.TimeoutError("timeout")
 
@@ -141,7 +149,7 @@ async def test_template_selector_mcp_timeout_fallback(pipeline_context, mock_git
     template = await selector.select(pipeline_context)
 
     assert template is not None
-    assert template.template_id == 'microservice-python-v1'
+    assert template.template_id == "microservice-python-v1"
     assert pipeline_context.selected_tools == []
 
 
@@ -151,10 +159,9 @@ async def test_code_composer_uses_mcp_generation_method(pipeline_context):
     mock_mongodb_client = AsyncMock()
     mock_mongodb_client.save_artifact_content = AsyncMock()
     mock_llm_client = AsyncMock()
-    mock_llm_client.generate_code = AsyncMock(return_value={
-        "code": "print('hello')",
-        "confidence_score": 0.9
-    })
+    mock_llm_client.generate_code = AsyncMock(
+        return_value={"code": "print('hello')", "confidence_score": 0.9}
+    )
 
     composer = CodeComposer(mock_mongodb_client, mock_llm_client, None, None)
     composer._generate_via_llm = AsyncMock(return_value=("print('hello')", 0.9, "LLM"))
@@ -168,7 +175,7 @@ async def test_code_composer_uses_mcp_generation_method(pipeline_context):
 
     composer._generate_via_llm.assert_awaited_once()
     assert pipeline_context.generated_artifacts
-    assert pipeline_context.generated_artifacts[0].metadata.get('mcp_selection_id') == "sel-1"
+    assert pipeline_context.generated_artifacts[0].metadata.get("mcp_selection_id") == "sel-1"
 
 
 @pytest.mark.asyncio
@@ -230,14 +237,16 @@ async def test_validator_mcp_feedback_failure_non_blocking(pipeline_context):
 
 
 @pytest.mark.asyncio
-async def test_pipeline_end_to_end_with_mcp(pipeline_context, mock_git_client, mock_redis_client, mock_mcp_client):
+async def test_pipeline_end_to_end_with_mcp(
+    pipeline_context, mock_git_client, mock_redis_client, mock_mcp_client
+):
     """Fluxo completo com MCP preenchendo metadados no PipelineResult."""
     mock_mcp_client.request_tool_selection.return_value = {
         "request_id": "sel-99",
         "selected_tools": [
             {"tool_id": "sonar", "tool_name": "SonarQube", "category": "VALIDATION"}
         ],
-        "selection_method": "genetic"
+        "selection_method": "genetic",
     }
 
     selector = TemplateSelector(mock_git_client, mock_redis_client, mock_mcp_client)
@@ -262,14 +271,15 @@ async def test_pipeline_end_to_end_with_mcp(pipeline_context, mock_git_client, m
     pipeline_context.completed_at = datetime.now()
     result = pipeline_context.to_pipeline_result(0.9, 0.5)
 
-    assert result.metadata.get('mcp_selection_id') == "sel-99"
-    assert result.metadata.get('mcp_tools_count') == 1
+    assert result.metadata.get("mcp_selection_id") == "sel-99"
+    assert result.metadata.get("mcp_tools_count") == 1
     assert pipeline_context.generated_artifacts
 
 
 # =============================================================================
 # Testes de Health Check
 # =============================================================================
+
 
 class TestCodeForgeHealthCheck:
     """Testes para health check do Code Forge."""
@@ -301,15 +311,15 @@ class TestCodeForgeHealthCheck:
         app.state.analyst_client = None
 
         client = TestClient(app)
-        response = client.get('/ready')
+        response = client.get("/ready")
 
         assert response.status_code == 200
         data = response.json()
-        assert data['ready'] is True
-        assert data['status'] == 'ready'
-        assert data['dependencies']['postgres'] == 'connected'
-        assert data['dependencies']['mongodb'] == 'connected'
-        assert data['dependencies']['redis'] == 'connected'
+        assert data["ready"] is True
+        assert data["status"] == "ready"
+        assert data["dependencies"]["postgres"] == "connected"
+        assert data["dependencies"]["mongodb"] == "connected"
+        assert data["dependencies"]["redis"] == "connected"
 
     def test_readiness_check_with_disconnected_postgres(self):
         """Validar que readiness retorna not_ready quando Postgres está desconectado."""
@@ -337,13 +347,13 @@ class TestCodeForgeHealthCheck:
         app.state.analyst_client = None
 
         client = TestClient(app)
-        response = client.get('/ready')
+        response = client.get("/ready")
 
         assert response.status_code == 200
         data = response.json()
-        assert data['ready'] is False
-        assert data['status'] == 'not_ready'
-        assert data['dependencies']['postgres'] == 'disconnected'
+        assert data["ready"] is False
+        assert data["status"] == "not_ready"
+        assert data["dependencies"]["postgres"] == "disconnected"
 
     def test_readiness_check_with_optional_clients(self):
         """Validar que clientes opcionais (MCP, LLM, Analyst) não afetam readiness."""
@@ -377,15 +387,15 @@ class TestCodeForgeHealthCheck:
         app.state.analyst_client = mock_analyst
 
         client = TestClient(app)
-        response = client.get('/ready')
+        response = client.get("/ready")
 
         assert response.status_code == 200
         data = response.json()
-        assert data['ready'] is True
+        assert data["ready"] is True
         # Clientes opcionais devem aparecer nas dependencies
-        assert data['dependencies'].get('mcp') == 'connected'
-        assert data['dependencies'].get('llm') == 'connected'
-        assert data['dependencies'].get('analyst') == 'connected'
+        assert data["dependencies"].get("mcp") == "connected"
+        assert data["dependencies"].get("llm") == "connected"
+        assert data["dependencies"].get("analyst") == "connected"
 
     def test_health_check_liveness(self):
         """Validar que health check liveness retorna healthy."""
@@ -394,9 +404,9 @@ class TestCodeForgeHealthCheck:
 
         app = create_app()
         client = TestClient(app)
-        response = client.get('/health')
+        response = client.get("/health")
 
         assert response.status_code == 200
         data = response.json()
-        assert data['status'] == 'healthy'
-        assert data['service'] == 'code-forge'
+        assert data["status"] == "healthy"
+        assert data["service"] == "code-forge"

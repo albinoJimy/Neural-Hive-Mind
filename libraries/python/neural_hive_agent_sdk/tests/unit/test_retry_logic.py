@@ -63,7 +63,10 @@ class TestRetryTransientErrors:
 
         mock_channel_for_retry.channel_ready = failing_channel_ready
 
-        with patch("neural_hive_agent_sdk.client.grpc.aio.insecure_channel", return_value=mock_channel_for_retry):
+        with patch(
+            "neural_hive_agent_sdk.client.grpc.aio.insecure_channel",
+            return_value=mock_channel_for_retry,
+        ):
             client = AgentClient(config=retry_config)
 
             # Após 2 falhas, deve ter sucesso na 3ª tentativa
@@ -89,7 +92,10 @@ class TestRetryTransientErrors:
 
         mock_channel_for_retry.channel_ready = failing_once_channel_ready
 
-        with patch("neural_hive_agent_sdk.client.grpc.aio.insecure_channel", return_value=mock_channel_for_retry):
+        with patch(
+            "neural_hive_agent_sdk.client.grpc.aio.insecure_channel",
+            return_value=mock_channel_for_retry,
+        ):
             client = AgentClient(config=retry_config)
 
             agent_id = await client.register(
@@ -114,7 +120,10 @@ class TestRetryTransientErrors:
 
         mock_channel_for_retry.channel_ready = failing_multiple_times_channel_ready
 
-        with patch("neural_hive_agent_sdk.client.grpc.aio.insecure_channel", return_value=mock_channel_for_retry):
+        with patch(
+            "neural_hive_agent_sdk.client.grpc.aio.insecure_channel",
+            return_value=mock_channel_for_retry,
+        ):
             client = AgentClient(config=retry_config)
             client.config.GRPC_MAX_RETRIES = 5
 
@@ -232,7 +241,10 @@ class TestMaxRetries:
 
         mock_channel_for_retry.channel_ready = eventually_succeeds_channel_ready
 
-        with patch("neural_hive_agent_sdk.client.grpc.aio.insecure_channel", return_value=mock_channel_for_retry):
+        with patch(
+            "neural_hive_agent_sdk.client.grpc.aio.insecure_channel",
+            return_value=mock_channel_for_retry,
+        ):
             client = AgentClient(config=retry_config)
 
             agent_id = await client.register(
@@ -308,7 +320,10 @@ class TestRetryIdempotent:
 
         mock_channel_for_retry.channel_ready = failing_once_channel_ready
 
-        with patch("neural_hive_agent_sdk.client.grpc.aio.insecure_channel", return_value=mock_channel_for_retry):
+        with patch(
+            "neural_hive_agent_sdk.client.grpc.aio.insecure_channel",
+            return_value=mock_channel_for_retry,
+        ):
             client = AgentClient(config=retry_config)
 
             agent_id = await client.register(
@@ -322,7 +337,10 @@ class TestRetryIdempotent:
     @pytest.mark.asyncio
     async def test_deregister_completes_once(self, retry_config, mock_channel_for_retry):
         """Testa que deregister completa uma única vez."""
-        with patch("neural_hive_agent_sdk.client.grpc.aio.insecure_channel", return_value=mock_channel_for_retry):
+        with patch(
+            "neural_hive_agent_sdk.client.grpc.aio.insecure_channel",
+            return_value=mock_channel_for_retry,
+        ):
             client = AgentClient(config=retry_config)
             client.agent_id = "test-agent"
 
@@ -353,7 +371,10 @@ class TestRetryMetrics:
 
         mock_channel_for_retry.channel_ready = failing_multiple_times_channel_ready
 
-        with patch("neural_hive_agent_sdk.client.grpc.aio.insecure_channel", return_value=mock_channel_for_retry):
+        with patch(
+            "neural_hive_agent_sdk.client.grpc.aio.insecure_channel",
+            return_value=mock_channel_for_retry,
+        ):
             client = AgentClient(config=retry_config)
 
             agent_id = await client.register(
@@ -398,7 +419,10 @@ class TestRetryMetrics:
     @pytest.mark.asyncio
     async def test_success_without_retry(self, retry_config, mock_channel_for_retry):
         """Testa sucesso sem necessidade de retry."""
-        with patch("neural_hive_agent_sdk.client.grpc.aio.insecure_channel", return_value=mock_channel_for_retry):
+        with patch(
+            "neural_hive_agent_sdk.client.grpc.aio.insecure_channel",
+            return_value=mock_channel_for_retry,
+        ):
             client = AgentClient(config=retry_config)
 
             agent_id = await client.register(

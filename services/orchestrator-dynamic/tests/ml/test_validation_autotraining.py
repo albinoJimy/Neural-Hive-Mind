@@ -47,7 +47,7 @@ class TestDurationPredictorValidation:
         registry.load_model = AsyncMock(return_value=None)
         registry.save_model = AsyncMock(return_value="run-123")
         registry.promote_model = AsyncMock()
-        registry.get_model_metadata = AsyncMock(return_value={'version': '1'})
+        registry.get_model_metadata = AsyncMock(return_value={"version": "1"})
         return registry
 
     @pytest.fixture
@@ -63,11 +63,7 @@ class TestDurationPredictorValidation:
 
     @pytest.mark.asyncio
     async def test_load_model_returns_none_when_missing_estimators(
-        self,
-        mock_config,
-        mock_mongodb,
-        mock_model_registry,
-        mock_metrics
+        self, mock_config, mock_mongodb, mock_model_registry, mock_metrics
     ):
         """
         Testa que _load_model() retorna None se modelo não tem estimators_.
@@ -84,7 +80,7 @@ class TestDurationPredictorValidation:
             config=mock_config,
             mongodb_client=mock_mongodb,
             model_registry=mock_model_registry,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
 
         result = await predictor._load_model()
@@ -93,11 +89,7 @@ class TestDurationPredictorValidation:
 
     @pytest.mark.asyncio
     async def test_load_model_accepts_trained_model_with_estimators(
-        self,
-        mock_config,
-        mock_mongodb,
-        mock_model_registry,
-        mock_metrics
+        self, mock_config, mock_mongodb, mock_model_registry, mock_metrics
     ):
         """
         Testa que _load_model() aceita modelo treinado com estimators_.
@@ -116,84 +108,76 @@ class TestDurationPredictorValidation:
             config=mock_config,
             mongodb_client=mock_mongodb,
             model_registry=mock_model_registry,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
 
         result = await predictor._load_model()
 
         assert result is not None, "Modelo treinado deve ser aceito"
-        assert hasattr(result, 'estimators_'), "Modelo deve ter estimators_"
+        assert hasattr(result, "estimators_"), "Modelo deve ter estimators_"
 
     @pytest.mark.asyncio
     async def test_ensure_model_trained_returns_false_insufficient_data(
-        self,
-        mock_config,
-        mock_mongodb,
-        mock_model_registry,
-        mock_metrics
+        self, mock_config, mock_mongodb, mock_model_registry, mock_metrics
     ):
         """
         Testa que _ensure_model_trained() retorna False quando
         count_documents < ml_min_training_samples.
         """
         # Mock MongoDB para retornar poucos dados (50 < 100 min_samples)
-        mock_mongodb.db['execution_tickets'].count_documents = AsyncMock(return_value=50)
+        mock_mongodb.db["execution_tickets"].count_documents = AsyncMock(return_value=50)
 
         predictor = DurationPredictor(
             config=mock_config,
             mongodb_client=mock_mongodb,
             model_registry=mock_model_registry,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
 
         result = await predictor._ensure_model_trained()
 
         assert result is False, "Deve retornar False com dados insuficientes"
         mock_metrics.record_ml_model_training_status.assert_called_with(
-            model_name='ticket-duration-predictor',
-            is_trained=False,
-            has_estimators=False
+            model_name="ticket-duration-predictor", is_trained=False, has_estimators=False
         )
 
     @pytest.mark.asyncio
     async def test_ensure_model_trained_returns_true_after_promotion(
-        self,
-        mock_config,
-        mock_mongodb,
-        mock_model_registry,
-        mock_metrics
+        self, mock_config, mock_mongodb, mock_model_registry, mock_metrics
     ):
         """
         Testa que _ensure_model_trained() retorna True após train_model promover modelo.
         """
         # Mock MongoDB para retornar dados suficientes
-        mock_mongodb.db['execution_tickets'].count_documents = AsyncMock(return_value=150)
+        mock_mongodb.db["execution_tickets"].count_documents = AsyncMock(return_value=150)
 
         # Mock para simular dados de treinamento
         trained_tickets = []
         for i in range(150):
-            trained_tickets.append({
-                'ticket_id': f'ticket-{i}',
-                'task_type': 'INFERENCE',
-                'risk_band': 'medium',
-                'actual_duration_ms': 30000 + np.random.normal(0, 5000),
-                'estimated_duration_ms': 30000,
-                'completed_at': datetime.now(timezone.utc),
-                'required_capabilities': ['cpu'],
-                'parameters': {},
-                'sla_timeout_ms': 300000,
-                'retry_count': 0
-            })
+            trained_tickets.append(
+                {
+                    "ticket_id": f"ticket-{i}",
+                    "task_type": "INFERENCE",
+                    "risk_band": "medium",
+                    "actual_duration_ms": 30000 + np.random.normal(0, 5000),
+                    "estimated_duration_ms": 30000,
+                    "completed_at": datetime.now(timezone.utc),
+                    "required_capabilities": ["cpu"],
+                    "parameters": {},
+                    "sla_timeout_ms": 300000,
+                    "retry_count": 0,
+                }
+            )
 
         mock_cursor = AsyncMock()
         mock_cursor.to_list = AsyncMock(return_value=trained_tickets)
-        mock_mongodb.db['execution_tickets'].find = MagicMock(return_value=mock_cursor)
+        mock_mongodb.db["execution_tickets"].find = MagicMock(return_value=mock_cursor)
 
         predictor = DurationPredictor(
             config=mock_config,
             mongodb_client=mock_mongodb,
             model_registry=mock_model_registry,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
         predictor.historical_stats = {}
 
@@ -204,11 +188,7 @@ class TestDurationPredictorValidation:
 
     @pytest.mark.asyncio
     async def test_predict_duration_uses_heuristic_when_model_not_trained(
-        self,
-        mock_config,
-        mock_mongodb,
-        mock_model_registry,
-        mock_metrics
+        self, mock_config, mock_mongodb, mock_model_registry, mock_metrics
     ):
         """
         Testa que predict_duration() usa heurística e confidence=0.3
@@ -218,27 +198,25 @@ class TestDurationPredictorValidation:
             config=mock_config,
             mongodb_client=mock_mongodb,
             model_registry=mock_model_registry,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
         predictor.model = None  # Sem modelo
-        predictor.historical_stats = {
-            'INFERENCE': {'avg_duration': 30000, 'std_duration': 5000}
-        }
+        predictor.historical_stats = {"INFERENCE": {"avg_duration": 30000, "std_duration": 5000}}
 
         ticket = {
-            'ticket_id': 'test-1',
-            'task_type': 'INFERENCE',
-            'risk_band': 'medium',
-            'estimated_duration_ms': 30000,
-            'required_capabilities': ['cpu'],
-            'parameters': {}
+            "ticket_id": "test-1",
+            "task_type": "INFERENCE",
+            "risk_band": "medium",
+            "estimated_duration_ms": 30000,
+            "required_capabilities": ["cpu"],
+            "parameters": {},
         }
 
         result = await predictor.predict_duration(ticket)
 
-        assert 'duration_ms' in result, "Resultado deve ter duration_ms"
-        assert 'confidence' in result, "Resultado deve ter confidence"
-        assert result['confidence'] == 0.3, "Confidence deve ser 0.3 para heurística"
+        assert "duration_ms" in result, "Resultado deve ter duration_ms"
+        assert "confidence" in result, "Resultado deve ter confidence"
+        assert result["confidence"] == 0.3, "Confidence deve ser 0.3 para heurística"
 
 
 class TestAnomalyDetectorValidation:
@@ -270,7 +248,7 @@ class TestAnomalyDetectorValidation:
         registry.load_model = AsyncMock(return_value=None)
         registry.save_model = AsyncMock(return_value="run-123")
         registry.promote_model = AsyncMock()
-        registry.get_model_metadata = AsyncMock(return_value={'version': '1'})
+        registry.get_model_metadata = AsyncMock(return_value={"version": "1"})
         return registry
 
     @pytest.fixture
@@ -286,11 +264,7 @@ class TestAnomalyDetectorValidation:
 
     @pytest.mark.asyncio
     async def test_load_model_returns_none_when_missing_estimators(
-        self,
-        mock_config,
-        mock_mongodb,
-        mock_model_registry,
-        mock_metrics
+        self, mock_config, mock_mongodb, mock_model_registry, mock_metrics
     ):
         """
         Testa que _load_model() retorna None se modelo não tem estimators_.
@@ -305,7 +279,7 @@ class TestAnomalyDetectorValidation:
             config=mock_config,
             mongodb_client=mock_mongodb,
             model_registry=mock_model_registry,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
 
         result = await detector._load_model()
@@ -314,11 +288,7 @@ class TestAnomalyDetectorValidation:
 
     @pytest.mark.asyncio
     async def test_load_model_accepts_trained_model_with_estimators(
-        self,
-        mock_config,
-        mock_mongodb,
-        mock_model_registry,
-        mock_metrics
+        self, mock_config, mock_mongodb, mock_model_registry, mock_metrics
     ):
         """
         Testa que _load_model() aceita modelo treinado com estimators_.
@@ -336,43 +306,37 @@ class TestAnomalyDetectorValidation:
             config=mock_config,
             mongodb_client=mock_mongodb,
             model_registry=mock_model_registry,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
 
         result = await detector._load_model()
 
         assert result is not None, "Modelo treinado deve ser aceito"
-        assert hasattr(result, 'estimators_'), "Modelo deve ter estimators_"
+        assert hasattr(result, "estimators_"), "Modelo deve ter estimators_"
 
     @pytest.mark.asyncio
     async def test_ensure_model_trained_returns_false_insufficient_data(
-        self,
-        mock_config,
-        mock_mongodb,
-        mock_model_registry,
-        mock_metrics
+        self, mock_config, mock_mongodb, mock_model_registry, mock_metrics
     ):
         """
         Testa que _ensure_model_trained() retorna False quando
         count_documents < ml_min_training_samples.
         """
         # Mock MongoDB para retornar poucos dados (50 < 100 min_samples)
-        mock_mongodb.db['execution_tickets'].count_documents = AsyncMock(return_value=50)
+        mock_mongodb.db["execution_tickets"].count_documents = AsyncMock(return_value=50)
 
         detector = AnomalyDetector(
             config=mock_config,
             mongodb_client=mock_mongodb,
             model_registry=mock_model_registry,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
 
         result = await detector._ensure_model_trained()
 
         assert result is False, "Deve retornar False com dados insuficientes"
         mock_metrics.record_ml_model_training_status.assert_called_with(
-            model_name='ticket-anomaly-detector',
-            is_trained=False,
-            has_estimators=False
+            model_name="ticket-anomaly-detector", is_trained=False, has_estimators=False
         )
 
 
@@ -406,7 +370,7 @@ class TestMLPredictorEnsureModelsTrained:
         registry.load_model = AsyncMock(return_value=None)
         registry.save_model = AsyncMock(return_value="run-123")
         registry.promote_model = AsyncMock()
-        registry.get_model_metadata = AsyncMock(return_value={'version': '1'})
+        registry.get_model_metadata = AsyncMock(return_value={"version": "1"})
         registry.close = AsyncMock()
         return registry
 
@@ -424,11 +388,7 @@ class TestMLPredictorEnsureModelsTrained:
 
     @pytest.mark.asyncio
     async def test_ensure_models_trained_propagates_success(
-        self,
-        mock_config,
-        mock_mongodb,
-        mock_model_registry,
-        mock_metrics
+        self, mock_config, mock_mongodb, mock_model_registry, mock_metrics
     ):
         """
         Testa que MLPredictor.ensure_models_trained() propaga sucesso
@@ -438,7 +398,7 @@ class TestMLPredictorEnsureModelsTrained:
             config=mock_config,
             mongodb_client=mock_mongodb,
             model_registry=mock_model_registry,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
 
         # Mock _ensure_model_trained para retornar True
@@ -447,16 +407,12 @@ class TestMLPredictorEnsureModelsTrained:
 
         result = await ml_predictor.ensure_models_trained()
 
-        assert result['duration'] is True, "duration deve ser True"
-        assert result['anomaly'] is True, "anomaly deve ser True"
+        assert result["duration"] is True, "duration deve ser True"
+        assert result["anomaly"] is True, "anomaly deve ser True"
 
     @pytest.mark.asyncio
     async def test_ensure_models_trained_propagates_failure(
-        self,
-        mock_config,
-        mock_mongodb,
-        mock_model_registry,
-        mock_metrics
+        self, mock_config, mock_mongodb, mock_model_registry, mock_metrics
     ):
         """
         Testa que MLPredictor.ensure_models_trained() propaga falha
@@ -466,7 +422,7 @@ class TestMLPredictorEnsureModelsTrained:
             config=mock_config,
             mongodb_client=mock_mongodb,
             model_registry=mock_model_registry,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
 
         # Mock _ensure_model_trained para retornar False
@@ -475,16 +431,12 @@ class TestMLPredictorEnsureModelsTrained:
 
         result = await ml_predictor.ensure_models_trained()
 
-        assert result['duration'] is False, "duration deve ser False"
-        assert result['anomaly'] is False, "anomaly deve ser False"
+        assert result["duration"] is False, "duration deve ser False"
+        assert result["anomaly"] is False, "anomaly deve ser False"
 
     @pytest.mark.asyncio
     async def test_ensure_models_trained_handles_mixed_status(
-        self,
-        mock_config,
-        mock_mongodb,
-        mock_model_registry,
-        mock_metrics
+        self, mock_config, mock_mongodb, mock_model_registry, mock_metrics
     ):
         """
         Testa que MLPredictor.ensure_models_trained() propaga status misto
@@ -494,7 +446,7 @@ class TestMLPredictorEnsureModelsTrained:
             config=mock_config,
             mongodb_client=mock_mongodb,
             model_registry=mock_model_registry,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
 
         # Mock com status misto
@@ -503,16 +455,12 @@ class TestMLPredictorEnsureModelsTrained:
 
         result = await ml_predictor.ensure_models_trained()
 
-        assert result['duration'] is True, "duration deve ser True"
-        assert result['anomaly'] is False, "anomaly deve ser False"
+        assert result["duration"] is True, "duration deve ser True"
+        assert result["anomaly"] is False, "anomaly deve ser False"
 
     @pytest.mark.asyncio
     async def test_ensure_models_trained_handles_exception(
-        self,
-        mock_config,
-        mock_mongodb,
-        mock_model_registry,
-        mock_metrics
+        self, mock_config, mock_mongodb, mock_model_registry, mock_metrics
     ):
         """
         Testa que MLPredictor.ensure_models_trained() trata exceções
@@ -522,7 +470,7 @@ class TestMLPredictorEnsureModelsTrained:
             config=mock_config,
             mongodb_client=mock_mongodb,
             model_registry=mock_model_registry,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
 
         # Mock com exceção no duration_predictor
@@ -533,16 +481,12 @@ class TestMLPredictorEnsureModelsTrained:
 
         result = await ml_predictor.ensure_models_trained()
 
-        assert result['duration'] is False, "duration deve ser False após exceção"
-        assert result['anomaly'] is True, "anomaly deve ser True"
+        assert result["duration"] is False, "duration deve ser False após exceção"
+        assert result["anomaly"] is True, "anomaly deve ser True"
 
     @pytest.mark.asyncio
     async def test_ensure_models_trained_calls_both_predictors(
-        self,
-        mock_config,
-        mock_mongodb,
-        mock_model_registry,
-        mock_metrics
+        self, mock_config, mock_mongodb, mock_model_registry, mock_metrics
     ):
         """
         Testa que MLPredictor.ensure_models_trained() chama
@@ -552,7 +496,7 @@ class TestMLPredictorEnsureModelsTrained:
             config=mock_config,
             mongodb_client=mock_mongodb,
             model_registry=mock_model_registry,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
 
         # Mock _ensure_model_trained

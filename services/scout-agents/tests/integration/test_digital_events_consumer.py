@@ -28,7 +28,7 @@ class TestDigitalEventModel:
             session_id="session-456",
             timestamp=datetime.now(timezone.utc),
             payload={"url": "/home", "referrer": "google"},
-            metadata={"ip": "192.168.1.1"}
+            metadata={"ip": "192.168.1.1"},
         )
 
         assert event.event_id == "evt-001"
@@ -45,7 +45,7 @@ class TestDigitalEventModel:
             event_id="evt-002",
             event_type=DigitalEventType.CLICK,
             channel=DigitalChannel.MOBILE_APP,
-            payload={"button": "submit"}
+            payload={"button": "submit"},
         )
 
         assert event.user_id is None
@@ -80,7 +80,7 @@ class TestDigitalEventModel:
             event_type=DigitalEventType.SEARCH,
             channel=DigitalChannel.API,
             user_id="user-search",
-            payload={"query": "test"}
+            payload={"query": "test"},
         )
 
         event_dict = event.model_dump()
@@ -99,7 +99,7 @@ class TestDigitalEventModel:
             "user_id": "user-trans",
             "timestamp": "2026-03-31T12:00:00Z",
             "payload": {"amount": 100},
-            "metadata": {"source": "checkout"}
+            "metadata": {"source": "checkout"},
         }
 
         event = DigitalEvent(**data)
@@ -134,16 +134,16 @@ class TestDigitalEventsConsumerInitialization:
         """Mock metrics."""
         metrics = Mock()
         metrics.digital_events_consumed_total = Mock()
-        metrics.digital_events_consumed_total.labels = Mock(return_value=metrics.digital_events_consumed_total)
+        metrics.digital_events_consumed_total.labels = Mock(
+            return_value=metrics.digital_events_consumed_total
+        )
         metrics.digital_events_consumed_total.inc = Mock()
         return metrics
 
     def test_consumer_initialization(self, mock_settings, mock_exploration_engine, mock_metrics):
         """Testa inicialização do consumer."""
         consumer = DigitalEventsConsumer(
-            settings=mock_settings,
-            exploration_engine=mock_exploration_engine,
-            metrics=mock_metrics
+            settings=mock_settings, exploration_engine=mock_exploration_engine, metrics=mock_metrics
         )
 
         assert consumer is not None
@@ -176,12 +176,13 @@ class TestDigitalEventsConsumerStartStop:
     def consumer(self, mock_settings):
         """Consumer instance para testes."""
         from src.consumers.digital_events_consumer import DigitalEventsConsumer
+
         return DigitalEventsConsumer(settings=mock_settings)
 
     @pytest.mark.asyncio
     async def test_initialize_creates_kafka_consumer(self, consumer, mock_settings):
         """Testa que initialize cria o consumer Kafka corretamente."""
-        with patch('src.consumers.digital_events_consumer.AIOKafkaConsumer') as mock_kafka_class:
+        with patch("src.consumers.digital_events_consumer.AIOKafkaConsumer") as mock_kafka_class:
             mock_consumer = AsyncMock()
             mock_kafka_class.return_value = mock_consumer
 
@@ -191,13 +192,13 @@ class TestDigitalEventsConsumerStartStop:
             call_args = mock_kafka_class.call_args
 
             assert call_args[0][0] == mock_settings.kafka.topics_digital_events
-            assert call_args[1]['bootstrap_servers'] == mock_settings.kafka.bootstrap_servers
-            assert call_args[1]['group_id'] == mock_settings.kafka.consumer_group_id + '-digital'
+            assert call_args[1]["bootstrap_servers"] == mock_settings.kafka.bootstrap_servers
+            assert call_args[1]["group_id"] == mock_settings.kafka.consumer_group_id + "-digital"
 
     @pytest.mark.asyncio
     async def test_initialize_starts_consumer(self, consumer):
         """Testa que initialize inicia o consumer Kafka."""
-        with patch('src.consumers.digital_events_consumer.AIOKafkaConsumer') as mock_kafka_class:
+        with patch("src.consumers.digital_events_consumer.AIOKafkaConsumer") as mock_kafka_class:
             mock_consumer = AsyncMock()
             mock_kafka_class.return_value = mock_consumer
 
@@ -248,8 +249,7 @@ class TestDigitalEventsConsumerProcessing:
     def consumer(self, mock_settings, mock_exploration_engine):
         """Consumer instance para testes."""
         return DigitalEventsConsumer(
-            settings=mock_settings,
-            exploration_engine=mock_exploration_engine
+            settings=mock_settings, exploration_engine=mock_exploration_engine
         )
 
     def test_deserialize_event_valid_json(self, consumer):
@@ -258,7 +258,7 @@ class TestDigitalEventsConsumerProcessing:
             "event_id": "evt-001",
             "event_type": "page_view",
             "channel": "web",
-            "payload": {"url": "/home"}
+            "payload": {"url": "/home"},
         }
 
         result = consumer._deserialize_event(json.dumps(event_data))
@@ -291,7 +291,7 @@ class TestDigitalEventsConsumerProcessing:
             "event_id": "evt-002",
             "event_type": "click",
             "channel": "mobile_app",
-            "payload": {"element": "button"}
+            "payload": {"element": "button"},
         }
 
         message = Mock()
@@ -323,7 +323,7 @@ class TestDigitalEventsConsumerProcessing:
             "event_id": "evt-003",
             "event_type": "submit",
             "channel": "api",
-            "payload": {}
+            "payload": {},
         }
 
         message = Mock()
@@ -357,13 +357,10 @@ class TestDigitalEventsConsumerEndToEnd:
         """Testa ciclo de vida completo do consumer."""
         engine = AsyncMock()
 
-        consumer = DigitalEventsConsumer(
-            settings=mock_settings,
-            exploration_engine=engine
-        )
+        consumer = DigitalEventsConsumer(settings=mock_settings, exploration_engine=engine)
 
         # Initialize
-        with patch('src.consumers.digital_events_consumer.AIOKafkaConsumer') as mock_kafka_class:
+        with patch("src.consumers.digital_events_consumer.AIOKafkaConsumer") as mock_kafka_class:
             mock_consumer = AsyncMock()
             mock_kafka_class.return_value = mock_consumer
 

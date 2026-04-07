@@ -4,27 +4,32 @@ import os
 from unittest.mock import MagicMock
 from enum import Enum
 
+
 # Mock UnifiedDomain Enum before importing
 class MockUnifiedDomain(str, Enum):
     """Mock de UnifiedDomain para testes"""
+
     BUSINESS = "business"
     TECHNICAL = "technical"
     SECURITY = "security"
     INFRASTRUCTURE = "infrastructure"
     UNKNOWN = "unknown"
 
+
 # Mock external dependencies BEFORE importing our modules
-sys.modules['whisper'] = MagicMock()
-sys.modules['spacy'] = MagicMock()
-sys.modules['thinc'] = MagicMock()
-sys.modules['hvac'] = MagicMock()  # Mock hvac for VaultClient tests
-sys.modules['neural_hive_domain'] = MagicMock()
-sys.modules['neural_hive_domain'].UnifiedDomain = MockUnifiedDomain
-sys.modules['neural_hive_observability'] = MagicMock()
+sys.modules["whisper"] = MagicMock()
+sys.modules["spacy"] = MagicMock()
+sys.modules["thinc"] = MagicMock()
+sys.modules["hvac"] = MagicMock()  # Mock hvac for VaultClient tests
+sys.modules["neural_hive_domain"] = MagicMock()
+sys.modules["neural_hive_domain"].UnifiedDomain = MockUnifiedDomain
+sys.modules["neural_hive_observability"] = MagicMock()
+
 
 # Create proper CORSConfig mock
 class MockCORSConfig:
     """Mock de CORSConfig para testes"""
+
     DEV_ORIGINS = ["http://localhost:3000", "http://localhost:8000"]
     STAGING_ORIGINS = ["https://staging.neural-hive.local"]
     PROD_ORIGINS = ["https://neural-hive.com"]
@@ -44,24 +49,25 @@ class MockCORSConfig:
     def validate_no_wildcard(cls, origins, environment):
         """Valida que não tem wildcard nas origens."""
         for origin in origins:
-            if '*' in origin and 'localhost' not in origin:
+            if "*" in origin and "localhost" not in origin:
                 raise ValueError(f"Wildcard not allowed in {environment}")
         return True
+
 
 # Mock neural_hive_security properly - need to mock both module and submodule
 mock_security_module = MagicMock()
 mock_security_module.CORSConfig = MockCORSConfig
-sys.modules['neural_hive_security'] = mock_security_module
+sys.modules["neural_hive_security"] = mock_security_module
 
 # Also mock the submodule path since some imports use 'from neural_hive_security.cors import'
 mock_cors_module = MagicMock()
 mock_cors_module.CORSConfig = MockCORSConfig
-sys.modules['neural_hive_security.cors'] = mock_cors_module
+sys.modules["neural_hive_security.cors"] = mock_cors_module
 
-sys.modules['neural_hive_integration'] = MagicMock()
+sys.modules["neural_hive_integration"] = MagicMock()
 
 # Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 import asyncio
 import pytest
@@ -99,7 +105,7 @@ def mock_asr_pipeline() -> AsyncMock:
         confidence=0.95,
         language="pt-BR",
         duration=2.5,
-        processing_time_ms=150.0
+        processing_time_ms=150.0,
     )
 
     return mock
@@ -121,17 +127,9 @@ def mock_nlu_pipeline() -> AsyncMock:
         classification="request",
         confidence=0.88,
         processed_text="teste de intenção processada",
-        entities=[
-            Entity(
-                entity_type="ACTION",
-                value="teste",
-                confidence=0.9,
-                start=0,
-                end=5
-            )
-        ],
+        entities=[Entity(entity_type="ACTION", value="teste", confidence=0.9, start=0, end=5)],
         keywords=["teste", "intenção"],
-        processing_time_ms=80.0
+        processing_time_ms=80.0,
     )
 
     return mock
@@ -157,7 +155,7 @@ def sample_intent_request() -> IntentRequest:
     return IntentRequest(
         text="Preciso implementar um novo recurso de autenticação",
         language="pt-BR",
-        correlation_id="test-correlation-123"
+        correlation_id="test-correlation-123",
     )
 
 
@@ -168,7 +166,7 @@ def sample_user_context() -> Dict[str, Any]:
         "userId": "user-123",
         "tenantId": "tenant-456",
         "sessionId": "session-789",
-        "userName": "Usuário Teste"
+        "userName": "Usuário Teste",
     }
 
 
@@ -183,7 +181,7 @@ def sample_intent_envelope(sample_user_context) -> IntentEnvelope:
         actor={
             "id": sample_user_context["userId"],
             "actor_type": "human",
-            "name": sample_user_context["userName"]
+            "name": sample_user_context["userName"],
         },
         intent={
             "text": "Implementar autenticação",
@@ -197,14 +195,14 @@ def sample_intent_envelope(sample_user_context) -> IntentEnvelope:
                     "value": "implementar",
                     "confidence": 0.9,
                     "start": 0,
-                    "end": 11
+                    "end": 11,
                 }
             ],
-            "keywords": ["implementar", "autenticação"]
+            "keywords": ["implementar", "autenticação"],
         },
         confidence=0.85,
         context=sample_user_context,
-        timestamp=datetime.now(timezone.utc)
+        timestamp=datetime.now(timezone.utc),
     )
 
 
@@ -231,6 +229,6 @@ def settings_override():
         asr_model_name="base",
         nlu_confidence_threshold=0.75,
         max_audio_size_mb=10,
-        max_text_length=10000
+        max_text_length=10000,
     )
     return settings

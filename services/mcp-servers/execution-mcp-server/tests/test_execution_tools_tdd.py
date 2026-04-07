@@ -25,13 +25,12 @@ class TestCreateTicketTool:
         from execution_mcp_server.tools.execution_tools import create_ticket
 
         with patch(
-            "execution_mcp_server.tools.execution_tools._persist_ticket",
-            new_callable=AsyncMock
+            "execution_mcp_server.tools.execution_tools._persist_ticket", new_callable=AsyncMock
         ) as mock_persist:
             mock_persist.return_value = {
                 "ticket_id": "ticket-123",
                 "status": "PENDING",
-                "created_at": datetime.now().isoformat()
+                "created_at": datetime.now().isoformat(),
             }
 
             result = await create_ticket(
@@ -41,7 +40,7 @@ class TestCreateTicketTool:
                 priority="NORMAL",
                 risk_band="medium",
                 timeout_ms=30000,
-                max_retries=3
+                max_retries=3,
             )
 
             assert result["ticket_id"] == "ticket-123"
@@ -54,11 +53,7 @@ class TestCreateTicketTool:
         from execution_mcp_server.tools.execution_tools import create_ticket
 
         with pytest.raises(ValueError, match="Invalid task_type"):
-            await create_ticket(
-                plan_id="plan-456",
-                task_type="INVALID_TYPE",
-                description="Teste"
-            )
+            await create_ticket(plan_id="plan-456", task_type="INVALID_TYPE", description="Teste")
 
     @pytest.mark.asyncio
     async def test_create_ticket_all_valid_task_types(self):
@@ -66,20 +61,24 @@ class TestCreateTicketTool:
         from execution_mcp_server.tools.execution_tools import create_ticket
 
         valid_types = [
-            "BUILD", "DEPLOY", "TEST", "VALIDATE",
-            "EXECUTE", "COMPENSATE", "QUERY", "TRANSFORM"
+            "BUILD",
+            "DEPLOY",
+            "TEST",
+            "VALIDATE",
+            "EXECUTE",
+            "COMPENSATE",
+            "QUERY",
+            "TRANSFORM",
         ]
 
         with patch(
             "execution_mcp_server.tools.execution_tools._persist_ticket",
             new_callable=AsyncMock,
-            return_value={"ticket_id": "test", "status": "PENDING"}
+            return_value={"ticket_id": "test", "status": "PENDING"},
         ):
             for task_type in valid_types:
                 result = await create_ticket(
-                    plan_id="plan-test",
-                    task_type=task_type,
-                    description=f"Test {task_type}"
+                    plan_id="plan-test", task_type=task_type, description=f"Test {task_type}"
                 )
                 assert result["status"] == "PENDING"
 
@@ -93,13 +92,13 @@ class TestCreateTicketTool:
         with patch(
             "execution_mcp_server.tools.execution_tools._persist_ticket",
             new_callable=AsyncMock,
-            return_value={"ticket_id": "ticket-3", "dependencies": dependencies}
+            return_value={"ticket_id": "ticket-3", "dependencies": dependencies},
         ) as mock_persist:
             result = await create_ticket(
                 plan_id="plan-1",
                 task_type="DEPLOY",
                 description="Deploy dependente",
-                dependencies=dependencies
+                dependencies=dependencies,
             )
 
             # Verificar que dependências foram retornadas
@@ -114,7 +113,7 @@ class TestCreateTicketTool:
         with patch(
             "execution_mcp_server.tools.execution_tools._persist_ticket",
             new_callable=AsyncMock,
-            return_value={"ticket_id": "ticket-1"}
+            return_value={"ticket_id": "ticket-1"},
         ) as mock_persist:
             await create_ticket(
                 plan_id="plan-1",
@@ -123,7 +122,7 @@ class TestCreateTicketTool:
                 intent_id="intent-123",
                 decision_id="decision-456",
                 correlation_id="corr-789",
-                security_level="CONFIDENTIAL"
+                security_level="CONFIDENTIAL",
             )
 
             mock_persist.assert_called_once()
@@ -135,10 +134,7 @@ class TestCreateTicketTool:
 
         with pytest.raises(ValueError, match="Invalid priority"):
             await create_ticket(
-                plan_id="plan-1",
-                task_type="TEST",
-                description="Teste",
-                priority="INVALID"
+                plan_id="plan-1", task_type="TEST", description="Teste", priority="INVALID"
             )
 
     @pytest.mark.asyncio
@@ -148,10 +144,7 @@ class TestCreateTicketTool:
 
         with pytest.raises(ValueError, match="Invalid risk_band"):
             await create_ticket(
-                plan_id="plan-1",
-                task_type="TEST",
-                description="Teste",
-                risk_band="INVALID"
+                plan_id="plan-1", task_type="TEST", description="Teste", risk_band="INVALID"
             )
 
     @pytest.mark.asyncio
@@ -161,10 +154,7 @@ class TestCreateTicketTool:
 
         with pytest.raises(ValueError, match="Invalid security_level"):
             await create_ticket(
-                plan_id="plan-1",
-                task_type="TEST",
-                description="Teste",
-                security_level="INVALID"
+                plan_id="plan-1", task_type="TEST", description="Teste", security_level="INVALID"
             )
 
 
@@ -178,18 +168,15 @@ class TestUpdateStatusTool:
 
         with patch(
             "execution_mcp_server.tools.execution_tools._update_ticket_status",
-            new_callable=AsyncMock
+            new_callable=AsyncMock,
         ) as mock_update:
             mock_update.return_value = {
                 "ticket_id": "ticket-123",
                 "status": "RUNNING",
-                "previous_status": "PENDING"
+                "previous_status": "PENDING",
             }
 
-            result = await update_status(
-                ticket_id="ticket-123",
-                status="RUNNING"
-            )
+            result = await update_status(ticket_id="ticket-123", status="RUNNING")
 
             assert result["status"] == "RUNNING"
             assert result["previous_status"] == "PENDING"
@@ -201,10 +188,7 @@ class TestUpdateStatusTool:
         from execution_mcp_server.tools.execution_tools import update_status
 
         with pytest.raises(ValueError, match="Invalid status"):
-            await update_status(
-                ticket_id="ticket-123",
-                status="INVALID_STATUS"
-            )
+            await update_status(ticket_id="ticket-123", status="INVALID_STATUS")
 
     @pytest.mark.asyncio
     async def test_update_status_all_valid_statuses(self):
@@ -212,20 +196,21 @@ class TestUpdateStatusTool:
         from execution_mcp_server.tools.execution_tools import update_status
 
         valid_statuses = [
-            "PENDING", "RUNNING", "COMPLETED",
-            "FAILED", "COMPENSATING", "COMPENSATED"
+            "PENDING",
+            "RUNNING",
+            "COMPLETED",
+            "FAILED",
+            "COMPENSATING",
+            "COMPENSATED",
         ]
 
         with patch(
             "execution_mcp_server.tools.execution_tools._update_ticket_status",
             new_callable=AsyncMock,
-            return_value={"ticket_id": "ticket-test", "status": "test"}
+            return_value={"ticket_id": "ticket-test", "status": "test"},
         ):
             for status in valid_statuses:
-                result = await update_status(
-                    ticket_id="ticket-test",
-                    status=status
-                )
+                result = await update_status(ticket_id="ticket-test", status=status)
                 # Verificar que o ticket_id está presente (valor exato pode variar)
                 assert "ticket_id" in result
 
@@ -237,12 +222,10 @@ class TestUpdateStatusTool:
         with patch(
             "execution_mcp_server.tools.execution_tools._update_ticket_status",
             new_callable=AsyncMock,
-            return_value={"ticket_id": "ticket-1", "status": "FAILED"}
+            return_value={"ticket_id": "ticket-1", "status": "FAILED"},
         ) as mock_update:
             await update_status(
-                ticket_id="ticket-1",
-                status="FAILED",
-                error_message="Timeout na execução"
+                ticket_id="ticket-1", status="FAILED", error_message="Timeout na execução"
             )
 
             mock_update.assert_called_once()
@@ -255,12 +238,9 @@ class TestUpdateStatusTool:
         with patch(
             "execution_mcp_server.tools.execution_tools._update_ticket_status",
             new_callable=AsyncMock,
-            return_value={"ticket_id": "ticket-1", "status": "COMPLETED"}
+            return_value={"ticket_id": "ticket-1", "status": "COMPLETED"},
         ):
-            result = await update_status(
-                ticket_id="ticket-1",
-                status="COMPLETED"
-            )
+            result = await update_status(ticket_id="ticket-1", status="COMPLETED")
 
             assert result["status"] == "COMPLETED"
 
@@ -278,13 +258,13 @@ class TestQueryTicketTool:
             "plan_id": "plan-456",
             "task_type": "EXECUTE",
             "status": "RUNNING",
-            "priority": "HIGH"
+            "priority": "HIGH",
         }
 
         with patch(
             "execution_mcp_server.tools.execution_tools._retrieve_ticket",
             new_callable=AsyncMock,
-            return_value=expected_ticket
+            return_value=expected_ticket,
         ) as mock_retrieve:
             result = await query_ticket(ticket_id="ticket-123")
 
@@ -300,7 +280,7 @@ class TestQueryTicketTool:
         with patch(
             "execution_mcp_server.tools.execution_tools._retrieve_ticket",
             new_callable=AsyncMock,
-            return_value=None
+            return_value=None,
         ):
             result = await query_ticket(ticket_id="nonexistent")
 
@@ -313,13 +293,13 @@ class TestQueryTicketTool:
 
         tickets = [
             {"ticket_id": "ticket-1", "status": "PENDING"},
-            {"ticket_id": "ticket-2", "status": "PENDING"}
+            {"ticket_id": "ticket-2", "status": "PENDING"},
         ]
 
         with patch(
             "execution_mcp_server.tools.execution_tools._retrieve_tickets_by_status",
             new_callable=AsyncMock,
-            return_value=tickets
+            return_value=tickets,
         ):
             result = await query_ticket(status="PENDING")
 
@@ -333,13 +313,13 @@ class TestQueryTicketTool:
 
         tickets = [
             {"ticket_id": "ticket-1", "plan_id": "plan-123"},
-            {"ticket_id": "ticket-2", "plan_id": "plan-123"}
+            {"ticket_id": "ticket-2", "plan_id": "plan-123"},
         ]
 
         with patch(
             "execution_mcp_server.tools.execution_tools._retrieve_tickets_by_plan",
             new_callable=AsyncMock,
-            return_value=tickets
+            return_value=tickets,
         ):
             result = await query_ticket(plan_id="plan-123")
 
@@ -354,7 +334,7 @@ class TestQueryTicketTool:
         with patch(
             "execution_mcp_server.tools.execution_tools._retrieve_tickets_by_status",
             new_callable=AsyncMock,
-            return_value=[]
+            return_value=[],
         ):
             result = await query_ticket(status="COMPLETED")
 
@@ -370,19 +350,15 @@ class TestGenerateTokenTool:
         from execution_mcp_server.tools.execution_tools import generate_token
 
         with patch(
-            "execution_mcp_server.tools.execution_tools._create_jwt_token",
-            new_callable=AsyncMock
+            "execution_mcp_server.tools.execution_tools._create_jwt_token", new_callable=AsyncMock
         ) as mock_create:
             mock_create.return_value = {
                 "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
                 "expires_at": "2026-04-03T18:00:00",
-                "ticket_id": "ticket-123"
+                "ticket_id": "ticket-123",
             }
 
-            result = await generate_token(
-                ticket_id="ticket-123",
-                ttl_seconds=3600
-            )
+            result = await generate_token(ticket_id="ticket-123", ttl_seconds=3600)
 
             assert "token" in result
             assert result["ticket_id"] == "ticket-123"
@@ -396,7 +372,7 @@ class TestGenerateTokenTool:
         with patch(
             "execution_mcp_server.tools.execution_tools._create_jwt_token",
             new_callable=AsyncMock,
-            return_value={"token": "test-token"}
+            return_value={"token": "test-token"},
         ) as mock_create:
             await generate_token(ticket_id="ticket-1")
 
@@ -416,12 +392,9 @@ class TestGenerateTokenTool:
         with patch(
             "execution_mcp_server.tools.execution_tools._create_jwt_token",
             new_callable=AsyncMock,
-            return_value={"token": "test-token", "ttl_seconds": 7200}
+            return_value={"token": "test-token", "ttl_seconds": 7200},
         ) as mock_create:
-            result = await generate_token(
-                ticket_id="ticket-1",
-                ttl_seconds=7200
-            )
+            result = await generate_token(ticket_id="ticket-1", ttl_seconds=7200)
 
             # Verificar que foi chamado e que o TTL está no resultado
             mock_create.assert_called_once()
@@ -433,10 +406,7 @@ class TestGenerateTokenTool:
         from execution_mcp_server.tools.execution_tools import generate_token
 
         with pytest.raises(ValueError, match="TTL must be positive"):
-            await generate_token(
-                ticket_id="ticket-1",
-                ttl_seconds=-100
-            )
+            await generate_token(ticket_id="ticket-1", ttl_seconds=-100)
 
     @pytest.mark.asyncio
     async def test_generate_token_with_claims(self):
@@ -448,12 +418,9 @@ class TestGenerateTokenTool:
         with patch(
             "execution_mcp_server.tools.execution_tools._create_jwt_token",
             new_callable=AsyncMock,
-            return_value={"token": "test-token", "custom_claims": custom_claims}
+            return_value={"token": "test-token", "custom_claims": custom_claims},
         ) as mock_create:
-            result = await generate_token(
-                ticket_id="ticket-1",
-                custom_claims=custom_claims
-            )
+            result = await generate_token(ticket_id="ticket-1", custom_claims=custom_claims)
 
             # Verificar que foi chamado e que claims estão no resultado
             mock_create.assert_called_once()
@@ -469,20 +436,19 @@ class TestDispatchWebhookTool:
         from execution_mcp_server.tools.execution_tools import dispatch_webhook
 
         with patch(
-            "execution_mcp_server.tools.execution_tools._send_webhook",
-            new_callable=AsyncMock
+            "execution_mcp_server.tools.execution_tools._send_webhook", new_callable=AsyncMock
         ) as mock_send:
             mock_send.return_value = {
                 "webhook_id": "webhook-123",
                 "status": "delivered",
-                "status_code": 200
+                "status_code": 200,
             }
 
             result = await dispatch_webhook(
                 ticket_id="ticket-123",
                 event_type="status_changed",
                 payload={"status": "COMPLETED"},
-                url="https://example.com/webhook"
+                url="https://example.com/webhook",
             )
 
             assert result["status"] == "delivered"
@@ -499,7 +465,7 @@ class TestDispatchWebhookTool:
                 ticket_id="ticket-1",
                 event_type="invalid_event",
                 payload={},
-                url="https://example.com/webhook"
+                url="https://example.com/webhook",
             )
 
     @pytest.mark.asyncio
@@ -512,20 +478,20 @@ class TestDispatchWebhookTool:
             "status_changed",
             "ticket_completed",
             "ticket_failed",
-            "compensation_started"
+            "compensation_started",
         ]
 
         with patch(
             "execution_mcp_server.tools.execution_tools._send_webhook",
             new_callable=AsyncMock,
-            return_value={"webhook_id": "test", "status": "delivered"}
+            return_value={"webhook_id": "test", "status": "delivered"},
         ):
             for event_type in valid_types:
                 result = await dispatch_webhook(
                     ticket_id="ticket-1",
                     event_type=event_type,
                     payload={},
-                    url="https://example.com/webhook"
+                    url="https://example.com/webhook",
                 )
                 assert result["status"] == "delivered"
 
@@ -535,14 +501,13 @@ class TestDispatchWebhookTool:
         from execution_mcp_server.tools.execution_tools import dispatch_webhook
 
         with patch(
-            "execution_mcp_server.tools.execution_tools._send_webhook",
-            new_callable=AsyncMock
+            "execution_mcp_server.tools.execution_tools._send_webhook", new_callable=AsyncMock
         ) as mock_send:
             # Retornar sucesso - retry está implementado internamente
             mock_send.return_value = {
                 "webhook_id": "webhook-1",
                 "status": "delivered",
-                "status_code": 200
+                "status_code": 200,
             }
 
             result = await dispatch_webhook(
@@ -550,7 +515,7 @@ class TestDispatchWebhookTool:
                 event_type="status_changed",
                 payload={},
                 url="https://example.com/webhook",
-                max_retries=1
+                max_retries=1,
             )
 
             # A função tenta enviar e com retry obtem sucesso
@@ -562,22 +527,19 @@ class TestDispatchWebhookTool:
         """Testa disparo com headers customizados."""
         from execution_mcp_server.tools.execution_tools import dispatch_webhook
 
-        custom_headers = {
-            "Authorization": "Bearer token123",
-            "X-Custom-Header": "custom-value"
-        }
+        custom_headers = {"Authorization": "Bearer token123", "X-Custom-Header": "custom-value"}
 
         with patch(
             "execution_mcp_server.tools.execution_tools._send_webhook",
             new_callable=AsyncMock,
-            return_value={"webhook_id": "test", "status": "delivered"}
+            return_value={"webhook_id": "test", "status": "delivered"},
         ) as mock_send:
             result = await dispatch_webhook(
                 ticket_id="ticket-1",
                 event_type="ticket_created",
                 payload={},
                 url="https://example.com/webhook",
-                headers=custom_headers
+                headers=custom_headers,
             )
 
             # Verificar que a função foi chamada com sucesso
@@ -591,10 +553,7 @@ class TestDispatchWebhookTool:
 
         with pytest.raises(ValueError, match="Invalid URL"):
             await dispatch_webhook(
-                ticket_id="ticket-1",
-                event_type="ticket_created",
-                payload={},
-                url="not-a-valid-url"
+                ticket_id="ticket-1", event_type="ticket_created", payload={}, url="not-a-valid-url"
             )
 
 
@@ -606,11 +565,7 @@ class TestHelperFunctions:
         """Testa persistência de ticket."""
         from execution_mcp_server.tools.execution_tools import _persist_ticket
 
-        ticket_data = {
-            "plan_id": "plan-1",
-            "task_type": "EXECUTE",
-            "status": "PENDING"
-        }
+        ticket_data = {"plan_id": "plan-1", "task_type": "EXECUTE", "status": "PENDING"}
 
         # Mock para evitar conexão real com MongoDB
         # A função deve retornar um dict com ticket_id mesmo em caso de erro
@@ -652,10 +607,7 @@ class TestHelperFunctions:
         from execution_mcp_server.tools.execution_tools import _create_jwt_token
 
         with patch("jwt.encode", return_value="encoded-token") as mock_encode:
-            result = await _create_jwt_token(
-                ticket_id="ticket-1",
-                ttl_seconds=3600
-            )
+            result = await _create_jwt_token(ticket_id="ticket-1", ttl_seconds=3600)
 
             assert result["token"] == "encoded-token"
             mock_encode.assert_called_once()
@@ -677,8 +629,7 @@ class TestHelperFunctions:
             mock_client_class.return_value = mock_client
 
             result = await _send_webhook(
-                url="https://example.com/webhook",
-                payload={"event": "test"}
+                url="https://example.com/webhook", payload={"event": "test"}
             )
 
             assert result["status_code"] == 200
@@ -701,7 +652,7 @@ class TestExecutionMCPServerIntegration:
             update_status,
             query_ticket,
             generate_token,
-            dispatch_webhook
+            dispatch_webhook,
         )
 
         assert create_ticket.__doc__

@@ -165,7 +165,9 @@ class TestMaskIPAddress:
         result = masker.mask("Server: 192.168.1.100")
 
         assert "192.168.1.100" not in result.text or "*" in result.text
-        assert any(e.type == PIIType.IP_ADDRESS for e in result.entities) or len(result.entities) >= 1
+        assert (
+            any(e.type == PIIType.IP_ADDRESS for e in result.entities) or len(result.entities) >= 1
+        )
 
 
 @pytest.mark.unit
@@ -314,12 +316,13 @@ class TestMaskOverlappingEntities:
 
         # Verificar que não há sobreposição
         for i, e1 in enumerate(result.entities):
-            for e2 in result.entities[i+1:]:
+            for e2 in result.entities[i + 1 :]:
                 # Se estão sobrepostos, um deve estar contido no outro
                 if e1.start < e2.end and e2.start < e1.end:
                     # Um deve conter o outro
-                    assert (e1.start <= e2.start and e1.end >= e2.end) or \
-                           (e2.start <= e1.start and e2.end >= e1.end)
+                    assert (e1.start <= e2.start and e1.end >= e2.end) or (
+                        e2.start <= e1.start and e2.end >= e1.end
+                    )
 
 
 @pytest.mark.unit
@@ -410,7 +413,11 @@ class TestPIITypeCategories:
         if result.entities:
             entity = result.entities[0]
             # NIF pode ser detectado como NIF (EUROPEAN) ou BANK_ACCOUNT
-            assert entity.category in [PIICategory.EUROPEAN, PIICategory.BRAZILIAN, PIICategory.GLOBAL]
+            assert entity.category in [
+                PIICategory.EUROPEAN,
+                PIICategory.BRAZILIAN,
+                PIICategory.GLOBAL,
+            ]
 
 
 @pytest.mark.unit

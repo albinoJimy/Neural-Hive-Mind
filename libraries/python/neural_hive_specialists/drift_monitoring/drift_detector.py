@@ -86,9 +86,7 @@ class DriftDetector:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error(
-                    "Error in drift monitoring loop", error=str(e), exc_info=True
-                )
+                logger.error("Error in drift monitoring loop", error=str(e), exc_info=True)
                 await asyncio.sleep(60)  # Retry após 1 minuto
 
     async def check_drift(self) -> Dict[str, Any]:
@@ -156,9 +154,7 @@ class DriftDetector:
             collection = self.ledger_client.db["drift_monitoring"]
             await collection.insert_one(document)
 
-            logger.debug(
-                "Drift result persisted", drift_detected=drift_result["drift_detected"]
-            )
+            logger.debug("Drift result persisted", drift_detected=drift_result["drift_detected"])
 
         except Exception as e:
             logger.error("Failed to persist drift result", error=str(e))

@@ -452,9 +452,9 @@ async def lifespan(app: FastAPI):
                 from src.services.feature_flag_service import FeatureFlagService
 
                 # Coleção de feature flags no MongoDB
-                flags_collection = app_state.mongodb_client.client[config.mongodb_db_name].get_collection(
-                    "feature_flags", create=True
-                )
+                flags_collection = app_state.mongodb_client.client[
+                    config.mongodb_db_name
+                ].get_collection("feature_flags", create=True)
 
                 app_state.feature_flag_service = FeatureFlagService(
                     mongodb=flags_collection,
@@ -857,9 +857,7 @@ async def lifespan(app: FastAPI):
             await app_state.sla_alert_consumer.start()
 
             # Iniciar SLA Alerts Consumer em background
-            app_state.sla_alert_task = asyncio.create_task(
-                app_state.sla_alert_consumer.consume()
-            )
+            app_state.sla_alert_task = asyncio.create_task(app_state.sla_alert_consumer.consume())
             logger.info("SLA Alerts Consumer iniciado em background")
 
         # Inicializar Drift Detector se ML habilitado
@@ -1108,7 +1106,7 @@ if getattr(config, "enable_opa_authorization", True):
                 circuit_breaker_enabled=config.opa_circuit_breaker_enabled,
                 circuit_breaker_failure_threshold=config.opa_circuit_breaker_failure_threshold,
                 circuit_breaker_reset_timeout_seconds=config.opa_circuit_breaker_reset_timeout_seconds,
-            )
+            ),
         )
 
         logger.info(

@@ -18,7 +18,7 @@ class TestCSharpParserBasic:
 
     def test_parse_simple_class(self, csharp_parser):
         """Testa parsing de classe simples."""
-        code = '''
+        code = """
 public class UserService
 {
     private string name;
@@ -33,32 +33,32 @@ public class UserService
         return this.name;
     }
 }
-'''
+"""
         result = csharp_parser.parse(code, "UserService.cs")
 
         assert result is not None
-        assert len(result['classes']) == 1
-        assert result['classes'][0]['name'] == 'UserService'
-        assert 'GetName' in [m['name'] for m in result['methods']]
+        assert len(result["classes"]) == 1
+        assert result["classes"][0]["name"] == "UserService"
+        assert "GetName" in [m["name"] for m in result["methods"]]
 
     def test_parse_interface(self, csharp_parser):
         """Testa parsing de interface C#."""
-        code = '''
+        code = """
 public interface IRepository
 {
     void Save(string entity);
     T Find<T>(int id);
 }
-'''
+"""
         result = csharp_parser.parse(code, "IRepository.cs")
 
         assert result is not None
-        interfaces = result.get('interfaces', [])
+        interfaces = result.get("interfaces", [])
         assert len(interfaces) >= 1
 
     def test_parse_enum(self, csharp_parser):
         """Testa parsing de enum C#."""
-        code = '''
+        code = """
 public enum UserRole
 {
     Admin,
@@ -72,16 +72,16 @@ enum HttpStatus
     NotFound = 404,
     ServerError = 500
 }
-'''
+"""
         result = csharp_parser.parse(code, "UserRole.cs")
 
         assert result is not None
-        assert len(result['enums']) >= 1
-        assert result['enums'][0]['name'] in ['UserRole', 'HttpStatus']
+        assert len(result["enums"]) >= 1
+        assert result["enums"][0]["name"] in ["UserRole", "HttpStatus"]
 
     def test_parse_method_with_return_type(self, csharp_parser):
         """Testa parsing de método com tipo de retorno."""
-        code = '''
+        code = """
 public class Calculator
 {
     public int Add(int a, int b)
@@ -99,18 +99,18 @@ public class Calculator
         return await Task.FromResult("data");
     }
 }
-'''
+"""
         result = csharp_parser.parse(code, "Calculator.cs")
 
         assert result is not None
-        methods = result['methods']
+        methods = result["methods"]
         assert len(methods) >= 2
-        assert any(m['name'] == 'Add' for m in methods)
-        assert any(m['name'] == 'GetName' for m in methods)
+        assert any(m["name"] == "Add" for m in methods)
+        assert any(m["name"] == "GetName" for m in methods)
 
     def test_parse_attributes(self, csharp_parser):
         """Testa parsing de attributes C#."""
-        code = '''
+        code = """
 public class User
 {
     private long id;
@@ -128,16 +128,16 @@ public class User
         return Ok();
     }
 }
-'''
+"""
         result = csharp_parser.parse(code, "User.cs")
 
         assert result is not None
-        cls = result['classes'][0]
-        assert cls['name'] == 'User'
+        cls = result["classes"][0]
+        assert cls["name"] == "User"
 
     def test_parse_generics(self, csharp_parser):
         """Testa parsing de classes genéricas."""
-        code = '''
+        code = """
 public class Repository<T, K> where T : class where K : notnull
 {
     public T FindById(K id)
@@ -153,15 +153,15 @@ public class UserRepository : Repository<User, long>
         return default(User);
     }
 }
-'''
+"""
         result = csharp_parser.parse(code, "Repository.cs")
 
         assert result is not None
-        assert len(result['classes']) >= 1
+        assert len(result["classes"]) >= 1
 
     def test_parse_inheritance(self, csharp_parser):
         """Testa parsing de herança."""
-        code = '''
+        code = """
 public class Dog : Animal
 {
     public void Bark()
@@ -174,16 +174,16 @@ public class Customer : Person, ICustomer
 {
     public string Email { get; set; }
 }
-'''
+"""
         result = csharp_parser.parse(code, "Dog.cs")
 
         assert result is not None
-        classes = result.get('classes', [])
+        classes = result.get("classes", [])
         assert len(classes) >= 1
 
     def test_parse_static_method(self, csharp_parser):
         """Testa parsing de método estático."""
-        code = '''
+        code = """
 public class MathUtils
 {
     public const double PI = 3.14159;
@@ -193,17 +193,17 @@ public class MathUtils
         return a + b;
     }
 }
-'''
+"""
         result = csharp_parser.parse(code, "MathUtils.cs")
 
         assert result is not None
-        methods = result['methods']
-        static_methods = [m for m in methods if m.get('is_static')]
+        methods = result["methods"]
+        static_methods = [m for m in methods if m.get("is_static")]
         assert len(static_methods) >= 1
 
     def test_parse_abstract_class(self, csharp_parser):
         """Testa parsing de classe abstrata."""
-        code = '''
+        code = """
 public abstract class Shape
 {
     public abstract void Draw();
@@ -213,16 +213,16 @@ public abstract class Shape
         Console.WriteLine("Moving");
     }
 }
-'''
+"""
         result = csharp_parser.parse(code, "Shape.cs")
 
         assert result is not None
-        classes = result.get('classes', [])
+        classes = result.get("classes", [])
         assert len(classes) >= 1
 
     def test_parse_namespace_declaration(self, csharp_parser):
         """Testa parsing de declaração de namespace."""
-        code = '''
+        code = """
 namespace Example.Services
 {
     public class UserService
@@ -230,11 +230,11 @@ namespace Example.Services
         public void Serve() {}
     }
 }
-'''
+"""
         result = csharp_parser.parse(code, "UserService.cs")
 
         assert result is not None
-        assert result['namespaces'] == 'Example.Services'
+        assert result["namespaces"] == "Example.Services"
 
 
 class TestCSharpParserProperties:
@@ -242,7 +242,7 @@ class TestCSharpParserProperties:
 
     def test_parse_properties(self, csharp_parser):
         """Testa extração de propriedades."""
-        code = '''
+        code = """
 public class User
 {
     public long Id { get; set; }
@@ -256,7 +256,7 @@ public class User
         set { age = value; }
     }
 }
-'''
+"""
         result = csharp_parser.parse(code, "User.cs")
 
         assert result is not None
@@ -268,7 +268,7 @@ class TestCSharpParserUsings:
 
     def test_parse_usings(self, csharp_parser):
         """Testa extração de using directives."""
-        code = '''
+        code = """
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -278,13 +278,13 @@ public class Test
 {
     private List<string> items = new();
 }
-'''
+"""
         result = csharp_parser.parse(code, "Test.cs")
 
         assert result is not None
-        usings = result['imports']
+        usings = result["imports"]
         assert len(usings) >= 3
-        assert any(u['name'] == 'System' for u in usings)
+        assert any(u["name"] == "System" for u in usings)
 
 
 class TestCSharpParserComplexity:
@@ -292,7 +292,7 @@ class TestCSharpParserComplexity:
 
     def test_calculate_complexity_simple(self, csharp_parser):
         """Testa complexidade de método simples."""
-        code = '''
+        code = """
 public class Math
 {
     public int Add(int a, int b)
@@ -300,16 +300,16 @@ public class Math
         return a + b;
     }
 }
-'''
+"""
         result = csharp_parser.parse(code, "Math.cs")
 
         assert result is not None
-        complexity = result.get('complexity', 1)
+        complexity = result.get("complexity", 1)
         assert complexity >= 1
 
     def test_calculate_complexity_with_conditionals(self, csharp_parser):
         """Testa complexidade com condicionais."""
-        code = '''
+        code = """
 public class Logic
 {
     public string Process(int value)
@@ -328,16 +328,16 @@ public class Logic
         }
     }
 }
-'''
+"""
         result = csharp_parser.parse(code, "Logic.cs")
 
         assert result is not None
-        complexity = result.get('complexity', 1)
+        complexity = result.get("complexity", 1)
         assert complexity > 1
 
     def test_calculate_complexity_with_loops(self, csharp_parser):
         """Testa complexidade com loops."""
-        code = '''
+        code = """
 public class Loop
 {
     public void Process(List<string> items)
@@ -351,11 +351,11 @@ public class Loop
         }
     }
 }
-'''
+"""
         result = csharp_parser.parse(code, "Loop.cs")
 
         assert result is not None
-        complexity = result.get('complexity', 1)
+        complexity = result.get("complexity", 1)
         assert complexity > 1
 
 
@@ -364,7 +364,7 @@ class TestCSharpParserAsync:
 
     def test_parse_async_method(self, csharp_parser):
         """Testa parsing de método assíncrono."""
-        code = '''
+        code = """
 public class DataProcessor
 {
     public async Task ProcessAsync()
@@ -377,12 +377,12 @@ public class DataProcessor
         return await Task.FromResult(42);
     }
 }
-'''
+"""
         result = csharp_parser.parse(code, "DataProcessor.cs")
 
         assert result is not None
-        methods = result['methods']
-        async_methods = [m for m in methods if m.get('is_async')]
+        methods = result["methods"]
+        async_methods = [m for m in methods if m.get("is_async")]
         assert len(async_methods) >= 1
 
 
@@ -391,7 +391,7 @@ class TestCSharpParserErrorHandling:
 
     def test_parse_syntax_error(self, csharp_parser):
         """Testa parsing de código com erro de sintaxe."""
-        invalid_code = '''
+        invalid_code = """
 public class UserService
 {
     private string name
@@ -401,7 +401,7 @@ public class UserService
         this.name = name;
     }
 }
-'''
+"""
         result = csharp_parser.parse(invalid_code, "UserService.cs")
 
         # Parser deve retornar resultado (mesmo que incompleto) ou None
@@ -412,7 +412,7 @@ public class UserService
         result = csharp_parser.parse("", "Empty.cs")
 
         assert result is not None
-        assert len(result['classes']) == 0
+        assert len(result["classes"]) == 0
 
 
 class TestCSharpParserRecords:
@@ -420,11 +420,11 @@ class TestCSharpParserRecords:
 
     def test_parse_record(self, csharp_parser):
         """Testa parsing de record."""
-        code = '''
+        code = """
 public record Person(string FirstName, string LastName);
 
 public record User(int Id, string Email) : Person("John", "Doe");
-'''
+"""
         result = csharp_parser.parse(code, "Person.cs")
 
         assert result is not None

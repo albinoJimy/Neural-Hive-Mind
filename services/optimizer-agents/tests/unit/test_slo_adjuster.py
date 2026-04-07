@@ -17,7 +17,11 @@ from datetime import datetime
 
 from src.services.slo_adjuster import SLOAdjuster
 from src.models.optimization_hypothesis import OptimizationHypothesis, OptimizationType
-from src.models.optimization_event import OptimizationEvent, OptimizationType as EventOptimizationType, Adjustment
+from src.models.optimization_event import (
+    OptimizationEvent,
+    OptimizationType as EventOptimizationType,
+    Adjustment,
+)
 
 
 @pytest.fixture
@@ -33,16 +37,16 @@ def mock_settings():
 def mock_orchestrator_client():
     """Mock do OrchestratorGrpcClient."""
     client = AsyncMock()
-    client.get_current_slos = AsyncMock(return_value={
-        "consensus-engine": {
-            "target_latency_ms": 1000,
-            "target_availability": 0.99,
-            "target_error_rate": 0.01
+    client.get_current_slos = AsyncMock(
+        return_value={
+            "consensus-engine": {
+                "target_latency_ms": 1000,
+                "target_availability": 0.99,
+                "target_error_rate": 0.01,
+            }
         }
-    })
-    client.get_error_budget = AsyncMock(return_value={
-        "remaining_budget_percentage": 0.80
-    })
+    )
+    client.get_error_budget = AsyncMock(return_value={"remaining_budget_percentage": 0.80})
     client.validate_slo_adjustment = AsyncMock(return_value=True)
     client.update_slos = AsyncMock(return_value=True)
     client.rollback_slos = AsyncMock(return_value=True)
@@ -83,7 +87,14 @@ def mock_metrics():
 
 
 @pytest.fixture
-def slo_adjuster(mock_settings, mock_orchestrator_client, mock_mongodb_client, mock_redis_client, mock_optimization_producer, mock_metrics):
+def slo_adjuster(
+    mock_settings,
+    mock_orchestrator_client,
+    mock_mongodb_client,
+    mock_redis_client,
+    mock_optimization_producer,
+    mock_metrics,
+):
     """Fixture do SLOAdjuster."""
     return SLOAdjuster(
         settings=mock_settings,
@@ -91,7 +102,7 @@ def slo_adjuster(mock_settings, mock_orchestrator_client, mock_mongodb_client, m
         mongodb_client=mock_mongodb_client,
         redis_client=mock_redis_client,
         optimization_producer=mock_optimization_producer,
-        metrics=mock_metrics
+        metrics=mock_metrics,
     )
 
 
@@ -110,27 +121,29 @@ def sample_slo_hypothesis():
                 parameter="target_latency_ms",
                 previous_value=1000,
                 new_value="900",
-                justification="Infrastructure optimization allows lower latency"
+                justification="Infrastructure optimization allows lower latency",
             )
         ],
         expected_improvement=0.10,
         confidence_score=0.80,
         risk_score=0.3,
         priority=3,
-        metadata={"state_hash": "def456"}
+        metadata={"state_hash": "def456"},
     )
 
 
 class TestSLOAdjusterInitialization:
     """Testes de inicialização do SLOAdjuster."""
 
-    def test_initialization_with_all_dependencies(self, mock_settings, mock_orchestrator_client, mock_mongodb_client, mock_redis_client):
+    def test_initialization_with_all_dependencies(
+        self, mock_settings, mock_orchestrator_client, mock_mongodb_client, mock_redis_client
+    ):
         """Testa inicialização com todas as dependências."""
         adjuster = SLOAdjuster(
             settings=mock_settings,
             orchestrator_client=mock_orchestrator_client,
             mongodb_client=mock_mongodb_client,
-            redis_client=mock_redis_client
+            redis_client=mock_redis_client,
         )
 
         assert adjuster.settings == mock_settings
@@ -146,7 +159,7 @@ class TestSLOAdjusterInitialization:
             mongodb_client=None,
             redis_client=None,
             optimization_producer=None,
-            metrics=None
+            metrics=None,
         )
 
         assert adjuster.settings == mock_settings
@@ -161,7 +174,15 @@ class TestApplySLOAdjustment:
     """Testes de aplicação de ajuste de SLO."""
 
     @pytest.mark.asyncio
-    async def test_apply_slo_adjustment_success(self, slo_adjuster, sample_slo_hypothesis, mock_orchestrator_client, mock_mongodb_client, mock_redis_client, mock_optimization_producer):
+    async def test_apply_slo_adjustment_success(
+        self,
+        slo_adjuster,
+        sample_slo_hypothesis,
+        mock_orchestrator_client,
+        mock_mongodb_client,
+        mock_redis_client,
+        mock_optimization_producer,
+    ):
         """Testa aplicação bem-sucedida de ajuste de SLO."""
         result = await slo_adjuster.apply_slo_adjustment(sample_slo_hypothesis)
 
@@ -189,7 +210,9 @@ class TestApplySLOAdjustment:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_apply_slo_adjustment_failed_to_get_slos(self, slo_adjuster, sample_slo_hypothesis, mock_orchestrator_client):
+    async def test_apply_slo_adjustment_failed_to_get_slos(
+        self, slo_adjuster, sample_slo_hypothesis, mock_orchestrator_client
+    ):
         """Testa falha ao obter SLOs atuais."""
         mock_orchestrator_client.get_current_slos = AsyncMock(return_value=None)
 
@@ -198,18 +221,22 @@ class TestApplySLOAdjustment:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_apply_slo_adjustment_insufficient_error_budget(self, slo_adjuster, sample_slo_hypothesis, mock_orchestrator_client):
+    async def test_apply_slo_adjustment_insufficient_error_budget(
+        self, slo_adjuster, sample_slo_hypothesis, mock_orchestrator_client
+    ):
         """Testa bloqueio por error budget insuficiente."""
-        mock_orchestrator_client.get_error_budget = AsyncMock(return_value={
-            "remaining_budget_percentage": 0.15  # Abaixo do threshold de 20%
-        })
+        mock_orchestrator_client.get_error_budget = AsyncMock(
+            return_value={"remaining_budget_percentage": 0.15}  # Abaixo do threshold de 20%
+        )
 
         result = await slo_adjuster.apply_slo_adjustment(sample_slo_hypothesis)
 
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_apply_slo_adjustment_validation_failed(self, slo_adjuster, sample_slo_hypothesis, mock_orchestrator_client):
+    async def test_apply_slo_adjustment_validation_failed(
+        self, slo_adjuster, sample_slo_hypothesis, mock_orchestrator_client
+    ):
         """Testa falha na validação de ajuste."""
         mock_orchestrator_client.validate_slo_adjustment = AsyncMock(return_value=False)
 
@@ -218,7 +245,9 @@ class TestApplySLOAdjustment:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_apply_slo_adjustment_lock_failed(self, slo_adjuster, sample_slo_hypothesis, mock_redis_client):
+    async def test_apply_slo_adjustment_lock_failed(
+        self, slo_adjuster, sample_slo_hypothesis, mock_redis_client
+    ):
         """Testa falha ao adquirir lock."""
         mock_redis_client.lock_component = AsyncMock(return_value=False)
 
@@ -227,7 +256,9 @@ class TestApplySLOAdjustment:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_apply_slo_adjustment_update_failed(self, slo_adjuster, sample_slo_hypothesis, mock_orchestrator_client):
+    async def test_apply_slo_adjustment_update_failed(
+        self, slo_adjuster, sample_slo_hypothesis, mock_orchestrator_client
+    ):
         """Testa falha ao atualizar SLOs."""
         mock_orchestrator_client.update_slos = AsyncMock(return_value=False)
 
@@ -236,7 +267,9 @@ class TestApplySLOAdjustment:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_apply_slo_adjustment_unlocks_on_error(self, slo_adjuster, sample_slo_hypothesis, mock_orchestrator_client, mock_redis_client):
+    async def test_apply_slo_adjustment_unlocks_on_error(
+        self, slo_adjuster, sample_slo_hypothesis, mock_orchestrator_client, mock_redis_client
+    ):
         """Testa que lock é liberado mesmo em caso de erro."""
         mock_orchestrator_client.update_slos = AsyncMock(side_effect=Exception("Update failed"))
 
@@ -246,7 +279,9 @@ class TestApplySLOAdjustment:
         mock_redis_client.unlock_component.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_apply_slo_adjustment_records_metrics(self, slo_adjuster, sample_slo_hypothesis, mock_metrics):
+    async def test_apply_slo_adjustment_records_metrics(
+        self, slo_adjuster, sample_slo_hypothesis, mock_metrics
+    ):
         """Testa registro de métricas."""
         await slo_adjuster.apply_slo_adjustment(sample_slo_hypothesis)
 
@@ -259,9 +294,7 @@ class TestCalculateProposedSLOs:
     def test_calculate_proposed_slos_latency(self, slo_adjuster):
         """Testa cálculo de SLO de latência."""
         current_slos = {"target_latency_ms": 1000}
-        adjustments = [
-            {"parameter": "target_latency_ms", "new_value": 900}
-        ]
+        adjustments = [{"parameter": "target_latency_ms", "new_value": 900}]
 
         proposed = slo_adjuster._calculate_proposed_slos(current_slos, adjustments)
 
@@ -270,9 +303,7 @@ class TestCalculateProposedSLOs:
     def test_calculate_proposed_slos_latency_clamps_change(self, slo_adjuster):
         """Testa limitação de mudança de latência (max 30%)."""
         current_slos = {"target_latency_ms": 1000}
-        adjustments = [
-            {"parameter": "target_latency_ms", "new_value": 100}  # Tentar reduzir 90%
-        ]
+        adjustments = [{"parameter": "target_latency_ms", "new_value": 100}]  # Tentar reduzir 90%
 
         proposed = slo_adjuster._calculate_proposed_slos(current_slos, adjustments)
 
@@ -282,9 +313,7 @@ class TestCalculateProposedSLOs:
     def test_calculate_proposed_slos_latency_minimum(self, slo_adjuster):
         """Testa limite mínimo de latência."""
         current_slos = {"target_latency_ms": 150}
-        adjustments = [
-            {"parameter": "target_latency_ms", "new_value": 50}
-        ]
+        adjustments = [{"parameter": "target_latency_ms", "new_value": 50}]
 
         proposed = slo_adjuster._calculate_proposed_slos(current_slos, adjustments)
 
@@ -294,9 +323,7 @@ class TestCalculateProposedSLOs:
     def test_calculate_proposed_slos_availability(self, slo_adjuster):
         """Testa cálculo de SLO de disponibilidade."""
         current_slos = {"target_availability": 0.99}
-        adjustments = [
-            {"parameter": "target_availability", "new_value": 0.995}
-        ]
+        adjustments = [{"parameter": "target_availability", "new_value": 0.995}]
 
         proposed = slo_adjuster._calculate_proposed_slos(current_slos, adjustments)
 
@@ -306,9 +333,7 @@ class TestCalculateProposedSLOs:
     def test_calculate_proposed_slos_availability_upper_bound(self, slo_adjuster):
         """Testa limite superior de disponibilidade."""
         current_slos = {"target_availability": 0.99}
-        adjustments = [
-            {"parameter": "target_availability", "new_value": 0.99999}
-        ]
+        adjustments = [{"parameter": "target_availability", "new_value": 0.99999}]
 
         proposed = slo_adjuster._calculate_proposed_slos(current_slos, adjustments)
 
@@ -318,9 +343,7 @@ class TestCalculateProposedSLOs:
     def test_calculate_proposed_slos_error_rate(self, slo_adjuster):
         """Testa cálculo de SLO de error rate."""
         current_slos = {"target_error_rate": 0.01}
-        adjustments = [
-            {"parameter": "target_error_rate", "new_value": 0.005}
-        ]
+        adjustments = [{"parameter": "target_error_rate", "new_value": 0.005}]
 
         proposed = slo_adjuster._calculate_proposed_slos(current_slos, adjustments)
 
@@ -330,9 +353,7 @@ class TestCalculateProposedSLOs:
     def test_calculate_proposed_slos_unknown_parameter(self, slo_adjuster):
         """Testa parâmetro desconhecido."""
         current_slos = {"target_latency_ms": 1000}
-        adjustments = [
-            {"parameter": "unknown_param", "new_value": 500}
-        ]
+        adjustments = [{"parameter": "unknown_param", "new_value": 500}]
 
         proposed = slo_adjuster._calculate_proposed_slos(current_slos, adjustments)
 
@@ -352,7 +373,7 @@ class TestCreateOptimizationEvent:
         event = slo_adjuster._create_optimization_event(
             hypothesis=sample_slo_hypothesis,
             baseline_slos=baseline_slos,
-            optimized_slos=optimized_slos
+            optimized_slos=optimized_slos,
         )
 
         assert event.optimization_id == sample_slo_hypothesis.hypothesis_id
@@ -360,7 +381,9 @@ class TestCreateOptimizationEvent:
         assert event.target_component == sample_slo_hypothesis.target_component
         assert event.improvement_percentage == sample_slo_hypothesis.expected_improvement
 
-    def test_create_optimization_event_includes_adjustments(self, slo_adjuster, sample_slo_hypothesis):
+    def test_create_optimization_event_includes_adjustments(
+        self, slo_adjuster, sample_slo_hypothesis
+    ):
         """Testa que evento inclui ajustes."""
         baseline_slos = {"target_latency_ms": 1000}
         optimized_slos = {"target_latency_ms": 900}
@@ -368,17 +391,19 @@ class TestCreateOptimizationEvent:
         event = slo_adjuster._create_optimization_event(
             hypothesis=sample_slo_hypothesis,
             baseline_slos=baseline_slos,
-            optimized_slos=optimized_slos
+            optimized_slos=optimized_slos,
         )
 
         # Deve ter ajustes para parâmetros que mudaram
         assert len(event.adjustments) > 0
         adjustment = event.adjustments[0]
-        assert hasattr(adjustment, 'parameter')
-        assert hasattr(adjustment, 'previous_value')
-        assert hasattr(adjustment, 'new_value')
+        assert hasattr(adjustment, "parameter")
+        assert hasattr(adjustment, "previous_value")
+        assert hasattr(adjustment, "new_value")
 
-    def test_create_optimization_event_includes_causal_analysis(self, slo_adjuster, sample_slo_hypothesis):
+    def test_create_optimization_event_includes_causal_analysis(
+        self, slo_adjuster, sample_slo_hypothesis
+    ):
         """Testa que evento inclui análise causal."""
         baseline_slos = {"target_latency_ms": 1000}
         optimized_slos = {"target_latency_ms": 900}
@@ -386,14 +411,16 @@ class TestCreateOptimizationEvent:
         event = slo_adjuster._create_optimization_event(
             hypothesis=sample_slo_hypothesis,
             baseline_slos=baseline_slos,
-            optimized_slos=optimized_slos
+            optimized_slos=optimized_slos,
         )
 
         assert event.causal_analysis is not None
         assert event.causal_analysis.root_cause is not None
         assert len(event.causal_analysis.contributing_factors) > 0
 
-    def test_create_optimization_event_includes_rollback_plan(self, slo_adjuster, sample_slo_hypothesis):
+    def test_create_optimization_event_includes_rollback_plan(
+        self, slo_adjuster, sample_slo_hypothesis
+    ):
         """Testa que evento inclui plano de rollback."""
         baseline_slos = {"target_latency_ms": 1000}
         optimized_slos = {"target_latency_ms": 900}
@@ -401,7 +428,7 @@ class TestCreateOptimizationEvent:
         event = slo_adjuster._create_optimization_event(
             hypothesis=sample_slo_hypothesis,
             baseline_slos=baseline_slos,
-            optimized_slos=optimized_slos
+            optimized_slos=optimized_slos,
         )
 
         assert event.rollback_plan is not None
@@ -414,7 +441,9 @@ class TestRollbackSLOAdjustment:
     """Testes de rollback de ajuste de SLO."""
 
     @pytest.mark.asyncio
-    async def test_rollback_slo_adjustment_success(self, slo_adjuster, mock_orchestrator_client, mock_metrics):
+    async def test_rollback_slo_adjustment_success(
+        self, slo_adjuster, mock_orchestrator_client, mock_metrics
+    ):
         """Testa rollback bem-sucedido."""
         optimization_id = "opt-001"
 
@@ -460,11 +489,13 @@ class TestErrorBudgetValidation:
     """Testes de validação de error budget."""
 
     @pytest.mark.asyncio
-    async def test_sufficient_error_budget(self, slo_adjuster, sample_slo_hypothesis, mock_orchestrator_client):
+    async def test_sufficient_error_budget(
+        self, slo_adjuster, sample_slo_hypothesis, mock_orchestrator_client
+    ):
         """Testa aprovação com error budget suficiente."""
-        mock_orchestrator_client.get_error_budget = AsyncMock(return_value={
-            "remaining_budget_percentage": 0.50  # Acima do threshold de 20%
-        })
+        mock_orchestrator_client.get_error_budget = AsyncMock(
+            return_value={"remaining_budget_percentage": 0.50}  # Acima do threshold de 20%
+        )
 
         result = await slo_adjuster.apply_slo_adjustment(sample_slo_hypothesis)
 
@@ -472,22 +503,26 @@ class TestErrorBudgetValidation:
         assert result is not None
 
     @pytest.mark.asyncio
-    async def test_insufficient_error_budget_blocks(self, slo_adjuster, sample_slo_hypothesis, mock_orchestrator_client):
+    async def test_insufficient_error_budget_blocks(
+        self, slo_adjuster, sample_slo_hypothesis, mock_orchestrator_client
+    ):
         """Testa bloqueio com error budget insuficiente."""
-        mock_orchestrator_client.get_error_budget = AsyncMock(return_value={
-            "remaining_budget_percentage": 0.10  # Abaixo do threshold de 20%
-        })
+        mock_orchestrator_client.get_error_budget = AsyncMock(
+            return_value={"remaining_budget_percentage": 0.10}  # Abaixo do threshold de 20%
+        )
 
         result = await slo_adjuster.apply_slo_adjustment(sample_slo_hypothesis)
 
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_exact_threshold_error_budget(self, slo_adjuster, sample_slo_hypothesis, mock_orchestrator_client):
+    async def test_exact_threshold_error_budget(
+        self, slo_adjuster, sample_slo_hypothesis, mock_orchestrator_client
+    ):
         """Testa comportamento no limite exato do threshold."""
-        mock_orchestrator_client.get_error_budget = AsyncMock(return_value={
-            "remaining_budget_percentage": 0.20  # Exatamente no threshold
-        })
+        mock_orchestrator_client.get_error_budget = AsyncMock(
+            return_value={"remaining_budget_percentage": 0.20}  # Exatamente no threshold
+        )
 
         result = await slo_adjuster.apply_slo_adjustment(sample_slo_hypothesis)
 
@@ -495,7 +530,9 @@ class TestErrorBudgetValidation:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_no_error_budget_response(self, slo_adjuster, sample_slo_hypothesis, mock_orchestrator_client):
+    async def test_no_error_budget_response(
+        self, slo_adjuster, sample_slo_hypothesis, mock_orchestrator_client
+    ):
         """Testa comportamento quando não há resposta de error budget."""
         mock_orchestrator_client.get_error_budget = AsyncMock(return_value=None)
 

@@ -5,7 +5,7 @@ import sys
 import os
 import uuid
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from src.clients.llm_client import LLMProvider
 from src.services.code_composer import CodeComposer
@@ -18,18 +18,20 @@ def mock_all_clients():
     """Mock de todos os clientes necessários"""
     llm_mock = AsyncMock()
     llm_mock.provider = LLMProvider.OPENAI  # Adicionar provider
-    llm_mock.generate_code = AsyncMock(return_value={
-        'code': 'print("Hello")',
-        'confidence_score': 0.8,
-        'prompt_tokens': 50,
-        'completion_tokens': 20
-    })
+    llm_mock.generate_code = AsyncMock(
+        return_value={
+            "code": 'print("Hello")',
+            "confidence_score": 0.8,
+            "prompt_tokens": 50,
+            "completion_tokens": 20,
+        }
+    )
 
     return {
-        'mongodb_client': AsyncMock(),
-        'llm_client': llm_mock,
-        'analyst_client': AsyncMock(),
-        'mcp_client': AsyncMock()
+        "mongodb_client": AsyncMock(),
+        "llm_client": llm_mock,
+        "analyst_client": AsyncMock(),
+        "mcp_client": AsyncMock(),
     }
 
 
@@ -49,22 +51,22 @@ def sample_execution_ticket():
         trace_id=str(uuid.uuid4()),
         span_id=str(uuid.uuid4()),
         task_type=TaskType.BUILD,
-        status='PENDING',
+        status="PENDING",
         priority=Priority.NORMAL,
-        risk_band='medium',
+        risk_band="medium",
         parameters={
-            'description': 'Create a Python FastAPI microservice for user management',
-            'language': 'python',
-            'artifact_type': 'MICROSERVICE',
-            'domain': 'TECHNICAL',
-            'service_name': 'user-service',
-            'target_repo': 'https://github.com/test/user-service',
-            'generation_method': 'LLM'  # Especificar método de geração
+            "description": "Create a Python FastAPI microservice for user management",
+            "language": "python",
+            "artifact_type": "MICROSERVICE",
+            "domain": "TECHNICAL",
+            "service_name": "user-service",
+            "target_repo": "https://github.com/test/user-service",
+            "generation_method": "LLM",  # Especificar método de geração
         },
-        qos=QoS(delivery_mode='AT_LEAST_ONCE', consistency='EVENTUAL', durability='PERSISTENT'),
+        qos=QoS(delivery_mode="AT_LEAST_ONCE", consistency="EVENTUAL", durability="PERSISTENT"),
         sla=SLA(deadline=datetime.now() + timedelta(hours=1), timeout_ms=300000, max_retries=3),
-        security_level='INTERNAL',
-        created_at=datetime.now()
+        security_level="INTERNAL",
+        created_at=datetime.now(),
     )
     return ticket
 
@@ -73,17 +75,17 @@ def sample_execution_ticket():
 def sample_context(sample_execution_ticket):
     """Criar contexto de pipeline"""
     context = MagicMock()
-    context.pipeline_id = 'test-pipeline-123'
+    context.pipeline_id = "test-pipeline-123"
     context.ticket = sample_execution_ticket
     context.trace_id = str(uuid.uuid4())  # Usar string real
     context.span_id = str(uuid.uuid4())  # Usar string real
-    context.generation_method = 'LLM'
-    context.mcp_selection_id = 'mcp-sel-123'
+    context.generation_method = "LLM"
+    context.mcp_selection_id = "mcp-sel-123"
     context.selected_tools = []
     context.selected_template = MagicMock()
-    context.selected_template.template_id = 'template-123'
+    context.selected_template.template_id = "template-123"
     context.selected_template.metadata = MagicMock()
-    context.selected_template.metadata.name = 'FastAPI Template'
+    context.selected_template.metadata.name = "FastAPI Template"
     context.artifacts = []
     context.add_artifact = lambda artifact: context.artifacts.append(artifact)
     return context
@@ -97,19 +99,19 @@ async def test_e2e_llm_rag_generation(mock_all_clients, sample_context):
     clients = mock_all_clients
 
     # Mock Analyst Agents responses
-    clients['analyst_client'].get_embedding = AsyncMock(return_value=[0.1] * 768)
-    clients['analyst_client'].find_similar_templates = AsyncMock(return_value=[
-        {'text': 'FastAPI microservice with PostgreSQL', 'similarity': 0.92},
-        {'text': 'Python REST API with JWT auth', 'similarity': 0.88}
-    ])
-    clients['analyst_client'].get_architectural_patterns = AsyncMock(return_value=[
-        'microservices',
-        'REST API',
-        'layered architecture'
-    ])
+    clients["analyst_client"].get_embedding = AsyncMock(return_value=[0.1] * 768)
+    clients["analyst_client"].find_similar_templates = AsyncMock(
+        return_value=[
+            {"text": "FastAPI microservice with PostgreSQL", "similarity": 0.92},
+            {"text": "Python REST API with JWT auth", "similarity": 0.88},
+        ]
+    )
+    clients["analyst_client"].get_architectural_patterns = AsyncMock(
+        return_value=["microservices", "REST API", "layered architecture"]
+    )
 
     # Mock LLM response
-    generated_code = '''from fastapi import FastAPI
+    generated_code = """from fastapi import FastAPI
 from pydantic import BaseModel
 
 app = FastAPI(title="User Service")
@@ -126,25 +128,27 @@ async def health():
 @app.get("/users")
 async def list_users():
     return []
-'''
+"""
 
-    clients['llm_client'].generate_code = AsyncMock(return_value={
-        'code': generated_code,
-        'confidence_score': 0.88,
-        'explanation': 'Generated FastAPI microservice',
-        'prompt_tokens': 500,
-        'completion_tokens': 300
-    })
+    clients["llm_client"].generate_code = AsyncMock(
+        return_value={
+            "code": generated_code,
+            "confidence_score": 0.88,
+            "explanation": "Generated FastAPI microservice",
+            "prompt_tokens": 500,
+            "completion_tokens": 300,
+        }
+    )
 
     # Mock MongoDB save
-    clients['mongodb_client'].save_artifact_content = AsyncMock()
+    clients["mongodb_client"].save_artifact_content = AsyncMock()
 
     # Criar CodeComposer
     code_composer = CodeComposer(
-        clients['mongodb_client'],
-        clients['llm_client'],
-        clients['analyst_client'],
-        clients['mcp_client']
+        clients["mongodb_client"],
+        clients["llm_client"],
+        clients["analyst_client"],
+        clients["mcp_client"],
     )
 
     # Executar composição
@@ -155,14 +159,14 @@ async def list_users():
     artifact = sample_context.artifacts[0]
 
     # Verificar que Analyst Agents foi chamado
-    clients['analyst_client'].find_similar_templates.assert_called_once()
-    clients['analyst_client'].get_architectural_patterns.assert_called_once()
+    clients["analyst_client"].find_similar_templates.assert_called_once()
+    clients["analyst_client"].get_architectural_patterns.assert_called_once()
 
     # Verificar que LLM foi chamado
-    clients['llm_client'].generate_code.assert_called_once()
+    clients["llm_client"].generate_code.assert_called_once()
 
     # Verificar que código foi salvo
-    clients['mongodb_client'].save_artifact_content.assert_called_once()
+    clients["mongodb_client"].save_artifact_content.assert_called_once()
 
     # Verificar artefato gerado
     assert artifact.artifact_type == ArtifactCategory.CODE
@@ -179,22 +183,22 @@ async def test_e2e_fallback_to_heuristic(mock_all_clients, sample_context):
     clients = mock_all_clients
 
     # Mock LLM failure
-    clients['llm_client'].generate_code = AsyncMock(return_value=None)
+    clients["llm_client"].generate_code = AsyncMock(return_value=None)
 
     # Mock Analyst Agents
-    clients['analyst_client'].get_embedding = AsyncMock(return_value=[0.1] * 768)
-    clients['analyst_client'].find_similar_templates = AsyncMock(return_value=[])
-    clients['analyst_client'].get_architectural_patterns = AsyncMock(return_value=[])
+    clients["analyst_client"].get_embedding = AsyncMock(return_value=[0.1] * 768)
+    clients["analyst_client"].find_similar_templates = AsyncMock(return_value=[])
+    clients["analyst_client"].get_architectural_patterns = AsyncMock(return_value=[])
 
     # Mock MongoDB
-    clients['mongodb_client'].save_artifact_content = AsyncMock()
+    clients["mongodb_client"].save_artifact_content = AsyncMock()
 
     # Criar CodeComposer
     code_composer = CodeComposer(
-        clients['mongodb_client'],
-        clients['llm_client'],
-        clients['analyst_client'],
-        clients['mcp_client']
+        clients["mongodb_client"],
+        clients["llm_client"],
+        clients["analyst_client"],
+        clients["mcp_client"],
     )
 
     # Executar composição
@@ -218,20 +222,19 @@ async def test_e2e_no_analyst_client(mock_all_clients, sample_context):
     clients = mock_all_clients
 
     # Mock LLM response
-    clients['llm_client'].generate_code = AsyncMock(return_value={
-        'code': 'print("Hello")',
-        'confidence_score': 0.8
-    })
+    clients["llm_client"].generate_code = AsyncMock(
+        return_value={"code": 'print("Hello")', "confidence_score": 0.8}
+    )
 
     # Mock MongoDB
-    clients['mongodb_client'].save_artifact_content = AsyncMock()
+    clients["mongodb_client"].save_artifact_content = AsyncMock()
 
     # Criar CodeComposer SEM analyst_client
     code_composer = CodeComposer(
-        clients['mongodb_client'],
-        clients['llm_client'],
+        clients["mongodb_client"],
+        clients["llm_client"],
         analyst_client=None,  # RAG desabilitado
-        mcp_client=clients['mcp_client']
+        mcp_client=clients["mcp_client"],
     )
 
     # Executar composição
@@ -241,7 +244,7 @@ async def test_e2e_no_analyst_client(mock_all_clients, sample_context):
     assert len(sample_context.artifacts) > 0
 
     # Verificar que LLM foi chamado mesmo sem RAG
-    clients['llm_client'].generate_code.assert_called_once()
+    clients["llm_client"].generate_code.assert_called_once()
 
     print(f"✅ No RAG Test Passed: Generated code without RAG context")
 
@@ -252,7 +255,8 @@ async def test_e2e_pipeline_engine_complete_flow(mock_all_clients, sample_execut
     """Testar fluxo E2E completo usando PipelineEngine: ticket → pipeline → result"""
     import sys
     import os
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
     from src.services.pipeline_engine import PipelineEngine
     from src.services.template_selector import TemplateSelector
@@ -277,32 +281,34 @@ async def test_e2e_pipeline_engine_complete_flow(mock_all_clients, sample_execut
     sigstore_client = AsyncMock()
 
     # Configurar mocks de Analyst Agents
-    clients['analyst_client'].get_embedding = AsyncMock(return_value=[0.1] * 768)
-    clients['analyst_client'].find_similar_templates = AsyncMock(return_value=[
-        {'text': 'FastAPI microservice with PostgreSQL', 'similarity': 0.92}
-    ])
-    clients['analyst_client'].get_architectural_patterns = AsyncMock(return_value=[
-        'microservices', 'REST API'
-    ])
+    clients["analyst_client"].get_embedding = AsyncMock(return_value=[0.1] * 768)
+    clients["analyst_client"].find_similar_templates = AsyncMock(
+        return_value=[{"text": "FastAPI microservice with PostgreSQL", "similarity": 0.92}]
+    )
+    clients["analyst_client"].get_architectural_patterns = AsyncMock(
+        return_value=["microservices", "REST API"]
+    )
 
     # Mock LLM response
-    generated_code = '''from fastapi import FastAPI
+    generated_code = """from fastapi import FastAPI
 
 app = FastAPI(title="User Service")
 
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
-'''
+"""
 
-    clients['llm_client'].generate_code = AsyncMock(return_value={
-        'code': generated_code,
-        'confidence_score': 0.88,
-        'explanation': 'Generated FastAPI microservice'
-    })
+    clients["llm_client"].generate_code = AsyncMock(
+        return_value={
+            "code": generated_code,
+            "confidence_score": 0.88,
+            "explanation": "Generated FastAPI microservice",
+        }
+    )
 
     # Mock MongoDB save
-    clients['mongodb_client'].save_artifact_content = AsyncMock()
+    clients["mongodb_client"].save_artifact_content = AsyncMock()
 
     # Mock Kafka producer
     kafka_producer.publish_result = AsyncMock()
@@ -316,19 +322,20 @@ async def health():
     # Mock git client para template selector
     from src.models.template import Template, TemplateMetadata, TemplateType
     from src.types.artifact_types import CodeLanguage
+
     mock_template = Template(
-        template_id='template-123',
+        template_id="template-123",
         metadata=TemplateMetadata(
-            name='FastAPI Microservice Template',
-            version='1.0.0',
-            description='FastAPI microservice template',
-            author='Neural Hive Mind',
-            tags=['python', 'fastapi', 'microservice'],
+            name="FastAPI Microservice Template",
+            version="1.0.0",
+            description="FastAPI microservice template",
+            author="Neural Hive Mind",
+            tags=["python", "fastapi", "microservice"],
             language=CodeLanguage.PYTHON,
-            type=TemplateType.MICROSERVICE
+            type=TemplateType.MICROSERVICE,
         ),
-        content_path='/templates/fastapi',
-        parameters=[]
+        content_path="/templates/fastapi",
+        parameters=[],
     )
     git_client.list_templates = AsyncMock(return_value=[mock_template])
     redis_client.get = AsyncMock(return_value=None)
@@ -340,8 +347,8 @@ async def health():
 
     mock_validation_result = ValidationResult(
         validation_type=ValidationType.SAST,
-        tool_name='sonarqube',
-        tool_version='9.0',
+        tool_name="sonarqube",
+        tool_version="9.0",
         status=ValidationStatus.PASSED,
         score=0.9,
         issues_count=0,
@@ -350,7 +357,7 @@ async def health():
         medium_issues=0,
         low_issues=0,
         executed_at=datetime.now(),
-        duration_ms=1000
+        duration_ms=1000,
     )
 
     sonarqube_client.analyze_code = AsyncMock(return_value=mock_validation_result)
@@ -361,24 +368,25 @@ async def health():
     test_runner = TestRunner(min_coverage=0.7)
 
     # Mock packager - mockar todos os métodos que serão chamados
-    sigstore_client.generate_sbom = AsyncMock(return_value='s3://mock-bucket/mock.sbom')
-    sigstore_client.sign_artifact = AsyncMock(return_value='mock-signature')
+    sigstore_client.generate_sbom = AsyncMock(return_value="s3://mock-bucket/mock.sbom")
+    sigstore_client.sign_artifact = AsyncMock(return_value="mock-signature")
     # Criar subpipelines
-    template_selector = TemplateSelector(git_client, redis_client, clients['mcp_client'])
+    template_selector = TemplateSelector(git_client, redis_client, clients["mcp_client"])
 
     # Mock do método select() para retornar o template E definir context.selected_template
     async def mock_select(context):
         context.selected_template = mock_template
         return mock_template
+
     template_selector.select = AsyncMock(side_effect=mock_select)
 
     code_composer = CodeComposer(
-        clients['mongodb_client'],
-        clients['llm_client'],
-        clients['analyst_client'],
-        clients['mcp_client']
+        clients["mongodb_client"],
+        clients["llm_client"],
+        clients["analyst_client"],
+        clients["mcp_client"],
     )
-    validator = Validator(sonarqube_client, snyk_client, trivy_client, clients['mcp_client'])
+    validator = Validator(sonarqube_client, snyk_client, trivy_client, clients["mcp_client"])
     test_runner = TestRunner(min_coverage=0.7)
     packager = Packager(sigstore_client)
     approval_gate = ApprovalGate(git_client, auto_approval_threshold=0.9, min_quality_score=0.5)
@@ -404,16 +412,16 @@ async def health():
         kafka_producer,
         ticket_client,
         postgres_client,
-        clients['mongodb_client'],
+        clients["mongodb_client"],
         max_concurrent=3,
         pipeline_timeout=3600,
         auto_approval_threshold=0.9,
         min_quality_score=0.5,
-        enable_container_build=False  # Desabilita builds de container em testes
+        enable_container_build=False,  # Desabilita builds de container em testes
     )
 
     # Preparar ticket com generation_method = LLM
-    sample_execution_ticket.parameters['generation_method'] = 'LLM'
+    sample_execution_ticket.parameters["generation_method"] = "LLM"
 
     # Executar pipeline completo
     result = await pipeline_engine.execute_pipeline(sample_execution_ticket)
@@ -438,12 +446,12 @@ async def health():
     # Verificar stages do pipeline
     assert len(result.pipeline_stages) == 6
     stage_names = [s.stage_name for s in result.pipeline_stages]
-    assert 'template_selection' in stage_names
-    assert 'code_composition' in stage_names
-    assert 'validation' in stage_names
-    assert 'testing' in stage_names
-    assert 'packaging' in stage_names
-    assert 'approval_gate' in stage_names
+    assert "template_selection" in stage_names
+    assert "code_composition" in stage_names
+    assert "validation" in stage_names
+    assert "testing" in stage_names
+    assert "packaging" in stage_names
+    assert "approval_gate" in stage_names
 
     print(f"✅ Pipeline E2E Test Passed: Full flow executed successfully")
     print(f"   Pipeline ID: {result.pipeline_id}")

@@ -31,9 +31,7 @@ class OntologyMapper:
                 "semantic_similarity_threshold fora do intervalo [0.0, 1.0], aplicando clamp",
                 configured_value=semantic_similarity_threshold,
             )
-            semantic_similarity_threshold = max(
-                0.0, min(1.0, semantic_similarity_threshold)
-            )
+            semantic_similarity_threshold = max(0.0, min(1.0, semantic_similarity_threshold))
 
         self.ontology_path = ontology_path or self._get_default_ontology_path()
         self.intents_taxonomy = self._load_taxonomy("intents_taxonomy.json")
@@ -63,15 +61,11 @@ class OntologyMapper:
         for parent in [current_dir] + list(current_dir.parents):
             candidate = parent / "ontologies"
             if candidate.is_dir():
-                logger.info(
-                    "Using discovered ontology path", ontology_path=str(candidate)
-                )
+                logger.info("Using discovered ontology path", ontology_path=str(candidate))
                 return str(candidate)
 
         fallback = str(Path.cwd() / "ontologies")
-        logger.warning(
-            "Ontology path not found; using fallback", fallback_ontology_path=fallback
-        )
+        logger.warning("Ontology path not found; using fallback", fallback_ontology_path=fallback)
         return fallback
 
     def _load_taxonomy(self, filename: str) -> Dict[str, Any]:
@@ -80,9 +74,7 @@ class OntologyMapper:
         try:
             with open(filepath, "r", encoding="utf-8") as f:
                 taxonomy = json.load(f)
-            logger.debug(
-                f"Loaded taxonomy", filename=filename, version=taxonomy.get("version")
-            )
+            logger.debug(f"Loaded taxonomy", filename=filename, version=taxonomy.get("version"))
             return taxonomy
         except FileNotFoundError:
             logger.warning(f"Taxonomy file not found", filepath=filepath)
@@ -141,9 +133,7 @@ class OntologyMapper:
                 cached_count=len(self._indicator_embeddings_cache),
             )
         except Exception as e:
-            logger.error(
-                "Falha ao pré-computar embeddings de indicadores", error=str(e)
-            )
+            logger.error("Falha ao pré-computar embeddings de indicadores", error=str(e))
 
     def get_unified_domain(self, domain: str) -> Optional[UnifiedDomain]:
         """
@@ -231,9 +221,7 @@ class OntologyMapper:
         logger.warning("Task type not found in taxonomy", task_type=task_type)
         return None
 
-    def detect_architecture_patterns(
-        self, task_descriptions: List[str]
-    ) -> List[Dict[str, Any]]:
+    def detect_architecture_patterns(self, task_descriptions: List[str]) -> List[Dict[str, Any]]:
         """
         Detecta padrões arquiteturais em descrições de tarefas.
 
@@ -256,9 +244,7 @@ class OntologyMapper:
 
             if self.embeddings_generator:
                 # Usar similaridade semântica
-                matches = self._calculate_semantic_matches(
-                    task_descriptions, indicators
-                )
+                matches = self._calculate_semantic_matches(task_descriptions, indicators)
             else:
                 # Fallback para substring matching
                 matches = 0
@@ -282,9 +268,7 @@ class OntologyMapper:
         logger.debug("Architecture patterns detected", count=len(detected))
         return detected
 
-    def detect_anti_patterns(
-        self, task_descriptions: List[str]
-    ) -> List[Dict[str, Any]]:
+    def detect_anti_patterns(self, task_descriptions: List[str]) -> List[Dict[str, Any]]:
         """
         Detecta anti-padrões em descrições de tarefas.
 
@@ -307,9 +291,7 @@ class OntologyMapper:
 
             if self.embeddings_generator:
                 # Usar similaridade semântica
-                matches = self._calculate_semantic_matches(
-                    task_descriptions, indicators
-                )
+                matches = self._calculate_semantic_matches(task_descriptions, indicators)
             else:
                 # Fallback para substring matching
                 matches = 0
@@ -353,17 +335,13 @@ class OntologyMapper:
             return 0
 
         try:
-            task_embeddings = self.embeddings_generator.get_embeddings(
-                task_descriptions
-            )
+            task_embeddings = self.embeddings_generator.get_embeddings(task_descriptions)
             task_embeddings_array = np.array(task_embeddings)
 
             indicator_embeddings = []
             for indicator in indicators:
                 if indicator in self._indicator_embeddings_cache:
-                    indicator_embeddings.append(
-                        self._indicator_embeddings_cache[indicator]
-                    )
+                    indicator_embeddings.append(self._indicator_embeddings_cache[indicator])
                 else:
                     logger.warning(
                         "Indicador não encontrado no cache, gerando sob demanda",
@@ -376,17 +354,13 @@ class OntologyMapper:
             indicator_embeddings_array = np.array(indicator_embeddings)
 
             task_norms = np.linalg.norm(task_embeddings_array, axis=1, keepdims=True)
-            indicator_norms = np.linalg.norm(
-                indicator_embeddings_array, axis=1, keepdims=True
-            )
+            indicator_norms = np.linalg.norm(indicator_embeddings_array, axis=1, keepdims=True)
 
             task_norms = np.where(task_norms == 0, 1, task_norms)
             indicator_norms = np.where(indicator_norms == 0, 1, indicator_norms)
 
             task_embeddings_normalized = task_embeddings_array / task_norms
-            indicator_embeddings_normalized = (
-                indicator_embeddings_array / indicator_norms
-            )
+            indicator_embeddings_normalized = indicator_embeddings_array / indicator_norms
 
             similarity_matrix = np.dot(
                 task_embeddings_normalized, indicator_embeddings_normalized.T
@@ -394,9 +368,7 @@ class OntologyMapper:
 
             avg_similarities = np.mean(similarity_matrix, axis=1)
 
-            matches = int(
-                np.sum(avg_similarities >= self.semantic_similarity_threshold)
-            )
+            matches = int(np.sum(avg_similarities >= self.semantic_similarity_threshold))
 
             logger.debug(
                 "Similaridades semânticas calculadas (batch)",

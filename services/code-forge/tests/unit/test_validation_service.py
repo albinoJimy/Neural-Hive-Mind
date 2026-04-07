@@ -25,7 +25,7 @@ async def test_validator_init():
         snyk_client=mock_snyk,
         trivy_client=mock_trivy,
         mcp_client=mock_mcp,
-        metrics=mock_metrics
+        metrics=mock_metrics,
     )
 
     assert validator.sonarqube_client == mock_sonar
@@ -39,8 +39,17 @@ async def test_validate_success():
     from src.services.validator import Validator
     from src.models.pipeline_context import PipelineContext
     from src.models.execution_ticket import (
-        ExecutionTicket, TaskType, TicketStatus, Priority, RiskBand,
-        SLA, QoS, SecurityLevel, DeliveryMode, Consistency, Durability
+        ExecutionTicket,
+        TaskType,
+        TicketStatus,
+        Priority,
+        RiskBand,
+        SLA,
+        QoS,
+        SecurityLevel,
+        DeliveryMode,
+        Consistency,
+        Durability,
     )
     from src.models.artifact import ValidationStatus
 
@@ -50,17 +59,16 @@ async def test_validate_success():
     mock_mcp = AsyncMock()
     mock_metrics = MagicMock()
 
-    mock_sonar.analyze_code = AsyncMock(return_value=MagicMock(
-        status=ValidationStatus.PASSED,
-        score=0.85
-    ))
+    mock_sonar.analyze_code = AsyncMock(
+        return_value=MagicMock(status=ValidationStatus.PASSED, score=0.85)
+    )
 
     validator = Validator(
         sonarqube_client=mock_sonar,
         snyk_client=mock_snyk,
         trivy_client=mock_trivy,
         mcp_client=mock_mcp,
-        metrics=mock_metrics
+        metrics=mock_metrics,
     )
 
     ticket = ExecutionTicket(
@@ -75,14 +83,11 @@ async def test_validate_success():
         sla=SLA(datetime.now(), 300000, 1),
         qos=QoS(DeliveryMode.AT_LEAST_ONCE, Consistency.EVENTUAL, Durability.PERSISTENT),
         security_level=SecurityLevel.INTERNAL,
-        created_at=datetime.now()
+        created_at=datetime.now(),
     )
 
     context = PipelineContext(
-        pipeline_id="pipeline-123",
-        ticket=ticket,
-        trace_id="trace-123",
-        span_id="span-123"
+        pipeline_id="pipeline-123", ticket=ticket, trace_id="trace-123", span_id="span-123"
     )
 
     result = await validator.validate(context)
@@ -115,13 +120,10 @@ async def test_validate_with_sonarqube():
         snyk_client=mock_snyk,
         trivy_client=mock_trivy,
         mcp_client=mock_mcp,
-        metrics=mock_metrics
+        metrics=mock_metrics,
     )
 
-    result = await validator.run_sonarqube_analysis(
-        "code.py",
-        "python"
-    )
+    result = await validator.run_sonarqube_analysis("code.py", "python")
 
     assert result.status == ValidationStatus.PASSED
     assert result.score >= 0.8
@@ -152,13 +154,10 @@ async def test_validate_with_snyk():
         snyk_client=mock_snyk,
         trivy_client=mock_trivy,
         mcp_client=mock_mcp,
-        metrics=mock_metrics
+        metrics=mock_metrics,
     )
 
-    result = await validator.run_snyk_scan(
-        "requirements.txt",
-        ["fastapi", "uvicorn"]
-    )
+    result = await validator.run_snyk_scan("requirements.txt", ["fastapi", "uvicorn"])
 
     assert result.status == ValidationStatus.PASSED
     mock_snyk.scan_dependencies.assert_called_once()
@@ -189,7 +188,7 @@ async def test_validate_with_trivy():
         snyk_client=mock_snyk,
         trivy_client=mock_trivy,
         mcp_client=mock_mcp,
-        metrics=mock_metrics
+        metrics=mock_metrics,
     )
 
     result = await validator.run_trivy_scan("/tmp/code")
@@ -209,18 +208,16 @@ async def test_validate_with_mcp():
     mock_mcp = AsyncMock()
     mock_metrics = MagicMock()
 
-    mock_mcp.request_tool_selection = AsyncMock(return_value={
-        "selected_tools": [
-            {"tool_name": "Pylint", "category": "LINTING"}
-        ]
-    })
+    mock_mcp.request_tool_selection = AsyncMock(
+        return_value={"selected_tools": [{"tool_name": "Pylint", "category": "LINTING"}]}
+    )
 
     validator = Validator(
         sonarqube_client=mock_sonar,
         snyk_client=mock_snyk,
         trivy_client=mock_trivy,
         mcp_client=mock_mcp,
-        metrics=mock_metrics
+        metrics=mock_metrics,
     )
 
     result = await validator.run_mcp_validation("code.py")
@@ -234,8 +231,17 @@ async def test_validate_all_disabled():
     from src.services.validator import Validator
     from src.models.pipeline_context import PipelineContext
     from src.models.execution_ticket import (
-        ExecutionTicket, TaskType, TicketStatus, Priority, RiskBand,
-        SLA, QoS, SecurityLevel, DeliveryMode, Consistency, Durability
+        ExecutionTicket,
+        TaskType,
+        TicketStatus,
+        Priority,
+        RiskBand,
+        SLA,
+        QoS,
+        SecurityLevel,
+        DeliveryMode,
+        Consistency,
+        Durability,
     )
 
     mock_sonar = MagicMock()
@@ -252,7 +258,7 @@ async def test_validate_all_disabled():
         snyk_client=mock_snyk,
         trivy_client=mock_trivy,
         mcp_client=mock_mcp,
-        metrics=mock_metrics
+        metrics=mock_metrics,
     )
 
     ticket = ExecutionTicket(
@@ -267,14 +273,11 @@ async def test_validate_all_disabled():
         sla=SLA(datetime.now(), 300000, 1),
         qos=QoS(DeliveryMode.AT_LEAST_ONCE, Consistency.EVENTUAL, Durability.PERSISTENT),
         security_level=SecurityLevel.INTERNAL,
-        created_at=datetime.now()
+        created_at=datetime.now(),
     )
 
     context = PipelineContext(
-        pipeline_id="pipeline-123",
-        ticket=ticket,
-        trace_id="trace-123",
-        span_id="span-123"
+        pipeline_id="pipeline-123", ticket=ticket, trace_id="trace-123", span_id="span-123"
     )
 
     result = await validator.validate(context)
@@ -299,13 +302,13 @@ async def test_calculate_quality_score():
         snyk_client=mock_snyk,
         trivy_client=mock_trivy,
         mcp_client=mock_mcp,
-        metrics=mock_metrics
+        metrics=mock_metrics,
     )
 
     validations = [
         MagicMock(score=0.85, critical_issues=0, high_issues=1),
         MagicMock(score=0.90, critical_issues=0, high_issues=0),
-        MagicMock(score=0.75, critical_issues=0, high_issues=2)
+        MagicMock(score=0.75, critical_issues=0, high_issues=2),
     ]
 
     score = validator.calculate_quality_score(validations)
@@ -319,8 +322,17 @@ async def test_validate_failure_handling():
     from src.services.validator import Validator
     from src.models.pipeline_context import PipelineContext
     from src.models.execution_ticket import (
-        ExecutionTicket, TaskType, TicketStatus, Priority, RiskBand,
-        SLA, QoS, SecurityLevel, DeliveryMode, Consistency, Durability
+        ExecutionTicket,
+        TaskType,
+        TicketStatus,
+        Priority,
+        RiskBand,
+        SLA,
+        QoS,
+        SecurityLevel,
+        DeliveryMode,
+        Consistency,
+        Durability,
     )
 
     mock_sonar = AsyncMock()
@@ -338,7 +350,7 @@ async def test_validate_failure_handling():
         snyk_client=mock_snyk,
         trivy_client=mock_trivy,
         mcp_client=mock_mcp,
-        metrics=mock_metrics
+        metrics=mock_metrics,
     )
 
     ticket = ExecutionTicket(
@@ -353,14 +365,11 @@ async def test_validate_failure_handling():
         sla=SLA(datetime.now(), 300000, 1),
         qos=QoS(DeliveryMode.AT_LEAST_ONCE, Consistency.EVENTUAL, Durability.PERSISTENT),
         security_level=SecurityLevel.INTERNAL,
-        created_at=datetime.now()
+        created_at=datetime.now(),
     )
 
     context = PipelineContext(
-        pipeline_id="pipeline-123",
-        ticket=ticket,
-        trace_id="trace-123",
-        span_id="span-123"
+        pipeline_id="pipeline-123", ticket=ticket, trace_id="trace-123", span_id="span-123"
     )
 
     # Nao deve lancar excecao

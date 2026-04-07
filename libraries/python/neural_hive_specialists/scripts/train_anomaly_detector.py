@@ -36,9 +36,7 @@ def load_config() -> Dict[str, Any]:
                 "ANOMALY_MODEL_PATH",
                 "/data/models/anomaly_detector_{specialist_type}.pkl",
             ),
-            "anomaly_training_window_days": int(
-                os.getenv("ANOMALY_TRAINING_WINDOW_DAYS", "30")
-            ),
+            "anomaly_training_window_days": int(os.getenv("ANOMALY_TRAINING_WINDOW_DAYS", "30")),
         }
 
         return config
@@ -269,9 +267,7 @@ def main():
         type=float,
         help="Contamination parameter (0.0-0.5, default: 0.1)",
     )
-    parser.add_argument(
-        "--n-estimators", type=int, help="Número de árvores (default: 100)"
-    )
+    parser.add_argument("--n-estimators", type=int, help="Número de árvores (default: 100)")
     parser.add_argument(
         "--output-dir",
         type=str,
@@ -307,9 +303,7 @@ def main():
         config["clickhouse_uri"] = args.clickhouse_uri
 
     if args.output_dir:
-        config[
-            "anomaly_model_path"
-        ] = f"{args.output_dir}/anomaly_detector_{{specialist_type}}.pkl"
+        config["anomaly_model_path"] = f"{args.output_dir}/anomaly_detector_{{specialist_type}}.pkl"
 
     # Buscar métricas históricas
     if args.use_synthetic or not config.get("clickhouse_uri"):
@@ -345,9 +339,7 @@ def main():
         # Filtrar métricas do especialista (se usando ClickHouse)
         if not args.use_synthetic and "specialist_type" in metrics_history[0]:
             specialist_metrics = [
-                m
-                for m in metrics_history
-                if m.get("specialist_type") == specialist_type
+                m for m in metrics_history if m.get("specialist_type") == specialist_type
             ]
         else:
             specialist_metrics = metrics_history
@@ -366,9 +358,7 @@ def main():
         if success:
             success_count += 1
 
-    print(
-        f"\n✅ Treinamento concluído: {success_count}/{len(specialist_types)} especialistas"
-    )
+    print(f"\n✅ Treinamento concluído: {success_count}/{len(specialist_types)} especialistas")
 
     if success_count == len(specialist_types):
         print("\n🎉 Todos os modelos treinados com sucesso!")

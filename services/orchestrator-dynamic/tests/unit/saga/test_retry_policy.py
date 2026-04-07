@@ -13,18 +13,10 @@ from typing import Set
 import sys
 
 # Mock dos modulos problematicos antes de importar
-sys.modules['neural_hive_resilience'] = MagicMock()
+sys.modules["neural_hive_resilience"] = MagicMock()
 
-from src.saga.retry_config import (
-    SagaRetryConfig,
-    NON_RETRYABLE_ERRORS
-)
-from src.saga.retry_policy import (
-    RetryPolicy,
-    RetryError,
-    NoRetryPolicy,
-    create_retry_policy
-)
+from src.saga.retry_config import SagaRetryConfig, NON_RETRYABLE_ERRORS
+from src.saga.retry_policy import RetryPolicy, RetryError, NoRetryPolicy, create_retry_policy
 
 
 class TestSagaRetryConfigDefaults:
@@ -50,7 +42,7 @@ class TestSagaRetryConfigDefaults:
             max_delay_ms=60000,
             multiplier=3.0,
             jitter=False,
-            jitter_factor=0.2
+            jitter_factor=0.2,
         )
 
         assert config.max_attempts == 5
@@ -113,7 +105,7 @@ class TestRetryConfigGetDelay:
         config = SagaRetryConfig(
             initial_delay_ms=1000,
             multiplier=2.0,
-            jitter=False  # Desabilitar jitter para teste deterministico
+            jitter=False,  # Desabilitar jitter para teste deterministico
         )
 
         assert config.get_delay(1) == 1000  # 1000 * 2^0
@@ -125,10 +117,7 @@ class TestRetryConfigGetDelay:
     def test_get_delay_with_max_cap(self):
         """Deve aplicar cap max_delay_ms."""
         config = SagaRetryConfig(
-            initial_delay_ms=1000,
-            max_delay_ms=5000,
-            multiplier=2.0,
-            jitter=False
+            initial_delay_ms=1000, max_delay_ms=5000, multiplier=2.0, jitter=False
         )
 
         assert config.get_delay(1) == 1000
@@ -146,11 +135,7 @@ class TestRetryConfigGetDelay:
 
     def test_get_delay_custom_multiplier(self):
         """Deve respeitar multiplier customizado."""
-        config = SagaRetryConfig(
-            initial_delay_ms=1000,
-            multiplier=3.0,
-            jitter=False
-        )
+        config = SagaRetryConfig(initial_delay_ms=1000, multiplier=3.0, jitter=False)
 
         assert config.get_delay(1) == 1000  # 1000 * 3^0
         assert config.get_delay(2) == 3000  # 1000 * 3^1
@@ -163,11 +148,7 @@ class TestRetryConfigJitter:
     @pytest.mark.flaky(reruns=5)
     def test_retry_config_jitter_applied(self):
         """Jitter deve variar o delay."""
-        config = SagaRetryConfig(
-            initial_delay_ms=1000,
-            jitter=True,
-            jitter_factor=0.1
-        )
+        config = SagaRetryConfig(initial_delay_ms=1000, jitter=True, jitter_factor=0.1)
 
         delays = [config.get_delay(1) for _ in range(10)]
 
@@ -185,10 +166,7 @@ class TestRetryConfigJitter:
 
     def test_retry_config_no_jitter(self):
         """Sem jitter, delay deve ser deterministico."""
-        config = SagaRetryConfig(
-            initial_delay_ms=1000,
-            jitter=False
-        )
+        config = SagaRetryConfig(initial_delay_ms=1000, jitter=False)
 
         delays = [config.get_delay(1) for _ in range(10)]
 
@@ -197,11 +175,7 @@ class TestRetryConfigJitter:
 
     def test_retry_config_jitter_factor_zero(self):
         """Jitter_factor=0 deve ser equivalente a jitter=False."""
-        config = SagaRetryConfig(
-            initial_delay_ms=1000,
-            jitter=True,
-            jitter_factor=0.0
-        )
+        config = SagaRetryConfig(initial_delay_ms=1000, jitter=True, jitter_factor=0.0)
 
         delays = [config.get_delay(1) for _ in range(10)]
         assert all(d == 1000 for d in delays)
@@ -214,45 +188,45 @@ class TestRetryConfigShouldRetry:
         """Deve retentar se dentro do limite de tentativas."""
         config = SagaRetryConfig(max_attempts=3)
 
-        assert config.should_retry(attempt=1, error='temporary_failure') is True
-        assert config.should_retry(attempt=2, error='temporary_failure') is True
-        assert config.should_retry(attempt=3, error='temporary_failure') is True
+        assert config.should_retry(attempt=1, error="temporary_failure") is True
+        assert config.should_retry(attempt=2, error="temporary_failure") is True
+        assert config.should_retry(attempt=3, error="temporary_failure") is True
 
     def test_should_retry_exceeds_max_attempts(self):
         """Nao deve retentar se excedeu max_attempts."""
         config = SagaRetryConfig(max_attempts=3)
 
-        assert config.should_retry(attempt=4, error='temporary_failure') is False
-        assert config.should_retry(attempt=5, error='temporary_failure') is False
+        assert config.should_retry(attempt=4, error="temporary_failure") is False
+        assert config.should_retry(attempt=5, error="temporary_failure") is False
 
     def test_should_retry_non_retryable_errors(self):
         """Nao deve retentar erros non-retryable."""
         config = SagaRetryConfig(max_attempts=5)
 
         # Erros non-retryable
-        assert config.should_retry(attempt=1, error='validation_error') is False
-        assert config.should_retry(attempt=1, error='schema_error') is False
-        assert config.should_retry(attempt=1, error='permission_denied') is False
-        assert config.should_retry(attempt=1, error='not_found') is False
-        assert config.should_retry(attempt=1, error='authentication_error') is False
+        assert config.should_retry(attempt=1, error="validation_error") is False
+        assert config.should_retry(attempt=1, error="schema_error") is False
+        assert config.should_retry(attempt=1, error="permission_denied") is False
+        assert config.should_retry(attempt=1, error="not_found") is False
+        assert config.should_retry(attempt=1, error="authentication_error") is False
 
     def test_should_retry_case_insensitive(self):
         """Verificacao de erro deve ser case-insensitive."""
         config = SagaRetryConfig()
 
-        assert config.should_retry(attempt=1, error='Validation_Error') is False
-        assert config.should_retry(attempt=1, error='VALIDATION_ERROR') is False
-        assert config.should_retry(attempt=1, error='permission_denied') is False
+        assert config.should_retry(attempt=1, error="Validation_Error") is False
+        assert config.should_retry(attempt=1, error="VALIDATION_ERROR") is False
+        assert config.should_retry(attempt=1, error="permission_denied") is False
 
     def test_should_retry_partial_match(self):
         """Deve detectar erro mesmo que parte da mensagem."""
         config = SagaRetryConfig()
 
         # Mensagem contendo 'validation_error'
-        assert config.should_retry(
-            attempt=1,
-            error='Failed due to validation_error in field X'
-        ) is False
+        assert (
+            config.should_retry(attempt=1, error="Failed due to validation_error in field X")
+            is False
+        )
 
     def test_should_retry_no_error(self):
         """Sem erro fornecido, deve verificar apenas max_attempts."""
@@ -264,13 +238,11 @@ class TestRetryConfigShouldRetry:
 
     def test_should_retry_custom_non_retryable(self):
         """Deve respeitar conjunto customizado de erros non-retryable."""
-        config = SagaRetryConfig(
-            non_retryable_errors={'custom_error', 'another_error'}
-        )
+        config = SagaRetryConfig(non_retryable_errors={"custom_error", "another_error"})
 
-        assert config.should_retry(attempt=1, error='temporary_failure') is True
-        assert config.should_retry(attempt=1, error='custom_error') is False
-        assert config.should_retry(attempt=1, error='another_error') is False
+        assert config.should_retry(attempt=1, error="temporary_failure") is True
+        assert config.should_retry(attempt=1, error="custom_error") is False
+        assert config.should_retry(attempt=1, error="another_error") is False
 
 
 class TestRetryConfigTotalTimeout:
@@ -279,10 +251,7 @@ class TestRetryConfigTotalTimeout:
     def test_get_total_timeout_ms_default(self):
         """Deve calcular timeout total com config default."""
         config = SagaRetryConfig(
-            initial_delay_ms=1000,
-            multiplier=2.0,
-            max_attempts=3,
-            jitter=False
+            initial_delay_ms=1000, multiplier=2.0, max_attempts=3, jitter=False
         )
 
         # 1000 + 2000 + 4000 = 7000
@@ -291,11 +260,7 @@ class TestRetryConfigTotalTimeout:
     def test_get_total_timeout_ms_with_cap(self):
         """Deve considerar cap no calculo."""
         config = SagaRetryConfig(
-            initial_delay_ms=1000,
-            max_delay_ms=3000,
-            multiplier=2.0,
-            max_attempts=5,
-            jitter=False
+            initial_delay_ms=1000, max_delay_ms=3000, multiplier=2.0, max_attempts=5, jitter=False
         )
 
         # 1000 + 2000 + 3000 + 3000 + 3000 = 12000
@@ -303,11 +268,7 @@ class TestRetryConfigTotalTimeout:
 
     def test_get_total_timeout_ms_single_attempt(self):
         """Deve funcionar com tentativa unica."""
-        config = SagaRetryConfig(
-            initial_delay_ms=500,
-            max_attempts=1,
-            jitter=False
-        )
+        config = SagaRetryConfig(initial_delay_ms=500, max_attempts=1, jitter=False)
 
         assert config.get_total_timeout_ms() == 500
 
@@ -330,11 +291,7 @@ class TestRetryConfigWithOverrides:
     def test_with_overrides_multiple_params(self):
         """Deve sobrescrever multiplos parametros."""
         base = SagaRetryConfig()
-        override = base.with_overrides(
-            max_attempts=5,
-            initial_delay_ms=500,
-            multiplier=3.0
-        )
+        override = base.with_overrides(max_attempts=5, initial_delay_ms=500, multiplier=3.0)
 
         assert override.max_attempts == 5
         assert override.initial_delay_ms == 500
@@ -363,14 +320,11 @@ class TestRetryPolicy:
     async def test_retry_policy_success_on_first_attempt(self, mock_func):
         """Deve executar com sucesso na primeira tentativa."""
         policy = RetryPolicy()
-        mock_func.return_value = 'success'
+        mock_func.return_value = "success"
 
-        result = await policy.execute(
-            mock_func,
-            operation_name='test_op'
-        )
+        result = await policy.execute(mock_func, operation_name="test_op")
 
-        assert result == 'success'
+        assert result == "success"
         assert mock_func.call_count == 1
 
     @pytest.mark.asyncio
@@ -380,36 +334,23 @@ class TestRetryPolicy:
         policy = RetryPolicy(config=config)
 
         # Falhar 2 vezes, sucessar na 3a
-        mock_func.side_effect = [
-            Exception('fail 1'),
-            Exception('fail 2'),
-            'success'
-        ]
+        mock_func.side_effect = [Exception("fail 1"), Exception("fail 2"), "success"]
 
-        result = await policy.execute(
-            mock_func,
-            operation_name='test_op'
-        )
+        result = await policy.execute(mock_func, operation_name="test_op")
 
-        assert result == 'success'
+        assert result == "success"
         assert mock_func.call_count == 3
 
     @pytest.mark.asyncio
     async def test_retry_policy_fails_after_max_attempts(self, mock_func):
         """Deve falhar apos exceder max_attempts."""
-        config = SagaRetryConfig(
-            max_attempts=3,
-            initial_delay_ms=100
-        )
+        config = SagaRetryConfig(max_attempts=3, initial_delay_ms=100)
         policy = RetryPolicy(config=config)
 
-        mock_func.side_effect = Exception('always fails')
+        mock_func.side_effect = Exception("always fails")
 
         with pytest.raises(RetryError) as exc_info:
-            await policy.execute(
-                mock_func,
-                operation_name='test_op'
-            )
+            await policy.execute(mock_func, operation_name="test_op")
 
         assert exc_info.value.total_attempts == 3
         assert mock_func.call_count == 3
@@ -419,13 +360,10 @@ class TestRetryPolicy:
         """Erros non-retryable devem falhar imediatamente."""
         policy = RetryPolicy()
 
-        mock_func.side_effect = ValueError('validation_error: field required')
+        mock_func.side_effect = ValueError("validation_error: field required")
 
         with pytest.raises(RetryError) as exc_info:
-            await policy.execute(
-                mock_func,
-                operation_name='test_op'
-            )
+            await policy.execute(mock_func, operation_name="test_op")
 
         assert exc_info.value.attempt == 1
         assert mock_func.call_count == 1  # So tentou uma vez
@@ -434,26 +372,20 @@ class TestRetryPolicy:
     async def test_retry_policy_passes_arguments(self, mock_func):
         """Deve passar argumentos corretamente para funcao."""
         policy = RetryPolicy()
-        mock_func.return_value = 'result'
+        mock_func.return_value = "result"
 
         result = await policy.execute(
-            mock_func,
-            'arg1',
-            'arg2',
-            operation_name='test_op',
-            kwarg1='kwvalue1'
+            mock_func, "arg1", "arg2", operation_name="test_op", kwarg1="kwvalue1"
         )
 
-        assert result == 'result'
-        mock_func.assert_called_once_with(
-            'arg1', 'arg2', kwarg1='kwvalue1'
-        )
+        assert result == "result"
+        mock_func.assert_called_once_with("arg1", "arg2", kwarg1="kwvalue1")
 
     @pytest.mark.asyncio
     async def test_retry_policy_preserves_exception(self, mock_func):
         """Deve preservar excecao original em RetryError."""
         policy = RetryPolicy()
-        original_error = ValueError('specific error')
+        original_error = ValueError("specific error")
         mock_func.side_effect = original_error
 
         with pytest.raises(RetryError) as exc_info:
@@ -486,10 +418,7 @@ class TestRetryPolicyGetRetryCount:
     def test_get_retry_count_multiple_attempts(self):
         """Deve estimar tentativa correta apos varios delays."""
         config = SagaRetryConfig(
-            initial_delay_ms=1000,
-            multiplier=2.0,
-            max_attempts=5,
-            jitter=False
+            initial_delay_ms=1000, multiplier=2.0, max_attempts=5, jitter=False
         )
         policy = RetryPolicy(config=config)
 
@@ -513,17 +442,17 @@ class TestRetryPolicyDecorator:
 
         call_count = 0
 
-        @policy.decorator(operation_name='decorated_func')
+        @policy.decorator(operation_name="decorated_func")
         async def failing_func():
             nonlocal call_count
             call_count += 1
             if call_count < 3:
-                raise Exception('not yet')
-            return 'success'
+                raise Exception("not yet")
+            return "success"
 
         result = await failing_func()
 
-        assert result == 'success'
+        assert result == "success"
         assert call_count == 3
 
     @pytest.mark.asyncio
@@ -533,11 +462,11 @@ class TestRetryPolicyDecorator:
 
         @policy.decorator()
         async def my_function():
-            return 'result'
+            return "result"
 
         result = await my_function()
 
-        assert result == 'result'
+        assert result == "result"
         # Logger teria registrado com operation_name='my_function'
 
 
@@ -548,10 +477,10 @@ class TestNoRetryPolicy:
     async def test_no_retry_executes_once(self):
         """Deve executar apenas uma vez, mesmo com falha."""
         policy = NoRetryPolicy()
-        mock_func = AsyncMock(side_effect=Exception('fail'))
+        mock_func = AsyncMock(side_effect=Exception("fail"))
 
         with pytest.raises(Exception):
-            await policy.execute(mock_func, operation_name='test')
+            await policy.execute(mock_func, operation_name="test")
 
         assert mock_func.call_count == 1
 
@@ -559,11 +488,11 @@ class TestNoRetryPolicy:
     async def test_no_retry_success(self):
         """Deve funcionar normalmente em caso de sucesso."""
         policy = NoRetryPolicy()
-        mock_func = AsyncMock(return_value='result')
+        mock_func = AsyncMock(return_value="result")
 
         result = await policy.execute(mock_func)
 
-        assert result == 'result'
+        assert result == "result"
         assert mock_func.call_count == 1
 
 
@@ -581,11 +510,7 @@ class TestCreateRetryPolicy:
     def test_create_retry_policy_custom(self):
         """Deve criar politica com valores customizados."""
         policy = create_retry_policy(
-            max_attempts=5,
-            initial_delay_ms=500,
-            max_delay_ms=60000,
-            multiplier=3.0,
-            jitter=False
+            max_attempts=5, initial_delay_ms=500, max_delay_ms=60000, multiplier=3.0, jitter=False
         )
 
         assert policy.config.max_attempts == 5
@@ -600,27 +525,21 @@ class TestRetryError:
 
     def test_retry_error_attributes(self):
         """Deve armazenar atributos corretamente."""
-        original_error = ValueError('test error')
+        original_error = ValueError("test error")
         error = RetryError(
-            message='Operation failed',
-            last_error=original_error,
-            attempt=3,
-            total_attempts=5
+            message="Operation failed", last_error=original_error, attempt=3, total_attempts=5
         )
 
-        assert str(error) == 'Operation failed'
+        assert str(error) == "Operation failed"
         assert error.last_error == original_error
         assert error.attempt == 3
         assert error.total_attempts == 5
 
     def test_retry_error_chaining(self):
         """Deve encadear excecao original."""
-        original_error = ValueError('test error')
+        original_error = ValueError("test error")
 
         try:
-            raise RetryError(
-                'Wrapper error',
-                last_error=original_error
-            ) from original_error
+            raise RetryError("Wrapper error", last_error=original_error) from original_error
         except RetryError as e:
             assert e.__cause__ == original_error

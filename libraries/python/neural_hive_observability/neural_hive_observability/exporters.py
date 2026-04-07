@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 _metrics_initialized = False
 
 
-def _get_neural_hive_metrics() -> Optional['NeuralHiveMetrics']:
+def _get_neural_hive_metrics() -> Optional["NeuralHiveMetrics"]:
     """
     Obtém a instância de NeuralHiveMetrics se disponível.
 
@@ -35,6 +35,7 @@ def _get_neural_hive_metrics() -> Optional['NeuralHiveMetrics']:
     """
     try:
         from .metrics import get_metrics
+
         return get_metrics()
     except ImportError:
         return None
@@ -62,11 +63,11 @@ def _sanitize_header_value(value: str, max_length: int = 100) -> str:
 
     # Remover caracteres que podem causar problemas de formatação
     # O bug do OpenTelemetry 1.39.1 está relacionado a % em strings
-    problematic_chars = ['%', '{', '}', '\n', '\r', '\t', '\x00']
+    problematic_chars = ["%", "{", "}", "\n", "\r", "\t", "\x00"]
 
     sanitized = value
     for char in problematic_chars:
-        sanitized = sanitized.replace(char, '')
+        sanitized = sanitized.replace(char, "")
 
     # Truncar se muito longo
     if len(sanitized) > max_length:
@@ -130,7 +131,7 @@ class ResilientOTLPSpanExporter(SpanExporter):
         tls_key_path: Optional[str] = None,
         tls_ca_cert_path: Optional[str] = None,
         tls_insecure_skip_verify: bool = False,
-        **kwargs
+        **kwargs,
     ):
         """
         Inicializa o exporter resiliente.
@@ -161,25 +162,22 @@ class ResilientOTLPSpanExporter(SpanExporter):
         # Criar exporter interno
         try:
             exporter_kwargs = {
-                'endpoint': endpoint,
+                "endpoint": endpoint,
             }
 
             if sanitized_headers:
-                exporter_kwargs['headers'] = sanitized_headers
+                exporter_kwargs["headers"] = sanitized_headers
 
             if timeout is not None:
-                exporter_kwargs['timeout'] = timeout
+                exporter_kwargs["timeout"] = timeout
 
             # Configurar TLS ou modo inseguro
             if tls_enabled:
                 credentials = self._create_tls_credentials(
-                    tls_cert_path,
-                    tls_key_path,
-                    tls_ca_cert_path,
-                    tls_insecure_skip_verify
+                    tls_cert_path, tls_key_path, tls_ca_cert_path, tls_insecure_skip_verify
                 )
                 if credentials is not None:
-                    exporter_kwargs['credentials'] = credentials
+                    exporter_kwargs["credentials"] = credentials
                     logger.info(
                         f"TLS habilitado para {service_name} "
                         f"(cert: {tls_cert_path}, ca: {tls_ca_cert_path})"
@@ -199,7 +197,7 @@ class ResilientOTLPSpanExporter(SpanExporter):
                     self._inner_exporter = None
                     return  # Abort initialization - do not create exporter
             else:
-                exporter_kwargs['insecure'] = insecure
+                exporter_kwargs["insecure"] = insecure
 
             exporter_kwargs.update(kwargs)
 
@@ -219,7 +217,7 @@ class ResilientOTLPSpanExporter(SpanExporter):
         cert_path: Optional[str],
         key_path: Optional[str],
         ca_cert_path: Optional[str],
-        insecure_skip_verify: bool = False
+        insecure_skip_verify: bool = False,
     ) -> Optional[grpc.ChannelCredentials]:
         """
         Cria credenciais TLS para conexão gRPC.
@@ -244,7 +242,7 @@ class ResilientOTLPSpanExporter(SpanExporter):
             # Ler certificado CA
             if ca_cert_path:
                 if os.path.exists(ca_cert_path):
-                    with open(ca_cert_path, 'rb') as f:
+                    with open(ca_cert_path, "rb") as f:
                         root_certificates = f.read()
                     logger.debug(f"CA certificate carregado de {ca_cert_path}")
                 else:
@@ -255,13 +253,12 @@ class ResilientOTLPSpanExporter(SpanExporter):
             # Ler certificado e chave cliente (mTLS)
             if cert_path and key_path:
                 if os.path.exists(cert_path) and os.path.exists(key_path):
-                    with open(cert_path, 'rb') as f:
+                    with open(cert_path, "rb") as f:
                         certificate_chain = f.read()
-                    with open(key_path, 'rb') as f:
+                    with open(key_path, "rb") as f:
                         private_key = f.read()
                     logger.debug(
-                        f"Client certificate carregado de {cert_path}, "
-                        f"key de {key_path}"
+                        f"Client certificate carregado de {cert_path}, " f"key de {key_path}"
                     )
                 else:
                     if not os.path.exists(cert_path):
@@ -284,7 +281,7 @@ class ResilientOTLPSpanExporter(SpanExporter):
             credentials = grpc.ssl_channel_credentials(
                 root_certificates=root_certificates,
                 private_key=private_key,
-                certificate_chain=certificate_chain
+                certificate_chain=certificate_chain,
             )
 
             return credentials
@@ -331,9 +328,7 @@ class ResilientOTLPSpanExporter(SpanExporter):
             self._update_queue_size_gauge(0)
 
             if result == SpanExportResult.SUCCESS:
-                logger.debug(
-                    f"Export de {span_count} spans bem-sucedido em {duration:.3f}s"
-                )
+                logger.debug(f"Export de {span_count} spans bem-sucedido em {duration:.3f}s")
 
             return result
 
@@ -346,6 +341,7 @@ class ResilientOTLPSpanExporter(SpanExporter):
 
             # Logar detalhes dos spans para debugging
             import traceback
+
             tb = traceback.format_exc()
 
             # Tentar extrair atributos dos spans para identificar o problema
@@ -360,10 +356,14 @@ class ResilientOTLPSpanExporter(SpanExporter):
                             attrs[key] = f"CONTAINS_PERCENT: {str_value[:50]}"
                         else:
                             attrs[key] = str_value[:50]
-                    span_details.append({
-                        "name": span.name,
-                        "suspect_attrs": {k: v for k, v in attrs.items() if "CONTAINS_PERCENT" in str(v)}
-                    })
+                    span_details.append(
+                        {
+                            "name": span.name,
+                            "suspect_attrs": {
+                                k: v for k, v in attrs.items() if "CONTAINS_PERCENT" in str(v)
+                            },
+                        }
+                    )
                 except Exception:
                     span_details.append({"name": "error_reading_span"})
 

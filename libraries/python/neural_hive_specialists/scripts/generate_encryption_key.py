@@ -109,9 +109,7 @@ Segurança:
         help="Exibir chave no stdout (útil para variável de ambiente)",
     )
 
-    parser.add_argument(
-        "--force", action="store_true", help="Sobrescrever arquivo existente"
-    )
+    parser.add_argument("--force", action="store_true", help="Sobrescrever arquivo existente")
 
     args = parser.parse_args()
 

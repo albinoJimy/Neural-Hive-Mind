@@ -50,7 +50,9 @@ def result_config():
 @pytest.fixture
 def avro_consumer(result_config):
     schema_path = ROOT.parent / "schemas" / "execution-result" / "execution-result.avsc"
-    registry, deserializer = _avro_deserializer(schema_path, result_config.kafka_schema_registry_url)
+    registry, deserializer = _avro_deserializer(
+        schema_path, result_config.kafka_schema_registry_url
+    )
     consumer = Consumer(
         {
             "bootstrap.servers": result_config.kafka_bootstrap_servers,

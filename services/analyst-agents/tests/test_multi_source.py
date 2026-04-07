@@ -19,10 +19,12 @@ from src.models.query_request import QueryRequest, MultiSourceQueryRequest
 def mock_clickhouse_client():
     """Mock do ClickHouse client."""
     client = MagicMock()
-    client.get_execution_statistics = AsyncMock(return_value={
-        "total_executions": 1000,
-        "avg_duration_ms": 150.5,
-    })
+    client.get_execution_statistics = AsyncMock(
+        return_value={
+            "total_executions": 1000,
+            "avg_duration_ms": 150.5,
+        }
+    )
     return client
 
 
@@ -30,10 +32,12 @@ def mock_clickhouse_client():
 def mock_neo4j_client():
     """Mock do Neo4j client."""
     client = MagicMock()
-    client.analyze_intent_flow = AsyncMock(return_value={
-        "nodes": ["intent-1", "intent-2"],
-        "relationships": ["depends_on"],
-    })
+    client.analyze_intent_flow = AsyncMock(
+        return_value={
+            "nodes": ["intent-1", "intent-2"],
+            "relationships": ["depends_on"],
+        }
+    )
     return client
 
 
@@ -41,20 +45,26 @@ def mock_neo4j_client():
 def mock_postgresql_client():
     """Mock do PostgreSQL client."""
     client = MagicMock()
-    client.get_insights = AsyncMock(return_value=[
-        {"id": "1", "analyst_type": "text", "insight_data": {"confidence": 0.9}},
-        {"id": "2", "analyst_type": "code", "insight_data": {"confidence": 0.8}},
-    ])
+    client.get_insights = AsyncMock(
+        return_value=[
+            {"id": "1", "analyst_type": "text", "insight_data": {"confidence": 0.9}},
+            {"id": "2", "analyst_type": "code", "insight_data": {"confidence": 0.8}},
+        ]
+    )
     client.get_analyst_actions = AsyncMock(return_value=[])
-    client.get_execution_statistics = AsyncMock(return_value={
-        "total_executions": 500,
-    })
+    client.get_execution_statistics = AsyncMock(
+        return_value={
+            "total_executions": 500,
+        }
+    )
     client.execute_query = AsyncMock(return_value=[])
-    client.health_check = AsyncMock(return_value={
-        "status": "healthy",
-        "latency_ms": 5.2,
-        "connected": True,
-    })
+    client.health_check = AsyncMock(
+        return_value={
+            "status": "healthy",
+            "latency_ms": 5.2,
+            "connected": True,
+        }
+    )
     return client
 
 
@@ -192,14 +202,14 @@ class TestDataFusionEngine:
                 "points": [
                     {"metric": "cpu", "value": 80.5},
                     {"metric": "memory", "value": 60.2},
-                ]
+                ],
             },
             "postgresql": {
                 "type": "table",
                 "rows": [
                     {"metric": "cpu", "avg": 75.0},
                     {"metric": "memory", "avg": 55.0},
-                ]
+                ],
             },
         }
 
@@ -257,14 +267,8 @@ class TestDataFusionEngine:
         )
 
         source_results = {
-            "clickhouse": {
-                "type": "timeseries",
-                "points": [{"metric": "cpu", "value": 80.5}]
-            },
-            "postgresql": {
-                "type": "table",
-                "rows": [{"metric": "cpu", "avg": 75.0}]
-            },
+            "clickhouse": {"type": "timeseries", "points": [{"metric": "cpu", "value": 80.5}]},
+            "postgresql": {"type": "table", "rows": [{"metric": "cpu", "avg": 75.0}]},
         }
 
         result = await data_fusion_engine.fuse_sources(query_request, source_results)
@@ -280,16 +284,17 @@ class TestDataFusionEngine:
         normalized_results = {
             "source1": {
                 "type": "table",
-                "rows": [{"value": 10, "other": 20}, {"value": 15, "other": 25}]
+                "rows": [{"value": 10, "other": 20}, {"value": 15, "other": 25}],
             },
             "source2": {
                 "type": "table",
-                "rows": [{"value": 12, "other": 18}, {"value": 18, "other": 28}]
+                "rows": [{"value": 12, "other": 18}, {"value": 18, "other": 28}],
             },
         }
 
         # Criar mock direto para evitar o await interno
         from src.services.data_fusion_engine import DataFusionEngine
+
         engine = DataFusionEngine()
 
         # Calcular correlação diretamente com os valores
@@ -300,11 +305,11 @@ class TestDataFusionEngine:
         sum_x = sum(x_values)
         sum_y = sum(y_values)
         sum_xy = sum(x * y for x, y in zip(x_values, y_values))
-        sum_x2 = sum(x ** 2 for x in x_values)
-        sum_y2 = sum(y ** 2 for y in y_values)
+        sum_x2 = sum(x**2 for x in x_values)
+        sum_y2 = sum(y**2 for y in y_values)
 
         numerator = n * sum_xy - sum_x * sum_y
-        denominator = ((n * sum_x2 - sum_x ** 2) * (n * sum_y2 - sum_y ** 2)) ** 0.5
+        denominator = ((n * sum_x2 - sum_x**2) * (n * sum_y2 - sum_y**2)) ** 0.5
 
         correlation = numerator / denominator if denominator != 0 else None
 
@@ -374,9 +379,7 @@ class TestQueryEngineMultiSource:
         """Testa cálculo de correlação."""
         # Mock para get_correlation do data_fusion
         with patch.object(
-            query_engine.data_fusion,
-            'get_correlation',
-            return_value=0.85
+            query_engine.data_fusion, "get_correlation", return_value=0.85
         ) as mock_corr:
             correlation = await query_engine.correlate_metrics(
                 sources=["clickhouse", "postgresql"],

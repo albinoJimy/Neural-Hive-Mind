@@ -7,6 +7,7 @@ baseado em dados históricos de 18 meses do ClickHouse.
 
 import logging
 from datetime import datetime, timezone
+
 UTC = timezone.utc  # type: ignore, timedelta
 
 import holidays

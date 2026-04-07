@@ -105,12 +105,14 @@ async def test_cognitive_plan_consumer_process_message_valid(
 
     message = {
         "key": None,
-        "value": json.dumps({
-            "plan_id": "cog-123",
-            "intent": "Create API for user management",
-            "context": {"team_size": 5}
-        }),
-        "topic": "cognitive.plans.created"
+        "value": json.dumps(
+            {
+                "plan_id": "cog-123",
+                "intent": "Create API for user management",
+                "context": {"team_size": 5},
+            }
+        ),
+        "topic": "cognitive.plans.created",
     }
 
     await consumer.process_message(message)
@@ -125,11 +127,7 @@ async def test_cognitive_plan_consumer_process_message_invalid_json(
 ):
     consumer = CognitivePlanConsumer()
 
-    message = {
-        "key": None,
-        "value": "{invalid json",
-        "topic": "cognitive.plans.created"
-    }
+    message = {"key": None, "value": "{invalid json", "topic": "cognitive.plans.created"}
 
     # Não deve lançar exceção
     await consumer.process_message(message)
@@ -152,11 +150,8 @@ async def test_cognitive_plan_consumer_process_message_with_cognitive_plan_id(
 
     message = {
         "key": None,
-        "value": json.dumps({
-            "plan_id": "cog-456",
-            "intent": "Build authentication service"
-        }),
-        "topic": "cognitive.plans.created"
+        "value": json.dumps({"plan_id": "cog-456", "intent": "Build authentication service"}),
+        "topic": "cognitive.plans.created",
     }
 
     await consumer.process_message(message)
@@ -184,7 +179,7 @@ async def test_cognitive_plan_consumer_process_message_with_dict_value(
     message = {
         "key": None,
         "value": {"plan_id": "cog-789", "intent": "Serverless function"},
-        "topic": "cognitive.plans.created"
+        "topic": "cognitive.plans.created",
     }
 
     await consumer.process_message(message)
@@ -296,7 +291,7 @@ async def test_cognitive_plan_consumer_process_message_empty_intent(
     message = {
         "key": None,
         "value": json.dumps({"plan_id": "cog-empty"}),
-        "topic": "cognitive.plans.created"
+        "topic": "cognitive.plans.created",
     }
 
     # Não deve lançar exceção
@@ -317,7 +312,7 @@ async def test_cognitive_plan_consumer_process_message_planner_exception(
     message = {
         "key": None,
         "value": json.dumps({"plan_id": "cog-error", "intent": "Test"}),
-        "topic": "cognitive.plans.created"
+        "topic": "cognitive.plans.created",
     }
 
     # Não deve lançar exceção, apenas logar

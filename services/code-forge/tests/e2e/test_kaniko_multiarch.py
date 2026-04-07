@@ -61,16 +61,15 @@ class TestKanikoMultiArchQEMU:
         with tempfile.TemporaryDirectory() as tmpdir:
             dockerfile_path = os.path.join(tmpdir, "Dockerfile")
             with open(dockerfile_path, "w") as f:
-                f.write("""FROM alpine:3.19
+                f.write(
+                    """FROM alpine:3.19
 RUN echo "Native AMD64 build" > /tmp/arch.txt
 RUN uname -m >> /tmp/arch.txt || echo "arch check skipped"
 CMD ["/bin/sh"]
-""")
+"""
+                )
 
-            builder = ContainerBuilder(
-                builder_type=BuilderType.KANIKO,
-                timeout_seconds=600
-            )
+            builder = ContainerBuilder(builder_type=BuilderType.KANIKO, timeout_seconds=600)
 
             result = await builder.build_container(
                 dockerfile_path=dockerfile_path,
@@ -101,15 +100,17 @@ CMD ["/bin/sh"]
             dockerfile_path = os.path.join(tmpdir, "Dockerfile")
             with open(dockerfile_path, "w") as f:
                 # Dockerfile simples que funciona em multi-arch
-                f.write("""FROM alpine:3.19
+                f.write(
+                    """FROM alpine:3.19
 RUN echo "Multi-arch build test" > /tmp/test.txt
 RUN cat /tmp/test.txt
 CMD ["/bin/sh"]
-""")
+"""
+                )
 
             builder = ContainerBuilder(
                 builder_type=BuilderType.KANIKO,
-                timeout_seconds=900  # 15 minutos - QEMU é mais lento
+                timeout_seconds=900,  # 15 minutos - QEMU é mais lento
             )
 
             result = await builder.build_container(
@@ -144,15 +145,14 @@ CMD ["/bin/sh"]
         with tempfile.TemporaryDirectory() as tmpdir:
             dockerfile_path = os.path.join(tmpdir, "Dockerfile")
             with open(dockerfile_path, "w") as f:
-                f.write("""FROM alpine:3.19
+                f.write(
+                    """FROM alpine:3.19
 RUN echo "ARM v7 test" > /tmp/test.txt
 CMD ["/bin/sh"]
-""")
+"""
+                )
 
-            builder = ContainerBuilder(
-                builder_type=BuilderType.KANIKO,
-                timeout_seconds=900
-            )
+            builder = ContainerBuilder(builder_type=BuilderType.KANIKO, timeout_seconds=900)
 
             result = await builder.build_container(
                 dockerfile_path=dockerfile_path,
@@ -180,15 +180,16 @@ CMD ["/bin/sh"]
         with tempfile.TemporaryDirectory() as tmpdir:
             dockerfile_path = os.path.join(tmpdir, "Dockerfile")
             with open(dockerfile_path, "w") as f:
-                f.write("""FROM alpine:3.19
+                f.write(
+                    """FROM alpine:3.19
 RUN echo "Dual platform build" > /tmp/test.txt
 RUN uname -m > /tmp/arch.txt 2>/dev/null || echo "arch unknown" > /tmp/arch.txt
 CMD ["/bin/sh"]
-""")
+"""
+                )
 
             builder = ContainerBuilder(
-                builder_type=BuilderType.KANIKO,
-                timeout_seconds=1200  # 20 minutos para dual arch
+                builder_type=BuilderType.KANIKO, timeout_seconds=1200  # 20 minutos para dual arch
             )
 
             result = await builder.build_container(
@@ -220,15 +221,14 @@ CMD ["/bin/sh"]
         with tempfile.TemporaryDirectory() as tmpdir:
             dockerfile_path = os.path.join(tmpdir, "Dockerfile")
             with open(dockerfile_path, "w") as f:
-                f.write("""FROM alpine:3.19
+                f.write(
+                    """FROM alpine:3.19
 RUN echo "Alias test" > /tmp/test.txt
 CMD ["/bin/sh"]
-""")
+"""
+                )
 
-            builder = ContainerBuilder(
-                builder_type=BuilderType.KANIKO,
-                timeout_seconds=900
-            )
+            builder = ContainerBuilder(builder_type=BuilderType.KANIKO, timeout_seconds=900)
 
             # Usar aliases em vez de nomes completos
             result = await builder.build_container(
@@ -262,16 +262,17 @@ class TestKanikoMultiArchPython:
         with tempfile.TemporaryDirectory() as tmpdir:
             dockerfile_path = os.path.join(tmpdir, "Dockerfile")
             with open(dockerfile_path, "w") as f:
-                f.write("""FROM python:3.11-slim
+                f.write(
+                    """FROM python:3.11-slim
 WORKDIR /app
 RUN echo "Python ARM64 build" > /tmp/test.txt
 RUN python3 --version
 CMD ["/bin/sh"]
-""")
+"""
+                )
 
             builder = ContainerBuilder(
-                builder_type=BuilderType.KANIKO,
-                timeout_seconds=1200  # 20 minutos - Python é maior
+                builder_type=BuilderType.KANIKO, timeout_seconds=1200  # 20 minutos - Python é maior
             )
 
             result = await builder.build_container(
@@ -302,18 +303,17 @@ CMD ["/bin/sh"]
         with tempfile.TemporaryDirectory() as tmpdir:
             dockerfile_path = os.path.join(tmpdir, "Dockerfile")
             with open(dockerfile_path, "w") as f:
-                f.write("""FROM python:3.11-slim
+                f.write(
+                    """FROM python:3.11-slim
 WORKDIR /app
 RUN pip install --no-cache-dir fastapi uvicorn
 RUN echo 'from fastapi import FastAPI\\napp = FastAPI()\\n@app.get("/")\\ndef read_root():\\n    return {"status": "ok", "arch": "multi-arch"}' > /app/main.py
 EXPOSE 8000
 CMD ["/bin/sh"]
-""")
+"""
+                )
 
-            builder = ContainerBuilder(
-                builder_type=BuilderType.KANIKO,
-                timeout_seconds=1200
-            )
+            builder = ContainerBuilder(builder_type=BuilderType.KANIKO, timeout_seconds=1200)
 
             result = await builder.build_container(
                 dockerfile_path=dockerfile_path,
@@ -349,17 +349,13 @@ class TestQEMUPodStructure:
         with tempfile.TemporaryDirectory() as tmpdir:
             dockerfile_path = os.path.join(tmpdir, "Dockerfile")
             with open(dockerfile_path, "w") as f:
-                f.write("FROM alpine:3.19\nRUN echo test\nCMD [\"/bin/sh\"]\n")
+                f.write('FROM alpine:3.19\nRUN echo test\nCMD ["/bin/sh"]\n')
 
-            builder = ContainerBuilder(
-                builder_type=BuilderType.KANIKO,
-                timeout_seconds=600
-            )
+            builder = ContainerBuilder(builder_type=BuilderType.KANIKO, timeout_seconds=600)
 
             # Criar os init containers para verificar a estrutura
             init_containers = builder._build_init_containers(
-                needs_qemu=True,
-                qemu_binaries=["qemu-aarch64", "qemu-arm"]
+                needs_qemu=True, qemu_binaries=["qemu-aarch64", "qemu-arm"]
             )
 
             # Deve ter 2 init containers: qemu-setup e setup
@@ -377,15 +373,11 @@ class TestQEMUPodStructure:
     @pytest.mark.asyncio
     async def test_qemu_volumes_present(self):
         """Verifica que o volume QEMU está presente quando necessário."""
-        builder = ContainerBuilder(
-            builder_type=BuilderType.KANIKO,
-            timeout_seconds=600
-        )
+        builder = ContainerBuilder(builder_type=BuilderType.KANIKO, timeout_seconds=600)
 
         # Test com QEMU habilitado
         volumes_with_qemu = builder._build_pod_volumes(
-            configmap_name="test-config",
-            needs_qemu=True
+            configmap_name="test-config", needs_qemu=True
         )
 
         # Deve ter 4 volumes: workspace, dockerfile, context, qemu
@@ -395,8 +387,7 @@ class TestQEMUPodStructure:
 
         # Test sem QEMU
         volumes_without_qemu = builder._build_pod_volumes(
-            configmap_name="test-config",
-            needs_qemu=False
+            configmap_name="test-config", needs_qemu=False
         )
 
         # Deve ter 3 volumes: workspace, dockerfile, context
@@ -409,10 +400,7 @@ class TestQEMUPodStructure:
     @pytest.mark.asyncio
     async def test_qemu_volume_mounts_present(self):
         """Verifica que o volumeMount QEMU está presente no container Kaniko."""
-        builder = ContainerBuilder(
-            builder_type=BuilderType.KANIKO,
-            timeout_seconds=600
-        )
+        builder = ContainerBuilder(builder_type=BuilderType.KANIKO, timeout_seconds=600)
 
         # Test com QEMU habilitado
         mounts_with_qemu = builder._build_container_volume_mounts(needs_qemu=True)

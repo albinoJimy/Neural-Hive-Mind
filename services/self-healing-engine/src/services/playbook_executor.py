@@ -585,11 +585,15 @@ class PlaybookExecutor:
             if database_type == "mongodb":
                 from motor.motor_asyncio import AsyncIOMotorClient
 
-                client = AsyncIOMotorClient(connection_string, serverSelectionTimeoutMS=timeout * 1000)
-                await client.admin.command('ping')
+                client = AsyncIOMotorClient(
+                    connection_string, serverSelectionTimeoutMS=timeout * 1000
+                )
+                await client.admin.command("ping")
                 client.close()
 
-                logger.info("playbook_executor.database_connection_success", database_type=database_type)
+                logger.info(
+                    "playbook_executor.database_connection_success", database_type=database_type
+                )
                 result.update({"success": True, "connected": True})
                 context["database_connection_checked"] = True
                 context["database_connection_type"] = database_type
@@ -598,10 +602,12 @@ class PlaybookExecutor:
                 import asyncpg
 
                 conn = await asyncpg.connect(connection_string, timeout=timeout)
-                await conn.fetchval('SELECT 1')
+                await conn.fetchval("SELECT 1")
                 await conn.close()
 
-                logger.info("playbook_executor.database_connection_success", database_type=database_type)
+                logger.info(
+                    "playbook_executor.database_connection_success", database_type=database_type
+                )
                 result.update({"success": True, "connected": True})
                 context["database_connection_checked"] = True
                 context["database_connection_type"] = database_type
@@ -609,11 +615,15 @@ class PlaybookExecutor:
             elif database_type == "redis":
                 import redis.asyncio as redis
 
-                client = redis.from_url(connection_string, socket_timeout=timeout, socket_connect_timeout=timeout)
+                client = redis.from_url(
+                    connection_string, socket_timeout=timeout, socket_connect_timeout=timeout
+                )
                 await client.ping()
                 await client.close()
 
-                logger.info("playbook_executor.database_connection_success", database_type=database_type)
+                logger.info(
+                    "playbook_executor.database_connection_success", database_type=database_type
+                )
                 result.update({"success": True, "connected": True})
                 context["database_connection_checked"] = True
                 context["database_connection_type"] = database_type
@@ -654,10 +664,9 @@ class PlaybookExecutor:
 
         try:
             if not self.core_v1:
-                result.update({
-                    "success": False,
-                    "error": "Kubernetes core_v1 client not available"
-                })
+                result.update(
+                    {"success": False, "error": "Kubernetes core_v1 client not available"}
+                )
                 return result
 
             # Usar a API diretamente para obter métricas do pod
@@ -676,8 +685,9 @@ class PlaybookExecutor:
                 # Handle response: pode ser tuple (real) ou MagicMock com .data (mock)
                 if isinstance(response, tuple) and len(response) > 0:
                     metrics_data = response[0]
-                elif hasattr(response, 'data'):
+                elif hasattr(response, "data"):
                     import json
+
                     metrics_data = json.loads(response.data)
                 else:
                     metrics_data = response if response else {}
@@ -694,20 +704,21 @@ class PlaybookExecutor:
                     memory_mb = self._parse_memory_to_mb(memory_str)
                     total_memory_mb += memory_mb
 
-                    containers.append({
-                        "name": container.get("name"),
-                        "usage": {
-                            "memory": memory_str,
-                            "cpu": usage.get("cpu", "0")
+                    containers.append(
+                        {
+                            "name": container.get("name"),
+                            "usage": {"memory": memory_str, "cpu": usage.get("cpu", "0")},
                         }
-                    })
+                    )
 
-                result.update({
-                    "success": True,
-                    "containers": containers,
-                    "memory_mb": total_memory_mb,
-                    "memory_threshold_exceeded": total_memory_mb > memory_threshold_mb,
-                })
+                result.update(
+                    {
+                        "success": True,
+                        "containers": containers,
+                        "memory_mb": total_memory_mb,
+                        "memory_threshold_exceeded": total_memory_mb > memory_threshold_mb,
+                    }
+                )
 
                 logger.info(
                     "playbook_executor.get_pod_metrics_success",
@@ -718,15 +729,14 @@ class PlaybookExecutor:
 
             except client.rest.ApiException as e:
                 if e.status == 404:
-                    result.update({
-                        "success": False,
-                        "error": f"Pod {pod_name} not found in namespace {namespace} (404)"
-                    })
+                    result.update(
+                        {
+                            "success": False,
+                            "error": f"Pod {pod_name} not found in namespace {namespace} (404)",
+                        }
+                    )
                 else:
-                    result.update({
-                        "success": False,
-                        "error": f"API error {e.status}: {e.reason}"
-                    })
+                    result.update({"success": False, "error": f"API error {e.status}: {e.reason}"})
                 logger.error(
                     "playbook_executor.get_pod_metrics_api_error",
                     pod_name=pod_name,
@@ -739,10 +749,12 @@ class PlaybookExecutor:
                 pod_name=pod_name,
                 error=str(e),
             )
-            result.update({
-                "success": False,
-                "error": str(e),
-            })
+            result.update(
+                {
+                    "success": False,
+                    "error": str(e),
+                }
+            )
 
         return result
 
@@ -755,7 +767,8 @@ class PlaybookExecutor:
 
         # Extrair número e unidade
         import re
-        match = re.match(r'(\d+(?:\.\d+)?)([A-Z]*)', memory_str)
+
+        match = re.match(r"(\d+(?:\.\d+)?)([A-Z]*)", memory_str)
         if not match:
             return 0
 
@@ -802,12 +815,14 @@ class PlaybookExecutor:
 
         try:
             if not metrics_history or len(metrics_history) < 3:
-                result.update({
-                    "success": True,
-                    "memory_leak_detected": False,
-                    "trend": "insufficient_data",
-                    "reason": f"Need at least 3 data points, got {len(metrics_history)}"
-                })
+                result.update(
+                    {
+                        "success": True,
+                        "memory_leak_detected": False,
+                        "trend": "insufficient_data",
+                        "reason": f"Need at least 3 data points, got {len(metrics_history)}",
+                    }
+                )
                 return result
 
             # Extrair valores de memória em MB
@@ -860,17 +875,19 @@ class PlaybookExecutor:
                     trend = "fluctuating"
                 memory_leak_detected = False
 
-            result.update({
-                "success": True,
-                "memory_leak_detected": memory_leak_detected,
-                "trend": trend,
-                "slope_mb_per_period": round(slope, 2),
-                "r_squared": round(r_squared, 4),
-                "current_memory_mb": memory_values[-1],
-                "min_memory_mb": min(memory_values),
-                "max_memory_mb": max(memory_values),
-                "avg_memory_mb": round(y_mean, 2),
-            })
+            result.update(
+                {
+                    "success": True,
+                    "memory_leak_detected": memory_leak_detected,
+                    "trend": trend,
+                    "slope_mb_per_period": round(slope, 2),
+                    "r_squared": round(r_squared, 4),
+                    "current_memory_mb": memory_values[-1],
+                    "min_memory_mb": min(memory_values),
+                    "max_memory_mb": max(memory_values),
+                    "avg_memory_mb": round(y_mean, 2),
+                }
+            )
 
             logger.info(
                 "playbook_executor.analyze_memory_usage_complete",
@@ -886,10 +903,12 @@ class PlaybookExecutor:
                 pod_name=pod_name,
                 error=str(e),
             )
-            result.update({
-                "success": False,
-                "error": str(e),
-            })
+            result.update(
+                {
+                    "success": False,
+                    "error": str(e),
+                }
+            )
 
         return result
 

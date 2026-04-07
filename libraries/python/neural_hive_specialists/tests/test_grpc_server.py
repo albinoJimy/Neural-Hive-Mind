@@ -181,9 +181,7 @@ class TestSpecialistServicer:
         context = Mock()
 
         with patch("neural_hive_specialists.grpc_server.PROTO_AVAILABLE", True):
-            with patch(
-                "neural_hive_specialists.grpc_server.specialist_pb2"
-            ) as mock_pb2:
+            with patch("neural_hive_specialists.grpc_server.specialist_pb2") as mock_pb2:
                 # Configurar mocks para não gerar erro
                 mock_pb2.CapabilityMetrics.return_value = Mock()
                 mock_pb2.GetCapabilitiesResponse.return_value = Mock()
@@ -268,9 +266,7 @@ class TestEvaluatePlan:
         context.invocation_metadata = Mock(return_value=[])
 
         with patch("neural_hive_specialists.grpc_server.logger") as mock_logger:
-            with patch(
-                "neural_hive_specialists.grpc_server.specialist_pb2"
-            ) as mock_pb2:
+            with patch("neural_hive_specialists.grpc_server.specialist_pb2") as mock_pb2:
                 mock_pb2.EvaluatePlanResponse.return_value = Mock()
                 mock_pb2.ReasoningFactor.return_value = Mock()
 
@@ -422,9 +418,7 @@ class TestCreateGRPCServer:
                     create_grpc_server_with_observability,
                 )
 
-                server = create_grpc_server_with_observability(
-                    specialist, mock_config
-                )
+                server = create_grpc_server_with_observability(specialist, mock_config)
 
                 # Verificar que servidor foi criado
                 assert mock_server.called
@@ -441,9 +435,7 @@ class TestCreateGRPCServer:
                     create_grpc_server_with_observability,
                 )
 
-                server = create_grpc_server_with_observability(
-                    specialist, mock_config
-                )
+                server = create_grpc_server_with_observability(specialist, mock_config)
 
                 # Verificar que opções foram passadas
                 call_args = mock_server.call_args
@@ -545,9 +537,7 @@ class TestSpecialistServicerComplete:
         """Instância de SpecialistServicer com mock completo."""
         return SpecialistServicer(mock_specialist_complete)
 
-    def test_evaluate_plan_success_full_response(
-        self, servicer_complete, mock_specialist_complete
-    ):
+    def test_evaluate_plan_success_full_response(self, servicer_complete, mock_specialist_complete):
         """Testa EvaluatePlan com resposta completa."""
         # Arrange
         request = Mock()
@@ -566,9 +556,7 @@ class TestSpecialistServicerComplete:
 
         # Act
         with patch("neural_hive_specialists.grpc_server.PROTO_AVAILABLE", True):
-            with patch(
-                "neural_hive_specialists.grpc_server.specialist_pb2"
-            ) as mock_pb2:
+            with patch("neural_hive_specialists.grpc_server.specialist_pb2") as mock_pb2:
                 # Configure mocks para protobuf
                 mock_pb2.ReasoningFactor.return_value = Mock()
                 mock_pb2.MitigationSuggestion.return_value = Mock()
@@ -585,9 +573,7 @@ class TestSpecialistServicerComplete:
                 assert mock_pb2.ReasoningFactor.called
                 assert mock_pb2.MitigationSuggestion.called
 
-    def test_evaluate_plan_propagates_tenant_id(
-        self, servicer_complete, mock_specialist_complete
-    ):
+    def test_evaluate_plan_propagates_tenant_id(self, servicer_complete, mock_specialist_complete):
         """Testa que tenant_id é propagado do metadata gRPC."""
         # Arrange
         request = Mock()
@@ -605,9 +591,7 @@ class TestSpecialistServicerComplete:
 
         # Act
         with patch("neural_hive_specialists.grpc_server.PROTO_AVAILABLE", True):
-            with patch(
-                "neural_hive_specialists.grpc_server.specialist_pb2"
-            ) as mock_pb2:
+            with patch("neural_hive_specialists.grpc_server.specialist_pb2") as mock_pb2:
                 mock_pb2.EvaluatePlanResponse.return_value = Mock()
                 mock_pb2.ReasoningFactor.return_value = Mock()
                 mock_pb2.MitigationSuggestion.return_value = Mock()
@@ -625,9 +609,7 @@ class TestSpecialistServicerComplete:
     ):
         """Testa EvaluatePlan com erro de argumento inválido."""
         # Arrange
-        mock_specialist_complete.evaluate_plan.side_effect = ValueError(
-            "Invalid plan format"
-        )
+        mock_specialist_complete.evaluate_plan.side_effect = ValueError("Invalid plan format")
 
         request = Mock()
         request.plan_id = "invalid-plan"
@@ -651,9 +633,7 @@ class TestSpecialistServicerComplete:
     ):
         """Testa EvaluatePlan com tenant desconhecido."""
         # Arrange
-        mock_specialist_complete.evaluate_plan.side_effect = ValueError(
-            "Tenant desconhecido: xyz"
-        )
+        mock_specialist_complete.evaluate_plan.side_effect = ValueError("Tenant desconhecido: xyz")
 
         request = Mock()
         request.plan_id = "plan-123"
@@ -677,9 +657,7 @@ class TestSpecialistServicerComplete:
     ):
         """Testa EvaluatePlan com tenant inativo."""
         # Arrange
-        mock_specialist_complete.evaluate_plan.side_effect = ValueError(
-            "Tenant inativo: xyz"
-        )
+        mock_specialist_complete.evaluate_plan.side_effect = ValueError("Tenant inativo: xyz")
 
         request = Mock()
         request.plan_id = "plan-123"
@@ -698,14 +676,10 @@ class TestSpecialistServicerComplete:
         # Assert - verify abort was called
         context.abort.assert_called_once()
 
-    def test_evaluate_plan_grpc_error_internal(
-        self, servicer_complete, mock_specialist_complete
-    ):
+    def test_evaluate_plan_grpc_error_internal(self, servicer_complete, mock_specialist_complete):
         """Testa EvaluatePlan com erro interno."""
         # Arrange
-        mock_specialist_complete.evaluate_plan.side_effect = RuntimeError(
-            "Internal error"
-        )
+        mock_specialist_complete.evaluate_plan.side_effect = RuntimeError("Internal error")
 
         request = Mock()
         request.plan_id = "plan-123"
@@ -733,9 +707,7 @@ class TestSpecialistServicerComplete:
 
         # Act
         with patch("neural_hive_specialists.grpc_server.PROTO_AVAILABLE", True):
-            with patch(
-                "neural_hive_specialists.grpc_server.specialist_pb2"
-            ) as mock_pb2:
+            with patch("neural_hive_specialists.grpc_server.specialist_pb2") as mock_pb2:
                 mock_pb2.HealthCheckResponse.SERVING = 1
                 mock_pb2.HealthCheckResponse.NOT_SERVING = 2
                 mock_pb2.HealthCheckResponse.UNKNOWN = 0
@@ -750,9 +722,7 @@ class TestSpecialistServicerComplete:
                 call_kwargs = mock_pb2.HealthCheckResponse.call_args[1]
                 assert call_kwargs["status"] == mock_pb2.HealthCheckResponse.SERVING
 
-    def test_health_check_not_serving(
-        self, servicer_complete, mock_specialist_complete
-    ):
+    def test_health_check_not_serving(self, servicer_complete, mock_specialist_complete):
         """Testa HealthCheck retornando NOT_SERVING."""
         # Arrange
         mock_specialist_complete.health_check.return_value = {
@@ -765,9 +735,7 @@ class TestSpecialistServicerComplete:
 
         # Act
         with patch("neural_hive_specialists.grpc_server.PROTO_AVAILABLE", True):
-            with patch(
-                "neural_hive_specialists.grpc_server.specialist_pb2"
-            ) as mock_pb2:
+            with patch("neural_hive_specialists.grpc_server.specialist_pb2") as mock_pb2:
                 mock_pb2.HealthCheckResponse.SERVING = 1
                 mock_pb2.HealthCheckResponse.NOT_SERVING = 2
                 mock_pb2.HealthCheckResponse.UNKNOWN = 0
@@ -780,9 +748,7 @@ class TestSpecialistServicerComplete:
                 call_kwargs = mock_pb2.HealthCheckResponse.call_args[1]
                 assert call_kwargs["status"] == mock_pb2.HealthCheckResponse.NOT_SERVING
 
-    def test_health_check_details_serialization(
-        self, servicer_complete, mock_specialist_complete
-    ):
+    def test_health_check_details_serialization(self, servicer_complete, mock_specialist_complete):
         """Testa que details complexos são serializados como JSON."""
         # Arrange
         mock_specialist_complete.health_check.return_value = {
@@ -799,9 +765,7 @@ class TestSpecialistServicerComplete:
 
         # Act
         with patch("neural_hive_specialists.grpc_server.PROTO_AVAILABLE", True):
-            with patch(
-                "neural_hive_specialists.grpc_server.specialist_pb2"
-            ) as mock_pb2:
+            with patch("neural_hive_specialists.grpc_server.specialist_pb2") as mock_pb2:
                 mock_pb2.HealthCheckResponse.SERVING = 1
                 mock_pb2.HealthCheckResponse.return_value = Mock()
 
@@ -814,9 +778,7 @@ class TestSpecialistServicerComplete:
                 assert '"nested"' in details["complex_dict"]  # JSON serializado
                 assert "[1, 2, 3]" in details["complex_list"]  # JSON serializado
 
-    def test_get_capabilities_full_response(
-        self, servicer_complete, mock_specialist_complete
-    ):
+    def test_get_capabilities_full_response(self, servicer_complete, mock_specialist_complete):
         """Testa GetCapabilities com resposta completa."""
         # Arrange
         request = Mock()
@@ -824,9 +786,7 @@ class TestSpecialistServicerComplete:
 
         # Act
         with patch("neural_hive_specialists.grpc_server.PROTO_AVAILABLE", True):
-            with patch(
-                "neural_hive_specialists.grpc_server.specialist_pb2"
-            ) as mock_pb2:
+            with patch("neural_hive_specialists.grpc_server.specialist_pb2") as mock_pb2:
                 mock_pb2.CapabilityMetrics.return_value = Mock()
                 mock_pb2.GetCapabilitiesResponse.return_value = Mock(
                     specialist_type="test", version="1.0.0"
@@ -868,9 +828,7 @@ class TestSpecialistServicerComplete:
 
         # Act
         with patch("neural_hive_specialists.grpc_server.PROTO_AVAILABLE", True):
-            with patch(
-                "neural_hive_specialists.grpc_server.specialist_pb2"
-            ) as mock_pb2:
+            with patch("neural_hive_specialists.grpc_server.specialist_pb2") as mock_pb2:
                 mock_pb2.CapabilityMetrics.return_value = Mock()
                 mock_pb2.GetCapabilitiesResponse.return_value = Mock()
 
@@ -881,14 +839,10 @@ class TestSpecialistServicerComplete:
                 call_kwargs = mock_pb2.CapabilityMetrics.call_args[1]
                 assert "last_model_update" in call_kwargs
 
-    def test_get_capabilities_handles_exception(
-        self, servicer_complete, mock_specialist_complete
-    ):
+    def test_get_capabilities_handles_exception(self, servicer_complete, mock_specialist_complete):
         """Testa GetCapabilities com exceção."""
         # Arrange
-        mock_specialist_complete.get_capabilities.side_effect = RuntimeError(
-            "Database error"
-        )
+        mock_specialist_complete.get_capabilities.side_effect = RuntimeError("Database error")
 
         request = Mock()
         context = Mock()

@@ -14,7 +14,7 @@ from src.models.artifact import (
     GenerationMethod,
     ValidationResult,
     ValidationStatus,
-    ValidationType
+    ValidationType,
 )
 from src.types.artifact_types import ArtifactCategory
 from src.models.execution_ticket import (
@@ -28,7 +28,7 @@ from src.models.execution_ticket import (
     SecurityLevel,
     DeliveryMode,
     Consistency,
-    Durability
+    Durability,
 )
 
 
@@ -45,8 +45,8 @@ def mock_trivy_client():
 def mock_sigstore_client():
     """Mock do SigstoreClient."""
     client = AsyncMock()
-    client.generate_sbom = AsyncMock(return_value='s3://bucket/sbom.json')
-    client.sign_artifact = AsyncMock(return_value='signature123')
+    client.generate_sbom = AsyncMock(return_value="s3://bucket/sbom.json")
+    client.sign_artifact = AsyncMock(return_value="signature123")
     return client
 
 
@@ -62,7 +62,7 @@ def mock_s3_client():
 def mock_registry_client():
     """Mock do ArtifactRegistryClient."""
     client = AsyncMock()
-    client.register_sbom = AsyncMock(return_value='registry-ref-123')
+    client.register_sbom = AsyncMock(return_value="registry-ref-123")
     return client
 
 
@@ -78,15 +78,15 @@ def mock_postgres_client():
 def sample_artifact():
     """Artefato de exemplo."""
     return CodeForgeArtifact(
-        artifact_id='artifact-123',
-        ticket_id='ticket-456',
+        artifact_id="artifact-123",
+        ticket_id="ticket-456",
         artifact_type=ArtifactCategory.CODE,
-        language='python',
+        language="python",
         confidence_score=0.95,
         generation_method=GenerationMethod.LLM,
-        content_uri='/tmp/app',
-        content_hash='sha256:abc123',
-        created_at=datetime.now()
+        content_uri="/tmp/app",
+        content_hash="sha256:abc123",
+        created_at=datetime.now(),
     )
 
 
@@ -95,23 +95,19 @@ def sample_ticket():
     """Ticket de execução completo para testes."""
     now = datetime.now()
     return ExecutionTicket(
-        ticket_id='ticket-456',
+        ticket_id="ticket-456",
         task_type=TaskType.BUILD,
         status=TicketStatus.PENDING,
         priority=Priority.NORMAL,
         risk_band=RiskBand.LOW,
-        sla=SLA(
-            deadline=now,
-            timeout_ms=300000,
-            max_retries=3
-        ),
+        sla=SLA(deadline=now, timeout_ms=300000, max_retries=3),
         qos=QoS(
             delivery_mode=DeliveryMode.AT_LEAST_ONCE,
             consistency=Consistency.EVENTUAL,
-            durability=Durability.PERSISTENT
+            durability=Durability.PERSISTENT,
         ),
         security_level=SecurityLevel.INTERNAL,
-        created_at=now
+        created_at=now,
     )
 
 
@@ -121,7 +117,7 @@ def packager_with_trivy(
     mock_sigstore_client,
     mock_s3_client,
     mock_registry_client,
-    mock_postgres_client
+    mock_postgres_client,
 ):
     """Packager com todos os clientes mockados."""
     return Packager(
@@ -129,7 +125,7 @@ def packager_with_trivy(
         s3_artifact_client=mock_s3_client,
         artifact_registry_client=mock_registry_client,
         postgres_client=mock_postgres_client,
-        trivy_client=mock_trivy_client
+        trivy_client=mock_trivy_client,
     )
 
 
@@ -143,14 +139,14 @@ class TestPackagerTrivyIntegration:
         sample_artifact,
         sample_ticket,
         mock_trivy_client,
-        mock_sigstore_client
+        mock_sigstore_client,
     ):
         """Teste empacotamento com scan Trivy bem-sucedido."""
         # Setup mock do scan
         scan_result = ValidationResult(
             validation_type=ValidationType.SECURITY_SCAN,
-            tool_name='Trivy',
-            tool_version='0.45.0',
+            tool_name="Trivy",
+            tool_version="0.45.0",
             status=ValidationStatus.PASSED,
             score=1.0,
             issues_count=0,
@@ -159,7 +155,7 @@ class TestPackagerTrivyIntegration:
             medium_issues=0,
             low_issues=0,
             executed_at=datetime.now(),
-            duration_ms=5000
+            duration_ms=5000,
         )
         mock_trivy_client.scan_filesystem.return_value = scan_result
 
@@ -167,10 +163,10 @@ class TestPackagerTrivyIntegration:
         from src.models.pipeline_context import PipelineContext
 
         context = PipelineContext(
-            pipeline_id='pipeline-789',
+            pipeline_id="pipeline-789",
             ticket=sample_ticket,
-            trace_id='trace-123',
-            span_id='span-456'
+            trace_id="trace-123",
+            span_id="span-456",
         )
         context.generated_artifacts = [sample_artifact]
 
@@ -190,7 +186,7 @@ class TestPackagerTrivyIntegration:
         mock_sigstore_client,
         mock_s3_client,
         mock_registry_client,
-        mock_postgres_client
+        mock_postgres_client,
     ):
         """Teste empacotamento sem Trivy configurado."""
         packager = Packager(
@@ -198,16 +194,16 @@ class TestPackagerTrivyIntegration:
             s3_artifact_client=mock_s3_client,
             artifact_registry_client=mock_registry_client,
             postgres_client=mock_postgres_client,
-            trivy_client=None  # Sem Trivy
+            trivy_client=None,  # Sem Trivy
         )
 
         from src.models.pipeline_context import PipelineContext
 
         context = PipelineContext(
-            pipeline_id='pipeline-789',
+            pipeline_id="pipeline-789",
             ticket=sample_ticket,
-            trace_id='trace-123',
-            span_id='span-456'
+            trace_id="trace-123",
+            span_id="span-456",
         )
         context.generated_artifacts = [sample_artifact]
 
@@ -223,14 +219,14 @@ class TestPackagerTrivyIntegration:
         sample_artifact,
         sample_ticket,
         mock_trivy_client,
-        mock_sigstore_client
+        mock_sigstore_client,
     ):
         """Teste scan que encontra vulnerabilidades."""
         # Scan com HIGH vulnerability
         scan_result = ValidationResult(
             validation_type=ValidationType.SECURITY_SCAN,
-            tool_name='Trivy',
-            tool_version='0.45.0',
+            tool_name="Trivy",
+            tool_version="0.45.0",
             status=ValidationStatus.WARNING,
             score=0.6,
             issues_count=3,
@@ -239,17 +235,17 @@ class TestPackagerTrivyIntegration:
             medium_issues=1,
             low_issues=0,
             executed_at=datetime.now(),
-            duration_ms=3000
+            duration_ms=3000,
         )
         mock_trivy_client.scan_filesystem.return_value = scan_result
 
         from src.models.pipeline_context import PipelineContext
 
         context = PipelineContext(
-            pipeline_id='pipeline-789',
+            pipeline_id="pipeline-789",
             ticket=sample_ticket,
-            trace_id='trace-123',
-            span_id='span-456'
+            trace_id="trace-123",
+            span_id="span-456",
         )
         context.generated_artifacts = [sample_artifact]
 
@@ -260,30 +256,26 @@ class TestPackagerTrivyIntegration:
 
     @pytest.mark.asyncio
     async def test_package_with_container_type(
-        self,
-        packager_with_trivy,
-        sample_ticket,
-        mock_trivy_client,
-        mock_sigstore_client
+        self, packager_with_trivy, sample_ticket, mock_trivy_client, mock_sigstore_client
     ):
         """Teste scan de artefato tipo CONTAINER."""
         # Criar artifact de container
         container_artifact = CodeForgeArtifact(
-            artifact_id='container-123',
-            ticket_id='ticket-456',
+            artifact_id="container-123",
+            ticket_id="ticket-456",
             artifact_type=ArtifactCategory.CONTAINER,
-            language='golang',
+            language="golang",
             confidence_score=0.9,
             generation_method=GenerationMethod.LLM,
-            content_uri='file:///tmp/build/context',
-            content_hash='sha256:def456',
-            created_at=datetime.now()
+            content_uri="file:///tmp/build/context",
+            content_hash="sha256:def456",
+            created_at=datetime.now(),
         )
 
         scan_result = ValidationResult(
             validation_type=ValidationType.SECURITY_SCAN,
-            tool_name='Trivy',
-            tool_version='0.45.0',
+            tool_name="Trivy",
+            tool_version="0.45.0",
             status=ValidationStatus.PASSED,
             score=1.0,
             issues_count=0,
@@ -292,17 +284,17 @@ class TestPackagerTrivyIntegration:
             medium_issues=0,
             low_issues=0,
             executed_at=datetime.now(),
-            duration_ms=2000
+            duration_ms=2000,
         )
         mock_trivy_client.scan_filesystem.return_value = scan_result
 
         from src.models.pipeline_context import PipelineContext
 
         context = PipelineContext(
-            pipeline_id='pipeline-789',
+            pipeline_id="pipeline-789",
             ticket=sample_ticket,
-            trace_id='trace-123',
-            span_id='span-456'
+            trace_id="trace-123",
+            span_id="span-456",
         )
         context.generated_artifacts = [container_artifact]
 
@@ -318,19 +310,19 @@ class TestPackagerTrivyIntegration:
         sample_artifact,
         sample_ticket,
         mock_trivy_client,
-        mock_sigstore_client
+        mock_sigstore_client,
     ):
         """Teste que erro no scan não interrompe o empacotamento."""
         # Scan lança exceção
-        mock_trivy_client.scan_filesystem.side_effect = Exception('Scan failed')
+        mock_trivy_client.scan_filesystem.side_effect = Exception("Scan failed")
 
         from src.models.pipeline_context import PipelineContext
 
         context = PipelineContext(
-            pipeline_id='pipeline-789',
+            pipeline_id="pipeline-789",
             ticket=sample_ticket,
-            trace_id='trace-123',
-            span_id='span-456'
+            trace_id="trace-123",
+            span_id="span-456",
         )
         context.generated_artifacts = [sample_artifact]
 
@@ -356,7 +348,7 @@ class TestPackagerWithoutTrivy:
         mock_sigstore_client,
         mock_s3_client,
         mock_registry_client,
-        mock_postgres_client
+        mock_postgres_client,
     ):
         """Teste que Packager funciona sem Trivy (backward compat)."""
         packager = Packager(
@@ -370,10 +362,10 @@ class TestPackagerWithoutTrivy:
         from src.models.pipeline_context import PipelineContext
 
         context = PipelineContext(
-            pipeline_id='pipeline-789',
+            pipeline_id="pipeline-789",
             ticket=sample_ticket,
-            trace_id='trace-123',
-            span_id='span-456'
+            trace_id="trace-123",
+            span_id="span-456",
         )
         context.generated_artifacts = [sample_artifact]
 

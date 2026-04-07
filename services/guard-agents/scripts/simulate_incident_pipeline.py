@@ -20,6 +20,7 @@ import json
 from datetime import datetime, timezone
 from typing import Dict, Any
 
+
 # Mock clients para simulação
 class MockRedisClient:
     async def set(self, key: str, value: str, ex: int = None):
@@ -49,7 +50,8 @@ class MockKubernetesClient:
 
 # Importar componentes
 import sys
-sys.path.insert(0, '/home/jimy/Base/Neural-Hive-Mind/services/guard-agents')
+
+sys.path.insert(0, "/home/jimy/Base/Neural-Hive-Mind/services/guard-agents")
 
 from src.services.threat_detector import ThreatDetector
 from src.services.incident_classifier import IncidentClassifier
@@ -122,9 +124,7 @@ async def simulate_incident_pipeline(incident_type: str):
     incident_classifier = IncidentClassifier(mongodb_client=mongodb_client)
     policy_enforcer = PolicyEnforcer(k8s_client=k8s_client, redis_client=redis_client)
     remediation_coordinator = RemediationCoordinator(
-        k8s_client=k8s_client,
-        mongodb_client=mongodb_client,
-        kafka_producer=None
+        k8s_client=k8s_client, mongodb_client=mongodb_client, kafka_producer=None
     )
 
     orchestrator = IncidentOrchestrator(
@@ -133,7 +133,7 @@ async def simulate_incident_pipeline(incident_type: str):
         policy_enforcer=policy_enforcer,
         remediation_coordinator=remediation_coordinator,
         mongodb_client=mongodb_client,
-        kafka_producer=None
+        kafka_producer=None,
     )
 
     # Criar evento
@@ -229,9 +229,7 @@ async def simulate_incident_pipeline(incident_type: str):
 
 
 async def main():
-    parser = argparse.ArgumentParser(
-        description="Simula pipeline completo de incidentes E1-E6"
-    )
+    parser = argparse.ArgumentParser(description="Simula pipeline completo de incidentes E1-E6")
     parser.add_argument(
         "--incident-type",
         type=str,
@@ -243,7 +241,7 @@ async def main():
             "malicious_payload",
             "data_exfiltration",
         ],
-        help="Tipo de incidente a simular"
+        help="Tipo de incidente a simular",
     )
 
     args = parser.parse_args()

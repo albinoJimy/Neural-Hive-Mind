@@ -17,6 +17,7 @@ class TestNLPExtractionLatency:
     async def nlp_processor(self):
         """Fixture que cria e inicializa NLPProcessor"""
         from src.services.nlp_processor import NLPProcessor
+
         processor = NLPProcessor(redis_client=None)
         await processor.initialize()
         return processor
@@ -34,7 +35,7 @@ class TestNLPExtractionLatency:
             "Update the database schema to support new features",
             "Search for all active users in the system",
             "Migrate legacy data to the new microservices architecture",
-            "Create an event-driven system using Kafka and Redis Streams"
+            "Create an event-driven system using Kafka and Redis Streams",
         ]
 
     @pytest.mark.asyncio
@@ -181,6 +182,7 @@ class TestNLPCachePerformance:
     async def nlp_processor_with_cache(self, mock_redis_client):
         """NLPProcessor com cache simulado"""
         from src.services.nlp_processor import NLPProcessor
+
         processor = NLPProcessor(redis_client=mock_redis_client)
         processor._cache_ttl = 600
         await processor.initialize()
@@ -193,8 +195,8 @@ class TestNLPCachePerformance:
 
         # Primeira chamada (cache miss)
         await nlp_processor_with_cache._cache_extraction(
-            nlp_processor_with_cache._generate_cache_key('keywords', text),
-            {'keywords': ['api', 'rest', 'produto']}
+            nlp_processor_with_cache._generate_cache_key("keywords", text),
+            {"keywords": ["api", "rest", "produto"]},
         )
 
         # Medir latência do cache hit
@@ -202,7 +204,7 @@ class TestNLPCachePerformance:
         for _ in range(50):
             start = time.perf_counter()
             result = await nlp_processor_with_cache._get_cached_extraction(
-                nlp_processor_with_cache._generate_cache_key('keywords', text)
+                nlp_processor_with_cache._generate_cache_key("keywords", text)
             )
             end = time.perf_counter()
 
@@ -224,6 +226,7 @@ class TestNLPThroughput:
     async def nlp_processor(self):
         """Fixture que cria e inicializa NLPProcessor"""
         from src.services.nlp_processor import NLPProcessor
+
         processor = NLPProcessor(redis_client=None)
         await processor.initialize()
         return processor
@@ -251,7 +254,9 @@ class TestNLPThroughput:
         print(f"\nKeywords Throughput: {throughput:.0f} req/s")
 
         # Mínimo: 100 req/s
-        assert throughput >= 100, f"Keywords throughput {throughput:.0f} req/s below 100 req/s minimum"
+        assert (
+            throughput >= 100
+        ), f"Keywords throughput {throughput:.0f} req/s below 100 req/s minimum"
 
     @pytest.mark.asyncio
     async def test_objectives_throughput(self, nlp_processor):
@@ -276,4 +281,6 @@ class TestNLPThroughput:
         print(f"\nObjectives Throughput: {throughput:.0f} req/s")
 
         # Mínimo: 100 req/s
-        assert throughput >= 100, f"Objectives throughput {throughput:.0f} req/s below 100 req/s minimum"
+        assert (
+            throughput >= 100
+        ), f"Objectives throughput {throughput:.0f} req/s below 100 req/s minimum"

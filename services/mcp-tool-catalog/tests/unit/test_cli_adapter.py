@@ -29,32 +29,32 @@ class TestCLIAdapterExecution:
 
         adapter = CLIAdapter()
 
-        with patch('asyncio.create_subprocess_shell', new_callable=AsyncMock) as mock_proc:
+        with patch("asyncio.create_subprocess_shell", new_callable=AsyncMock) as mock_proc:
             mock_process = AsyncMock()
-            mock_process.communicate = AsyncMock(return_value=(b'Success output', b''))
+            mock_process.communicate = AsyncMock(return_value=(b"Success output", b""))
             mock_process.returncode = 0
             mock_proc.return_value = mock_process
 
             result = await adapter.execute(
-                tool_id='test-tool-001',
-                tool_name='pytest',
-                command='pytest',
-                parameters={'verbose': True},
-                context={'working_dir': '/tmp/project'}
+                tool_id="test-tool-001",
+                tool_name="pytest",
+                command="pytest",
+                parameters={"verbose": True},
+                context={"working_dir": "/tmp/project"},
             )
 
             # Validar resultado
             assert result.success is True
             assert result.exit_code == 0
-            assert 'Success output' in result.output
+            assert "Success output" in result.output
 
             # Validar chamada do subprocess
             mock_proc.assert_called_once()
             call_args = mock_proc.call_args
-            assert 'pytest' in call_args[0][0]
-            assert call_args.kwargs['cwd'] == '/tmp/project'
-            assert call_args.kwargs['stdout'] == asyncio.subprocess.PIPE
-            assert call_args.kwargs['stderr'] == asyncio.subprocess.PIPE
+            assert "pytest" in call_args[0][0]
+            assert call_args.kwargs["cwd"] == "/tmp/project"
+            assert call_args.kwargs["stdout"] == asyncio.subprocess.PIPE
+            assert call_args.kwargs["stderr"] == asyncio.subprocess.PIPE
 
     @pytest.mark.asyncio
     async def test_execute_failure(self):
@@ -63,23 +63,23 @@ class TestCLIAdapterExecution:
 
         adapter = CLIAdapter()
 
-        with patch('asyncio.create_subprocess_shell', new_callable=AsyncMock) as mock_proc:
+        with patch("asyncio.create_subprocess_shell", new_callable=AsyncMock) as mock_proc:
             mock_process = AsyncMock()
-            mock_process.communicate = AsyncMock(return_value=(b'', b'Error: test failed'))
+            mock_process.communicate = AsyncMock(return_value=(b"", b"Error: test failed"))
             mock_process.returncode = 1
             mock_proc.return_value = mock_process
 
             result = await adapter.execute(
-                tool_id='test-tool-001',
-                tool_name='pytest',
-                command='pytest',
+                tool_id="test-tool-001",
+                tool_name="pytest",
+                command="pytest",
                 parameters={},
-                context={}
+                context={},
             )
 
             assert result.success is False
             assert result.exit_code == 1
-            assert 'Error: test failed' in result.error
+            assert "Error: test failed" in result.error
 
     @pytest.mark.asyncio
     async def test_execute_timeout(self):
@@ -88,22 +88,22 @@ class TestCLIAdapterExecution:
 
         adapter = CLIAdapter(timeout_seconds=1)
 
-        with patch('asyncio.create_subprocess_shell', new_callable=AsyncMock) as mock_proc:
+        with patch("asyncio.create_subprocess_shell", new_callable=AsyncMock) as mock_proc:
             mock_process = AsyncMock()
             mock_process.communicate = AsyncMock(side_effect=asyncio.TimeoutError())
             mock_process.kill = MagicMock()
             mock_proc.return_value = mock_process
 
             result = await adapter.execute(
-                tool_id='test-tool-001',
-                tool_name='slow-tool',
-                command='slow-tool',
+                tool_id="test-tool-001",
+                tool_name="slow-tool",
+                command="slow-tool",
                 parameters={},
-                context={}
+                context={},
             )
 
             assert result.success is False
-            assert 'timed out' in result.error.lower()
+            assert "timed out" in result.error.lower()
             mock_process.kill.assert_called_once()
 
     @pytest.mark.asyncio
@@ -114,24 +114,24 @@ class TestCLIAdapterExecution:
         adapter = CLIAdapter()
 
         stdout_content = b'{"result": "success", "count": 10}'
-        stderr_content = b'Warning: deprecated option'
+        stderr_content = b"Warning: deprecated option"
 
-        with patch('asyncio.create_subprocess_shell', new_callable=AsyncMock) as mock_proc:
+        with patch("asyncio.create_subprocess_shell", new_callable=AsyncMock) as mock_proc:
             mock_process = AsyncMock()
             mock_process.communicate = AsyncMock(return_value=(stdout_content, stderr_content))
             mock_process.returncode = 0
             mock_proc.return_value = mock_process
 
             result = await adapter.execute(
-                tool_id='test-tool-001',
-                tool_name='json-tool',
-                command='json-tool',
+                tool_id="test-tool-001",
+                tool_name="json-tool",
+                command="json-tool",
                 parameters={},
-                context={}
+                context={},
             )
 
-            assert result.output == stdout_content.decode('utf-8')
-            assert result.error == stderr_content.decode('utf-8')
+            assert result.output == stdout_content.decode("utf-8")
+            assert result.error == stderr_content.decode("utf-8")
 
 
 class TestCLIAdapterCommandBuilding:
@@ -143,17 +143,14 @@ class TestCLIAdapterCommandBuilding:
 
         adapter = CLIAdapter()
 
-        params = {
-            'severity': 'HIGH',
-            'output': 'json'
-        }
+        params = {"severity": "HIGH", "output": "json"}
 
-        cmd = adapter._build_command('trivy image', params)
+        cmd = adapter._build_command("trivy image", params)
 
-        assert 'trivy image' in cmd
-        assert '--severity' in cmd
-        assert "'HIGH'" in cmd or 'HIGH' in cmd
-        assert '--output' in cmd
+        assert "trivy image" in cmd
+        assert "--severity" in cmd
+        assert "'HIGH'" in cmd or "HIGH" in cmd
+        assert "--output" in cmd
 
     def test_build_command_with_boolean_flag(self):
         """Deve incluir flag boolean quando True."""
@@ -161,15 +158,12 @@ class TestCLIAdapterCommandBuilding:
 
         adapter = CLIAdapter()
 
-        params = {
-            'verbose': True,
-            'quiet': False
-        }
+        params = {"verbose": True, "quiet": False}
 
-        cmd = adapter._build_command('pytest', params)
+        cmd = adapter._build_command("pytest", params)
 
-        assert '--verbose' in cmd
-        assert '--quiet' not in cmd
+        assert "--verbose" in cmd
+        assert "--quiet" not in cmd
 
     def test_build_command_with_list_args(self):
         """Deve construir comando com argumentos lista."""
@@ -177,15 +171,13 @@ class TestCLIAdapterCommandBuilding:
 
         adapter = CLIAdapter()
 
-        params = {
-            'ignore': ['CVE-2021-1234', 'CVE-2022-5678']
-        }
+        params = {"ignore": ["CVE-2021-1234", "CVE-2022-5678"]}
 
-        cmd = adapter._build_command('trivy', params)
+        cmd = adapter._build_command("trivy", params)
 
-        assert '--ignore' in cmd
-        assert 'CVE-2021-1234' in cmd
-        assert 'CVE-2022-5678' in cmd
+        assert "--ignore" in cmd
+        assert "CVE-2021-1234" in cmd
+        assert "CVE-2022-5678" in cmd
 
     def test_build_command_with_target(self):
         """Deve adicionar _target ao final do comando."""
@@ -193,30 +185,30 @@ class TestCLIAdapterCommandBuilding:
 
         adapter = CLIAdapter()
 
-        params = {
-            'severity': 'HIGH',
-            '_target': 'nginx:latest'
-        }
+        params = {"severity": "HIGH", "_target": "nginx:latest"}
 
-        cmd = adapter._build_command('trivy image', params)
+        cmd = adapter._build_command("trivy image", params)
 
         # Target deve estar no final (sem aspas adicionais - shlex.quote ja trata)
-        assert cmd.endswith('nginx:latest')
+        assert cmd.endswith("nginx:latest")
         # _target nao deve aparecer como flag
-        assert '--_target' not in cmd
+        assert "--_target" not in cmd
 
-    @pytest.mark.parametrize('params,expected_parts', [
-        ({'verbose': True}, ['--verbose']),
-        ({'output': 'json'}, ['--output', 'json']),
-        ({'count': 5}, ['--count', '5']),
-        ({'_target': 'myimage'}, ['myimage']),
-    ])
+    @pytest.mark.parametrize(
+        "params,expected_parts",
+        [
+            ({"verbose": True}, ["--verbose"]),
+            ({"output": "json"}, ["--output", "json"]),
+            ({"count": 5}, ["--count", "5"]),
+            ({"_target": "myimage"}, ["myimage"]),
+        ],
+    )
     def test_build_command_parametrized(self, params, expected_parts):
         """Testes parametrizados de construcao de comando."""
         from src.adapters.cli_adapter import CLIAdapter
 
         adapter = CLIAdapter()
-        cmd = adapter._build_command('tool', params)
+        cmd = adapter._build_command("tool", params)
 
         for part in expected_parts:
             assert part in cmd
@@ -232,29 +224,26 @@ class TestCLIAdapterEnvironment:
 
         adapter = CLIAdapter()
 
-        env_vars = {
-            'MY_VAR': 'my_value',
-            'API_KEY': 'secret123'
-        }
+        env_vars = {"MY_VAR": "my_value", "API_KEY": "secret123"}
 
-        with patch('asyncio.create_subprocess_shell', new_callable=AsyncMock) as mock_proc:
+        with patch("asyncio.create_subprocess_shell", new_callable=AsyncMock) as mock_proc:
             mock_process = AsyncMock()
-            mock_process.communicate = AsyncMock(return_value=(b'', b''))
+            mock_process.communicate = AsyncMock(return_value=(b"", b""))
             mock_process.returncode = 0
             mock_proc.return_value = mock_process
 
             await adapter.execute(
-                tool_id='test-tool-001',
-                tool_name='env-tool',
-                command='env-tool',
+                tool_id="test-tool-001",
+                tool_name="env-tool",
+                command="env-tool",
                 parameters={},
-                context={'env_vars': env_vars}
+                context={"env_vars": env_vars},
             )
 
             # Validar que env foi passado corretamente
             mock_proc.assert_called_once()
             call_kwargs = mock_proc.call_args.kwargs
-            assert call_kwargs['env'] == env_vars
+            assert call_kwargs["env"] == env_vars
 
     @pytest.mark.asyncio
     async def test_execute_without_env_vars(self):
@@ -263,22 +252,22 @@ class TestCLIAdapterEnvironment:
 
         adapter = CLIAdapter()
 
-        with patch('asyncio.create_subprocess_shell', new_callable=AsyncMock) as mock_proc:
+        with patch("asyncio.create_subprocess_shell", new_callable=AsyncMock) as mock_proc:
             mock_process = AsyncMock()
-            mock_process.communicate = AsyncMock(return_value=(b'', b''))
+            mock_process.communicate = AsyncMock(return_value=(b"", b""))
             mock_process.returncode = 0
             mock_proc.return_value = mock_process
 
             await adapter.execute(
-                tool_id='test-tool-001',
-                tool_name='simple-tool',
-                command='simple-tool',
+                tool_id="test-tool-001",
+                tool_name="simple-tool",
+                command="simple-tool",
                 parameters={},
-                context={}
+                context={},
             )
 
             call_kwargs = mock_proc.call_args.kwargs
-            assert call_kwargs.get('env') is None
+            assert call_kwargs.get("env") is None
 
 
 class TestCLIAdapterWorkingDirectory:
@@ -291,24 +280,24 @@ class TestCLIAdapterWorkingDirectory:
 
         adapter = CLIAdapter()
 
-        with patch('asyncio.create_subprocess_shell', new_callable=AsyncMock) as mock_proc:
+        with patch("asyncio.create_subprocess_shell", new_callable=AsyncMock) as mock_proc:
             mock_process = AsyncMock()
-            mock_process.communicate = AsyncMock(return_value=(b'', b''))
+            mock_process.communicate = AsyncMock(return_value=(b"", b""))
             mock_process.returncode = 0
             mock_proc.return_value = mock_process
 
             await adapter.execute(
-                tool_id='test-tool-001',
-                tool_name='dir-tool',
-                command='dir-tool',
+                tool_id="test-tool-001",
+                tool_name="dir-tool",
+                command="dir-tool",
                 parameters={},
-                context={'working_dir': '/tmp/test/project'}
+                context={"working_dir": "/tmp/test/project"},
             )
 
             # Validar cwd passado
             mock_proc.assert_called_once()
             call_kwargs = mock_proc.call_args.kwargs
-            assert call_kwargs['cwd'] == '/tmp/test/project'
+            assert call_kwargs["cwd"] == "/tmp/test/project"
 
     @pytest.mark.asyncio
     async def test_execute_with_default_working_dir(self):
@@ -317,54 +306,57 @@ class TestCLIAdapterWorkingDirectory:
 
         adapter = CLIAdapter()
 
-        with patch('asyncio.create_subprocess_shell', new_callable=AsyncMock) as mock_proc:
+        with patch("asyncio.create_subprocess_shell", new_callable=AsyncMock) as mock_proc:
             mock_process = AsyncMock()
-            mock_process.communicate = AsyncMock(return_value=(b'', b''))
+            mock_process.communicate = AsyncMock(return_value=(b"", b""))
             mock_process.returncode = 0
             mock_proc.return_value = mock_process
 
             await adapter.execute(
-                tool_id='test-tool-001',
-                tool_name='simple-tool',
-                command='simple-tool',
+                tool_id="test-tool-001",
+                tool_name="simple-tool",
+                command="simple-tool",
                 parameters={},
-                context={}
+                context={},
             )
 
             call_kwargs = mock_proc.call_args.kwargs
-            assert call_kwargs['cwd'] == '.'
+            assert call_kwargs["cwd"] == "."
 
 
 class TestCLIAdapterExitCodes:
     """Testes de tratamento de exit codes."""
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize('exit_code,expected_success', [
-        (0, True),
-        (1, False),
-        (2, False),
-        (127, False),  # Command not found
-        (137, False),  # Killed by SIGKILL
-        (143, False),  # Killed by SIGTERM
-    ])
+    @pytest.mark.parametrize(
+        "exit_code,expected_success",
+        [
+            (0, True),
+            (1, False),
+            (2, False),
+            (127, False),  # Command not found
+            (137, False),  # Killed by SIGKILL
+            (143, False),  # Killed by SIGTERM
+        ],
+    )
     async def test_exit_code_handling(self, exit_code, expected_success):
         """Deve tratar diferentes exit codes corretamente."""
         from src.adapters.cli_adapter import CLIAdapter
 
         adapter = CLIAdapter()
 
-        with patch('asyncio.create_subprocess_shell', new_callable=AsyncMock) as mock_proc:
+        with patch("asyncio.create_subprocess_shell", new_callable=AsyncMock) as mock_proc:
             mock_process = AsyncMock()
-            mock_process.communicate = AsyncMock(return_value=(b'output', b''))
+            mock_process.communicate = AsyncMock(return_value=(b"output", b""))
             mock_process.returncode = exit_code
             mock_proc.return_value = mock_process
 
             result = await adapter.execute(
-                tool_id='test-tool-001',
-                tool_name='exit-tool',
-                command='exit-tool',
+                tool_id="test-tool-001",
+                tool_name="exit-tool",
+                command="exit-tool",
                 parameters={},
-                context={}
+                context={},
             )
 
             assert result.success is expected_success
@@ -384,20 +376,20 @@ class TestCLIAdapterValidation:
 
         adapter = CLIAdapter()
 
-        with patch('asyncio.create_subprocess_shell', new_callable=AsyncMock) as mock_proc:
+        with patch("asyncio.create_subprocess_shell", new_callable=AsyncMock) as mock_proc:
             mock_process = AsyncMock()
-            mock_process.communicate = AsyncMock(return_value=(b'/usr/bin/pytest', b''))
+            mock_process.communicate = AsyncMock(return_value=(b"/usr/bin/pytest", b""))
             mock_process.returncode = 0
             mock_proc.return_value = mock_process
 
-            is_available = await adapter.validate_tool_availability('pytest')
+            is_available = await adapter.validate_tool_availability("pytest")
 
             assert is_available is True
             mock_proc.assert_called_once()
             # Verificar que 'which' foi usado
             call_cmd = mock_proc.call_args[0][0]
-            assert 'which' in call_cmd
-            assert 'pytest' in call_cmd
+            assert "which" in call_cmd
+            assert "pytest" in call_cmd
 
     @pytest.mark.asyncio
     async def test_validate_tool_availability_fallback_to_version(self):
@@ -411,27 +403,29 @@ class TestCLIAdapterValidation:
         async def mock_communicate():
             nonlocal call_count
             call_count += 1
-            return (b'', b'')
+            return (b"", b"")
 
-        with patch('asyncio.create_subprocess_shell', new_callable=AsyncMock) as mock_proc:
+        with patch("asyncio.create_subprocess_shell", new_callable=AsyncMock) as mock_proc:
             mock_process = AsyncMock()
             mock_process.communicate = mock_communicate
 
             # Primeira chamada (which) falha, segunda (--version) sucede
             returncodes = [1, 0]
-            mock_process.returncode = property(lambda self: returncodes.pop(0) if returncodes else 0)
+            mock_process.returncode = property(
+                lambda self: returncodes.pop(0) if returncodes else 0
+            )
 
             # Simular diferentes returncodes
             processes = []
             for rc in [1, 0]:
                 p = AsyncMock()
-                p.communicate = AsyncMock(return_value=(b'', b''))
+                p.communicate = AsyncMock(return_value=(b"", b""))
                 p.returncode = rc
                 processes.append(p)
 
             mock_proc.side_effect = processes
 
-            is_available = await adapter.validate_tool_availability('custom-tool')
+            is_available = await adapter.validate_tool_availability("custom-tool")
 
             assert is_available is True
             assert mock_proc.call_count == 2
@@ -443,13 +437,13 @@ class TestCLIAdapterValidation:
 
         adapter = CLIAdapter()
 
-        with patch('asyncio.create_subprocess_shell', new_callable=AsyncMock) as mock_proc:
+        with patch("asyncio.create_subprocess_shell", new_callable=AsyncMock) as mock_proc:
             mock_process = AsyncMock()
-            mock_process.communicate = AsyncMock(return_value=(b'', b'not found'))
+            mock_process.communicate = AsyncMock(return_value=(b"", b"not found"))
             mock_process.returncode = 1
             mock_proc.return_value = mock_process
 
-            is_available = await adapter.validate_tool_availability('nonexistent-tool')
+            is_available = await adapter.validate_tool_availability("nonexistent-tool")
 
             assert is_available is False
 
@@ -460,10 +454,10 @@ class TestCLIAdapterValidation:
 
         adapter = CLIAdapter()
 
-        with patch('asyncio.create_subprocess_shell', new_callable=AsyncMock) as mock_proc:
-            mock_proc.side_effect = OSError('Permission denied')
+        with patch("asyncio.create_subprocess_shell", new_callable=AsyncMock) as mock_proc:
+            mock_proc.side_effect = OSError("Permission denied")
 
-            is_available = await adapter.validate_tool_availability('restricted-tool')
+            is_available = await adapter.validate_tool_availability("restricted-tool")
 
             assert is_available is False
 
@@ -478,18 +472,18 @@ class TestCLIAdapterMetrics:
 
         adapter = CLIAdapter()
 
-        with patch('asyncio.create_subprocess_shell', new_callable=AsyncMock) as mock_proc:
+        with patch("asyncio.create_subprocess_shell", new_callable=AsyncMock) as mock_proc:
             mock_process = AsyncMock()
-            mock_process.communicate = AsyncMock(return_value=(b'', b''))
+            mock_process.communicate = AsyncMock(return_value=(b"", b""))
             mock_process.returncode = 0
             mock_proc.return_value = mock_process
 
             result = await adapter.execute(
-                tool_id='test-tool-001',
-                tool_name='metrics-tool',
-                command='metrics-tool',
+                tool_id="test-tool-001",
+                tool_name="metrics-tool",
+                command="metrics-tool",
                 parameters={},
-                context={}
+                context={},
             )
 
             assert result.execution_time_ms > 0
@@ -502,24 +496,24 @@ class TestCLIAdapterMetrics:
 
         adapter = CLIAdapter()
 
-        with patch('asyncio.create_subprocess_shell', new_callable=AsyncMock) as mock_proc:
+        with patch("asyncio.create_subprocess_shell", new_callable=AsyncMock) as mock_proc:
             mock_process = AsyncMock()
-            mock_process.communicate = AsyncMock(return_value=(b'', b''))
+            mock_process.communicate = AsyncMock(return_value=(b"", b""))
             mock_process.returncode = 0
             mock_proc.return_value = mock_process
 
             result = await adapter.execute(
-                tool_id='test-tool-001',
-                tool_name='metadata-tool',
-                command='metadata-tool --check',
-                parameters={'verbose': True},
-                context={'working_dir': '/app'}
+                tool_id="test-tool-001",
+                tool_name="metadata-tool",
+                command="metadata-tool --check",
+                parameters={"verbose": True},
+                context={"working_dir": "/app"},
             )
 
             assert result.metadata is not None
-            assert 'command' in result.metadata
-            assert 'working_dir' in result.metadata
-            assert result.metadata['working_dir'] == '/app'
+            assert "command" in result.metadata
+            assert "working_dir" in result.metadata
+            assert result.metadata["working_dir"] == "/app"
 
 
 class TestCLIAdapterIntegration:
@@ -532,31 +526,24 @@ class TestCLIAdapterIntegration:
 
         adapter = CLIAdapter(timeout_seconds=60)
 
-        params = {
-            'severity': 'CRITICAL',
-            'format': 'json',
-            '_target': 'myapp:latest'
-        }
+        params = {"severity": "CRITICAL", "format": "json", "_target": "myapp:latest"}
 
-        context = {
-            'working_dir': '/home/user/project',
-            'env_vars': {'TRIVY_NO_PROGRESS': 'true'}
-        }
+        context = {"working_dir": "/home/user/project", "env_vars": {"TRIVY_NO_PROGRESS": "true"}}
 
         expected_stdout = b'{"vulnerabilities": []}'
 
-        with patch('asyncio.create_subprocess_shell', new_callable=AsyncMock) as mock_proc:
+        with patch("asyncio.create_subprocess_shell", new_callable=AsyncMock) as mock_proc:
             mock_process = AsyncMock()
-            mock_process.communicate = AsyncMock(return_value=(expected_stdout, b''))
+            mock_process.communicate = AsyncMock(return_value=(expected_stdout, b""))
             mock_process.returncode = 0
             mock_proc.return_value = mock_process
 
             result = await adapter.execute(
-                tool_id='trivy-001',
-                tool_name='trivy',
-                command='trivy image',
+                tool_id="trivy-001",
+                tool_name="trivy",
+                command="trivy image",
                 parameters=params,
-                context=context
+                context=context,
             )
 
             # Validar resultado
@@ -569,14 +556,14 @@ class TestCLIAdapterIntegration:
 
             # Validar comando construido
             executed_cmd = call_args[0][0]
-            assert 'trivy image' in executed_cmd
-            assert '--severity' in executed_cmd
-            assert 'CRITICAL' in executed_cmd
-            assert '--format' in executed_cmd
-            assert 'json' in executed_cmd
+            assert "trivy image" in executed_cmd
+            assert "--severity" in executed_cmd
+            assert "CRITICAL" in executed_cmd
+            assert "--format" in executed_cmd
+            assert "json" in executed_cmd
             # shlex.quote coloca aspas, verificar apenas o target esta presente
-            assert 'myapp:latest' in executed_cmd
+            assert "myapp:latest" in executed_cmd
 
             # Validar kwargs
-            assert call_args.kwargs['cwd'] == '/home/user/project'
-            assert call_args.kwargs['env'] == {'TRIVY_NO_PROGRESS': 'true'}
+            assert call_args.kwargs["cwd"] == "/home/user/project"
+            assert call_args.kwargs["env"] == {"TRIVY_NO_PROGRESS": "true"}

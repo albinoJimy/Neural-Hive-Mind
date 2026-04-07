@@ -18,7 +18,7 @@ class TestGoParserBasic:
 
     def test_parse_simple_struct(self, go_parser):
         """Testa parsing de struct simples."""
-        code = '''
+        code = """
 package main
 
 type User struct {
@@ -29,32 +29,32 @@ type User struct {
 func (u *User) GetName() string {
     return u.Name
 }
-'''
+"""
         result = go_parser.parse(code, "user.go")
 
         assert result is not None
-        assert len(result['structs']) == 1
-        assert result['structs'][0]['name'] == 'User'
+        assert len(result["structs"]) == 1
+        assert result["structs"][0]["name"] == "User"
 
     def test_parse_interface(self, go_parser):
         """Testa parsing de interface Go."""
-        code = '''
+        code = """
 package main
 
 type Repository interface {
     Save(entity interface{}) error
     Find(id int) interface{}
 }
-'''
+"""
         result = go_parser.parse(code, "repository.go")
 
         assert result is not None
-        interfaces = result.get('interfaces', [])
+        interfaces = result.get("interfaces", [])
         assert len(interfaces) >= 1
 
     def test_parse_function(self, go_parser):
         """Testa parsing de função."""
-        code = '''
+        code = """
 package main
 
 func Add(a int, b int) int {
@@ -64,17 +64,17 @@ func Add(a int, b int) int {
 func GetData() (string, error) {
     return "data", nil
 }
-'''
+"""
         result = go_parser.parse(code, "math.go")
 
         assert result is not None
-        functions = result['functions']
+        functions = result["functions"]
         assert len(functions) >= 1
-        assert any(f['name'] == 'Add' for f in functions)
+        assert any(f["name"] == "Add" for f in functions)
 
     def test_parse_method(self, go_parser):
         """Testa parsing de método."""
-        code = '''
+        code = """
 package main
 
 type Calculator struct{}
@@ -86,28 +86,28 @@ func (c *Calculator) Add(a int, b int) int {
 func (c Calculator) Multiply(a int, b int) int {
     return a * b
 }
-'''
+"""
         result = go_parser.parse(code, "calculator.go")
 
         assert result is not None
-        methods = result['methods']
+        methods = result["methods"]
         assert len(methods) >= 1
 
     def test_parse_package_declaration(self, go_parser):
         """Testa parsing de declaração de package."""
-        code = '''
+        code = """
 package main
 
 func hello() {}
-'''
+"""
         result = go_parser.parse(code, "main.go")
 
         assert result is not None
-        assert result['packages'] == 'main'
+        assert result["packages"] == "main"
 
     def test_parse_imports(self, go_parser):
         """Testa extração de imports."""
-        code = '''
+        code = """
 package main
 
 import "fmt"
@@ -117,13 +117,13 @@ import (
     "net/http"
     "encoding/json"
 )
-'''
+"""
         result = go_parser.parse(code, "main.go")
 
         assert result is not None
-        imports = result['imports']
+        imports = result["imports"]
         assert len(imports) >= 4
-        assert any(i['name'] == 'fmt' for i in imports)
+        assert any(i["name"] == "fmt" for i in imports)
 
 
 class TestGoParserAdvanced:
@@ -131,7 +131,7 @@ class TestGoParserAdvanced:
 
     def test_parse_goroutine(self, go_parser):
         """Testa parsing de goroutine."""
-        code = '''
+        code = """
 package main
 
 func Process() {
@@ -139,7 +139,7 @@ func Process() {
         println("processing")
     }()
 }
-'''
+"""
         result = go_parser.parse(code, "process.go")
 
         assert result is not None
@@ -147,7 +147,7 @@ func Process() {
 
     def test_parse_channel(self, go_parser):
         """Testa parsing de channel."""
-        code = '''
+        code = """
 package main
 
 func sendData(ch chan string) {
@@ -157,7 +157,7 @@ func sendData(ch chan string) {
 func receiveData(ch chan string) {
     data := <-ch
 }
-'''
+"""
         result = go_parser.parse(code, "channel.go")
 
         assert result is not None
@@ -165,7 +165,7 @@ func receiveData(ch chan string) {
 
     def test_parse_defer(self, go_parser):
         """Testa parsing de defer."""
-        code = '''
+        code = """
 package main
 
 func Process() {
@@ -174,7 +174,7 @@ func Process() {
 }
 
 func cleanup() {}
-'''
+"""
         result = go_parser.parse(code, "defer.go")
 
         assert result is not None
@@ -182,7 +182,7 @@ func cleanup() {}
 
     def test_parse_select(self, go_parser):
         """Testa parsing de select statement."""
-        code = '''
+        code = """
 package main
 
 func Process(ch1, ch2 chan string) {
@@ -193,14 +193,14 @@ func Process(ch1, ch2 chan string) {
         println(msg)
     }
 }
-'''
+"""
         result = go_parser.parse(code, "select.go")
 
         assert result is not None
 
     def test_parse_struct_with_embedded(self, go_parser):
         """Testa parsing de struct com embedded types."""
-        code = '''
+        code = """
 package main
 
 type Animal struct {
@@ -211,11 +211,11 @@ type Dog struct {
     Animal
     Breed string
 }
-'''
+"""
         result = go_parser.parse(code, "dog.go")
 
         assert result is not None
-        structs = result.get('structs', [])
+        structs = result.get("structs", [])
         assert len(structs) >= 1
 
 
@@ -224,22 +224,22 @@ class TestGoParserComplexity:
 
     def test_calculate_complexity_simple(self, go_parser):
         """Testa complexidade de função simples."""
-        code = '''
+        code = """
 package main
 
 func Add(a int, b int) int {
     return a + b
 }
-'''
+"""
         result = go_parser.parse(code, "math.go")
 
         assert result is not None
-        complexity = result.get('complexity', 1)
+        complexity = result.get("complexity", 1)
         assert complexity >= 1
 
     def test_calculate_complexity_with_conditionals(self, go_parser):
         """Testa complexidade com condicionais."""
-        code = '''
+        code = """
 package main
 
 func Process(value int) string {
@@ -251,16 +251,16 @@ func Process(value int) string {
         return "zero"
     }
 }
-'''
+"""
         result = go_parser.parse(code, "logic.go")
 
         assert result is not None
-        complexity = result.get('complexity', 1)
+        complexity = result.get("complexity", 1)
         assert complexity > 1
 
     def test_calculate_complexity_with_loops(self, go_parser):
         """Testa complexidade com loops."""
-        code = '''
+        code = """
 package main
 
 func Process(items []string) {
@@ -270,11 +270,11 @@ func Process(items []string) {
         }
     }
 }
-'''
+"""
         result = go_parser.parse(code, "loop.go")
 
         assert result is not None
-        complexity = result.get('complexity', 1)
+        complexity = result.get("complexity", 1)
         assert complexity > 1
 
 
@@ -283,7 +283,7 @@ class TestGoParserConcurrency:
 
     def test_detect_goroutines(self, go_parser):
         """Testa detecção de goroutines."""
-        code = '''
+        code = """
 package main
 
 func main() {
@@ -294,21 +294,21 @@ func main() {
 }
 
 func process() {}
-'''
+"""
         result = go_parser.parse(code, "main.go")
 
         assert result is not None
 
     def test_detect_channels(self, go_parser):
         """Testa detecção de channels."""
-        code = '''
+        code = """
 package main
 
 func main() {
     ch := make(chan string)
     ch2 := make(chan int, 10)
 }
-'''
+"""
         result = go_parser.parse(code, "main.go")
 
         assert result is not None
@@ -319,14 +319,14 @@ class TestGoParserErrorHandling:
 
     def test_parse_syntax_error(self, go_parser):
         """Testa parsing de código com erro de sintaxe."""
-        invalid_code = '''
+        invalid_code = """
 package main
 
 func hello()
 {
     println("hello")
 }
-'''
+"""
         result = go_parser.parse(invalid_code, "invalid.go")
 
         # Parser deve retornar resultado (mesmo que incompleto) ou None
@@ -337,4 +337,4 @@ func hello()
         result = go_parser.parse("", "empty.go")
 
         assert result is not None
-        assert len(result['structs']) == 0
+        assert len(result["structs"]) == 0

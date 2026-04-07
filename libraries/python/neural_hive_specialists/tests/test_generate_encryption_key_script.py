@@ -9,14 +9,13 @@ from pathlib import Path
 # Adicionar diretório de scripts ao path
 sys.path.insert(
     0,
-    os.path.join(
-        os.path.dirname(__file__), "..", "scripts"
-    ),
+    os.path.join(os.path.dirname(__file__), "..", "scripts"),
 )
 
 # Importação condicional para permitir testes mesmo sem dependências
 try:
     import generate_encryption_key
+
     SCRIPT_AVAILABLE = True
 except ImportError:
     SCRIPT_AVAILABLE = False
@@ -41,6 +40,7 @@ class TestGenerateKey:
             # Recarregar módulo para testar import falhando
             import importlib
             import sys
+
             if "generate_encryption_key" in sys.modules:
                 del sys.modules["generate_encryption_key"]
             # Este teste verifica o comportamento quando cryptography não está disponível
@@ -110,9 +110,7 @@ class TestSaveKey:
             with patch("generate_encryption_key.os.chmod"):
                 generate_encryption_key.save_key(b"test_key", "/tmp/new/dir/test.key")
 
-                mock_file_path.parent.mkdir.assert_called_once_with(
-                    parents=True, exist_ok=True
-                )
+                mock_file_path.parent.mkdir.assert_called_once_with(parents=True, exist_ok=True)
 
 
 class TestMainFunction:

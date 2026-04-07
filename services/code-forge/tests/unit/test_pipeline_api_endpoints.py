@@ -22,10 +22,7 @@ async def test_trigger_pipeline_success():
 
     payload = {
         "artifact_id": "test-service",
-        "parameters": {
-            "language": "python",
-            "framework": "fastapi"
-        }
+        "parameters": {"language": "python", "framework": "fastapi"},
     }
 
     response = await trigger_pipeline(payload, mock_engine, None)
@@ -41,9 +38,7 @@ async def test_trigger_pipeline_missing_artifact_id():
     from src.api.pipeline_api import trigger_pipeline
     from fastapi import HTTPException
 
-    payload = {
-        "parameters": {"language": "python"}
-    }
+    payload = {"parameters": {"language": "python"}}
 
     with pytest.raises(HTTPException) as exc_info:
         await trigger_pipeline(payload, None, None)
@@ -57,10 +52,7 @@ async def test_trigger_pipeline_mock_mode():
     """Trigger de pipeline em modo mock quando engine nao disponivel."""
     from src.api.pipeline_api import trigger_pipeline
 
-    payload = {
-        "artifact_id": "test-service",
-        "parameters": {"language": "python"}
-    }
+    payload = {"artifact_id": "test-service", "parameters": {"language": "python"}}
 
     response = await trigger_pipeline(payload, None, None)
 
@@ -74,8 +66,17 @@ async def test_get_pipeline_active_context():
     from src.api.pipeline_api import set_pipeline_engine, get_pipeline
     from src.models.pipeline_context import PipelineContext
     from src.models.execution_ticket import (
-        ExecutionTicket, TaskType, TicketStatus, Priority, RiskBand,
-        SLA, QoS, SecurityLevel, DeliveryMode, Consistency, Durability
+        ExecutionTicket,
+        TaskType,
+        TicketStatus,
+        Priority,
+        RiskBand,
+        SLA,
+        QoS,
+        SecurityLevel,
+        DeliveryMode,
+        Consistency,
+        Durability,
     )
 
     # Criar contexto mock
@@ -92,17 +93,14 @@ async def test_get_pipeline_active_context():
         qos=QoS(
             delivery_mode=DeliveryMode.AT_LEAST_ONCE,
             consistency=Consistency.EVENTUAL,
-            durability=Durability.PERSISTENT
+            durability=Durability.PERSISTENT,
         ),
         security_level=SecurityLevel.INTERNAL,
-        created_at=datetime.now()
+        created_at=datetime.now(),
     )
 
     context = PipelineContext(
-        pipeline_id="pipeline-123",
-        ticket=ticket,
-        trace_id="trace-123",
-        span_id="span-123"
+        pipeline_id="pipeline-123", ticket=ticket, trace_id="trace-123", span_id="span-123"
     )
 
     mock_engine = MagicMock()
@@ -128,7 +126,7 @@ async def test_get_pipeline_from_redis():
         "status": "completed",
         "stage": "COMPLETED",
         "duration_ms": 5000,
-        "artifacts": [{"type": "image", "name": "test-service:latest"}]
+        "artifacts": [{"type": "image", "name": "test-service:latest"}],
     }
 
     mock_engine = MagicMock()
@@ -203,11 +201,7 @@ async def test_create_ticket_from_request():
     from src.models.execution_ticket import TaskType, TicketStatus
 
     artifact_id = "test-service"
-    parameters = {
-        "plan_id": "plan-123",
-        "intent_id": "intent-123",
-        "decision_id": "decision-123"
-    }
+    parameters = {"plan_id": "plan-123", "intent_id": "intent-123", "decision_id": "decision-123"}
 
     ticket = _create_ticket_from_request(artifact_id, parameters)
 

@@ -21,6 +21,7 @@ from src.services.lineage_tracker import LineageTracker
 # Fixtures
 # =============================================================================
 
+
 @pytest.fixture
 def mock_settings():
     """Mock das configurações."""
@@ -97,12 +98,13 @@ def sample_lineage():
         transformation_metadata={"model": "v1.0"},
         computation_version="v1.0.0",
         computation_hash="abc123def4567890",
-)
+    )
 
 
 # =============================================================================
 # Testes de Inicialização
 # =============================================================================
+
 
 class TestLineageTrackerInit:
     """Testes de inicialização do LineageTracker."""
@@ -146,6 +148,7 @@ class TestLineageTrackerInit:
 # Testes de Criação de Índices
 # =============================================================================
 
+
 class TestCreateIndexes:
     """Testes de criação de índices."""
 
@@ -172,6 +175,7 @@ class TestCreateIndexes:
 # =============================================================================
 # Testes de Track Feature
 # =============================================================================
+
 
 class TestTrackFeature:
     """Testes de rastreamento de features."""
@@ -259,6 +263,7 @@ class TestTrackFeature:
 # Testes de Get Lineage
 # =============================================================================
 
+
 class TestGetLineage:
     """Testes de recuperação de lineage."""
 
@@ -314,6 +319,7 @@ class TestGetLineage:
 # Testes de Get Lineage Tree
 # =============================================================================
 
+
 class TestGetLineageTree:
     """Testes de recuperação de árvore de lineage."""
 
@@ -342,7 +348,7 @@ class TestGetLineageTree:
             parent_lineage_ids=["parent-1", "parent-2"],
             computation_version="v1.0.0",
             computation_hash="abc123def4567890",
-)
+        )
 
         # Mock para buscar parents
         parent_lineage = FeatureLineage(
@@ -352,7 +358,7 @@ class TestGetLineageTree:
             transformation_type=TransformationType.COMPUTED,
             computation_version="v1.0.0",
             computation_hash="abc123def4567890",
-)
+        )
 
         async def mock_find_one(query):
             if query.get("feature_id") == "feature-123":
@@ -473,6 +479,7 @@ class TestGetLineageTree:
 # Testes de Impact Analysis
 # =============================================================================
 
+
 class TestImpactAnalysis:
     """Testes de análise de impacto."""
 
@@ -561,6 +568,7 @@ class TestImpactAnalysis:
 # =============================================================================
 # Testes de Validate Integrity
 # =============================================================================
+
 
 class TestValidateIntegrity:
     """Testes de validação de integridade."""
@@ -668,6 +676,7 @@ class TestValidateIntegrity:
 # Testes de Update Lineage
 # =============================================================================
 
+
 class TestUpdateLineage:
     """Testes de atualização de lineage."""
 
@@ -675,9 +684,7 @@ class TestUpdateLineage:
     async def test_update_lineage_success(self, lineage_tracker, sample_lineage):
         """Testa atualização bem-sucedida de lineage."""
         # Mock update_one para retornar modified_count=1
-        lineage_tracker.collection.update_one = AsyncMock(
-            return_value=MagicMock(modified_count=1)
-        )
+        lineage_tracker.collection.update_one = AsyncMock(return_value=MagicMock(modified_count=1))
 
         # Mock get_lineage para retornar lineage atualizado
         async def mock_find_one(query):
@@ -689,8 +696,7 @@ class TestUpdateLineage:
         lineage_tracker.collection.find_one = AsyncMock(side_effect=mock_find_one)
 
         result = await lineage_tracker.update_lineage(
-            "feature-123",
-            {"custom_field": "updated", "metadata": {"key": "value"}}
+            "feature-123", {"custom_field": "updated", "metadata": {"key": "value"}}
         )
 
         assert result is not None
@@ -698,24 +704,17 @@ class TestUpdateLineage:
     @pytest.mark.asyncio
     async def test_update_lineage_not_found(self, lineage_tracker):
         """Testa atualização de lineage inexistente."""
-        lineage_tracker.collection.update_one = AsyncMock(
-            return_value=MagicMock(modified_count=0)
-        )
+        lineage_tracker.collection.update_one = AsyncMock(return_value=MagicMock(modified_count=0))
         lineage_tracker.collection.find_one = AsyncMock(return_value=None)
 
-        result = await lineage_tracker.update_lineage(
-            "feature-999",
-            {"custom_field": "updated"}
-        )
+        result = await lineage_tracker.update_lineage("feature-999", {"custom_field": "updated"})
 
         assert result is None
 
     @pytest.mark.asyncio
     async def test_update_lineage_adds_modified_at(self, lineage_tracker):
         """Testa que update adiciona timestamp de modificação."""
-        lineage_tracker.collection.update_one = AsyncMock(
-            return_value=MagicMock(modified_count=1)
-        )
+        lineage_tracker.collection.update_one = AsyncMock(return_value=MagicMock(modified_count=1))
         lineage_tracker.collection.find_one = AsyncMock(return_value=None)
 
         await lineage_tracker.update_lineage("feature-123", {"field": "value"})
@@ -730,12 +729,14 @@ class TestUpdateLineage:
 # Testes de List Lineages
 # =============================================================================
 
+
 class TestListLineages:
     """Testes de listagem de lineages."""
 
     @pytest.mark.asyncio
     async def test_list_lineages_basic(self, lineage_tracker, sample_lineage):
         """Testa listagem básica de lineages."""
+
         async def mock_find_iter(*args, **kwargs):
             doc = sample_lineage.model_dump(mode="json")
             doc["_id"] = "id-123"
@@ -757,6 +758,7 @@ class TestListLineages:
     @pytest.mark.asyncio
     async def test_list_lineages_with_source_type_filter(self, lineage_tracker):
         """Testa listagem com filtro por source_type."""
+
         async def mock_find_iter(*args, **kwargs):
             yield {
                 "feature_id": "feature-1",
@@ -792,6 +794,7 @@ class TestListLineages:
     @pytest.mark.asyncio
     async def test_list_lineages_with_pagination(self, lineage_tracker):
         """Testa listagem com paginação."""
+
         async def mock_find_iter(*args, **kwargs):
             for i in range(5):
                 yield {
@@ -829,29 +832,24 @@ class TestListLineages:
 # Testes de Delete Lineage
 # =============================================================================
 
+
 class TestDeleteLineage:
     """Testes de deleção de lineage."""
 
     @pytest.mark.asyncio
     async def test_delete_lineage_success(self, lineage_tracker):
         """Testa deleção bem-sucedida de lineage."""
-        lineage_tracker.collection.delete_one = AsyncMock(
-            return_value=MagicMock(deleted_count=1)
-        )
+        lineage_tracker.collection.delete_one = AsyncMock(return_value=MagicMock(deleted_count=1))
 
         result = await lineage_tracker.delete_lineage("feature-123")
 
         assert result is True
-        lineage_tracker.collection.delete_one.assert_called_once_with(
-            {"feature_id": "feature-123"}
-        )
+        lineage_tracker.collection.delete_one.assert_called_once_with({"feature_id": "feature-123"})
 
     @pytest.mark.asyncio
     async def test_delete_lineage_not_found(self, lineage_tracker):
         """Testa deleção de lineage inexistente."""
-        lineage_tracker.collection.delete_one = AsyncMock(
-            return_value=MagicMock(deleted_count=0)
-        )
+        lineage_tracker.collection.delete_one = AsyncMock(return_value=MagicMock(deleted_count=0))
 
         result = await lineage_tracker.delete_lineage("feature-999")
 
@@ -867,12 +865,15 @@ class TestDeleteLineage:
         await lineage_tracker_with_neo4j.delete_lineage("feature-123")
 
         # Verificar que relacionamentos Neo4j foram removidos
-        lineage_tracker_with_neo4j.neo4j_client.delete_node_relationships.assert_called_once_with("feature-123")
+        lineage_tracker_with_neo4j.neo4j_client.delete_node_relationships.assert_called_once_with(
+            "feature-123"
+        )
 
 
 # =============================================================================
 # Testes de Computation Hash
 # =============================================================================
+
 
 class TestComputationHash:
     """Testes de computação de hash."""

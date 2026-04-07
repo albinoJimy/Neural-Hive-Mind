@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch, AsyncMock
 from motor.motor_asyncio import AsyncIOMotorClientSession
 from neural_hive_ml.model_version_repository import ModelVersionRepository
 
-pytest_plugins = ('pytest_asyncio',)
+pytest_plugins = ("pytest_asyncio",)
 
 
 @pytest.fixture
@@ -41,11 +41,11 @@ def sample_model_version():
         "feature_importance": {
             "confidence": 0.6147,
             "rf_ml_risk": 0.2221,
-            "rf_ml_confidence": 0.1632
+            "rf_ml_confidence": 0.1632,
         },
         "created_at": datetime.now(),
         "promoted_at": None,
-        "promoted_by": None
+        "promoted_by": None,
     }
 
 
@@ -76,7 +76,7 @@ class TestCreate:
             precision=0.78,
             recall=0.73,
             n_samples=500,
-            feature_importance={"confidence": 0.6147}
+            feature_importance={"confidence": 0.6147},
         )
 
         mock_db.model_versions.insert_one.assert_called_once()
@@ -90,7 +90,7 @@ class TestCreate:
         drift_metrics = {
             "last_check": datetime.now(),
             "confidence_drop": 0.02,
-            "approve_rate_change": 0.05
+            "approve_rate_change": 0.05,
         }
 
         result = await repository.create(
@@ -102,7 +102,7 @@ class TestCreate:
             precision=0.78,
             recall=0.73,
             n_samples=500,
-            drift_metrics=drift_metrics
+            drift_metrics=drift_metrics,
         )
 
         assert result["drift_metrics"] == drift_metrics
@@ -153,19 +153,20 @@ class TestGetActiveModel:
 
     async def test_get_active_model_success(self, repository, mock_db):
         """Testa busca de modelo ativo."""
-        mock_db.model_versions.find_one = AsyncMock(return_value={
-            "_id": "id-123",
-            "version": "v8",
-            "stage": "production",
-            "is_active": True,
-            "f1_score": 0.73
-        })
+        mock_db.model_versions.find_one = AsyncMock(
+            return_value={
+                "_id": "id-123",
+                "version": "v8",
+                "stage": "production",
+                "is_active": True,
+                "f1_score": 0.73,
+            }
+        )
 
         result = await repository.get_active_model()
 
         mock_db.model_versions.find_one.assert_called_once_with(
-            {"stage": "production", "is_active": True},
-            sort=[("created_at", -1)]
+            {"stage": "production", "is_active": True}, sort=[("created_at", -1)]
         )
         assert result["version"] == "v8"
         assert result["is_active"] is True
@@ -184,10 +185,12 @@ class TestListModels:
     async def test_list_models_all(self, repository, mock_db):
         """Testa listagem de todos os modelos."""
         cursor_mock = AsyncMock()
-        cursor_mock.to_list = AsyncMock(return_value=[
-            {"version": "v8", "stage": "production", "is_active": True},
-            {"version": "v9", "stage": "staging", "is_active": False}
-        ])
+        cursor_mock.to_list = AsyncMock(
+            return_value=[
+                {"version": "v8", "stage": "production", "is_active": True},
+                {"version": "v9", "stage": "staging", "is_active": False},
+            ]
+        )
         cursor_mock.limit = Mock(return_value=cursor_mock)
         cursor_mock.skip = Mock(return_value=cursor_mock)
         mock_db.model_versions.find.return_value = cursor_mock
@@ -201,9 +204,9 @@ class TestListModels:
     async def test_list_models_with_stage_filter(self, repository, mock_db):
         """Testa listagem com filtro de stage."""
         cursor_mock = AsyncMock()
-        cursor_mock.to_list = AsyncMock(return_value=[
-            {"version": "v9", "stage": "staging", "is_active": False}
-        ])
+        cursor_mock.to_list = AsyncMock(
+            return_value=[{"version": "v9", "stage": "staging", "is_active": False}]
+        )
         cursor_mock.limit = Mock(return_value=cursor_mock)
         cursor_mock.skip = Mock(return_value=cursor_mock)
         mock_db.model_versions.find.return_value = cursor_mock
@@ -216,9 +219,9 @@ class TestListModels:
     async def test_list_models_with_is_active_filter(self, repository, mock_db):
         """Testa listagem com filtro is_active."""
         cursor_mock = AsyncMock()
-        cursor_mock.to_list = AsyncMock(return_value=[
-            {"version": "v8", "stage": "production", "is_active": True}
-        ])
+        cursor_mock.to_list = AsyncMock(
+            return_value=[{"version": "v8", "stage": "production", "is_active": True}]
+        )
         cursor_mock.limit = Mock(return_value=cursor_mock)
         cursor_mock.skip = Mock(return_value=cursor_mock)
         mock_db.model_versions.find.return_value = cursor_mock
@@ -250,10 +253,7 @@ class TestUpdate:
         mock_db.model_versions.update_one = AsyncMock(return_value=Mock(modified_count=1))
 
         result = await repository.update(
-            version="v9",
-            stage="production",
-            is_active=True,
-            promoted_at=datetime.now()
+            version="v9", stage="production", is_active=True, promoted_at=datetime.now()
         )
 
         mock_db.model_versions.update_one.assert_called_once()
@@ -263,10 +263,7 @@ class TestUpdate:
         """Testa atualização de versão não encontrada."""
         mock_db.model_versions.update_one = AsyncMock(return_value=Mock(modified_count=0))
 
-        result = await repository.update(
-            version="v99",
-            stage="production"
-        )
+        result = await repository.update(version="v99", stage="production")
 
         assert result is False
 
@@ -281,14 +278,13 @@ class TestUpdateDriftMetrics:
         drift_metrics = {
             "last_check": datetime.now(),
             "confidence_drop": 0.05,
-            "approve_rate_change": 0.08
+            "approve_rate_change": 0.08,
         }
 
         result = await repository.update_drift_metrics("v9", drift_metrics)
 
         mock_db.model_versions.update_one.assert_called_once_with(
-            {"version": "v9"},
-            {"$set": {"drift_metrics": drift_metrics}}
+            {"version": "v9"}, {"$set": {"drift_metrics": drift_metrics}}
         )
         assert result is True
 
@@ -311,10 +307,7 @@ class TestPromoteModel:
         promoted_at = datetime.now()
 
         result = await repository.promote_model(
-            version="v9",
-            stage="production",
-            promoted_at=promoted_at,
-            promoted_by="canary"
+            version="v9", stage="production", promoted_at=promoted_at, promoted_by="canary"
         )
 
         mock_db.model_versions.update_one.assert_called_once()
@@ -323,18 +316,14 @@ class TestPromoteModel:
     async def test_promote_archives_current(self, repository, mock_db):
         """Testa que promoção arquiva modelo atual."""
         # Mock para find_one (modelo atual)
-        mock_db.model_versions.find_one = AsyncMock(return_value={
-            "version": "v8",
-            "stage": "production",
-            "is_active": True
-        })
+        mock_db.model_versions.find_one = AsyncMock(
+            return_value={"version": "v8", "stage": "production", "is_active": True}
+        )
         # Mock para update_one (arquivar e promover)
         mock_db.model_versions.update_one = AsyncMock(return_value=Mock(modified_count=1))
 
         result = await repository.promote_model(
-            version="v9",
-            stage="production",
-            archive_current=True
+            version="v9", stage="production", archive_current=True
         )
 
         # Verifica que chamou update_one duas vezes (arquivar + promover)
@@ -352,8 +341,7 @@ class TestDeactivateModel:
         result = await repository.deactivate_model("v8")
 
         mock_db.model_versions.update_one.assert_called_once_with(
-            {"version": "v8"},
-            {"$set": {"is_active": False}}
+            {"version": "v8"}, {"$set": {"is_active": False}}
         )
         assert result is True
 
@@ -384,11 +372,21 @@ class TestGetModelHistory:
     async def test_get_model_history(self, repository, mock_db):
         """Testa busca de histórico de versões."""
         cursor_mock = AsyncMock()
-        cursor_mock.to_list = AsyncMock(return_value=[
-            {"version": "v7", "stage": "archived", "created_at": datetime.now() - timedelta(days=2)},
-            {"version": "v8", "stage": "production", "created_at": datetime.now() - timedelta(days=1)},
-            {"version": "v9", "stage": "staging", "created_at": datetime.now()}
-        ])
+        cursor_mock.to_list = AsyncMock(
+            return_value=[
+                {
+                    "version": "v7",
+                    "stage": "archived",
+                    "created_at": datetime.now() - timedelta(days=2),
+                },
+                {
+                    "version": "v8",
+                    "stage": "production",
+                    "created_at": datetime.now() - timedelta(days=1),
+                },
+                {"version": "v9", "stage": "staging", "created_at": datetime.now()},
+            ]
+        )
         cursor_mock.skip = Mock(return_value=cursor_mock)
         cursor_mock.limit = Mock(return_value=cursor_mock)
         mock_db.model_versions.find.return_value.sort.return_value = cursor_mock
@@ -421,7 +419,7 @@ class TestSaveModelVersion:
             precision=0.80,
             recall=0.76,
             n_samples=600,
-            feature_importance={"confidence": 0.65, "risk": 0.35}
+            feature_importance={"confidence": 0.65, "risk": 0.35},
         )
 
         assert result["version"] == "v10"
@@ -434,18 +432,19 @@ class TestGetLatestVersion:
 
     async def test_get_latest_version_by_stage(self, repository, mock_db):
         """Testa buscar versão mais recente por estágio."""
-        mock_db.model_versions.find_one = AsyncMock(return_value={
-            "_id": "id-latest",
-            "version": "v9",
-            "stage": "staging",
-            "created_at": datetime.now()
-        })
+        mock_db.model_versions.find_one = AsyncMock(
+            return_value={
+                "_id": "id-latest",
+                "version": "v9",
+                "stage": "staging",
+                "created_at": datetime.now(),
+            }
+        )
 
         result = await repository.get_latest_by_stage("staging")
 
         mock_db.model_versions.find_one.assert_called_once_with(
-            {"stage": "staging"},
-            sort=[("created_at", -1)]
+            {"stage": "staging"}, sort=[("created_at", -1)]
         )
         assert result["version"] == "v9"
 
@@ -478,10 +477,12 @@ class TestListVersionsByModel:
     async def test_list_versions_by_stage_production(self, repository, mock_db):
         """Testa listar versões de produção."""
         cursor_mock = AsyncMock()
-        cursor_mock.to_list = AsyncMock(return_value=[
-            {"version": "v8", "stage": "production", "is_active": True},
-            {"version": "v7", "stage": "production", "is_active": False}
-        ])
+        cursor_mock.to_list = AsyncMock(
+            return_value=[
+                {"version": "v8", "stage": "production", "is_active": True},
+                {"version": "v7", "stage": "production", "is_active": False},
+            ]
+        )
         cursor_mock.limit = Mock(return_value=cursor_mock)
         cursor_mock.skip = Mock(return_value=cursor_mock)
         mock_db.model_versions.find.return_value = cursor_mock
@@ -499,11 +500,7 @@ class TestDeprecateVersion:
         """Testa deprecar versão via update."""
         mock_db.model_versions.update_one = AsyncMock(return_value=Mock(modified_count=1))
 
-        result = await repository.update(
-            version="v8",
-            stage="archived",
-            is_active=False
-        )
+        result = await repository.update(version="v8", stage="archived", is_active=False)
 
         assert result is True
 
@@ -513,13 +510,15 @@ class TestGetActiveVersion:
 
     async def test_get_active_version_success(self, repository, mock_db):
         """Testa buscar versão ativa."""
-        mock_db.model_versions.find_one = AsyncMock(return_value={
-            "_id": "active-id",
-            "version": "v8",
-            "stage": "production",
-            "is_active": True,
-            "f1_score": 0.75
-        })
+        mock_db.model_versions.find_one = AsyncMock(
+            return_value={
+                "_id": "active-id",
+                "version": "v8",
+                "stage": "production",
+                "is_active": True,
+                "f1_score": 0.75,
+            }
+        )
 
         result = await repository.get_active_model()
 
@@ -537,9 +536,7 @@ class TestSetActiveVersion:
         mock_db.model_versions.update_one = AsyncMock(return_value=Mock(modified_count=1))
 
         result = await repository.promote_model(
-            version="v9",
-            stage="production",
-            promoted_by="manual"
+            version="v9", stage="production", promoted_by="manual"
         )
 
         assert result is True
@@ -550,17 +547,19 @@ class TestVersionMetadata:
 
     async def test_version_metadata_with_drift(self, repository, mock_db):
         """Testa metadados de versão com drift metrics."""
-        mock_db.model_versions.find_one = AsyncMock(return_value={
-            "_id": "meta-id",
-            "version": "v9",
-            "stage": "production",
-            "f1_score": 0.75,
-            "drift_metrics": {
-                "last_check": datetime.now(),
-                "confidence_drop": 0.05,
-                "approve_rate_change": 0.10
+        mock_db.model_versions.find_one = AsyncMock(
+            return_value={
+                "_id": "meta-id",
+                "version": "v9",
+                "stage": "production",
+                "f1_score": 0.75,
+                "drift_metrics": {
+                    "last_check": datetime.now(),
+                    "confidence_drop": 0.05,
+                    "approve_rate_change": 0.10,
+                },
             }
-        })
+        )
 
         result = await repository.get_by_version("v9")
 
@@ -587,11 +586,13 @@ class TestCountModelsByStage:
     async def test_count_models_by_stage(self, repository, mock_db):
         """Testa contagem de modelos por estágio."""
         cursor_mock = AsyncMock()
-        cursor_mock.to_list = AsyncMock(return_value=[
-            {"_id": "production", "count": 2},
-            {"_id": "staging", "count": 1},
-            {"_id": "archived", "count": 5}
-        ])
+        cursor_mock.to_list = AsyncMock(
+            return_value=[
+                {"_id": "production", "count": 2},
+                {"_id": "staging", "count": 1},
+                {"_id": "archived", "count": 5},
+            ]
+        )
         mock_db.model_versions.aggregate.return_value = cursor_mock
 
         result = await repository.count_models_by_stage()

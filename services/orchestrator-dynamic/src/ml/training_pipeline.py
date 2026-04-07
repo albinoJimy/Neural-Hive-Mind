@@ -11,6 +11,7 @@ baseado em drift, performance e volume de dados.
 import asyncio
 import contextlib
 from datetime import datetime, timezone
+
 UTC = timezone.utc  # type: ignore, timedelta
 from typing import Any
 

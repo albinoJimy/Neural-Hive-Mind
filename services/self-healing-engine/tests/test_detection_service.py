@@ -15,7 +15,7 @@ from src.services.detection_service import (
     DetectionService,
     DeadlockStatus,
     MemoryStatus,
-    RemediationTrigger
+    RemediationTrigger,
 )
 
 
@@ -27,7 +27,7 @@ def detection_service(mock_orchestrator_client, mock_k8s_client, mock_k8s_custom
         k8s_core_v1=mock_k8s_client,
         k8s_custom_api=mock_k8s_custom_api,
         memory_threshold_percent=90.0,
-        workflow_timeout_seconds=1800
+        workflow_timeout_seconds=1800,
     )
 
 
@@ -42,10 +42,18 @@ class TestDetectionService:
                 "workflow_id": "wf-123",
                 "status": "RUNNING",
                 "tickets": [
-                    {"ticket_id": "t1", "status": "COMPLETED", "updated_at": "2026-03-18T10:25:00Z"},
-                    {"ticket_id": "t2", "status": "IN_PROGRESS", "updated_at": "2026-03-18T10:26:00Z"},
+                    {
+                        "ticket_id": "t1",
+                        "status": "COMPLETED",
+                        "updated_at": "2026-03-18T10:25:00Z",
+                    },
+                    {
+                        "ticket_id": "t2",
+                        "status": "IN_PROGRESS",
+                        "updated_at": "2026-03-18T10:26:00Z",
+                    },
                 ],
-                "last_progress_at": "2026-03-18T10:26:00Z"
+                "last_progress_at": "2026-03-18T10:26:00Z",
             }
         )
 
@@ -66,7 +74,7 @@ class TestDetectionService:
                 "tickets": [
                     {"ticket_id": "t1", "status": "IN_PROGRESS", "updated_at": old_time},
                 ],
-                "last_progress_at": old_time
+                "last_progress_at": old_time,
             }
         )
 
@@ -79,20 +87,17 @@ class TestDetectionService:
     async def test_detect_memory_leak_ok(self, detection_service):
         """Testa detecção de memória dentro do limite."""
         # Usar patch direto do método interno
-        with patch.object(detection_service, '_get_pod_metrics', return_value={
-            "containers": [
-                {
-                    "name": "app",
-                    "usage": {
-                        "memory": "800Mi"  # 800MB de 1GB = 80%
-                    }
-                }
-            ]
-        }):
+        with patch.object(
+            detection_service,
+            "_get_pod_metrics",
+            return_value={
+                "containers": [{"name": "app", "usage": {"memory": "800Mi"}}]  # 800MB de 1GB = 80%
+            },
+        ):
             status = await detection_service.detect_memory_leak(
                 pod_name="worker-1",
                 namespace="neural-hive-orchestration",
-                memory_limit_bytes=1073741824  # 1GB
+                memory_limit_bytes=1073741824,  # 1GB
             )
 
         assert status.has_leak is False
@@ -117,21 +122,23 @@ class TestDetectionService:
             pod_name="worker-1",
             namespace="neural-hive-orchestration",
             memory_limit_bytes=1073741824,  # 1GB
-            check_duration_seconds=300  # 5 minutos
+            check_duration_seconds=300,  # 5 minutos
         )
 
         # Como detect_memory_leak depende de _get_pod_metrics que usa k8s_custom_api,
         # e o mock pode não funcionar corretamente, vamos verificar apenas
         # que o código funciona quando mockado corretamente
         # Para este teste, vamos usar um mock direto do _get_pod_metrics
-        with patch.object(detection_service, '_get_pod_metrics', return_value={
-            "containers": [{"name": "app", "usage": {"memory": "950Mi"}}]
-        }):
+        with patch.object(
+            detection_service,
+            "_get_pod_metrics",
+            return_value={"containers": [{"name": "app", "usage": {"memory": "950Mi"}}]},
+        ):
             status = await detection_service.detect_memory_leak(
                 pod_name="worker-1",
                 namespace="neural-hive-orchestration",
                 memory_limit_bytes=1073741824,
-                check_duration_seconds=300
+                check_duration_seconds=300,
             )
 
         # Deve ter leak detectado após histórico de timestamps
@@ -145,7 +152,7 @@ class TestDetectionService:
             incident_type="deadlock",
             workflow_id="wf-123",
             severity="high",
-            detected_at=datetime.now(timezone.utc)
+            detected_at=datetime.now(timezone.utc),
         )
 
         # Mock playbook executor
@@ -153,8 +160,7 @@ class TestDetectionService:
         mock_executor.execute_playbook = AsyncMock(return_value={"success": True})
 
         result = await detection_service.trigger_remediation(
-            trigger,
-            playbook_executor=mock_executor
+            trigger, playbook_executor=mock_executor
         )
 
         assert result["success"] is True
@@ -167,7 +173,7 @@ class TestDetectionService:
             pod_name="worker-1",
             namespace="neural-hive-orchestration",
             severity="medium",
-            detected_at=datetime.now(timezone.utc)
+            detected_at=datetime.now(timezone.utc),
         )
 
         # Mock playbook executor
@@ -175,8 +181,7 @@ class TestDetectionService:
         mock_executor.execute_playbook = AsyncMock(return_value={"success": True})
 
         result = await detection_service.trigger_remediation(
-            trigger,
-            playbook_executor=mock_executor
+            trigger, playbook_executor=mock_executor
         )
 
         assert result["success"] is True
@@ -187,7 +192,7 @@ class TestDetectionService:
             workflow_id="wf-123",
             has_deadlock=True,
             stuck_duration_seconds=2400,
-            suspected_tickets=["t1", "t2"]
+            suspected_tickets=["t1", "t2"],
         )
         assert status.workflow_id == "wf-123"
         assert status.has_deadlock is True
@@ -200,7 +205,7 @@ class TestDetectionService:
             has_leak=False,
             usage_bytes=800000000,
             usage_percent=80.0,
-            limit_bytes=1073741824
+            limit_bytes=1073741824,
         )
         assert status.pod_name == "worker-1"
         assert status.has_leak is False
@@ -211,7 +216,7 @@ class TestDetectionService:
             incident_type="deadlock",
             workflow_id="wf-123",
             severity="high",
-            detected_at=datetime.now(timezone.utc)
+            detected_at=datetime.now(timezone.utc),
         )
         assert trigger.incident_type == "deadlock"
         assert trigger.severity == "high"
@@ -232,7 +237,7 @@ class TestDetectionServiceIntegration:
                 "tickets": [
                     {"ticket_id": "t1", "status": "IN_PROGRESS", "updated_at": old_time},
                 ],
-                "last_progress_at": old_time
+                "last_progress_at": old_time,
             }
         )
 
@@ -246,14 +251,13 @@ class TestDetectionServiceIntegration:
                 workflow_id="wf-123",
                 severity="high",
                 detected_at=datetime.now(timezone.utc),
-                metadata={"stuck_duration_seconds": status.stuck_duration_seconds}
+                metadata={"stuck_duration_seconds": status.stuck_duration_seconds},
             )
 
-            with patch.object(detection_service, 'trigger_remediation') as mock_trigger:
+            with patch.object(detection_service, "trigger_remediation") as mock_trigger:
                 mock_trigger.return_value = {"success": True}
                 result = await detection_service.trigger_remediation(
-                    trigger,
-                    playbook_executor=MagicMock()
+                    trigger, playbook_executor=MagicMock()
                 )
 
             assert result["success"] is True

@@ -18,7 +18,7 @@ settings = get_settings()
 mcp = FastMCP(
     name="Scout MCP Server",
     version=settings.service_version,
-    instructions="Ferramentas de descoberta e análise de código para Scout Agents"
+    instructions="Ferramentas de descoberta e análise de código para Scout Agents",
 )
 
 
@@ -46,8 +46,4 @@ def get_scout_info() -> str:
 # Registrar ferramentas
 register_scout_tools(mcp)
 
-logger.info(
-    "scout_mcp_server_initialized",
-    name=mcp.name,
-    version=settings.service_version
-)
+logger.info("scout_mcp_server_initialized", name=mcp.name, version=settings.service_version)

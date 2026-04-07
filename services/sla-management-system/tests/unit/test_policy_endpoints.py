@@ -50,7 +50,7 @@ def mock_freeze_policy():
         unfreeze_threshold_percent=50.0,
         enabled=True,
         created_at=datetime.now(timezone.utc),
-        metadata={"namespace": "test"}
+        metadata={"namespace": "test"},
     )
 
 
@@ -68,26 +68,21 @@ def mock_freeze_event():
         budget_remaining_percent=5.0,
         burn_rate=2.5,
         active=True,
-        metadata={}
+        metadata={},
     )
 
 
 class TestUpdatePolicyEndpoint:
     """Testes para PUT /api/v1/policies/{policy_id}."""
 
-    def test_update_policy_success(
-        self,
-        client,
-        mock_freeze_policy,
-        mock_pg_client
-    ):
+    def test_update_policy_success(self, client, mock_freeze_policy, mock_pg_client):
         """Verifica que update_policy retorna política atualizada."""
         mock_pg_client.update_policy = AsyncMock(return_value=True)
         mock_pg_client.get_policy = AsyncMock(return_value=mock_freeze_policy)
 
         response = client.put(
             "/api/v1/policies/policy-test-001",
-            json={"enabled": False, "trigger_threshold_percent": 5.0}
+            json={"enabled": False, "trigger_threshold_percent": 5.0},
         )
 
         assert response.status_code == 200
@@ -95,18 +90,11 @@ class TestUpdatePolicyEndpoint:
         assert data["policy_id"] == "policy-test-001"
         assert data["name"] == "Test Freeze Policy"
 
-    def test_update_policy_not_found(
-        self,
-        client,
-        mock_pg_client
-    ):
+    def test_update_policy_not_found(self, client, mock_pg_client):
         """Verifica que update_policy retorna 404 quando política não existe."""
         mock_pg_client.update_policy = AsyncMock(return_value=False)
 
-        response = client.put(
-            "/api/v1/policies/nonexistent",
-            json={"enabled": False}
-        )
+        response = client.put("/api/v1/policies/nonexistent", json={"enabled": False})
 
         assert response.status_code == 404
 
@@ -114,11 +102,7 @@ class TestUpdatePolicyEndpoint:
 class TestDeletePolicyEndpoint:
     """Testes para DELETE /api/v1/policies/{policy_id}."""
 
-    def test_delete_policy_success(
-        self,
-        client,
-        mock_pg_client
-    ):
+    def test_delete_policy_success(self, client, mock_pg_client):
         """Verifica que delete_policy retorna sucesso."""
         mock_pg_client.delete_policy = AsyncMock(return_value=True)
 
@@ -127,11 +111,7 @@ class TestDeletePolicyEndpoint:
         assert response.status_code == 200
         assert "deleted successfully" in response.json()["message"]
 
-    def test_delete_policy_not_found(
-        self,
-        client,
-        mock_pg_client
-    ):
+    def test_delete_policy_not_found(self, client, mock_pg_client):
         """Verifica que delete_policy retorna 404 quando política não existe."""
         mock_pg_client.delete_policy = AsyncMock(return_value=False)
 
@@ -143,12 +123,7 @@ class TestDeletePolicyEndpoint:
 class TestGetFreezeHistoryEndpoint:
     """Testes para GET /api/v1/policies/freezes/history."""
 
-    def test_get_freeze_history_success(
-        self,
-        client,
-        mock_freeze_event,
-        mock_pg_client
-    ):
+    def test_get_freeze_history_success(self, client, mock_freeze_event, mock_pg_client):
         """Verifica que get_freeze_history retorna lista de freezes."""
         events = []
         for i in range(5):
@@ -163,7 +138,7 @@ class TestGetFreezeHistoryEndpoint:
                 budget_remaining_percent=50.0,
                 burn_rate=1.0,
                 active=(i == 0),
-                metadata={}
+                metadata={},
             )
             events.append(event)
 
@@ -175,11 +150,7 @@ class TestGetFreezeHistoryEndpoint:
         data = response.json()
         assert data["total"] == 5
 
-    def test_get_freeze_history_with_service_filter(
-        self,
-        client,
-        mock_pg_client
-    ):
+    def test_get_freeze_history_with_service_filter(self, client, mock_pg_client):
         """Verifica filtro por service_name."""
         mock_pg_client.get_freeze_history = AsyncMock(return_value=[])
 
@@ -199,7 +170,9 @@ class TestUpdateViolationsCount:
         from src.clients.postgresql_client import PostgreSQLClient
         from unittest.mock import patch
 
-        with patch.object(PostgreSQLClient, 'update_violations_count', return_value=True) as mock_method:
+        with patch.object(
+            PostgreSQLClient, "update_violations_count", return_value=True
+        ) as mock_method:
             client = PostgreSQLClient.__new__(PostgreSQLClient)
             success = await client.update_violations_count("slo-test-001", 5)
             assert success is True
@@ -210,7 +183,9 @@ class TestUpdateViolationsCount:
         from src.clients.postgresql_client import PostgreSQLClient
         from unittest.mock import patch
 
-        with patch.object(PostgreSQLClient, 'update_violations_count', return_value=False) as mock_method:
+        with patch.object(
+            PostgreSQLClient, "update_violations_count", return_value=False
+        ) as mock_method:
             client = PostgreSQLClient.__new__(PostgreSQLClient)
             success = await client.update_violations_count("nonexistent-slo", 5)
             assert success is False
@@ -226,24 +201,19 @@ class TestCountSloViolations:
         from src.config.settings import PrometheusSettings
 
         settings = PrometheusSettings(
-            url="http://prometheus:9090",
-            timeout_seconds=30,
-            max_retries=3
+            url="http://prometheus:9090", timeout_seconds=30, max_retries=3
         )
         client = PrometheusClient(settings)
 
         client.session = AsyncMock()
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json = MagicMock(return_value={
-            "status": "success",
-            "data": {
-                "resultType": "vector",
-                "result": [
-                    {"value": [1234567890, "3"]}
-                ]
+        mock_response.json = MagicMock(
+            return_value={
+                "status": "success",
+                "data": {"resultType": "vector", "result": [{"value": [1234567890, "3"]}]},
             }
-        })
+        )
         client.session.get = AsyncMock(return_value=mock_response)
 
         count = await client.count_slo_violations("test-slo", window_hours=24)
@@ -257,22 +227,16 @@ class TestCountSloViolations:
         from src.config.settings import PrometheusSettings
 
         settings = PrometheusSettings(
-            url="http://prometheus:9090",
-            timeout_seconds=30,
-            max_retries=3
+            url="http://prometheus:9090", timeout_seconds=30, max_retries=3
         )
         client = PrometheusClient(settings)
 
         client.session = AsyncMock()
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json = MagicMock(return_value={
-            "status": "success",
-            "data": {
-                "resultType": "vector",
-                "result": []
-            }
-        })
+        mock_response.json = MagicMock(
+            return_value={"status": "success", "data": {"resultType": "vector", "result": []}}
+        )
         client.session.get = AsyncMock(return_value=mock_response)
 
         count = await client.count_slo_violations("test-slo")

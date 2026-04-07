@@ -59,9 +59,7 @@ def ensemble_config():
 @pytest.fixture
 def mock_mlflow_client():
     """Mock do MLflowClient."""
-    with patch(
-        "neural_hive_specialists.base_specialist.MLflowClient"
-    ) as mock_client:
+    with patch("neural_hive_specialists.base_specialist.MLflowClient") as mock_client:
         client_instance = MagicMock()
 
         # Mock load_model para retornar modelos mock
@@ -329,9 +327,7 @@ class TestEnsembleExplainability:
 class TestEnsembleErrorHandling:
     """Testes de tratamento de erros."""
 
-    def test_timeout_handling_in_parallel_predictions(
-        self, ensemble_specialist, ensemble_config
-    ):
+    def test_timeout_handling_in_parallel_predictions(self, ensemble_specialist, ensemble_config):
         """Testa tratamento de timeout em predições paralelas."""
         # Verificar que timeout está em segundos
         timeout_ms = ensemble_config.model_inference_timeout_ms
@@ -348,9 +344,7 @@ class TestEnsembleErrorHandling:
         ensemble_specialist.models["model-rf"] = failing_model
 
         # Simular predição
-        predictions = ensemble_specialist._execute_parallel_predictions(
-            {"plan_id": "test"}
-        )
+        predictions = ensemble_specialist._execute_parallel_predictions({"plan_id": "test"})
 
         # Deve continuar com outros modelos
         assert len(predictions) >= 0  # Pelo menos alguns devem funcionar
@@ -359,9 +353,7 @@ class TestEnsembleErrorHandling:
 class TestEnsembleMLflowIntegration:
     """Testes de integração com MLflow."""
 
-    def test_load_weights_from_mlflow_artifact(
-        self, ensemble_specialist, mock_mlflow_client
-    ):
+    def test_load_weights_from_mlflow_artifact(self, ensemble_specialist, mock_mlflow_client):
         """Testa carregamento de pesos do MLflow artifact."""
         import json
         import tempfile
@@ -377,12 +369,8 @@ class TestEnsembleMLflowIntegration:
 
             # Mock download_artifacts
             mock_mlflow_client.client = MagicMock()
-            mock_mlflow_client.client.download_artifacts = Mock(
-                return_value=weights_file
-            )
-            mock_mlflow_client.get_model_metadata = Mock(
-                return_value={"run_id": "test-run"}
-            )
+            mock_mlflow_client.client.download_artifacts = Mock(return_value=weights_file)
+            mock_mlflow_client.get_model_metadata = Mock(return_value={"run_id": "test-run"})
 
             # Testar carregamento
             weights = ensemble_specialist._load_weights_from_mlflow_artifact()
@@ -435,9 +423,7 @@ class TestEnsembleIntegration:
 class TestEnsembleCalibrationMetadata:
     """Testes de metadata de calibração agregada em _combine_predictions."""
 
-    def test_combine_predictions_calibration_metadata_all_calibrated(
-        self, ensemble_specialist
-    ):
+    def test_combine_predictions_calibration_metadata_all_calibrated(self, ensemble_specialist):
         """Testa propagação de metadata quando todos modelos usam predict_proba."""
         # Mock metrics para evitar dependência de Prometheus real
         ensemble_specialist.metrics = MagicMock()
@@ -555,16 +541,10 @@ class TestEnsembleCalibrationMetadata:
 
         # Verificar chamadas às métricas com valores corretos
         ensemble_specialist.metrics.observe_ensemble_calibration_coverage.assert_called_once()
-        call_args = (
-            ensemble_specialist.metrics.observe_ensemble_calibration_coverage.call_args[
-                0
-            ]
-        )
+        call_args = ensemble_specialist.metrics.observe_ensemble_calibration_coverage.call_args[0]
         assert abs(call_args[0] - (1 / 3)) < 0.01
 
-    def test_combine_predictions_calibration_metadata_none_calibrated(
-        self, ensemble_specialist
-    ):
+    def test_combine_predictions_calibration_metadata_none_calibrated(self, ensemble_specialist):
         """Testa propagação de metadata quando nenhum modelo usa predict_proba."""
         # Mock metrics
         ensemble_specialist.metrics = MagicMock()
@@ -648,9 +628,7 @@ class TestEnsembleCalibrationMetadata:
         # calibration_coverage deve ser ~0.667
         assert abs(metadata["calibration_coverage"] - (2 / 3)) < 0.01
 
-    def test_combine_predictions_preserves_aggregation_method(
-        self, ensemble_specialist
-    ):
+    def test_combine_predictions_preserves_aggregation_method(self, ensemble_specialist):
         """Testa que aggregation_method é incluído na metadata."""
         # Mock metrics
         ensemble_specialist.metrics = MagicMock()

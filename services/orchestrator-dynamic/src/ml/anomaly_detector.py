@@ -6,6 +6,7 @@ que podem indicar problemas de configuração ou comportamento inesperado.
 """
 
 from datetime import timezone
+
 UTC = timezone.utc  # type: ignore
 from typing import Any
 

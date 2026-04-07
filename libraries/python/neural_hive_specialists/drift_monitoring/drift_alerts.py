@@ -77,9 +77,7 @@ class DriftAlerter:
         if self.slack_webhook:
             await self._send_to_slack(alert_data)
 
-        logger.info(
-            "Drift alert sent", severity=alert_data["severity"], drift_score=drift_score
-        )
+        logger.info("Drift alert sent", severity=alert_data["severity"], drift_score=drift_score)
 
     def _calculate_severity(self, drift_score: float) -> str:
         """Calcula severidade do alerta baseado no score."""
@@ -90,9 +88,7 @@ class DriftAlerter:
         else:
             return "info"
 
-    def _generate_alert_message(
-        self, drift_score: float, drifted_features: List[str]
-    ) -> str:
+    def _generate_alert_message(self, drift_score: float, drifted_features: List[str]) -> str:
         """Gera mensagem de alerta."""
         return (
             f"🚨 Drift detectado nos especialistas neurais!\n"
@@ -181,9 +177,7 @@ class DriftAlerter:
                     if response.status == 200:
                         logger.debug("Alert sent to Slack")
                     else:
-                        logger.warning(
-                            "Failed to send alert to Slack", status=response.status
-                        )
+                        logger.warning("Failed to send alert to Slack", status=response.status)
 
         except Exception as e:
             logger.error("Error sending alert to Slack", error=str(e))

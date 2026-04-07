@@ -29,10 +29,10 @@ def mock_slo():
         sli_query=SLIQuery(
             metric_name="http_request_duration_seconds",
             query="histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
-            aggregation="avg"
+            aggregation="avg",
         ),
         enabled=True,
-        metadata={}
+        metadata={},
     )
 
 
@@ -60,10 +60,10 @@ def mock_budget_history_data():
             status=BudgetStatus.WARNING if i < 30 else BudgetStatus.CRITICAL,
             burn_rates=[
                 BurnRate(window_hours=1, rate=1.0 + (i * 0.05), level=BurnRateLevel.NORMAL),
-                BurnRate(window_hours=6, rate=0.8 + (i * 0.03), level=BurnRateLevel.NORMAL)
+                BurnRate(window_hours=6, rate=0.8 + (i * 0.03), level=BurnRateLevel.NORMAL),
             ],
             violations_count=i // 10,
-            metadata={"slo_type": "LATENCY"}
+            metadata={"slo_type": "LATENCY"},
         )
         budgets.append(budget)
 
@@ -76,15 +76,17 @@ def mock_pg_client(mock_slo, mock_budget_history_data):
     client = MagicMock()
     client.get_slo = AsyncMock(return_value=mock_slo)
     client.get_budget_history = AsyncMock(return_value=mock_budget_history_data)
-    client.get_budget_trends = AsyncMock(return_value={
-        'trend_direction': 'degrading',
-        'average_remaining': 35.0,
-        'min_remaining': 25.0,
-        'max_consumed': 75.0,
-        'volatility': 8.5,
-        'violations_frequency': 0.7,
-        'burn_rate_avg': 2.2
-    })
+    client.get_budget_trends = AsyncMock(
+        return_value={
+            "trend_direction": "degrading",
+            "average_remaining": 35.0,
+            "min_remaining": 25.0,
+            "max_consumed": 75.0,
+            "volatility": 8.5,
+            "violations_frequency": 0.7,
+            "burn_rate_avg": 2.2,
+        }
+    )
     return client
 
 
@@ -113,11 +115,11 @@ class TestBudgetHistoryEndToEnd:
         assert response.status_code == 200
         data = response.json()
 
-        assert data['total'] == 50
-        assert data['period_days'] == 7
-        assert data['aggregation'] is None
-        assert data['trends'] is None
-        assert len(data['budgets']) == 50
+        assert data["total"] == 50
+        assert data["period_days"] == 7
+        assert data["aggregation"] is None
+        assert data["trends"] is None
+        assert len(data["budgets"]) == 50
 
         # Verificar que chamou o método correto
         mock_pg_client.get_budget_history.assert_called_once_with("slo-test-001", 7, None)
@@ -132,7 +134,7 @@ class TestBudgetHistoryEndToEnd:
                 service_name="test-service",
                 calculated_at=datetime.now(timezone.utc) - timedelta(days=i),
                 window_start=datetime.now(timezone.utc) - timedelta(days=i),
-                window_end=datetime.now(timezone.utc) - timedelta(days=i-1),
+                window_end=datetime.now(timezone.utc) - timedelta(days=i - 1),
                 sli_value=99.0,
                 slo_target=99.0,
                 error_budget_total=1.0,
@@ -141,7 +143,7 @@ class TestBudgetHistoryEndToEnd:
                 status=BudgetStatus.WARNING,
                 burn_rates=[],
                 violations_count=0,
-                metadata={}
+                metadata={},
             )
             for i in range(7)
         ]
@@ -152,9 +154,9 @@ class TestBudgetHistoryEndToEnd:
         assert response.status_code == 200
         data = response.json()
 
-        assert data['total'] == 7
-        assert data['aggregation'] == 'daily'
-        mock_pg_client.get_budget_history.assert_called_once_with("slo-test-001", 7, 'daily')
+        assert data["total"] == 7
+        assert data["aggregation"] == "daily"
+        mock_pg_client.get_budget_history.assert_called_once_with("slo-test-001", 7, "daily")
 
     def test_get_budget_history_with_hourly_aggregation(self, client, mock_pg_client):
         """Testa requisição com agregação por hora."""
@@ -165,7 +167,7 @@ class TestBudgetHistoryEndToEnd:
                 service_name="test-service",
                 calculated_at=datetime.now(timezone.utc) - timedelta(hours=i),
                 window_start=datetime.now(timezone.utc) - timedelta(hours=i),
-                window_end=datetime.now(timezone.utc) - timedelta(hours=i-1),
+                window_end=datetime.now(timezone.utc) - timedelta(hours=i - 1),
                 sli_value=99.0,
                 slo_target=99.0,
                 error_budget_total=1.0,
@@ -174,7 +176,7 @@ class TestBudgetHistoryEndToEnd:
                 status=BudgetStatus.WARNING,
                 burn_rates=[],
                 violations_count=0,
-                metadata={}
+                metadata={},
             )
             for i in range(24)
         ]
@@ -185,8 +187,8 @@ class TestBudgetHistoryEndToEnd:
         assert response.status_code == 200
         data = response.json()
 
-        assert data['total'] == 24
-        assert data['aggregation'] == 'hourly'
+        assert data["total"] == 24
+        assert data["aggregation"] == "hourly"
 
     def test_get_budget_history_with_trends(self, client, mock_pg_client):
         """Testa requisição incluindo análise de tendências."""
@@ -195,14 +197,14 @@ class TestBudgetHistoryEndToEnd:
         assert response.status_code == 200
         data = response.json()
 
-        assert data['trends'] is not None
-        assert data['trends']['trend_direction'] == 'degrading'
-        assert data['trends']['average_remaining'] == 35.0
-        assert data['trends']['min_remaining'] == 25.0
-        assert data['trends']['max_consumed'] == 75.0
-        assert data['trends']['volatility'] == 8.5
-        assert data['trends']['violations_frequency'] == 0.7
-        assert data['trends']['burn_rate_avg'] == 2.2
+        assert data["trends"] is not None
+        assert data["trends"]["trend_direction"] == "degrading"
+        assert data["trends"]["average_remaining"] == 35.0
+        assert data["trends"]["min_remaining"] == 25.0
+        assert data["trends"]["max_consumed"] == 75.0
+        assert data["trends"]["volatility"] == 8.5
+        assert data["trends"]["violations_frequency"] == 0.7
+        assert data["trends"]["burn_rate_avg"] == 2.2
 
         # Verificar que ambos métodos foram chamados
         mock_pg_client.get_budget_history.assert_called_once()
@@ -211,16 +213,15 @@ class TestBudgetHistoryEndToEnd:
     def test_get_budget_history_all_options(self, client, mock_pg_client):
         """Testa requisição com todas as opções."""
         response = client.get(
-            "/api/v1/budgets/slo-test-001/history"
-            "?days=30&aggregation=daily&include_trends=true"
+            "/api/v1/budgets/slo-test-001/history" "?days=30&aggregation=daily&include_trends=true"
         )
 
         assert response.status_code == 200
         data = response.json()
 
-        assert data['period_days'] == 30
-        assert data['aggregation'] == 'daily'
-        assert data['trends'] is not None
+        assert data["period_days"] == 30
+        assert data["aggregation"] == "daily"
+        assert data["trends"] is not None
 
 
 class TestBudgetHistoryInvalidSloId:
@@ -234,7 +235,7 @@ class TestBudgetHistoryInvalidSloId:
 
         assert response.status_code == 404
         data = response.json()
-        assert "não encontrado" in data['detail'].lower() or "not found" in data['detail'].lower()
+        assert "não encontrado" in data["detail"].lower() or "not found" in data["detail"].lower()
 
 
 class TestBudgetHistoryValidation:
@@ -270,18 +271,22 @@ class TestBudgetHistoryValidation:
 class TestBudgetHistoryOrdering:
     """Testes para verificação de ordenação."""
 
-    def test_budget_history_ordered_by_calculated_at(self, client, mock_pg_client, mock_budget_history_data):
+    def test_budget_history_ordered_by_calculated_at(
+        self, client, mock_pg_client, mock_budget_history_data
+    ):
         """Verifica que budgets estão ordenados corretamente."""
         response = client.get("/api/v1/budgets/slo-test-001/history?days=7")
 
         assert response.status_code == 200
         data = response.json()
 
-        budgets = data['budgets']
+        budgets = data["budgets"]
         # Verificar que estão em ordem decrescente de calculated_at
         for i in range(len(budgets) - 1):
-            curr_time = datetime.fromisoformat(budgets[i]['calculated_at'].replace('Z', '+00:00'))
-            next_time = datetime.fromisoformat(budgets[i + 1]['calculated_at'].replace('Z', '+00:00'))
+            curr_time = datetime.fromisoformat(budgets[i]["calculated_at"].replace("Z", "+00:00"))
+            next_time = datetime.fromisoformat(
+                budgets[i + 1]["calculated_at"].replace("Z", "+00:00")
+            )
             assert curr_time >= next_time, "Budgets devem estar ordenados DESC por calculated_at"
 
 
@@ -295,27 +300,38 @@ class TestBudgetHistoryResponseStructure:
         assert response.status_code == 200
         data = response.json()
 
-        assert 'budgets' in data
-        assert 'total' in data
-        assert 'period_days' in data
-        assert 'aggregation' in data
-        assert 'trends' in data
+        assert "budgets" in data
+        assert "total" in data
+        assert "period_days" in data
+        assert "aggregation" in data
+        assert "trends" in data
 
-    def test_budget_item_has_required_fields(self, client, mock_pg_client, mock_budget_history_data):
+    def test_budget_item_has_required_fields(
+        self, client, mock_pg_client, mock_budget_history_data
+    ):
         """Verifica campos obrigatórios em cada budget."""
         response = client.get("/api/v1/budgets/slo-test-001/history")
 
         assert response.status_code == 200
         data = response.json()
 
-        if data['budgets']:
-            budget = data['budgets'][0]
+        if data["budgets"]:
+            budget = data["budgets"][0]
             required_fields = [
-                'budget_id', 'slo_id', 'service_name',
-                'calculated_at', 'window_start', 'window_end',
-                'sli_value', 'slo_target', 'error_budget_total',
-                'error_budget_consumed', 'error_budget_remaining',
-                'status', 'burn_rates', 'violations_count'
+                "budget_id",
+                "slo_id",
+                "service_name",
+                "calculated_at",
+                "window_start",
+                "window_end",
+                "sli_value",
+                "slo_target",
+                "error_budget_total",
+                "error_budget_consumed",
+                "error_budget_remaining",
+                "status",
+                "burn_rates",
+                "violations_count",
             ]
             for field in required_fields:
                 assert field in budget, f"Campo {field} não encontrado no budget"

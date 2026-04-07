@@ -18,7 +18,7 @@ class TestValidationFlow:
             json={
                 "repo_url": "https://github.com/example/test-repo",
                 "branch": "main",
-            }
+            },
         )
 
         assert response.status_code == 201
@@ -40,7 +40,7 @@ class TestValidationFlow:
             json={
                 "repo_url": "https://github.com/example/test-repo",
                 "branch": "develop",
-            }
+            },
         )
 
         assert response.status_code == 201
@@ -55,7 +55,7 @@ class TestValidationFlow:
             json={
                 "repo_url": "not-a-valid-url",
                 "branch": "main",
-            }
+            },
         )
 
         # API deve aceitar a URL (validação acontece no serviço)
@@ -69,7 +69,7 @@ class TestValidationFlow:
             json={
                 "repo_url": "https://github.com/example/test-repo",
                 "branch": "main",
-            }
+            },
         )
         report_id = create_response.json()["report_id"]
 
@@ -133,9 +133,7 @@ class TestValidationFlow:
 class TestValidationPersistence:
     """Testes de persistência de relatórios de validação."""
 
-    async def test_validation_persisted_to_mongodb(
-        self, test_app: TestClient, mongo_database
-    ):
+    async def test_validation_persisted_to_mongodb(self, test_app: TestClient, mongo_database):
         """Testa que relatório é persistido no MongoDB."""
         # Criar via API
         response = test_app.post(
@@ -143,12 +141,13 @@ class TestValidationPersistence:
             json={
                 "repo_url": "https://github.com/example/persistence-test",
                 "branch": "main",
-            }
+            },
         )
         report_id = response.json()["report_id"]
 
         # Verificar no MongoDB
         from src.config.settings import get_settings
+
         settings = get_settings()
         collection = mongo_database[settings.mongodb.collection_validation]
 
@@ -167,18 +166,14 @@ class TestValidationPersistence:
         await validation_repository.create(sample_validation_report)
 
         # Recuperar
-        retrieved = await validation_repository.get_by_report_id(
-            sample_validation_report.report_id
-        )
+        retrieved = await validation_repository.get_by_report_id(sample_validation_report.report_id)
 
         assert retrieved is not None
         assert retrieved.report_id == sample_validation_report.report_id
         assert retrieved.health_score == sample_validation_report.health_score
         assert len(retrieved.violations) == len(sample_validation_report.violations)
 
-    async def test_validation_list_by_repo(
-        self, validation_repository, sample_validation_report
-    ):
+    async def test_validation_list_by_repo(self, validation_repository, sample_validation_report):
         """Testa listagem de validações por repositório."""
         repo_url = "https://github.com/example/list-test"
 
@@ -244,7 +239,7 @@ class TestValidationIntegration:
             json={
                 "repo_url": "https://github.com/example/violations-test",
                 "branch": "main",
-            }
+            },
         )
 
         assert response.status_code == 201
@@ -271,7 +266,7 @@ class TestValidationMetrics:
             json={
                 "repo_url": "https://github.com/example/metrics-test",
                 "branch": "main",
-            }
+            },
         )
 
         assert response.status_code == 201

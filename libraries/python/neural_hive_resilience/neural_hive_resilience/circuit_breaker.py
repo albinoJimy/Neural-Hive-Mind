@@ -47,17 +47,15 @@ class MonitoredCircuitBreaker(CircuitBreaker):
     def call(self, func, *args, **kwargs):
         try:
             result = super().call(func, *args, **kwargs)
-            circuit_breaker_state.labels(
-                service=self.service_name, circuit=self.circuit_name
-            ).set(0)
+            circuit_breaker_state.labels(service=self.service_name, circuit=self.circuit_name).set(
+                0
+            )
             return result
         except CircuitBreakerError:
-            circuit_breaker_trips.labels(
-                service=self.service_name, circuit=self.circuit_name
-            ).inc()
-            circuit_breaker_state.labels(
-                service=self.service_name, circuit=self.circuit_name
-            ).set(1)
+            circuit_breaker_trips.labels(service=self.service_name, circuit=self.circuit_name).inc()
+            circuit_breaker_state.labels(service=self.service_name, circuit=self.circuit_name).set(
+                1
+            )
             self.logger.warning(
                 "circuit_breaker_open",
                 service=self.service_name,
@@ -77,12 +75,10 @@ class MonitoredCircuitBreaker(CircuitBreaker):
         try:
             self._state.before_call(self)
         except CircuitBreakerError:
-            circuit_breaker_trips.labels(
-                service=self.service_name, circuit=self.circuit_name
-            ).inc()
-            circuit_breaker_state.labels(
-                service=self.service_name, circuit=self.circuit_name
-            ).set(1)
+            circuit_breaker_trips.labels(service=self.service_name, circuit=self.circuit_name).inc()
+            circuit_breaker_state.labels(service=self.service_name, circuit=self.circuit_name).set(
+                1
+            )
             self.logger.warning(
                 "circuit_breaker_open",
                 service=self.service_name,
@@ -100,7 +96,7 @@ class MonitoredCircuitBreaker(CircuitBreaker):
             raise
         else:
             self._state.on_success()
-            circuit_breaker_state.labels(
-                service=self.service_name, circuit=self.circuit_name
-            ).set(0)
+            circuit_breaker_state.labels(service=self.service_name, circuit=self.circuit_name).set(
+                0
+            )
             return result

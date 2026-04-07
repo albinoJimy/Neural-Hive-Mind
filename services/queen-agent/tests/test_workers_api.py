@@ -46,7 +46,7 @@ def mock_app_state():
         return_value=TaskAssignment(
             worker_id="worker-1",
             strategy=BalancingStrategy.ROUND_ROBIN,
-            assigned_at=datetime.now(timezone.utc)
+            assigned_at=datetime.now(timezone.utc),
         )
     )
     state.load_balancer.complete_task = AsyncMock(return_value=True)

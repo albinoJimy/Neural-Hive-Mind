@@ -6,6 +6,7 @@ Responsável por enviar alertas para SRE quando tickets falham definitivamente.
 import json
 import uuid
 from datetime import datetime, timezone
+
 UTC = timezone.utc  # type: ignore
 
 import structlog

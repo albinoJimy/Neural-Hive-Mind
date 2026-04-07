@@ -19,9 +19,7 @@ class ComponentMetadata(BaseModel):
 
     included: bool = Field(description="Se componente foi incluído no backup")
     size_bytes: int = Field(default=0, description="Tamanho do componente em bytes")
-    checksum: Optional[str] = Field(
-        default=None, description="SHA-256 checksum do componente"
-    )
+    checksum: Optional[str] = Field(default=None, description="SHA-256 checksum do componente")
     file_count: int = Field(default=0, description="Número de arquivos no componente")
     metadata: Dict[str, Any] = Field(
         default_factory=dict, description="Metadados específicos do componente"
@@ -46,16 +44,12 @@ class BackupManifest(BaseModel):
     """
 
     backup_id: str = Field(description="UUID único do backup")
-    specialist_type: str = Field(
-        description="Tipo do especialista (technical, business, etc.)"
-    )
+    specialist_type: str = Field(description="Tipo do especialista (technical, business, etc.)")
     tenant_id: Optional[str] = Field(
         default=None, description="Tenant ID (se multi-tenancy habilitado)"
     )
     backup_timestamp: datetime = Field(description="Timestamp do backup (UTC)")
-    backup_version: str = Field(
-        default="1.0.0", description="Versão do schema de backup"
-    )
+    backup_version: str = Field(default="1.0.0", description="Versão do schema de backup")
 
     # Componentes do backup
     components: Dict[str, ComponentMetadata] = Field(
@@ -68,12 +62,8 @@ class BackupManifest(BaseModel):
         default_factory=dict, description="SHA-256 checksums de cada componente"
     )
 
-    total_size_bytes: int = Field(
-        default=0, description="Tamanho total do backup em bytes"
-    )
-    compression_level: int = Field(
-        default=6, description="Nível de compressão gzip usado (1-9)"
-    )
+    total_size_bytes: int = Field(default=0, description="Tamanho total do backup em bytes")
+    compression_level: int = Field(default=6, description="Nível de compressão gzip usado (1-9)")
     created_by: str = Field(
         default="neural-hive-disaster-recovery",
         description="Identificador de quem criou o backup",
@@ -180,9 +170,7 @@ class BackupManifest(BaseModel):
 
                 logger.debug("Checksum válido", component=component_name)
 
-        logger.info(
-            "Todos os checksums validados com sucesso", backup_id=self.backup_id
-        )
+        logger.info("Todos os checksums validados com sucesso", backup_id=self.backup_id)
 
         return True
 
@@ -251,9 +239,7 @@ class BackupManifest(BaseModel):
         Returns:
             Dict com informações resumidas
         """
-        included_components = [
-            name for name, meta in self.components.items() if meta.included
-        ]
+        included_components = [name for name, meta in self.components.items() if meta.included]
 
         return {
             "backup_id": self.backup_id,

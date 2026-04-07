@@ -203,7 +203,7 @@ class TestKanikoCacheOptimizer:
         metrics = optimizer.get_metrics()
         assert metrics["hits"] == 2
         assert metrics["misses"] == 1
-        assert metrics["hit_rate"] == 2/3
+        assert metrics["hit_rate"] == 2 / 3
         assert metrics["cache_enabled"] is True
         assert "last_cache_update" in metrics
 

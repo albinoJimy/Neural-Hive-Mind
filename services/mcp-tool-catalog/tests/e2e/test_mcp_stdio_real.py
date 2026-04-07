@@ -162,10 +162,7 @@ if __name__ == "__main__":
 def mock_mcp_server_path():
     """Cria script de servidor MCP mock temporário."""
     with tempfile.NamedTemporaryFile(
-        mode="w",
-        suffix=".py",
-        delete=False,
-        prefix="mock_mcp_server_"
+        mode="w", suffix=".py", delete=False, prefix="mock_mcp_server_"
     ) as f:
         f.write(MOCK_MCP_SERVER_SCRIPT)
         server_path = f.name

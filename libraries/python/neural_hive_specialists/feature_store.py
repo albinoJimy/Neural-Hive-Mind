@@ -117,18 +117,14 @@ class FeatureStore:
                 "timestamp": time.time(),
             }
 
-            self.features_collection.replace_one(
-                {"plan_id": plan_id}, document, upsert=True
-            )
+            self.features_collection.replace_one({"plan_id": plan_id}, document, upsert=True)
 
             logger.debug("Features saved to MongoDB", plan_id=plan_id)
 
             # Salvar no Redis (cache)
             if self.redis_client:
                 cache_key = f"features:{plan_id}"
-                self.redis_client.setex(
-                    cache_key, self.cache_ttl_seconds, features_json
-                )
+                self.redis_client.setex(cache_key, self.cache_ttl_seconds, features_json)
                 logger.debug("Features cached in Redis", plan_id=plan_id)
 
             return True
@@ -160,9 +156,7 @@ class FeatureStore:
                     return json.loads(cached)
 
             except Exception as e:
-                logger.warning(
-                    "Failed to retrieve from Redis cache", plan_id=plan_id, error=str(e)
-                )
+                logger.warning("Failed to retrieve from Redis cache", plan_id=plan_id, error=str(e))
 
         # Fallback para MongoDB
         try:

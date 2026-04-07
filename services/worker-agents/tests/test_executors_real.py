@@ -26,15 +26,15 @@ class DummyMetric:
         self.calls = []
 
     def labels(self, **kwargs):
-        self.calls.append(('labels', kwargs))
+        self.calls.append(("labels", kwargs))
         return self
 
     def inc(self, value=1):
-        self.calls.append(('inc', value))
+        self.calls.append(("inc", value))
         return self
 
     def observe(self, value):
-        self.calls.append(('observe', value))
+        self.calls.append(("observe", value))
         return self
 
 
@@ -56,8 +56,16 @@ def base_config():
 @pytest.mark.asyncio
 async def test_execute_executor_with_code_forge(monkeypatch, base_config):
     statuses = [
-        GenerationStatus(request_id="req-1", status="pending", artifacts=[], pipeline_id=None, error=None),
-        GenerationStatus(request_id="req-1", status="completed", artifacts=[{"name": "file.py"}], pipeline_id="pipe-1", error=None),
+        GenerationStatus(
+            request_id="req-1", status="pending", artifacts=[], pipeline_id=None, error=None
+        ),
+        GenerationStatus(
+            request_id="req-1",
+            status="completed",
+            artifacts=[{"name": "file.py"}],
+            pipeline_id="pipe-1",
+            error=None,
+        ),
     ]
 
     class StubCF:
@@ -72,7 +80,12 @@ async def test_execute_executor_with_code_forge(monkeypatch, base_config):
             return statuses[min(self.status_calls - 1, len(statuses) - 1)]
 
     executor = ExecuteExecutor(base_config, code_forge_client=StubCF())
-    ticket = {"ticket_id": "t1", "task_id": "task", "task_type": "EXECUTE", "parameters": {"template_id": "tpl"}}
+    ticket = {
+        "ticket_id": "t1",
+        "task_id": "task",
+        "task_type": "EXECUTE",
+        "parameters": {"template_id": "tpl"},
+    }
     result = await executor.execute(ticket)
 
     assert result["success"] is True
@@ -107,7 +120,12 @@ async def test_build_executor_with_code_forge(base_config):
             )
 
     executor = BuildExecutor(base_config, code_forge_client=StubCF())
-    ticket = {"ticket_id": "b1", "task_id": "task", "task_type": "BUILD", "parameters": {"artifact_id": "artifact-1"}}
+    ticket = {
+        "ticket_id": "b1",
+        "task_id": "task",
+        "task_type": "BUILD",
+        "parameters": {"artifact_id": "artifact-1"},
+    }
     result = await executor.execute(ticket)
 
     assert result["success"] is True
@@ -125,7 +143,12 @@ async def test_build_executor_timeout_fallback(base_config):
             raise TimeoutError("timeout")
 
     executor = BuildExecutor(base_config, code_forge_client=StubCF())
-    ticket = {"ticket_id": "b2", "task_id": "task", "task_type": "BUILD", "parameters": {"artifact_id": "artifact-1"}}
+    ticket = {
+        "ticket_id": "b2",
+        "task_id": "task",
+        "task_type": "BUILD",
+        "parameters": {"artifact_id": "artifact-1"},
+    }
     result = await executor.execute(ticket)
 
     assert result["metadata"]["simulated"] is True
@@ -147,7 +170,11 @@ async def test_test_executor_runs_subprocess(monkeypatch, tmp_path, base_config)
         "ticket_id": "test-1",
         "task_id": "task",
         "task_type": "TEST",
-        "parameters": {"test_command": "pytest", "working_dir": str(tmp_path), "report_path": "report.json"},
+        "parameters": {
+            "test_command": "pytest",
+            "working_dir": str(tmp_path),
+            "report_path": "report.json",
+        },
     }
     result = await executor.execute(ticket)
 
@@ -192,11 +219,16 @@ async def test_validate_executor_with_opa(monkeypatch, base_config):
 
     monkeypatch.setattr(
         "clients.opa_client.httpx.AsyncClient",
-        FakeAsyncClientFactory({"result": {"allow": True, "violations": []}})
+        FakeAsyncClientFactory({"result": {"allow": True, "violations": []}}),
     )
 
     executor = ValidateExecutor(base_config)
-    ticket = {"ticket_id": "v1", "task_id": "task", "task_type": "VALIDATE", "parameters": {"validation_type": "policy"}}
+    ticket = {
+        "ticket_id": "v1",
+        "task_id": "task",
+        "task_type": "VALIDATE",
+        "parameters": {"validation_type": "policy"},
+    }
     result = await executor.execute(ticket)
 
     assert result["success"] is True
@@ -238,21 +270,29 @@ async def test_validate_executor_metrics_success(monkeypatch, base_config):
             return FakeClient(self.payload)
 
     metrics = SimpleNamespace(
-        validate_tasks_executed_total=DummyMetric(),
-        validate_tools_executed_total=DummyMetric()
+        validate_tasks_executed_total=DummyMetric(), validate_tools_executed_total=DummyMetric()
     )
 
     monkeypatch.setattr(
         "clients.opa_client.httpx.AsyncClient",
-        FakeAsyncClientFactory({"result": {"allow": True, "violations": []}})
+        FakeAsyncClientFactory({"result": {"allow": True, "violations": []}}),
     )
 
     executor = ValidateExecutor(base_config, metrics=metrics)
-    ticket = {"ticket_id": "v1", "task_id": "task", "task_type": "VALIDATE", "parameters": {"validation_type": "policy"}}
+    ticket = {
+        "ticket_id": "v1",
+        "task_id": "task",
+        "task_type": "VALIDATE",
+        "parameters": {"validation_type": "policy"},
+    }
     result = await executor.execute(ticket)
 
     assert result["success"] is True
-    assert any(call for call in metrics.validate_tasks_executed_total.calls if call[0] == "labels" and call[1]["status"] == "success")
+    assert any(
+        call
+        for call in metrics.validate_tasks_executed_total.calls
+        if call[0] == "labels" and call[1]["status"] == "success"
+    )
 
 
 @pytest.mark.asyncio
@@ -273,20 +313,23 @@ async def test_validate_executor_metrics_error(monkeypatch, base_config):
 
     tasks_metric = DummyMetric()
     metrics = SimpleNamespace(
-        validate_tasks_executed_total=tasks_metric,
-        validate_tools_executed_total=DummyMetric()
+        validate_tasks_executed_total=tasks_metric, validate_tools_executed_total=DummyMetric()
     )
 
-    monkeypatch.setattr(
-        "clients.opa_client.httpx.AsyncClient",
-        FakeAsyncClientFactory()
-    )
+    monkeypatch.setattr("clients.opa_client.httpx.AsyncClient", FakeAsyncClientFactory())
 
     executor = ValidateExecutor(base_config, metrics=metrics)
-    ticket = {"ticket_id": "v2", "task_id": "task", "task_type": "VALIDATE", "parameters": {"validation_type": "policy"}}
+    ticket = {
+        "ticket_id": "v2",
+        "task_id": "task",
+        "task_type": "VALIDATE",
+        "parameters": {"validation_type": "policy"},
+    }
     await executor.execute(ticket)
 
-    error_labels = [call for call in tasks_metric.calls if call[0] == "labels" and call[1]["status"] == "error"]
+    error_labels = [
+        call for call in tasks_metric.calls if call[0] == "labels" and call[1]["status"] == "error"
+    ]
     assert len(error_labels) == 1
 
 

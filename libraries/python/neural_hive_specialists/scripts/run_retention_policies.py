@@ -34,15 +34,11 @@ def load_config():
             self.mongodb_database = os.getenv("MONGODB_DATABASE", "neural_hive")
 
             # Compliance flags
-            self.enable_pii_detection = (
-                os.getenv("ENABLE_PII_DETECTION", "true").lower() == "true"
-            )
+            self.enable_pii_detection = os.getenv("ENABLE_PII_DETECTION", "true").lower() == "true"
             self.enable_field_encryption = (
                 os.getenv("ENABLE_FIELD_ENCRYPTION", "true").lower() == "true"
             )
-            self.enable_audit_logging = (
-                os.getenv("ENABLE_AUDIT_LOGGING", "true").lower() == "true"
-            )
+            self.enable_audit_logging = os.getenv("ENABLE_AUDIT_LOGGING", "true").lower() == "true"
 
             # Encryption
             self.encryption_key_path = os.getenv("ENCRYPTION_KEY_PATH")
@@ -51,9 +47,7 @@ def load_config():
             self.enable_automated_retention = (
                 os.getenv("ENABLE_AUTOMATED_RETENTION", "true").lower() == "true"
             )
-            self.default_retention_days = int(
-                os.getenv("DEFAULT_RETENTION_DAYS", "365")
-            )
+            self.default_retention_days = int(os.getenv("DEFAULT_RETENTION_DAYS", "365"))
 
             # PII detection (valores padrão)
             self.pii_detection_languages = ["pt", "en"]
@@ -67,9 +61,7 @@ def load_config():
                 "US_SSN",
                 "CPF",
             ]
-            self.pii_anonymization_strategy = os.getenv(
-                "PII_ANONYMIZATION_STRATEGY", "replace"
-            )
+            self.pii_anonymization_strategy = os.getenv("PII_ANONYMIZATION_STRATEGY", "replace")
 
             # Fields to encrypt (padrão)
             self.fields_to_encrypt = [
@@ -81,12 +73,8 @@ def load_config():
             self.encryption_algorithm = os.getenv("ENCRYPTION_ALGORITHM", "fernet")
 
             # Audit log
-            self.audit_log_collection = os.getenv(
-                "AUDIT_LOG_COLLECTION", "compliance_audit_log"
-            )
-            self.audit_log_retention_days = int(
-                os.getenv("AUDIT_LOG_RETENTION_DAYS", "730")
-            )
+            self.audit_log_collection = os.getenv("AUDIT_LOG_COLLECTION", "compliance_audit_log")
+            self.audit_log_retention_days = int(os.getenv("AUDIT_LOG_RETENTION_DAYS", "730"))
 
     try:
         config = SimpleConfig()
@@ -247,9 +235,7 @@ Agendamento (Kubernetes CronJob):
         "--dry-run", action="store_true", help="Simular execução sem modificar dados"
     )
 
-    parser.add_argument(
-        "--policy-name", type=str, help="Executar apenas política específica"
-    )
+    parser.add_argument("--policy-name", type=str, help="Executar apenas política específica")
 
     parser.add_argument("--verbose", action="store_true", help="Logging detalhado")
 
@@ -259,18 +245,14 @@ Agendamento (Kubernetes CronJob):
     if args.verbose:
         import structlog
 
-        structlog.configure(
-            wrapper_class=structlog.make_filtering_bound_logger(10)  # DEBUG level
-        )
+        structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(10))  # DEBUG level
 
     # Carregar configuração
     print("📝 Carregando configuração...")
     config = load_config()
 
     # Aplicar políticas
-    stats = apply_retention_policies(
-        config, dry_run=args.dry_run, policy_name=args.policy_name
-    )
+    stats = apply_retention_policies(config, dry_run=args.dry_run, policy_name=args.policy_name)
 
     # Exit code baseado em erros
     exit_code = 0 if stats.get("errors", 0) == 0 else 1

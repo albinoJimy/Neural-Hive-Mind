@@ -24,21 +24,14 @@ class TestNeuralHiveError:
 
     def test_basic_creation(self):
         """Test creating basic error."""
-        error = NeuralHiveError(
-            message="Test error",
-            code="NHM_TEST_001"
-        )
+        error = NeuralHiveError(message="Test error", code="NHM_TEST_001")
         assert error.message == "Test error"
         assert error.code == "NHM_TEST_001"
         assert error.http_status == 500
 
     def test_to_dict(self):
         """Test conversion to dictionary."""
-        error = NeuralHiveError(
-            message="Test error",
-            code="NHM_TEST_001",
-            details={"key": "value"}
-        )
+        error = NeuralHiveError(message="Test error", code="NHM_TEST_001", details={"key": "value"})
         result = error.to_dict()
         assert result["error"] == "NHM_TEST_001"
         assert result["message"] == "Test error"
@@ -72,21 +65,14 @@ class TestValidationError:
     def test_invalid_format(self):
         """Test invalid format helper."""
         error = ValidationError.invalid_format(
-            field="email",
-            value="invalid",
-            expected_format="user@domain.com"
+            field="email", value="invalid", expected_format="user@domain.com"
         )
         assert "email" in error.details["field"]
         assert "invalid" in error.details["provided_value"]
 
     def test_out_of_range(self):
         """Test out of range helper."""
-        error = ValidationError.out_of_range(
-            field="age",
-            value=150,
-            min_val=0,
-            max_val=120
-        )
+        error = ValidationError.out_of_range(field="age", value=150, min_val=0, max_val=120)
         assert error.details["reason"]
         assert "min=0" in error.details["reason"]
 
@@ -102,11 +88,7 @@ class TestConfigurationError:
 
     def test_invalid_value(self):
         """Test invalid value helper."""
-        error = ConfigurationError.invalid_value(
-            config_key="PORT",
-            value="abc",
-            expected="numeric"
-        )
+        error = ConfigurationError.invalid_value(config_key="PORT", value="abc", expected="numeric")
         assert error.code == ConfigErrorCode.INVALID_VALUE
         assert "abc" in error.details["reason"]
 
@@ -122,19 +104,13 @@ class TestGRPCError:
 
     def test_creation_with_status(self):
         """Test creating gRPC error with status code."""
-        error = GRPCError(
-            message="Resource not found",
-            status_code=grpc.StatusCode.NOT_FOUND
-        )
+        error = GRPCError(message="Resource not found", status_code=grpc.StatusCode.NOT_FOUND)
         assert error.grpc_status_code == grpc.StatusCode.NOT_FOUND
         assert error.http_status == 404
 
     def test_to_dict_includes_grpc_info(self):
         """Test dictionary includes gRPC status."""
-        error = GRPCError(
-            message="Test",
-            status_code=grpc.StatusCode.INVALID_ARGUMENT
-        )
+        error = GRPCError(message="Test", status_code=grpc.StatusCode.INVALID_ARGUMENT)
         result = error.to_dict()
         assert "grpc_status" in result["details"]
         assert result["details"]["grpc_status"] == "INVALID_ARGUMENT"
@@ -172,9 +148,7 @@ class TestConnectionError:
     def test_service_unavailable(self):
         """Test service unavailable helper."""
         error = ConnectionError.service_unavailable(
-            service="postgresql",
-            host="localhost",
-            port=5432
+            service="postgresql", host="localhost", port=5432
         )
         assert error.code == InfrastructureErrorCode.CONNECTION_FAILED
         assert error.details["service"] == "postgresql"
@@ -187,7 +161,7 @@ class TestConnectionError:
             service="redis",
             host="localhost",
             port=6379,
-            reason="Connection refused"
+            reason="Connection refused",
         )
         assert error.details["host"] == "localhost"
         assert error.details["port"] == 6379
@@ -200,9 +174,7 @@ class TestTimeoutError:
     def test_operation_timeout(self):
         """Test operation timeout helper."""
         error = TimeoutError.operation_timeout(
-            operation="database_query",
-            timeout_seconds=30.0,
-            service="postgresql"
+            operation="database_query", timeout_seconds=30.0, service="postgresql"
         )
         assert error.code == InfrastructureErrorCode.CONNECTION_TIMEOUT
         assert error.details["operation"] == "database_query"
@@ -216,9 +188,7 @@ class TestDatabaseError:
     def test_query_failed(self):
         """Test query failed helper."""
         error = DatabaseError.query_failed(
-            query="SELECT * FROM users",
-            reason="Table does not exist",
-            database="mydb"
+            query="SELECT * FROM users", reason="Table does not exist", database="mydb"
         )
         assert error.code == InfrastructureErrorCode.DATABASE_ERROR
         assert "SELECT" in error.details["query"]
@@ -226,11 +196,10 @@ class TestDatabaseError:
 
     def test_long_query_truncation(self):
         """Test long queries are truncated in details."""
-        long_query = "SELECT * FROM users WHERE " + " AND ".join([f"field{i} = {i}" for i in range(50)])
-        error = DatabaseError.query_failed(
-            query=long_query,
-            reason="Error"
+        long_query = "SELECT * FROM users WHERE " + " AND ".join(
+            [f"field{i} = {i}" for i in range(50)]
         )
+        error = DatabaseError.query_failed(query=long_query, reason="Error")
         assert len(error.details["query"]) <= 203  # 200 + "..."
 
 
@@ -239,22 +208,15 @@ class TestKafkaError:
 
     def test_producer_error(self):
         """Test producer error helper."""
-        error = KafkaError.producer_error(
-            topic="test-topic",
-            reason="Broker not available"
-        )
+        error = KafkaError.producer_error(topic="test-topic", reason="Broker not available")
         assert error.code == InfrastructureErrorCode.KAFKA_PRODUCER_ERROR
         assert error.details["topic"] == "test-topic"
 
     def test_consumer_error(self):
         """Test consumer error helper."""
-        error = KafkaError.consumer_error(
-            topic="test-topic",
-            reason="Consumer group not found"
-        )
+        error = KafkaError.consumer_error(topic="test-topic", reason="Consumer group not found")
         assert error.code == InfrastructureErrorCode.KAFKA_CONSUMER_ERROR
         assert error.details["topic"] == "test-topic"
-
 
     def test_generic_error_conversion(self):
         """Test converting generic error to UNKNOWN."""

@@ -56,7 +56,9 @@ def worker_config():
 @pytest.fixture
 def avro_producer():
     _, serializer = _schema_serializer()
-    producer = Producer({"bootstrap.servers": os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")})
+    producer = Producer(
+        {"bootstrap.servers": os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")}
+    )
 
     def _send(topic, ticket):
         serialized = serializer(ticket, SerializationContext(topic, MessageField.VALUE))
@@ -91,7 +93,9 @@ def execution_engine_mock():
 
 
 @pytest.mark.asyncio
-async def test_worker_consumes_avro_ticket(worker_config, avro_producer, sample_ticket, execution_engine_mock):
+async def test_worker_consumes_avro_ticket(
+    worker_config, avro_producer, sample_ticket, execution_engine_mock
+):
     consumer = KafkaTicketConsumer(worker_config, execution_engine_mock.engine)
     await consumer.initialize()
     consumer_task = asyncio.create_task(consumer.start())
@@ -105,7 +109,9 @@ async def test_worker_consumes_avro_ticket(worker_config, avro_producer, sample_
 
 
 @pytest.mark.asyncio
-async def test_worker_validates_required_fields(worker_config, avro_producer, execution_engine_mock):
+async def test_worker_validates_required_fields(
+    worker_config, avro_producer, execution_engine_mock
+):
     consumer = KafkaTicketConsumer(worker_config, execution_engine_mock.engine)
     await consumer.initialize()
     consumer_task = asyncio.create_task(consumer.start())
@@ -121,7 +127,9 @@ async def test_worker_validates_required_fields(worker_config, avro_producer, ex
 
 
 @pytest.mark.asyncio
-async def test_worker_filters_by_task_type(worker_config, avro_producer, execution_engine_mock, sample_ticket):
+async def test_worker_filters_by_task_type(
+    worker_config, avro_producer, execution_engine_mock, sample_ticket
+):
     consumer = KafkaTicketConsumer(worker_config, execution_engine_mock.engine)
     await consumer.initialize()
     consumer_task = asyncio.create_task(consumer.start())
@@ -137,7 +145,9 @@ async def test_worker_filters_by_task_type(worker_config, avro_producer, executi
 
 
 @pytest.mark.asyncio
-async def test_worker_skips_non_pending_tickets(worker_config, avro_producer, execution_engine_mock, sample_ticket):
+async def test_worker_skips_non_pending_tickets(
+    worker_config, avro_producer, execution_engine_mock, sample_ticket
+):
     consumer = KafkaTicketConsumer(worker_config, execution_engine_mock.engine)
     await consumer.initialize()
     consumer_task = asyncio.create_task(consumer.start())
@@ -153,7 +163,9 @@ async def test_worker_skips_non_pending_tickets(worker_config, avro_producer, ex
 
 
 @pytest.mark.asyncio
-async def test_worker_calls_execution_engine(worker_config, avro_producer, execution_engine_mock, sample_ticket):
+async def test_worker_calls_execution_engine(
+    worker_config, avro_producer, execution_engine_mock, sample_ticket
+):
     consumer = KafkaTicketConsumer(worker_config, execution_engine_mock.engine)
     await consumer.initialize()
     consumer_task = asyncio.create_task(consumer.start())

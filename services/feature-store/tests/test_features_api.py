@@ -14,7 +14,7 @@ from src.models.feature import (
     FeatureVector,
     MetadataFeatures,
     ComputationStatus,
-    FeatureComputationRequest
+    FeatureComputationRequest,
 )
 
 
@@ -48,9 +48,9 @@ def sample_feature_vector():
             total_duration_ms=5000.0,
             avg_duration_ms=1000.0,
             risk_score=0.3,
-            complexity_score=0.6
+            complexity_score=0.6,
         ),
-        computation_status=ComputationStatus.COMPLETED
+        computation_status=ComputationStatus.COMPLETED,
     )
 
 
@@ -67,22 +67,20 @@ def sample_cognitive_plan():
                 "type": "query",
                 "estimated_duration_ms": 1000,
                 "is_destructive": False,
-                "complexity_factor": 0.5
+                "complexity_factor": 0.5,
             },
             {
                 "task_id": "task-2",
                 "type": "transform",
                 "estimated_duration_ms": 2000,
                 "is_destructive": False,
-                "complexity_factor": 0.7
-            }
+                "complexity_factor": 0.7,
+            },
         ],
         "dependency_graph": {
-            "edges": [
-                {"source": "task-1", "target": "task-2"}
-            ],
-            "critical_path_length": 2
-        }
+            "edges": [{"source": "task-1", "target": "task-2"}],
+            "critical_path_length": 2,
+        },
     }
 
 
@@ -91,7 +89,9 @@ class TestHealthEndpoints:
 
     def test_health_endpoint(self, client):
         """Testa endpoint de health check"""
-        with patch('src.api.routers.health._app_state', {'mongodb': MagicMock(), 'cache': MagicMock()}):
+        with patch(
+            "src.api.routers.health._app_state", {"mongodb": MagicMock(), "cache": MagicMock()}
+        ):
             response = client.get("/health")
             assert response.status_code == 200
             data = response.json()
@@ -101,7 +101,7 @@ class TestHealthEndpoints:
 
     def test_readiness_endpoint(self, client):
         """Testa endpoint de readiness"""
-        with patch('src.api.routers.health._app_state', {'feature_store': MagicMock()}):
+        with patch("src.api.routers.health._app_state", {"feature_store": MagicMock()}):
             response = client.get("/health/ready")
             assert response.status_code == 200
             assert response.json() == {"ready": True}
@@ -120,7 +120,9 @@ class TestGetFeatures:
         """Testa buscar features com sucesso"""
         mock_feature_store.get_features.return_value = sample_feature_vector
 
-        with patch('src.api.routers.features.get_feature_store_service', return_value=mock_feature_store):
+        with patch(
+            "src.api.routers.features.get_feature_store_service", return_value=mock_feature_store
+        ):
             response = client.get("/api/v1/features/test-plan-123")
             assert response.status_code == 200
             data = response.json()
@@ -131,7 +133,9 @@ class TestGetFeatures:
         """Testa buscar features inexistentes"""
         mock_feature_store.get_features.return_value = None
 
-        with patch('src.api.routers.features.get_feature_store_service', return_value=mock_feature_store):
+        with patch(
+            "src.api.routers.features.get_feature_store_service", return_value=mock_feature_store
+        ):
             response = client.get("/api/v1/features/nonexistent")
             assert response.status_code == 404
             assert "não encontradas" in response.json()["detail"]
@@ -140,7 +144,9 @@ class TestGetFeatures:
         """Testa parâmetro use_cache"""
         mock_feature_store.get_features.return_value = sample_feature_vector
 
-        with patch('src.api.routers.features.get_feature_store_service', return_value=mock_feature_store):
+        with patch(
+            "src.api.routers.features.get_feature_store_service", return_value=mock_feature_store
+        ):
             response = client.get("/api/v1/features/test-plan-123?use_cache=false")
             assert response.status_code == 200
             mock_feature_store.get_features.assert_called_with("test-plan-123", use_cache=False)
@@ -149,7 +155,9 @@ class TestGetFeatures:
 class TestSaveFeatures:
     """Testes para POST /features/{plan_id}"""
 
-    def test_compute_and_save_features(self, client, mock_feature_store, sample_feature_vector, sample_cognitive_plan):
+    def test_compute_and_save_features(
+        self, client, mock_feature_store, sample_feature_vector, sample_cognitive_plan
+    ):
         """Testa computar e salvar features"""
         mock_feature_store.compute_and_save.return_value = sample_feature_vector
 
@@ -157,27 +165,33 @@ class TestSaveFeatures:
             "plan_id": "test-plan-123",
             "cognitive_plan": sample_cognitive_plan,
             "force_recompute": False,
-            "skip_cache": False
+            "skip_cache": False,
         }
 
-        with patch('src.api.routers.features.get_feature_store_service', return_value=mock_feature_store):
+        with patch(
+            "src.api.routers.features.get_feature_store_service", return_value=mock_feature_store
+        ):
             response = client.post("/api/v1/features/test-plan-123", json=request_data)
             assert response.status_code == 200
             data = response.json()
             assert data["plan_id"] == "test-plan-123"
             mock_feature_store.compute_and_save.assert_called_once()
 
-    def test_compute_with_force_recompute(self, client, mock_feature_store, sample_feature_vector, sample_cognitive_plan):
+    def test_compute_with_force_recompute(
+        self, client, mock_feature_store, sample_feature_vector, sample_cognitive_plan
+    ):
         """Testa computação com force_recompute"""
         mock_feature_store.compute_and_save.return_value = sample_feature_vector
 
         request_data = {
             "plan_id": "test-plan-123",
             "cognitive_plan": sample_cognitive_plan,
-            "force_recompute": True
+            "force_recompute": True,
         }
 
-        with patch('src.api.routers.features.get_feature_store_service', return_value=mock_feature_store):
+        with patch(
+            "src.api.routers.features.get_feature_store_service", return_value=mock_feature_store
+        ):
             response = client.post("/api/v1/features/test-plan-123", json=request_data)
             assert response.status_code == 200
 
@@ -189,7 +203,9 @@ class TestDeleteFeatures:
         """Testa deletar features com sucesso"""
         mock_feature_store.delete_features.return_value = True
 
-        with patch('src.api.routers.features.get_feature_store_service', return_value=mock_feature_store):
+        with patch(
+            "src.api.routers.features.get_feature_store_service", return_value=mock_feature_store
+        ):
             response = client.delete("/api/v1/features/test-plan-123")
             assert response.status_code == 200
             data = response.json()
@@ -200,7 +216,9 @@ class TestDeleteFeatures:
         """Testa deletar features inexistentes"""
         mock_feature_store.delete_features.return_value = False
 
-        with patch('src.api.routers.features.get_feature_store_service', return_value=mock_feature_store):
+        with patch(
+            "src.api.routers.features.get_feature_store_service", return_value=mock_feature_store
+        ):
             response = client.delete("/api/v1/features/nonexistent")
             assert response.status_code == 404
 
@@ -213,11 +231,13 @@ class TestListFeatures:
         mock_feature_store.list_features.return_value = MagicMock(
             success=True,
             count=1,
-            features=[sample_feature_vector.model_dump(mode='json')],
-            message="Listados 1 features"
+            features=[sample_feature_vector.model_dump(mode="json")],
+            message="Listados 1 features",
         )
 
-        with patch('src.api.routers.features.get_feature_store_service', return_value=mock_feature_store):
+        with patch(
+            "src.api.routers.features.get_feature_store_service", return_value=mock_feature_store
+        ):
             response = client.get("/api/v1/features")
             assert response.status_code == 200
             data = response.json()
@@ -226,31 +246,27 @@ class TestListFeatures:
     def test_list_features_with_pagination(self, client, mock_feature_store):
         """Testa listagem com paginação"""
         mock_feature_store.list_features.return_value = MagicMock(
-            success=True,
-            count=0,
-            features=[],
-            message="Listados 0 features"
+            success=True, count=0, features=[], message="Listados 0 features"
         )
 
-        with patch('src.api.routers.features.get_feature_store_service', return_value=mock_feature_store):
+        with patch(
+            "src.api.routers.features.get_feature_store_service", return_value=mock_feature_store
+        ):
             response = client.get("/api/v1/features?limit=10&offset=5")
             assert response.status_code == 200
             mock_feature_store.list_features.assert_called_with(
-                limit=10,
-                offset=5,
-                status_filter=None
+                limit=10, offset=5, status_filter=None
             )
 
     def test_list_features_with_status_filter(self, client, mock_feature_store):
         """Testa listagem com filtro de status"""
         mock_feature_store.list_features.return_value = MagicMock(
-            success=True,
-            count=0,
-            features=[],
-            message="Listados 0 features"
+            success=True, count=0, features=[], message="Listados 0 features"
         )
 
-        with patch('src.api.routers.features.get_feature_store_service', return_value=mock_feature_store):
+        with patch(
+            "src.api.routers.features.get_feature_store_service", return_value=mock_feature_store
+        ):
             response = client.get("/api/v1/features?status=completed")
             assert response.status_code == 200
 
@@ -258,24 +274,22 @@ class TestListFeatures:
 class TestBatchCompute:
     """Testes para POST /features/batch"""
 
-    def test_batch_compute_features(self, client, mock_feature_store, sample_feature_vector, sample_cognitive_plan):
+    def test_batch_compute_features(
+        self, client, mock_feature_store, sample_feature_vector, sample_cognitive_plan
+    ):
         """Testa computação em batch"""
         mock_feature_store.compute_and_save.return_value = sample_feature_vector
 
         requests = {
             "requests": [
-                {
-                    "plan_id": "plan-1",
-                    "cognitive_plan": sample_cognitive_plan
-                },
-                {
-                    "plan_id": "plan-2",
-                    "cognitive_plan": sample_cognitive_plan
-                }
+                {"plan_id": "plan-1", "cognitive_plan": sample_cognitive_plan},
+                {"plan_id": "plan-2", "cognitive_plan": sample_cognitive_plan},
             ]
         }
 
-        with patch('src.api.routers.features.get_feature_store_service', return_value=mock_feature_store):
+        with patch(
+            "src.api.routers.features.get_feature_store_service", return_value=mock_feature_store
+        ):
             response = client.post("/api/v1/features/batch", json=requests)
             if response.status_code != 200:
                 print(f"Error response: {response.text}")
@@ -290,16 +304,18 @@ class TestGetMetrics:
     def test_get_metrics(self, client, mock_feature_store):
         """Testa obter métricas"""
         mock_feature_store.get_metrics.return_value = {
-            'total_features': 100,
-            'cached_features': 80,
-            'computation_count': 50,
-            'cache_hits': 80,
-            'cache_misses': 20,
-            'cache_hit_rate': 0.8,
-            'cache_available': True
+            "total_features": 100,
+            "cached_features": 80,
+            "computation_count": 50,
+            "cache_hits": 80,
+            "cache_misses": 20,
+            "cache_hit_rate": 0.8,
+            "cache_available": True,
         }
 
-        with patch('src.api.routers.features.get_feature_store_service', return_value=mock_feature_store):
+        with patch(
+            "src.api.routers.features.get_feature_store_service", return_value=mock_feature_store
+        ):
             response = client.get("/api/v1/features/metrics/summary")
             assert response.status_code == 200
             data = response.json()
@@ -314,10 +330,12 @@ class TestGetFeaturesByPlanIds:
         """Testa buscar features por múltiplos IDs"""
         mock_feature_store.get_features_by_plan_ids.return_value = {
             "plan-1": sample_feature_vector,
-            "plan-2": sample_feature_vector
+            "plan-2": sample_feature_vector,
         }
 
-        with patch('src.api.routers.features.get_feature_store_service', return_value=mock_feature_store):
+        with patch(
+            "src.api.routers.features.get_feature_store_service", return_value=mock_feature_store
+        ):
             response = client.get("/api/v1/features/by-plan-ids?plan_ids=plan-1,plan-2")
             assert response.status_code == 200
             data = response.json()
@@ -330,7 +348,7 @@ class TestSchemaValidation:
     def test_invalid_plan_id_format(self, client):
         """Testa validação de plan_id (deve aceitar qualquer string)"""
         # Plan ID pode ser qualquer string, então isso não deve falhar
-        with patch('src.api.routers.features.get_feature_store_service') as mock:
+        with patch("src.api.routers.features.get_feature_store_service") as mock:
             mock.return_value.get_features = AsyncMock(return_value=None)
             response = client.get("/api/v1/features/any-plan-id-123")
             assert response.status_code in [200, 404, 500]  # 404 se não existe
@@ -338,13 +356,12 @@ class TestSchemaValidation:
     def test_invalid_limit_value(self, client, mock_feature_store):
         """Testa validação de limite (max 100)"""
         mock_feature_store.list_features.return_value = MagicMock(
-            success=True,
-            count=0,
-            features=[],
-            message="ok"
+            success=True, count=0, features=[], message="ok"
         )
 
-        with patch('src.api.routers.features.get_feature_store_service', return_value=mock_feature_store):
+        with patch(
+            "src.api.routers.features.get_feature_store_service", return_value=mock_feature_store
+        ):
             # Limite acima de 100 deve ser rejeitado pela validação do FastAPI
             response = client.get("/api/v1/features?limit=150")
             # FastAPI retorna 422 para validação de query params
@@ -352,7 +369,7 @@ class TestSchemaValidation:
 
     def test_invalid_offset_value(self, client):
         """Testa validação de offset (não pode ser negativo)"""
-        with patch('src.api.routers.features.get_feature_store_service') as mock:
+        with patch("src.api.routers.features.get_feature_store_service") as mock:
             mock.return_value.list_features = AsyncMock()
             response = client.get("/api/v1/features?offset=-1")
             assert response.status_code == 422

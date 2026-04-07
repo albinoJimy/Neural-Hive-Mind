@@ -34,9 +34,7 @@ class SHAPExplainer:
 
         logger.info(
             "SHAPExplainer initialized",
-            background_samples=len(self.background_data)
-            if self.background_data is not None
-            else 0,
+            background_samples=len(self.background_data) if self.background_data is not None else 0,
         )
 
     def _load_background_dataset(self):
@@ -94,7 +92,7 @@ class SHAPExplainer:
                 "method": "shap",
                 "base_value": 0.5,
                 "feature_importances": fallback_features,
-                "error": "No model"
+                "error": "No model",
             }
 
         try:
@@ -103,9 +101,7 @@ class SHAPExplainer:
 
             # Executar com timeout
             with ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(
-                    self._compute_shap, model, features, feature_names
-                )
+                future = executor.submit(self._compute_shap, model, features, feature_names)
                 try:
                     result = future.result(timeout=self.timeout_seconds)
                     return result
@@ -168,7 +164,7 @@ class SHAPExplainer:
                 "method": "shap",
                 "base_value": 0.5,
                 "feature_importances": fallback_features,
-                "error": str(e)
+                "error": str(e),
             }
 
     def _compute_shap(
@@ -196,11 +192,7 @@ class SHAPExplainer:
         # Determinar tipo de explainer
         model_type = type(model).__name__.lower()
 
-        if (
-            "randomforest" in model_type
-            or "gradientboosting" in model_type
-            or "xgb" in model_type
-        ):
+        if "randomforest" in model_type or "gradientboosting" in model_type or "xgb" in model_type:
             # TreeExplainer para modelos tree-based
             if self.background_data is not None and len(self.background_data) > 0:
                 explainer = shap.TreeExplainer(
@@ -212,9 +204,7 @@ class SHAPExplainer:
         else:
             # KernelExplainer para outros modelos
             if self.background_data is not None and len(self.background_data) > 0:
-                background_sample = self.background_data.sample(
-                    min(50, len(self.background_data))
-                )
+                background_sample = self.background_data.sample(min(50, len(self.background_data)))
                 explainer = shap.KernelExplainer(model.predict, background_sample)
             else:
                 # Usar features atuais como background (fallback)

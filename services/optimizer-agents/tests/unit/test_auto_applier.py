@@ -60,10 +60,7 @@ class TestSafetyChecks:
         """Test safety check blocks config files."""
         applier = OptimizationApplier()
 
-        recommendation = {
-            "file_path": "services/config/settings.yaml",
-            "severity": "low"
-        }
+        recommendation = {"file_path": "services/config/settings.yaml", "severity": "low"}
 
         result = applier._check_safety(recommendation)
 
@@ -74,10 +71,7 @@ class TestSafetyChecks:
         """Test safety check blocks migration files."""
         applier = OptimizationApplier()
 
-        recommendation = {
-            "file_path": "database/migrations/001_init.sql",
-            "severity": "low"
-        }
+        recommendation = {"file_path": "database/migrations/001_init.sql", "severity": "low"}
 
         result = applier._check_safety(recommendation)
 
@@ -88,10 +82,7 @@ class TestSafetyChecks:
         """Test safety check blocks .env files."""
         applier = OptimizationApplier()
 
-        recommendation = {
-            "file_path": ".env.production",
-            "severity": "low"
-        }
+        recommendation = {"file_path": ".env.production", "severity": "low"}
 
         result = applier._check_safety(recommendation)
 
@@ -110,10 +101,7 @@ class TestSafetyChecks:
         """Test safety check blocks unsupported extensions."""
         applier = OptimizationApplier()
 
-        recommendation = {
-            "file_path": "video.mp4",
-            "severity": "low"
-        }
+        recommendation = {"file_path": "video.mp4", "severity": "low"}
 
         result = applier._check_safety(recommendation)
 
@@ -133,7 +121,7 @@ class TestSafetyChecks:
             "test.rs",
             "test.cpp",
             "test.yaml",
-            "test.json"
+            "test.json",
         ]
 
         for file_path in supported_files:
@@ -163,8 +151,7 @@ class TestCodeOptimizationApplication:
         applier = OptimizationApplier()
 
         result = await applier._apply_code_optimization(
-            sample_code_recommendation,
-            "/nonexistent/path"
+            sample_code_recommendation, "/nonexistent/path"
         )
 
         assert result["success"] is False
@@ -177,11 +164,8 @@ class TestCodeOptimizationApplication:
         recommendation = sample_code_recommendation.copy()
         recommendation["code_diff"] = None
 
-        with patch.object(os.path, 'exists', return_value=True):
-            result = await applier._apply_code_optimization(
-                recommendation,
-                "/fake/path"
-            )
+        with patch.object(os.path, "exists", return_value=True):
+            result = await applier._apply_code_optimization(recommendation, "/fake/path")
 
             assert result["success"] is True
             assert result["applied"] is False
@@ -192,10 +176,7 @@ class TestCodeOptimizationApplication:
         """Test dry run mode doesn't apply changes."""
         applier = OptimizationApplier(dry_run=True)
 
-        result = await applier._apply_code_optimization(
-            sample_code_recommendation,
-            "/fake/path"
-        )
+        result = await applier._apply_code_optimization(sample_code_recommendation, "/fake/path")
 
         assert result["success"] is True
         assert result["applied"] is False
@@ -211,8 +192,7 @@ class TestDatabaseOptimizationApplication:
         applier = OptimizationApplier()
 
         result = await applier._apply_database_optimization(
-            sample_database_recommendation,
-            "/fake/path"
+            sample_database_recommendation, "/fake/path"
         )
 
         assert result["success"] is True
@@ -225,8 +205,7 @@ class TestDatabaseOptimizationApplication:
         applier = OptimizationApplier()
 
         result = await applier._apply_database_optimization(
-            sample_database_recommendation,
-            "/fake/path"
+            sample_database_recommendation, "/fake/path"
         )
 
         assert "query_suggestion" in result
@@ -250,11 +229,7 @@ class TestMainApplyRecommendation:
         """Test recommendations without auto_apply flag are skipped."""
         applier = OptimizationApplier()
 
-        recommendation = {
-            "id": "test-001",
-            "file_path": "test.py",
-            "auto_apply": False
-        }
+        recommendation = {"id": "test-001", "file_path": "test.py", "auto_apply": False}
 
         result = await applier.apply_recommendation(recommendation)
 
@@ -266,11 +241,7 @@ class TestMainApplyRecommendation:
         """Test unsupported target types are rejected."""
         applier = OptimizationApplier()
 
-        recommendation = {
-            "id": "test-001",
-            "target_type": "unknown_type",
-            "auto_apply": True
-        }
+        recommendation = {"id": "test-001", "target_type": "unknown_type", "auto_apply": True}
 
         result = await applier.apply_recommendation(recommendation)
 
@@ -361,7 +332,7 @@ class TestHunkApplication:
             "old_count": 1,
             "new_start": 1,
             "new_count": 0,
-            "changes": [("delete", "to_delete")]
+            "changes": [("delete", "to_delete")],
         }
 
         new_lines, success = applier._apply_hunk_to_lines(lines, hunk)
@@ -380,7 +351,7 @@ class TestHunkApplication:
             "old_count": 0,
             "new_start": 1,
             "new_count": 1,
-            "changes": [("insert", "new_line")]
+            "changes": [("insert", "new_line")],
         }
 
         new_lines, success = applier._apply_hunk_to_lines(lines, hunk)
@@ -399,10 +370,7 @@ class TestHunkApplication:
             "old_count": 2,
             "new_start": 0,
             "new_count": 2,
-            "changes": [
-                ("context", "line1"),
-                ("context", "different_context")  # Won't match
-            ]
+            "changes": [("context", "line1"), ("context", "different_context")],  # Won't match
         }
 
         new_lines, success = applier._apply_hunk_to_lines(lines, hunk)
@@ -420,7 +388,7 @@ class TestHunkApplication:
             "old_count": 5,  # More lines than available
             "new_start": 0,
             "new_count": 5,
-            "changes": []
+            "changes": [],
         }
 
         new_lines, success = applier._apply_hunk_to_lines(lines, hunk)
@@ -511,14 +479,18 @@ class TestPatchApplicationIntegration:
         test_file.write_text("original content\n")
 
         recommendation = sample_code_recommendation.copy()
-        recommendation["code_diff"] = """--- a/test.py
+        recommendation[
+            "code_diff"
+        ] = """--- a/test.py
 +++ b/test.py
 @@ -1,1 +1,1 @@
 -original content
 +new content
 """
 
-        result = await applier._apply_patch(str(test_file), recommendation["code_diff"], recommendation)
+        result = await applier._apply_patch(
+            str(test_file), recommendation["code_diff"], recommendation
+        )
 
         # Check backup was created
         backup_files = list(tmp_path.glob("*.backup.*"))
@@ -560,8 +532,8 @@ class TestGuardPatterns:
         import re
 
         test_path = "src/tests/test_file.py"
-        for pattern in OptimizationApplier.__dict__['SAFE_GUARD_PATTERNS']:
-            if pattern and 'test' in pattern:
+        for pattern in OptimizationApplier.__dict__["SAFE_GUARD_PATTERNS"]:
+            if pattern and "test" in pattern:
                 # Check if pattern matches
                 if re.match(pattern, test_path):
                     assert True
@@ -573,8 +545,8 @@ class TestGuardPatterns:
         import re
 
         test_path = "src/test_module.py"
-        for pattern in OptimizationApplier.__dict__['SAFE_GUARD_PATTERNS']:
-            if pattern and 'test_' in pattern:
+        for pattern in OptimizationApplier.__dict__["SAFE_GUARD_PATTERNS"]:
+            if pattern and "test_" in pattern:
                 if re.match(pattern, test_path):
                     assert True
                     return
@@ -585,8 +557,8 @@ class TestGuardPatterns:
         import re
 
         test_path = "src/secrets/api_key.yaml"
-        for pattern in OptimizationApplier.__dict__['SAFE_GUARD_PATTERNS']:
-            if pattern and 'secret' in pattern:
+        for pattern in OptimizationApplier.__dict__["SAFE_GUARD_PATTERNS"]:
+            if pattern and "secret" in pattern:
                 if re.match(pattern, test_path):
                     assert True
                     return
@@ -597,8 +569,8 @@ class TestGuardPatterns:
         import re
 
         test_path = "config/private.key"
-        for pattern in OptimizationApplier.__dict__['SAFE_GUARD_PATTERNS']:
-            if pattern and '.key' in pattern:
+        for pattern in OptimizationApplier.__dict__["SAFE_GUARD_PATTERNS"]:
+            if pattern and ".key" in pattern:
                 if re.match(pattern, test_path):
                     assert True
                     return

@@ -9,14 +9,14 @@ from neural_hive_ml.mlflow_client import MLflowClient
 @pytest.fixture
 def mock_mlflow():
     """Mock MLflow."""
-    with patch('neural_hive_ml.mlflow_client.mlflow') as mock:
+    with patch("neural_hive_ml.mlflow_client.mlflow") as mock:
         mock.get_experiment_by_name.return_value = None
         mock.create_experiment.return_value = "exp-123"
         mock_run_info = MagicMock()
         mock_run_info.run_id = "run-123"
         mock.start_run.return_value = MagicMock(
             __enter__=MagicMock(return_value=MagicMock(info=mock_run_info)),
-            __exit__=MagicMock(return_value=False)
+            __exit__=MagicMock(return_value=False),
         )
         mock.sklearn.log_model.return_value = MagicMock(registered_model_version="v9")
         yield mock
@@ -25,21 +25,21 @@ def mock_mlflow():
 @pytest.fixture
 def mock_mlflow_client():
     """Mock MLflow Client."""
-    with patch('neural_hive_ml.mlflow_client.MlflowClient') as mock:
+    with patch("neural_hive_ml.mlflow_client.MlflowClient") as mock:
         client_instance = MagicMock()
         client_instance.get_latest_versions.return_value = [
             MagicMock(
                 version="9",
                 current_stage="Staging",
                 run_id="run-123",
-                creation_timestamp=1234567890000
+                creation_timestamp=1234567890000,
             )
         ]
         client_instance.get_run.return_value = MagicMock(
             data=MagicMock(
                 metrics={"f1_score": 0.75, "accuracy": 0.82},
                 params={"n_estimators": 100},
-                tags={"training_date": "2026-03-18"}
+                tags={"training_date": "2026-03-18"},
             )
         )
         mock.return_value = client_instance
@@ -63,8 +63,8 @@ class TestMLflowClientInit:
 
     def test_init_default(self):
         """Testa inicialização com valores padrão."""
-        with patch('neural_hive_ml.mlflow_client.mlflow'):
-            with patch('neural_hive_ml.mlflow_client.MlflowClient'):
+        with patch("neural_hive_ml.mlflow_client.mlflow"):
+            with patch("neural_hive_ml.mlflow_client.MlflowClient"):
                 client = MLflowClient()
                 assert client.experiment_prefix == "approval-models"
 
@@ -79,19 +79,14 @@ class TestLogModel:
         result = mlflow_client.log_model(
             model=mock_model,
             version="v9",
-            metrics={
-                "f1_score": 0.75,
-                "accuracy": 0.82,
-                "precision": 0.78,
-                "recall": 0.73
-            },
+            metrics={"f1_score": 0.75, "accuracy": 0.82, "precision": 0.78, "recall": 0.73},
             params={"n_estimators": 100, "max_depth": 5},
             feature_importance={
                 "confidence": 0.6147,
                 "rf_ml_risk": 0.2221,
-                "rf_ml_confidence": 0.1632
+                "rf_ml_confidence": 0.1632,
             },
-            n_samples=500
+            n_samples=500,
         )
 
         assert result == "v9"
@@ -103,8 +98,7 @@ class TestLogModel:
         """Testa logging com run_id específico."""
         mock_model = MagicMock()
         mock_mlflow.start_run.return_value = MagicMock(
-            __enter__=MagicMock(return_value=MagicMock()),
-            __exit__=MagicMock(return_value=False)
+            __enter__=MagicMock(return_value=MagicMock()), __exit__=MagicMock(return_value=False)
         )
 
         mlflow_client.log_model(
@@ -113,7 +107,7 @@ class TestLogModel:
             metrics={"f1_score": 0.75},
             params={},
             run_id="existing-run-123",
-            n_samples=100
+            n_samples=100,
         )
 
         # Verifica que usou o run_id existente
@@ -124,12 +118,7 @@ class TestLogModel:
         mock_mlflow.start_run.side_effect = Exception("MLflow error")
 
         with pytest.raises(Exception) as exc_info:
-            mlflow_client.log_model(
-                model=MagicMock(),
-                version="v9",
-                metrics={},
-                params={}
-            )
+            mlflow_client.log_model(model=MagicMock(), version="v9", metrics={}, params={})
         assert "MLflow error" in str(exc_info.value)
 
 
@@ -140,15 +129,11 @@ class TestRegisterModel:
         """Testa registro de novo modelo."""
         mock_mlflow.register_model.return_value = MagicMock(version="9")
 
-        mlflow_client.register_model(
-            model_name="approval-model-v9",
-            run_id="run-123"
-        )
+        mlflow_client.register_model(model_name="approval-model-v9", run_id="run-123")
 
         # Verifica que register_model foi chamado
         mock_mlflow.register_model.assert_called_once_with(
-            artifact_uri="runs:/run-123/model",
-            name="approval-model-v9"
+            artifact_uri="runs:/run-123/model", name="approval-model-v9"
         )
 
     def test_register_model_existing(self, mlflow_client, mock_mlflow):
@@ -156,10 +141,7 @@ class TestRegisterModel:
         mock_exp = MagicMock(experiment_id="exp-789")
         mock_mlflow.get_experiment_by_name.return_value = mock_exp
 
-        mlflow_client.register_model(
-            model_name="approval-model-v9",
-            run_id="run-123"
-        )
+        mlflow_client.register_model(model_name="approval-model-v9", run_id="run-123")
 
         # Não deve criar novo experimento
         mock_mlflow.create_experiment.assert_not_called()
@@ -181,6 +163,7 @@ class TestGetModelVersion:
     def test_get_model_version_not_found(self, mlflow_client):
         """Testa busca de versão inexistente."""
         from mlflow.exceptions import MlflowException
+
         mlflow_client.client.get_latest_versions.side_effect = MlflowException("Not found")
 
         result = mlflow_client.get_model_version("nonexistent-model")
@@ -200,16 +183,10 @@ class TestPromoteModel:
 
     def test_promote_to_staging(self, mlflow_client):
         """Testa promoção para staging."""
-        mlflow_client.promote_model(
-            model_name="approval-model-v9",
-            version="9",
-            stage="Staging"
-        )
+        mlflow_client.promote_model(model_name="approval-model-v9", version="9", stage="Staging")
 
         mlflow_client.client.transition_model_version_stage.assert_called_once_with(
-            name="approval-model-v9",
-            version="9",
-            stage="Staging"
+            name="approval-model-v9", version="9", stage="Staging"
         )
 
     def test_promote_to_production_archives_old(self, mlflow_client):
@@ -217,11 +194,7 @@ class TestPromoteModel:
         old_version = MagicMock(version="8", current_stage="Production")
         mlflow_client.client.get_latest_versions.return_value = [old_version]
 
-        mlflow_client.promote_model(
-            model_name="approval-model-v9",
-            version="9",
-            stage="Production"
-        )
+        mlflow_client.promote_model(model_name="approval-model-v9", version="9", stage="Production")
 
         # Verifica que versão antiga foi arquivada
         assert mlflow_client.client.transition_model_version_stage.call_count == 2
@@ -229,13 +202,12 @@ class TestPromoteModel:
     def test_promote_model_error(self, mlflow_client):
         """Testa tratamento de erro na promoção."""
         from mlflow.exceptions import MlflowException
+
         mlflow_client.client.transition_model_version_stage.side_effect = MlflowException("Error")
 
         with pytest.raises(MlflowException):
             mlflow_client.promote_model(
-                model_name="approval-model-v9",
-                version="9",
-                stage="Production"
+                model_name="approval-model-v9", version="9", stage="Production"
             )
 
 
@@ -299,20 +271,17 @@ class TestDeleteModel:
 
     def test_delete_model_success(self, mlflow_client):
         """Testa deleção de modelo."""
-        mlflow_client.delete_model(
-            model_name="approval-model-v9",
-            version="9"
-        )
+        mlflow_client.delete_model(model_name="approval-model-v9", version="9")
 
         mlflow_client.client.delete_model_version.assert_called_once_with(
-            name="approval-model-v9",
-            version="9"
+            name="approval-model-v9", version="9"
         )
 
 
 # =============================================================================
 # Novos Testes para Cobertura Adicional (+10 testes)
 # =============================================================================
+
 
 class TestGetRunHistory:
     """Testes de get_run_history."""
@@ -370,10 +339,7 @@ class TestPromoteModelVariations:
         mlflow_client.client.get_latest_versions.return_value = []
 
         mlflow_client.promote_model(
-            model_name="approval-model-v9",
-            version="9",
-            stage="Production",
-            archive_current=False
+            model_name="approval-model-v9", version="9", stage="Production", archive_current=False
         )
 
         # Deve chamar transition apenas uma vez
@@ -382,16 +348,11 @@ class TestPromoteModelVariations:
     def test_promote_to_archived_stage(self, mlflow_client):
         """Testa promoção para Archived."""
         mlflow_client.promote_model(
-            model_name="approval-model-v9",
-            version="8",
-            stage="Archived",
-            archive_current=False
+            model_name="approval-model-v9", version="8", stage="Archived", archive_current=False
         )
 
         mlflow_client.client.transition_model_version_stage.assert_called_once_with(
-            name="approval-model-v9",
-            version="8",
-            stage="Archived"
+            name="approval-model-v9", version="8", stage="Archived"
         )
 
 
@@ -402,10 +363,7 @@ class TestLogModelWithTags:
         """Testa logging com tags customizadas."""
         mock_model = MagicMock()
 
-        custom_tags = {
-            "training_date": "2026-03-30",
-            "dataset_version": "v2.0"
-        }
+        custom_tags = {"training_date": "2026-03-30", "dataset_version": "v2.0"}
 
         mlflow_client.log_model(
             model=mock_model,
@@ -413,7 +371,7 @@ class TestLogModelWithTags:
             metrics={"f1_score": 0.75},
             params={},
             tags=custom_tags,
-            n_samples=500
+            n_samples=500,
         )
 
         # Verifica que tags foram setadas
@@ -433,8 +391,8 @@ class TestGetModelVersionWithFeatureImportance:
                 tags={
                     "feature_importance_confidence": "0.6147",
                     "feature_importance_rf_ml_risk": "0.2221",
-                    "model_type": "approval"
-                }
+                    "model_type": "approval",
+                },
             )
         )
 
@@ -478,10 +436,8 @@ class TestDeleteModelErrorHandling:
     def test_delete_model_with_mlflow_exception(self, mlflow_client):
         """Testa deleção quando MLflow lança exceção."""
         from mlflow.exceptions import MlflowException
+
         mlflow_client.client.delete_model_version.side_effect = MlflowException("Not found")
 
         with pytest.raises(MlflowException):
-            mlflow_client.delete_model(
-                model_name="approval-model-v9",
-                version="9"
-            )
+            mlflow_client.delete_model(model_name="approval-model-v9", version="9")

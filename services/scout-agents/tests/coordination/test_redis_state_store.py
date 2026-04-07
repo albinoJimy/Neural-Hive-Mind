@@ -11,11 +11,7 @@ from src.coordination.redis_state_store import RedisStateStore, REDIS_AVAILABLE
 @pytest.fixture
 def state_store():
     """Instância de RedisStateStore para testes."""
-    return RedisStateStore(
-        redis_url="redis://localhost:6379/15",
-        key_prefix="test_scout",
-        ttl=60
-    )
+    return RedisStateStore(redis_url="redis://localhost:6379/15", key_prefix="test_scout", ttl=60)
 
 
 @pytest.fixture
@@ -71,11 +67,12 @@ class TestTaskProgress:
         await state_store.set_task_progress("scout_1", "task_1", progress)
 
         # Setup mock para retornar dados
-        mock_redis.get.return_value = '{"scout_id": "scout_1", "progress": ' + json.dumps(progress) + '}'
-        mock_redis.get = AsyncMock(return_value=json.dumps({
-            'scout_id': 'scout_1',
-            'progress': progress
-        }))
+        mock_redis.get.return_value = (
+            '{"scout_id": "scout_1", "progress": ' + json.dumps(progress) + "}"
+        )
+        mock_redis.get = AsyncMock(
+            return_value=json.dumps({"scout_id": "scout_1", "progress": progress})
+        )
 
         result = await state_store.get_task_progress("task_1")
 
@@ -164,10 +161,7 @@ class TestDiscoveries:
 
         # Configurar mock
         mock_redis.lrange.return_value = [
-            json.dumps({
-                'discovery': discovery,
-                'published_at': '2024-01-01T00:00:00'
-            })
+            json.dumps({"discovery": discovery, "published_at": "2024-01-01T00:00:00"})
         ]
 
         discoveries = await state_store.get_discoveries("exp_1")

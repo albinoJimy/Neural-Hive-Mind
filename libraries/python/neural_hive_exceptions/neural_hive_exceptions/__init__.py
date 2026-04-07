@@ -26,7 +26,7 @@ from .infrastructure import (
     TimeoutError,
     DatabaseError,
     KafkaError,
-    InfrastructureErrorCode
+    InfrastructureErrorCode,
 )
 from .grpc import GRPCError, grpc_error_to_status, HTTPStatusFromGRPC
 
@@ -35,23 +35,19 @@ __all__ = [
     "NeuralHiveError",
     "error_code",
     "ErrorContext",
-
     # Validation
     "ValidationError",
     "ValidationErrorCode",
     "SchemaValidationError",
-
     # Configuration
     "ConfigurationError",
     "ConfigErrorCode",
-
     # Infrastructure
     "ConnectionError",
     "TimeoutError",
     "DatabaseError",
     "KafkaError",
     "InfrastructureErrorCode",
-
     # gRPC
     "GRPCError",
     "grpc_error_to_status",

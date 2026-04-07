@@ -10,6 +10,7 @@ Implementa três tipos de drift:
 
 import logging
 from datetime import datetime, timezone
+
 UTC = timezone.utc  # type: ignore, timedelta
 from typing import Any
 

@@ -29,15 +29,15 @@ class TestValidatorMCPIntegration:
         mock_trivy_client,
         mock_mcp_client,
         mock_metrics,
-        sample_pipeline_context_with_mcp
+        sample_pipeline_context_with_mcp,
     ):
         """Deve usar ferramentas MCP quando disponiveis."""
         from src.services.validator import Validator
 
         # Configurar ferramentas de validacao no contexto
         sample_pipeline_context_with_mcp.selected_tools = [
-            {'tool_id': 'tool-001', 'tool_name': 'SonarQube', 'category': 'VALIDATION'},
-            {'tool_id': 'tool-002', 'tool_name': 'Snyk', 'category': 'VALIDATION'}
+            {"tool_id": "tool-001", "tool_name": "SonarQube", "category": "VALIDATION"},
+            {"tool_id": "tool-002", "tool_name": "Snyk", "category": "VALIDATION"},
         ]
 
         validator = Validator(
@@ -45,7 +45,7 @@ class TestValidatorMCPIntegration:
             snyk_client=mock_snyk_client,
             trivy_client=mock_trivy_client,
             mcp_client=mock_mcp_client,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
 
         await validator.validate(sample_pipeline_context_with_mcp)
@@ -61,15 +61,15 @@ class TestValidatorMCPIntegration:
         mock_snyk_client,
         mock_trivy_client,
         mock_mcp_client,
-        sample_pipeline_context_with_mcp
+        sample_pipeline_context_with_mcp,
     ):
         """Deve executar todas as ferramentas MCP selecionadas."""
         from src.services.validator import Validator
 
         sample_pipeline_context_with_mcp.selected_tools = [
-            {'tool_id': 'tool-001', 'tool_name': 'SonarQube', 'category': 'VALIDATION'},
-            {'tool_id': 'tool-002', 'tool_name': 'Snyk', 'category': 'VALIDATION'},
-            {'tool_id': 'tool-003', 'tool_name': 'Trivy', 'category': 'VALIDATION'}
+            {"tool_id": "tool-001", "tool_name": "SonarQube", "category": "VALIDATION"},
+            {"tool_id": "tool-002", "tool_name": "Snyk", "category": "VALIDATION"},
+            {"tool_id": "tool-003", "tool_name": "Trivy", "category": "VALIDATION"},
         ]
 
         validator = Validator(
@@ -77,7 +77,7 @@ class TestValidatorMCPIntegration:
             snyk_client=mock_snyk_client,
             trivy_client=mock_trivy_client,
             mcp_client=mock_mcp_client,
-            metrics=None
+            metrics=None,
         )
 
         await validator.validate(sample_pipeline_context_with_mcp)
@@ -92,11 +92,7 @@ class TestValidatorFallback:
 
     @pytest.mark.asyncio
     async def test_validate_fallback_without_mcp_tools(
-        self,
-        mock_sonarqube_client,
-        mock_snyk_client,
-        mock_trivy_client,
-        sample_pipeline_context
+        self, mock_sonarqube_client, mock_snyk_client, mock_trivy_client, sample_pipeline_context
     ):
         """Deve usar validacoes fixas sem ferramentas MCP."""
         from src.services.validator import Validator
@@ -106,7 +102,7 @@ class TestValidatorFallback:
             snyk_client=mock_snyk_client,
             trivy_client=mock_trivy_client,
             mcp_client=None,
-            metrics=None
+            metrics=None,
         )
 
         await validator.validate(sample_pipeline_context)
@@ -121,14 +117,14 @@ class TestValidatorFallback:
         mock_sonarqube_client,
         mock_snyk_client,
         mock_trivy_client,
-        sample_pipeline_context_with_mcp
+        sample_pipeline_context_with_mcp,
     ):
         """Deve usar fallback para ferramentas nao mapeadas."""
         from src.services.validator import Validator
 
         # Ferramentas desconhecidas
         sample_pipeline_context_with_mcp.selected_tools = [
-            {'tool_id': 'tool-999', 'tool_name': 'UnknownTool', 'category': 'VALIDATION'}
+            {"tool_id": "tool-999", "tool_name": "UnknownTool", "category": "VALIDATION"}
         ]
 
         validator = Validator(
@@ -136,7 +132,7 @@ class TestValidatorFallback:
             snyk_client=mock_snyk_client,
             trivy_client=mock_trivy_client,
             mcp_client=None,
-            metrics=None
+            metrics=None,
         )
 
         await validator.validate(sample_pipeline_context_with_mcp)
@@ -152,11 +148,7 @@ class TestValidatorParallelExecution:
 
     @pytest.mark.asyncio
     async def test_validate_parallel_execution(
-        self,
-        mock_sonarqube_client,
-        mock_snyk_client,
-        mock_trivy_client,
-        sample_pipeline_context
+        self, mock_sonarqube_client, mock_snyk_client, mock_trivy_client, sample_pipeline_context
     ):
         """Deve executar validacoes em paralelo."""
         from src.services.validator import Validator
@@ -183,10 +175,11 @@ class TestValidatorParallelExecution:
             snyk_client=mock_snyk_client,
             trivy_client=mock_trivy_client,
             mcp_client=None,
-            metrics=None
+            metrics=None,
         )
 
         import time
+
         start = time.time()
         await validator.validate(sample_pipeline_context)
         duration = time.time() - start
@@ -205,19 +198,19 @@ class TestValidatorErrorHandling:
         mock_snyk_client,
         mock_trivy_client,
         mock_metrics,
-        sample_pipeline_context
+        sample_pipeline_context,
     ):
         """Deve continuar quando uma validacao falha."""
         from src.services.validator import Validator
 
-        mock_sonarqube_client.analyze_code.side_effect = Exception('SonarQube error')
+        mock_sonarqube_client.analyze_code.side_effect = Exception("SonarQube error")
 
         validator = Validator(
             sonarqube_client=mock_sonarqube_client,
             snyk_client=mock_snyk_client,
             trivy_client=mock_trivy_client,
             mcp_client=None,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
 
         await validator.validate(sample_pipeline_context)
@@ -230,25 +223,21 @@ class TestValidatorErrorHandling:
 
     @pytest.mark.asyncio
     async def test_validate_handles_all_failures(
-        self,
-        mock_sonarqube_client,
-        mock_snyk_client,
-        mock_trivy_client,
-        sample_pipeline_context
+        self, mock_sonarqube_client, mock_snyk_client, mock_trivy_client, sample_pipeline_context
     ):
         """Deve tratar quando todas as validacoes falham."""
         from src.services.validator import Validator
 
-        mock_sonarqube_client.analyze_code.side_effect = Exception('SonarQube error')
-        mock_snyk_client.scan_dependencies.side_effect = Exception('Snyk error')
-        mock_trivy_client.scan_filesystem.side_effect = Exception('Trivy error')
+        mock_sonarqube_client.analyze_code.side_effect = Exception("SonarQube error")
+        mock_snyk_client.scan_dependencies.side_effect = Exception("Snyk error")
+        mock_trivy_client.scan_filesystem.side_effect = Exception("Trivy error")
 
         validator = Validator(
             sonarqube_client=mock_sonarqube_client,
             snyk_client=mock_snyk_client,
             trivy_client=mock_trivy_client,
             mcp_client=None,
-            metrics=None
+            metrics=None,
         )
 
         await validator.validate(sample_pipeline_context)
@@ -267,13 +256,13 @@ class TestValidatorMCPFeedback:
         mock_trivy_client,
         mock_mcp_client,
         mock_metrics,
-        sample_pipeline_context_with_mcp
+        sample_pipeline_context_with_mcp,
     ):
         """Deve enviar feedback para MCP apos validacao."""
         from src.services.validator import Validator
 
         sample_pipeline_context_with_mcp.selected_tools = [
-            {'tool_id': 'tool-001', 'tool_name': 'SonarQube', 'category': 'VALIDATION'}
+            {"tool_id": "tool-001", "tool_name": "SonarQube", "category": "VALIDATION"}
         ]
 
         validator = Validator(
@@ -281,13 +270,13 @@ class TestValidatorMCPFeedback:
             snyk_client=mock_snyk_client,
             trivy_client=mock_trivy_client,
             mcp_client=mock_mcp_client,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
 
         await validator.validate(sample_pipeline_context_with_mcp)
 
         mock_mcp_client.send_tool_feedback.assert_called()
-        mock_metrics.mcp_feedback_sent_total.labels.assert_called_with(status='success')
+        mock_metrics.mcp_feedback_sent_total.labels.assert_called_with(status="success")
 
     @pytest.mark.asyncio
     async def test_mcp_feedback_timeout_non_blocking(
@@ -297,13 +286,13 @@ class TestValidatorMCPFeedback:
         mock_trivy_client,
         mock_mcp_client,
         mock_metrics,
-        sample_pipeline_context_with_mcp
+        sample_pipeline_context_with_mcp,
     ):
         """Deve continuar execucao quando feedback MCP timeout."""
         from src.services.validator import Validator
 
         sample_pipeline_context_with_mcp.selected_tools = [
-            {'tool_id': 'tool-001', 'tool_name': 'SonarQube', 'category': 'VALIDATION'}
+            {"tool_id": "tool-001", "tool_name": "SonarQube", "category": "VALIDATION"}
         ]
         mock_mcp_client.send_tool_feedback.side_effect = asyncio.TimeoutError()
 
@@ -312,13 +301,13 @@ class TestValidatorMCPFeedback:
             snyk_client=mock_snyk_client,
             trivy_client=mock_trivy_client,
             mcp_client=mock_mcp_client,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
 
         # Nao deve lancar excecao
         await validator.validate(sample_pipeline_context_with_mcp)
 
-        mock_metrics.mcp_feedback_sent_total.labels.assert_called_with(status='failure')
+        mock_metrics.mcp_feedback_sent_total.labels.assert_called_with(status="failure")
 
     @pytest.mark.asyncio
     async def test_no_mcp_feedback_without_selection_id(
@@ -327,7 +316,7 @@ class TestValidatorMCPFeedback:
         mock_snyk_client,
         mock_trivy_client,
         mock_mcp_client,
-        sample_pipeline_context
+        sample_pipeline_context,
     ):
         """Nao deve enviar feedback sem mcp_selection_id."""
         from src.services.validator import Validator
@@ -338,7 +327,7 @@ class TestValidatorMCPFeedback:
             snyk_client=mock_snyk_client,
             trivy_client=mock_trivy_client,
             mcp_client=mock_mcp_client,
-            metrics=None
+            metrics=None,
         )
 
         await validator.validate(sample_pipeline_context)
@@ -356,7 +345,7 @@ class TestValidatorMetrics:
         mock_snyk_client,
         mock_trivy_client,
         mock_metrics,
-        sample_pipeline_context
+        sample_pipeline_context,
     ):
         """Deve registrar metricas de validacao."""
         from src.services.validator import Validator
@@ -366,7 +355,7 @@ class TestValidatorMetrics:
             snyk_client=mock_snyk_client,
             trivy_client=mock_trivy_client,
             mcp_client=None,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
 
         await validator.validate(sample_pipeline_context)
@@ -382,7 +371,7 @@ class TestValidatorMetrics:
         mock_snyk_client,
         mock_trivy_client,
         mock_metrics,
-        sample_pipeline_context
+        sample_pipeline_context,
     ):
         """Deve registrar contagem de issues por severidade."""
         from src.services.validator import Validator
@@ -392,7 +381,7 @@ class TestValidatorMetrics:
             snyk_client=mock_snyk_client,
             trivy_client=mock_trivy_client,
             mcp_client=None,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
 
         await validator.validate(sample_pipeline_context)
@@ -408,77 +397,65 @@ class TestValidatorContextExtraction:
 
     @pytest.mark.asyncio
     async def test_extract_language_from_ticket(
-        self,
-        mock_sonarqube_client,
-        mock_snyk_client,
-        mock_trivy_client,
-        sample_pipeline_context
+        self, mock_sonarqube_client, mock_snyk_client, mock_trivy_client, sample_pipeline_context
     ):
         """Deve extrair linguagem do ticket."""
         from src.services.validator import Validator
 
-        sample_pipeline_context.ticket.parameters['language'] = 'java'
+        sample_pipeline_context.ticket.parameters["language"] = "java"
 
         validator = Validator(
             sonarqube_client=mock_sonarqube_client,
             snyk_client=mock_snyk_client,
             trivy_client=mock_trivy_client,
             mcp_client=None,
-            metrics=None
+            metrics=None,
         )
 
         await validator.validate(sample_pipeline_context)
 
         # Snyk deve receber linguagem correta
         call_args = mock_snyk_client.scan_dependencies.call_args
-        assert call_args[0][1] == 'java'  # language parameter
+        assert call_args[0][1] == "java"  # language parameter
 
     @pytest.mark.asyncio
     async def test_extract_project_key_from_ticket(
-        self,
-        mock_sonarqube_client,
-        mock_snyk_client,
-        mock_trivy_client,
-        sample_pipeline_context
+        self, mock_sonarqube_client, mock_snyk_client, mock_trivy_client, sample_pipeline_context
     ):
         """Deve extrair project_key do ticket."""
         from src.services.validator import Validator
 
-        sample_pipeline_context.ticket.parameters['project_key'] = 'custom-project'
+        sample_pipeline_context.ticket.parameters["project_key"] = "custom-project"
 
         validator = Validator(
             sonarqube_client=mock_sonarqube_client,
             snyk_client=mock_snyk_client,
             trivy_client=mock_trivy_client,
             mcp_client=None,
-            metrics=None
+            metrics=None,
         )
 
         await validator.validate(sample_pipeline_context)
 
         # SonarQube deve receber project_key correto
         call_args = mock_sonarqube_client.analyze_code.call_args
-        assert call_args[0][0] == 'custom-project'  # project_key parameter
+        assert call_args[0][0] == "custom-project"  # project_key parameter
 
     @pytest.mark.asyncio
     async def test_use_workspace_path_from_context(
-        self,
-        mock_sonarqube_client,
-        mock_snyk_client,
-        mock_trivy_client,
-        sample_pipeline_context
+        self, mock_sonarqube_client, mock_snyk_client, mock_trivy_client, sample_pipeline_context
     ):
         """Deve usar workspace_path do contexto quando disponivel."""
         from src.services.validator import Validator
 
-        sample_pipeline_context.code_workspace_path = '/custom/workspace'
+        sample_pipeline_context.code_workspace_path = "/custom/workspace"
 
         validator = Validator(
             sonarqube_client=mock_sonarqube_client,
             snyk_client=mock_snyk_client,
             trivy_client=mock_trivy_client,
             mcp_client=None,
-            metrics=None
+            metrics=None,
         )
 
         await validator.validate(sample_pipeline_context)
@@ -488,9 +465,9 @@ class TestValidatorContextExtraction:
         snyk_args = mock_snyk_client.scan_dependencies.call_args
         trivy_args = mock_trivy_client.scan_filesystem.call_args
 
-        assert sonar_args[0][1] == '/custom/workspace'
-        assert snyk_args[0][0] == '/custom/workspace'
-        assert trivy_args[0][0] == '/custom/workspace'
+        assert sonar_args[0][1] == "/custom/workspace"
+        assert snyk_args[0][0] == "/custom/workspace"
+        assert trivy_args[0][0] == "/custom/workspace"
 
 
 class TestValidatorResultsAggregation:
@@ -498,11 +475,7 @@ class TestValidatorResultsAggregation:
 
     @pytest.mark.asyncio
     async def test_all_results_added_to_context(
-        self,
-        mock_sonarqube_client,
-        mock_snyk_client,
-        mock_trivy_client,
-        sample_pipeline_context
+        self, mock_sonarqube_client, mock_snyk_client, mock_trivy_client, sample_pipeline_context
     ):
         """Deve adicionar todos os resultados ao contexto."""
         from src.services.validator import Validator
@@ -512,7 +485,7 @@ class TestValidatorResultsAggregation:
             snyk_client=mock_snyk_client,
             trivy_client=mock_trivy_client,
             mcp_client=None,
-            metrics=None
+            metrics=None,
         )
 
         await validator.validate(sample_pipeline_context)

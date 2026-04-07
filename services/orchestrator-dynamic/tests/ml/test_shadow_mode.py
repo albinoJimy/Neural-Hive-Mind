@@ -72,7 +72,15 @@ class TestShadowModeRunner:
         return registry
 
     @pytest.fixture
-    def shadow_runner(self, mock_config, mock_mongodb, mock_metrics, mock_prod_model, mock_shadow_model, mock_model_registry):
+    def shadow_runner(
+        self,
+        mock_config,
+        mock_mongodb,
+        mock_metrics,
+        mock_prod_model,
+        mock_shadow_model,
+        mock_model_registry,
+    ):
         """Cria ShadowModeRunner para testes."""
         runner = ShadowModeRunner(
             config=mock_config,
@@ -81,24 +89,24 @@ class TestShadowModeRunner:
             model_registry=mock_model_registry,
             mongodb_client=mock_mongodb,
             metrics=mock_metrics,
-            model_name='duration-predictor',
-            shadow_version='v2'
+            model_name="duration-predictor",
+            shadow_version="v2",
         )
         return runner
 
     @pytest.mark.asyncio
-    async def test_predict_with_shadow_returns_production_result(self, shadow_runner, mock_prod_model):
+    async def test_predict_with_shadow_returns_production_result(
+        self, shadow_runner, mock_prod_model
+    ):
         """Verifica que predict_with_shadow retorna resultado do modelo de produção."""
-        features = {'task_type': 'INFERENCE', 'payload_size': 1024}
-        context = {'ticket_id': 'test-123'}
+        features = {"task_type": "INFERENCE", "payload_size": 1024}
+        context = {"ticket_id": "test-123"}
 
         # Pre-calcular o resultado de produção
-        prod_result = {'duration_ms': 5000, 'confidence': 0.9}
+        prod_result = {"duration_ms": 5000, "confidence": 0.9}
 
         result = await shadow_runner.predict_with_shadow(
-            features=features,
-            context=context,
-            prod_result=prod_result
+            features=features, context=context, prod_result=prod_result
         )
 
         # Quando prod_result é fornecido, ele é retornado diretamente
@@ -107,14 +115,12 @@ class TestShadowModeRunner:
     @pytest.mark.asyncio
     async def test_shadow_prediction_runs_async(self, shadow_runner, mock_shadow_model):
         """Verifica que predição shadow executa em background."""
-        features = {'task_type': 'INFERENCE', 'payload_size': 1024}
-        context = {'ticket_id': 'test-123'}
-        prod_result = {'duration_ms': 5000, 'confidence': 0.9}
+        features = {"task_type": "INFERENCE", "payload_size": 1024}
+        context = {"ticket_id": "test-123"}
+        prod_result = {"duration_ms": 5000, "confidence": 0.9}
 
         await shadow_runner.predict_with_shadow(
-            features=features,
-            context=context,
-            prod_result=prod_result
+            features=features, context=context, prod_result=prod_result
         )
 
         # Aguarda task em background
@@ -126,24 +132,26 @@ class TestShadowModeRunner:
     def test_agreement_calculation_duration(self, shadow_runner):
         """Testa cálculo de agreement para predições de duração."""
         # Diferença de 4% - deve concordar (threshold é 15%)
-        prod_result = {'duration_ms': 5000, 'confidence': 0.9}
-        shadow_result = {'duration_ms': 5200, 'confidence': 0.85}
+        prod_result = {"duration_ms": 5000, "confidence": 0.9}
+        shadow_result = {"duration_ms": 5200, "confidence": 0.85}
 
         agreement = shadow_runner._calculate_agreement(prod_result, shadow_result)
 
-        assert agreement['duration'] is True
+        assert agreement["duration"] is True
 
     def test_agreement_calculation_duration_disagree(self, shadow_runner):
         """Testa cálculo de disagreement para predições de duração."""
         # Diferença de 40% - não deve concordar
-        prod_result = {'duration_ms': 5000, 'confidence': 0.9}
-        shadow_result = {'duration_ms': 7000, 'confidence': 0.85}
+        prod_result = {"duration_ms": 5000, "confidence": 0.9}
+        shadow_result = {"duration_ms": 7000, "confidence": 0.85}
 
         agreement = shadow_runner._calculate_agreement(prod_result, shadow_result)
 
-        assert agreement['duration'] is False
+        assert agreement["duration"] is False
 
-    def test_agreement_calculation_anomaly(self, mock_config, mock_mongodb, mock_metrics, mock_model_registry):
+    def test_agreement_calculation_anomaly(
+        self, mock_config, mock_mongodb, mock_metrics, mock_model_registry
+    ):
         """Testa cálculo de agreement para detecção de anomalia."""
         # Criar runner para anomaly detector
         prod_model = MagicMock()
@@ -156,19 +164,21 @@ class TestShadowModeRunner:
             model_registry=mock_model_registry,
             mongodb_client=mock_mongodb,
             metrics=mock_metrics,
-            model_name='anomaly-detector',
-            shadow_version='v2'
+            model_name="anomaly-detector",
+            shadow_version="v2",
         )
 
         # Ambos detectam anomalia - deve concordar
-        prod_result = {'is_anomaly': True, 'anomaly_score': 0.8, 'confidence': 0.9}
-        shadow_result = {'is_anomaly': True, 'anomaly_score': 0.75, 'confidence': 0.85}
+        prod_result = {"is_anomaly": True, "anomaly_score": 0.8, "confidence": 0.9}
+        shadow_result = {"is_anomaly": True, "anomaly_score": 0.75, "confidence": 0.85}
 
         agreement = runner._calculate_agreement(prod_result, shadow_result)
 
-        assert agreement['anomaly'] is True
+        assert agreement["anomaly"] is True
 
-    def test_agreement_calculation_anomaly_disagree(self, mock_config, mock_mongodb, mock_metrics, mock_model_registry):
+    def test_agreement_calculation_anomaly_disagree(
+        self, mock_config, mock_mongodb, mock_metrics, mock_model_registry
+    ):
         """Testa cálculo de disagreement para detecção de anomalia."""
         # Criar runner para anomaly detector
         prod_model = MagicMock()
@@ -181,48 +191,44 @@ class TestShadowModeRunner:
             model_registry=mock_model_registry,
             mongodb_client=mock_mongodb,
             metrics=mock_metrics,
-            model_name='anomaly-detector',
-            shadow_version='v2'
+            model_name="anomaly-detector",
+            shadow_version="v2",
         )
 
         # Discordam no resultado - não deve concordar
-        prod_result = {'is_anomaly': True, 'anomaly_score': 0.8, 'confidence': 0.9}
-        shadow_result = {'is_anomaly': False, 'anomaly_score': 0.2, 'confidence': 0.85}
+        prod_result = {"is_anomaly": True, "anomaly_score": 0.8, "confidence": 0.9}
+        shadow_result = {"is_anomaly": False, "anomaly_score": 0.2, "confidence": 0.85}
 
         agreement = runner._calculate_agreement(prod_result, shadow_result)
 
-        assert agreement['anomaly'] is False
+        assert agreement["anomaly"] is False
 
     @pytest.mark.asyncio
     async def test_persistence_called_when_enabled(self, shadow_runner, mock_mongodb):
         """Verifica que comparação é persistida quando habilitado."""
-        features = {'task_type': 'INFERENCE', 'payload_size': 1024}
-        context = {'ticket_id': 'test-123'}
-        prod_result = {'duration_ms': 5000, 'confidence': 0.9}
+        features = {"task_type": "INFERENCE", "payload_size": 1024}
+        context = {"ticket_id": "test-123"}
+        prod_result = {"duration_ms": 5000, "confidence": 0.9}
 
         await shadow_runner.predict_with_shadow(
-            features=features,
-            context=context,
-            prod_result=prod_result
+            features=features, context=context, prod_result=prod_result
         )
 
         # Aguarda task em background
         await asyncio.sleep(0.2)
 
         # Verificar que insert foi chamado
-        mock_mongodb.db['shadow_mode_comparisons'].insert_one.assert_called()
+        mock_mongodb.db["shadow_mode_comparisons"].insert_one.assert_called()
 
     @pytest.mark.asyncio
     async def test_metrics_recorded(self, shadow_runner, mock_metrics):
         """Verifica que métricas são registradas."""
-        features = {'task_type': 'INFERENCE', 'payload_size': 1024}
-        context = {'ticket_id': 'test-123'}
-        prod_result = {'duration_ms': 5000, 'confidence': 0.9}
+        features = {"task_type": "INFERENCE", "payload_size": 1024}
+        context = {"ticket_id": "test-123"}
+        prod_result = {"duration_ms": 5000, "confidence": 0.9}
 
         await shadow_runner.predict_with_shadow(
-            features=features,
-            context=context,
-            prod_result=prod_result
+            features=features, context=context, prod_result=prod_result
         )
 
         # Aguarda task em background
@@ -231,7 +237,15 @@ class TestShadowModeRunner:
         mock_metrics.record_shadow_prediction.assert_called()
 
     @pytest.mark.asyncio
-    async def test_sample_rate_respected(self, mock_config, mock_mongodb, mock_metrics, mock_prod_model, mock_shadow_model, mock_model_registry):
+    async def test_sample_rate_respected(
+        self,
+        mock_config,
+        mock_mongodb,
+        mock_metrics,
+        mock_prod_model,
+        mock_shadow_model,
+        mock_model_registry,
+    ):
         """Verifica que sample_rate é respeitado."""
         mock_config.ml_shadow_mode_sample_rate = 0.0  # Nunca faz shadow
 
@@ -242,18 +256,16 @@ class TestShadowModeRunner:
             model_registry=mock_model_registry,
             mongodb_client=mock_mongodb,
             metrics=mock_metrics,
-            model_name='duration-predictor',
-            shadow_version='v2'
+            model_name="duration-predictor",
+            shadow_version="v2",
         )
 
-        features = {'task_type': 'INFERENCE', 'payload_size': 1024}
-        context = {'ticket_id': 'test-123'}
-        prod_result = {'duration_ms': 5000, 'confidence': 0.9}
+        features = {"task_type": "INFERENCE", "payload_size": 1024}
+        context = {"ticket_id": "test-123"}
+        prod_result = {"duration_ms": 5000, "confidence": 0.9}
 
         await runner.predict_with_shadow(
-            features=features,
-            context=context,
-            prod_result=prod_result
+            features=features, context=context, prod_result=prod_result
         )
 
         # Aguarda para garantir que não houve background task
@@ -272,17 +284,19 @@ class TestShadowModeRunner:
 
         stats = shadow_runner.get_agreement_stats()
 
-        assert stats['prediction_count'] == 100
-        assert stats['agreement_rate'] == 0.92
-        assert stats['disagreement_count'] == 8
-        assert stats['avg_latency_ms'] == 50.0
+        assert stats["prediction_count"] == 100
+        assert stats["agreement_rate"] == 0.92
+        assert stats["disagreement_count"] == 8
+        assert stats["avg_latency_ms"] == 50.0
 
     @pytest.mark.asyncio
-    async def test_circuit_breaker_opens_on_failures(self, mock_config, mock_mongodb, mock_metrics, mock_prod_model, mock_model_registry):
+    async def test_circuit_breaker_opens_on_failures(
+        self, mock_config, mock_mongodb, mock_metrics, mock_prod_model, mock_model_registry
+    ):
         """Verifica que circuit breaker abre após falhas consecutivas."""
         # Shadow model que sempre falha
         failing_shadow = MagicMock()
-        failing_shadow.predict = MagicMock(side_effect=Exception('Model error'))
+        failing_shadow.predict = MagicMock(side_effect=Exception("Model error"))
 
         runner = ShadowModeRunner(
             config=mock_config,
@@ -291,20 +305,18 @@ class TestShadowModeRunner:
             model_registry=mock_model_registry,
             mongodb_client=mock_mongodb,
             metrics=mock_metrics,
-            model_name='duration-predictor',
-            shadow_version='v2'
+            model_name="duration-predictor",
+            shadow_version="v2",
         )
 
-        features = {'task_type': 'INFERENCE', 'payload_size': 1024}
-        context = {'ticket_id': 'test-123'}
-        prod_result = {'duration_ms': 5000, 'confidence': 0.9}
+        features = {"task_type": "INFERENCE", "payload_size": 1024}
+        context = {"ticket_id": "test-123"}
+        prod_result = {"duration_ms": 5000, "confidence": 0.9}
 
         # Executa várias predições para triggar circuit breaker
         for _ in range(10):
             await runner.predict_with_shadow(
-                features=features,
-                context=context,
-                prod_result=prod_result
+                features=features, context=context, prod_result=prod_result
             )
             await asyncio.sleep(0.05)
 
@@ -323,21 +335,19 @@ class TestShadowCircuitBreakerListener:
 
         # Criar mock do runner
         mock_runner = MagicMock()
-        mock_runner.model_name = 'test-model'
+        mock_runner.model_name = "test-model"
         mock_runner.metrics = mock_metrics
 
         listener = ShadowCircuitBreakerListener(runner=mock_runner)
 
         # Simula mudança de estado
         mock_new_state = MagicMock()
-        mock_new_state.name = 'open'
+        mock_new_state.name = "open"
         mock_old_state = MagicMock()
-        mock_old_state.name = 'closed'
+        mock_old_state.name = "closed"
 
         listener.state_change(
-            cb=MagicMock(name='test-breaker'),
-            old_state=mock_old_state,
-            new_state=mock_new_state
+            cb=MagicMock(name="test-breaker"), old_state=mock_old_state, new_state=mock_new_state
         )
 
         mock_metrics.set_shadow_circuit_breaker_state.assert_called_once()
@@ -349,7 +359,7 @@ class TestShadowCircuitBreakerListener:
 
         # Criar mock do runner
         mock_runner = MagicMock()
-        mock_runner.model_name = 'test-model'
+        mock_runner.model_name = "test-model"
         mock_runner.metrics = mock_metrics
 
         listener = ShadowCircuitBreakerListener(runner=mock_runner)
@@ -360,10 +370,7 @@ class TestShadowCircuitBreakerListener:
 
         # O método failure não chama record_shadow_error diretamente
         # apenas loga o erro. Vamos verificar que não lança exceção
-        listener.failure(
-            cb=mock_cb,
-            exc=Exception('test error')
-        )
+        listener.failure(cb=mock_cb, exc=Exception("test error"))
 
         # O teste passa se não lançar exceção
         assert True

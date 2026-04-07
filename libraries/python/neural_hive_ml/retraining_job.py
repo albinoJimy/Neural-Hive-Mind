@@ -81,9 +81,7 @@ class RetrainingJob:
                 "checked_at": datetime.now(timezone.utc).isoformat(),
             }
 
-            logger.info(
-                f"Threshold check: {sample_count}/{self.retrain_threshold} samples"
-            )
+            logger.info(f"Threshold check: {sample_count}/{self.retrain_threshold} samples")
             return result
 
         except Exception as e:
@@ -112,7 +110,7 @@ class RetrainingJob:
                 count = await db.specialist_feedback.count_documents(
                     {
                         "nlp_features": {"$exists": True, "$ne": {}},
-                        "balanced_dataset": True  # Samples do active learning
+                        "balanced_dataset": True,  # Samples do active learning
                     }
                 )
 
@@ -127,9 +125,7 @@ class RetrainingJob:
             logger.error(f"Erro ao contar samples pendentes: {e}")
             return 0
 
-    async def execute_retraining(
-        self, script_args: Optional[list] = None
-    ) -> Dict[str, Any]:
+    async def execute_retraining(self, script_args: Optional[list] = None) -> Dict[str, Any]:
         """
         Executa script de retreinamento.
 
@@ -157,9 +153,7 @@ class RetrainingJob:
                 cmd.extend(script_args)
 
             # Executa script com timeout de 30 minutos
-            result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=1800, check=False
-            )
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=1800, check=False)
 
             # Parse output para extrair métricas
             metrics = self._parse_training_output(result.stdout)
@@ -262,9 +256,7 @@ class RetrainingJob:
                 "min_improvement": self.min_f1_improvement,
             }
 
-            logger.info(
-                f"Validação: F1 {current_f1:.3f} -> {new_f1:.3f} ({f1_improvement:+.3f})"
-            )
+            logger.info(f"Validação: F1 {current_f1:.3f} -> {new_f1:.3f} ({f1_improvement:+.3f})")
             return result
 
         except Exception as e:
@@ -443,9 +435,7 @@ class RetrainingJob:
 
         except Exception as e:
             logger.error(f"Erro no pipeline de retreinamento: {e}")
-            await self.publish_kafka_event(
-                "model_retraining_failed", version=version, error=str(e)
-            )
+            await self.publish_kafka_event("model_retraining_failed", version=version, error=str(e))
             return {"success": False, "error": str(e)}
 
     async def get_job_status(self, job_id: str) -> Optional[Dict[str, Any]]:

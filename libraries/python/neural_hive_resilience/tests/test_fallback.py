@@ -11,6 +11,7 @@ from neural_hive_resilience.fallback import (
     ConditionalFallback,
     with_fallback,
 )
+
 # Alias para compatibilidade
 fallback = with_fallback
 from neural_hive_resilience.exceptions import AllFallbacksFailedError
@@ -21,6 +22,7 @@ class TestFallbackConfig:
 
     def test_creation(self):
         """Testa criação de configuração."""
+
         async def dummy_fallback():
             return "fallback"
 
@@ -36,6 +38,7 @@ class TestFallbackConfig:
 
     def test_creation_with_options(self):
         """Testa criação com opções."""
+
         async def dummy_fallback():
             return "fallback"
 
@@ -83,6 +86,7 @@ class TestFallbackChain:
     @pytest.mark.asyncio
     async def test_first_fallback_success(self):
         """Testa sucesso no primeiro fallback."""
+
         async def cache_fallback():
             await asyncio.sleep(0.01)
             return "cache_value"
@@ -114,6 +118,7 @@ class TestFallbackChain:
     @pytest.mark.asyncio
     async def test_second_fallback_success(self):
         """Testa sucesso no segundo fallback."""
+
         async def cache_fallback():
             raise ValueError("cache failed")
 
@@ -145,6 +150,7 @@ class TestFallbackChain:
     @pytest.mark.asyncio
     async def test_all_fallbacks_failed(self):
         """Testa erro quando todos os fallbacks falham."""
+
         async def fallback1():
             raise ValueError("failed")
 
@@ -256,6 +262,7 @@ class TestConditionalFallback:
     @pytest.mark.asyncio
     async def test_condition_met(self):
         """Testa execução quando condição é atendida."""
+
         async def fallback(*args, **kwargs):
             return "fallback_value"
 
@@ -278,6 +285,7 @@ class TestConditionalFallback:
     @pytest.mark.asyncio
     async def test_condition_not_met(self):
         """Testa erro quando condição não é atendida."""
+
         async def fallback(*args, **kwargs):
             return "fallback_value"
 
@@ -304,6 +312,7 @@ class TestFallbackDecorator:
     @pytest.mark.asyncio
     async def test_decorator_success(self):
         """Testa que decorator não interfere em sucesso."""
+
         async def fallback_fn(*args, **kwargs):
             return "fallback"
 
@@ -320,6 +329,7 @@ class TestFallbackDecorator:
     @pytest.mark.asyncio
     async def test_decorator_fallback_triggered(self):
         """Testa que fallback é executado em falha."""
+
         async def fallback_fn(*args, **kwargs):
             return "fallback_value"
 
@@ -353,6 +363,7 @@ class TestFallbackDecorator:
 
     def test_decorator_sync_function_raises(self):
         """Testa erro ao aplicar decorator a função síncrona."""
+
         async def fallback_fn(*args, **kwargs):
             return "fallback"
 

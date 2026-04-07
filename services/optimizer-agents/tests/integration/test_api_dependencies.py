@@ -9,10 +9,14 @@ mock_neural_hive = MagicMock()
 mock_neural_hive.proto_stubs = MagicMock()
 mock_neural_hive.proto_stubs.service_registry_pb2 = MagicMock()
 mock_neural_hive.proto_stubs.service_registry_pb2_grpc = MagicMock()
-sys.modules['neural_hive_integration'] = mock_neural_hive
-sys.modules['neural_hive_integration.proto_stubs'] = mock_neural_hive.proto_stubs
-sys.modules['neural_hive_integration.proto_stubs.service_registry_pb2'] = mock_neural_hive.proto_stubs.service_registry_pb2
-sys.modules['neural_hive_integration.proto_stubs.service_registry_pb2_grpc'] = mock_neural_hive.proto_stubs.service_registry_pb2_grpc
+sys.modules["neural_hive_integration"] = mock_neural_hive
+sys.modules["neural_hive_integration.proto_stubs"] = mock_neural_hive.proto_stubs
+sys.modules[
+    "neural_hive_integration.proto_stubs.service_registry_pb2"
+] = mock_neural_hive.proto_stubs.service_registry_pb2
+sys.modules[
+    "neural_hive_integration.proto_stubs.service_registry_pb2_grpc"
+] = mock_neural_hive.proto_stubs.service_registry_pb2_grpc
 
 # Mock neural_hive_ml e submodules
 mock_neural_hive_ml = MagicMock()
@@ -20,14 +24,16 @@ mock_neural_hive_ml.predictive_models = MagicMock()
 mock_neural_hive_ml.predictive_models.LoadPredictor = MagicMock()
 mock_neural_hive_ml.predictive_models.model_registry = MagicMock()
 mock_neural_hive_ml.predictive_models.model_registry.ModelRegistry = MagicMock()
-sys.modules['neural_hive_ml'] = mock_neural_hive_ml
-sys.modules['neural_hive_ml.predictive_models'] = mock_neural_hive_ml.predictive_models
-sys.modules['neural_hive_ml.predictive_models.model_registry'] = mock_neural_hive_ml.predictive_models.model_registry
+sys.modules["neural_hive_ml"] = mock_neural_hive_ml
+sys.modules["neural_hive_ml.predictive_models"] = mock_neural_hive_ml.predictive_models
+sys.modules[
+    "neural_hive_ml.predictive_models.model_registry"
+] = mock_neural_hive_ml.predictive_models.model_registry
 
 # Mock prophet
 mock_prophet = MagicMock()
 mock_prophet.Prophet = MagicMock()
-sys.modules['prophet'] = mock_prophet
+sys.modules["prophet"] = mock_prophet
 
 # Mock statsmodels
 mock_statsmodels = MagicMock()
@@ -35,14 +41,14 @@ mock_statsmodels.tsa = MagicMock()
 mock_statsmodels.tsa.arima = MagicMock()
 mock_statsmodels.tsa.arima.model = MagicMock()
 mock_statsmodels.tsa.arima.model.ARIMA = MagicMock()
-sys.modules['statsmodels'] = mock_statsmodels
-sys.modules['statsmodels.tsa'] = mock_statsmodels.tsa
-sys.modules['statsmodels.tsa.arima'] = mock_statsmodels.tsa.arima
-sys.modules['statsmodels.tsa.arima.model'] = mock_statsmodels.tsa.arima.model
+sys.modules["statsmodels"] = mock_statsmodels
+sys.modules["statsmodels.tsa"] = mock_statsmodels.tsa
+sys.modules["statsmodels.tsa.arima"] = mock_statsmodels.tsa.arima
+sys.modules["statsmodels.tsa.arima.model"] = mock_statsmodels.tsa.arima.model
 
 # Mock holidays
 mock_holidays = MagicMock()
-sys.modules['holidays'] = mock_holidays
+sys.modules["holidays"] = mock_holidays
 
 # Mock sklearn
 mock_sklearn = MagicMock()
@@ -51,21 +57,21 @@ mock_sklearn.preprocessing.StandardScaler = MagicMock()
 mock_sklearn.preprocessing.MinMaxScaler = MagicMock()
 mock_sklearn.model_selection = MagicMock()
 mock_sklearn.model_selection.train_test_split = MagicMock()
-sys.modules['sklearn'] = mock_sklearn
-sys.modules['sklearn.preprocessing'] = mock_sklearn.preprocessing
-sys.modules['sklearn.model_selection'] = mock_sklearn.model_selection
+sys.modules["sklearn"] = mock_sklearn
+sys.modules["sklearn.preprocessing"] = mock_sklearn.preprocessing
+sys.modules["sklearn.model_selection"] = mock_sklearn.model_selection
 
 # Mock torch and transformers
 mock_torch = MagicMock()
 mock_torch.nn = MagicMock()
-mock_torch.nn.Module = type('Module', (), {})
+mock_torch.nn.Module = type("Module", (), {})
 mock_torch.cuda = MagicMock()
 mock_torch.cuda.is_available = MagicMock(return_value=False)
-sys.modules['torch'] = mock_torch
-sys.modules['torch.nn'] = mock_torch.nn
+sys.modules["torch"] = mock_torch
+sys.modules["torch.nn"] = mock_torch.nn
 
 mock_transformers = MagicMock()
-sys.modules['transformers'] = mock_transformers
+sys.modules["transformers"] = mock_transformers
 
 # Mock mlflow completo
 mock_mlflow = MagicMock()
@@ -75,9 +81,9 @@ mock_mlflow.entities.Param = MagicMock()
 mock_mlflow.tracking = MagicMock()
 mock_mlflow.tracking.MlflowClient = MagicMock()
 mock_mlflow.MlflowClient = MagicMock()
-sys.modules['mlflow'] = mock_mlflow
-sys.modules['mlflow.entities'] = mock_mlflow.entities
-sys.modules['mlflow.tracking'] = mock_mlflow.tracking
+sys.modules["mlflow"] = mock_mlflow
+sys.modules["mlflow.entities"] = mock_mlflow.entities
+sys.modules["mlflow.tracking"] = mock_mlflow.tracking
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -103,7 +109,7 @@ class TestOptimizationsAPIDependencies:
         app.dependency_overrides[optimizations.get_mongodb_client] = lambda: mock_mongodb
 
         client = TestClient(app)
-        response = client.get('/api/v1/optimizations')
+        response = client.get("/api/v1/optimizations")
         # Com dependências configuradas, deve retornar 200
         assert response.status_code == 200
 
@@ -123,7 +129,7 @@ class TestOptimizationsAPIDependencies:
         app.dependency_overrides[optimizations.get_mongodb_client] = lambda: mock_mongodb
 
         client = TestClient(app)
-        response = client.get('/api/v1/optimizations/statistics/summary')
+        response = client.get("/api/v1/optimizations/statistics/summary")
         assert response.status_code == 200
 
     def test_optimizations_api_trigger_with_dependencies(self):
@@ -137,8 +143,10 @@ class TestOptimizationsAPIDependencies:
         # Criar mocks
         mock_weight_recal = MagicMock()
         mock_optimization_event = MagicMock()
-        mock_optimization_event.optimization_id = 'test-opt-123'
-        mock_weight_recal.apply_weight_recalibration = AsyncMock(return_value=mock_optimization_event)
+        mock_optimization_event.optimization_id = "test-opt-123"
+        mock_weight_recal.apply_weight_recalibration = AsyncMock(
+            return_value=mock_optimization_event
+        )
 
         mock_slo_adjuster = MagicMock()
 
@@ -147,14 +155,17 @@ class TestOptimizationsAPIDependencies:
         app.dependency_overrides[optimizations.get_slo_adjuster] = lambda: mock_slo_adjuster
 
         client = TestClient(app)
-        response = client.post('/api/v1/optimizations/trigger', json={
-            'target_component': 'test-component',
-            'optimization_type': 'WEIGHT_RECALIBRATION',
-            'justification': 'Test justification',
-            'proposed_adjustments': [{'key': 'value'}]
-        })
+        response = client.post(
+            "/api/v1/optimizations/trigger",
+            json={
+                "target_component": "test-component",
+                "optimization_type": "WEIGHT_RECALIBRATION",
+                "justification": "Test justification",
+                "proposed_adjustments": [{"key": "value"}],
+            },
+        )
         assert response.status_code == 200
-        assert response.json()['optimization_id'] == 'test-opt-123'
+        assert response.json()["optimization_id"] == "test-opt-123"
 
     def test_optimizations_api_without_dependencies_raises_error(self):
         """Validar que sem dependency overrides retorna erro."""
@@ -165,7 +176,7 @@ class TestOptimizationsAPIDependencies:
         app.include_router(optimizations.router)
 
         client = TestClient(app, raise_server_exceptions=False)
-        response = client.get('/api/v1/optimizations')
+        response = client.get("/api/v1/optimizations")
         # Sem overrides, a função get_mongodb_client() lançará NotImplementedError
         assert response.status_code == 500
 
@@ -190,7 +201,7 @@ class TestExperimentsAPIDependencies:
         app.dependency_overrides[experiments.get_mongodb_client] = lambda: mock_mongodb
 
         client = TestClient(app)
-        response = client.get('/api/v1/experiments')
+        response = client.get("/api/v1/experiments")
         # Com dependências configuradas, deve retornar 200
         assert response.status_code == 200
 
@@ -209,7 +220,7 @@ class TestExperimentsAPIDependencies:
         app.dependency_overrides[experiments.get_mongodb_client] = lambda: mock_mongodb
 
         client = TestClient(app)
-        response = client.get('/api/v1/experiments/statistics/summary')
+        response = client.get("/api/v1/experiments/statistics/summary")
         assert response.status_code == 200
 
     def test_experiments_api_submit_with_dependencies(self):
@@ -222,23 +233,26 @@ class TestExperimentsAPIDependencies:
 
         # Criar mocks
         mock_manager = MagicMock()
-        mock_manager.submit_experiment = AsyncMock(return_value='exp-123')
+        mock_manager.submit_experiment = AsyncMock(return_value="exp-123")
 
         # Configurar dependency overrides
         app.dependency_overrides[experiments.get_experiment_manager] = lambda: mock_manager
 
         client = TestClient(app)
-        response = client.post('/api/v1/experiments/submit', json={
-            'experiment_type': 'A_B_TEST',
-            'hypothesis': {'target_component': 'test'},
-            'objective': 'Test objective',
-            'baseline_configuration': {},
-            'experimental_configuration': {},
-            'success_criteria': [],
-            'guardrails': [],
-        })
+        response = client.post(
+            "/api/v1/experiments/submit",
+            json={
+                "experiment_type": "A_B_TEST",
+                "hypothesis": {"target_component": "test"},
+                "objective": "Test objective",
+                "baseline_configuration": {},
+                "experimental_configuration": {},
+                "success_criteria": [],
+                "guardrails": [],
+            },
+        )
         assert response.status_code == 200
-        assert response.json()['experiment_id'] == 'exp-123'
+        assert response.json()["experiment_id"] == "exp-123"
 
     def test_experiments_api_without_dependencies_raises_error(self):
         """Validar que sem dependency overrides retorna erro."""
@@ -249,7 +263,7 @@ class TestExperimentsAPIDependencies:
         app.include_router(experiments.router)
 
         client = TestClient(app, raise_server_exceptions=False)
-        response = client.get('/api/v1/experiments')
+        response = client.get("/api/v1/experiments")
         # Sem overrides, a função get_mongodb_client() lançará NotImplementedError
         assert response.status_code == 500
 
@@ -317,12 +331,12 @@ class TestHealthChecksDependencies:
         mock_orchestrator_client.channel = MagicMock()
 
         # Simular clients globais no módulo main
-        original_mongodb = getattr(app_main, 'mongodb_client', None)
-        original_redis = getattr(app_main, 'redis_client', None)
-        original_insights = getattr(app_main, 'insights_consumer', None)
-        original_producer = getattr(app_main, 'optimization_producer', None)
-        original_consensus = getattr(app_main, 'consensus_engine_client', None)
-        original_orchestrator = getattr(app_main, 'orchestrator_client', None)
+        original_mongodb = getattr(app_main, "mongodb_client", None)
+        original_redis = getattr(app_main, "redis_client", None)
+        original_insights = getattr(app_main, "insights_consumer", None)
+        original_producer = getattr(app_main, "optimization_producer", None)
+        original_consensus = getattr(app_main, "consensus_engine_client", None)
+        original_orchestrator = getattr(app_main, "orchestrator_client", None)
 
         try:
             app_main.mongodb_client = mock_mongodb
@@ -333,14 +347,14 @@ class TestHealthChecksDependencies:
             app_main.orchestrator_client = mock_orchestrator_client
 
             client = TestClient(app)
-            response = client.get('/health/ready')
+            response = client.get("/health/ready")
 
             assert response.status_code == 200
             data = response.json()
-            assert data['ready'] is True
-            assert data['status'] == 'ready'
-            assert data['checks']['mongodb'] == 'connected'
-            assert data['checks']['redis'] == 'connected'
+            assert data["ready"] is True
+            assert data["status"] == "ready"
+            assert data["checks"]["mongodb"] == "connected"
+            assert data["checks"]["redis"] == "connected"
         finally:
             # Restaurar originais
             app_main.mongodb_client = original_mongodb
@@ -372,12 +386,12 @@ class TestHealthChecksDependencies:
         mock_orchestrator_client = MagicMock()
         mock_orchestrator_client.channel = MagicMock()
 
-        original_mongodb = getattr(app_main, 'mongodb_client', None)
-        original_redis = getattr(app_main, 'redis_client', None)
-        original_insights = getattr(app_main, 'insights_consumer', None)
-        original_producer = getattr(app_main, 'optimization_producer', None)
-        original_consensus = getattr(app_main, 'consensus_engine_client', None)
-        original_orchestrator = getattr(app_main, 'orchestrator_client', None)
+        original_mongodb = getattr(app_main, "mongodb_client", None)
+        original_redis = getattr(app_main, "redis_client", None)
+        original_insights = getattr(app_main, "insights_consumer", None)
+        original_producer = getattr(app_main, "optimization_producer", None)
+        original_consensus = getattr(app_main, "consensus_engine_client", None)
+        original_orchestrator = getattr(app_main, "orchestrator_client", None)
 
         try:
             # MongoDB desconectado (None)
@@ -389,13 +403,13 @@ class TestHealthChecksDependencies:
             app_main.orchestrator_client = mock_orchestrator_client
 
             client = TestClient(app)
-            response = client.get('/health/ready')
+            response = client.get("/health/ready")
 
             assert response.status_code == 200
             data = response.json()
-            assert data['ready'] is False
-            assert data['status'] == 'not_ready'
-            assert data['checks']['mongodb'] == 'disconnected'
+            assert data["ready"] is False
+            assert data["status"] == "not_ready"
+            assert data["checks"]["mongodb"] == "disconnected"
         finally:
             app_main.mongodb_client = original_mongodb
             app_main.redis_client = original_redis
@@ -412,10 +426,10 @@ class TestHealthChecksDependencies:
         app.include_router(health.router)
 
         client = TestClient(app)
-        response = client.get('/health/live')
+        response = client.get("/health/live")
 
         assert response.status_code == 200
-        assert response.json()['status'] == 'alive'
+        assert response.json()["status"] == "alive"
 
     def test_health_check_basic(self):
         """Validar que health check básico retorna healthy."""
@@ -425,10 +439,10 @@ class TestHealthChecksDependencies:
         app.include_router(health.router)
 
         client = TestClient(app)
-        response = client.get('/health')
+        response = client.get("/health")
 
         assert response.status_code == 200
         data = response.json()
-        assert data['status'] == 'healthy'
-        assert 'service' in data
-        assert 'version' in data
+        assert data["status"] == "healthy"
+        assert "service" in data
+        assert "version" in data

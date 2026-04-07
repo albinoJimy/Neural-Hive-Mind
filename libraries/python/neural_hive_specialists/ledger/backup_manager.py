@@ -50,9 +50,7 @@ class BackupManager:
     def mongo_client(self) -> MongoClient:
         """Lazy initialization do cliente MongoDB."""
         if self._mongo_client is None:
-            self._mongo_client = MongoClient(
-                self.mongodb_uri, serverSelectionTimeoutMS=5000
-            )
+            self._mongo_client = MongoClient(self.mongodb_uri, serverSelectionTimeoutMS=5000)
         return self._mongo_client
 
     @property
@@ -153,9 +151,7 @@ class BackupManager:
             )
 
             # Exportar documentos recentes
-            documents = list(
-                self.collection.find({"created_at": {"$gte": cutoff_time}})
-            )
+            documents = list(self.collection.find({"created_at": {"$gte": cutoff_time}}))
 
             # Remover _id
             for doc in documents:
@@ -198,14 +194,10 @@ class BackupManager:
             return backup_file_path
 
         except Exception as e:
-            logger.error(
-                "Failed to create incremental backup", error=str(e), exc_info=True
-            )
+            logger.error("Failed to create incremental backup", error=str(e), exc_info=True)
             return None
 
-    def restore_from_backup(
-        self, backup_file_path: str, verify_checksum: bool = True
-    ) -> bool:
+    def restore_from_backup(self, backup_file_path: str, verify_checksum: bool = True) -> bool:
         """
         Restaura ledger a partir de backup.
 
@@ -360,9 +352,7 @@ class BackupManager:
 
         return sha256_hash.hexdigest()
 
-    def _save_backup_metadata(
-        self, backup_file_path: str, checksum: str, documents_count: int
-    ):
+    def _save_backup_metadata(self, backup_file_path: str, checksum: str, documents_count: int):
         """
         Salva metadata do backup.
 

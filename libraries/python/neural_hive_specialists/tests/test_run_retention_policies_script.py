@@ -8,13 +8,12 @@ from unittest.mock import patch, Mock
 # Adicionar diretório de scripts ao path
 sys.path.insert(
     0,
-    os.path.join(
-        os.path.dirname(__file__), "..", "scripts"
-    ),
+    os.path.join(os.path.dirname(__file__), "..", "scripts"),
 )
 
 try:
     import run_retention_policies
+
     SCRIPT_AVAILABLE = True
 except ImportError:
     SCRIPT_AVAILABLE = False
@@ -24,12 +23,15 @@ except ImportError:
 class TestLoadConfig:
     """Testes para load_config()."""
 
-    @patch.dict(os.environ, {
-        "MONGODB_URI": "mongodb://localhost:27017",
-        "MONGODB_DATABASE": "test_db",
-        "ENABLE_PII_DETECTION": "true",
-        "DEFAULT_RETENTION_DAYS": "730",
-    })
+    @patch.dict(
+        os.environ,
+        {
+            "MONGODB_URI": "mongodb://localhost:27017",
+            "MONGODB_DATABASE": "test_db",
+            "ENABLE_PII_DETECTION": "true",
+            "DEFAULT_RETENTION_DAYS": "730",
+        },
+    )
     def test_load_config_from_env(self):
         """Testa carregamento de config das variáveis de ambiente."""
         config = run_retention_policies.load_config()
@@ -50,11 +52,14 @@ class TestLoadConfig:
 class TestSimpleConfig:
     """Testes para a classe SimpleConfig."""
 
-    @patch.dict(os.environ, {
-        "MONGODB_URI": "mongodb://localhost:27017",
-        "MONGODB_DATABASE": "neural_hive",
-        "AUDIT_LOG_RETENTION_DAYS": "365",
-    })
+    @patch.dict(
+        os.environ,
+        {
+            "MONGODB_URI": "mongodb://localhost:27017",
+            "MONGODB_DATABASE": "neural_hive",
+            "AUDIT_LOG_RETENTION_DAYS": "365",
+        },
+    )
     def test_simple_config_defaults(self):
         """Testa valores padrão do SimpleConfig."""
         config = run_retention_policies.load_config()
@@ -70,9 +75,14 @@ class TestSimpleConfig:
             config = run_retention_policies.load_config()
 
             expected_entities = [
-                "PERSON", "EMAIL_ADDRESS", "PHONE_NUMBER",
-                "CREDIT_CARD", "IBAN_CODE", "IP_ADDRESS",
-                "US_SSN", "CPF",
+                "PERSON",
+                "EMAIL_ADDRESS",
+                "PHONE_NUMBER",
+                "CREDIT_CARD",
+                "IBAN_CODE",
+                "IP_ADDRESS",
+                "US_SSN",
+                "CPF",
             ]
             assert config.pii_entities_to_detect == expected_entities
 

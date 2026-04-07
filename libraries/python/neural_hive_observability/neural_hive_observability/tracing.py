@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 _tracer: Optional[trace.Tracer] = None
 _config: Optional[ObservabilityConfig] = None
 
+
 def init_tracing(config: ObservabilityConfig) -> None:
     """
     Inicializa o tracing com OpenTelemetry.
@@ -42,17 +43,19 @@ def init_tracing(config: ObservabilityConfig) -> None:
     _config = config
 
     # Criar resource com metadados do serviço
-    resource = Resource.create({
-        "service.name": config.service_name,
-        "service.version": config.service_version,
-        "service.instance.id": config.service_instance_id,
-        "neural.hive.component": config.neural_hive_component,
-        "neural.hive.layer": config.neural_hive_layer,
-        "neural.hive.domain": config.neural_hive_domain or "unknown",
-        "deployment.environment": config.environment,
-        "telemetry.sdk.name": "neural_hive_observability",
-        "telemetry.sdk.version": "1.0.0",
-    })
+    resource = Resource.create(
+        {
+            "service.name": config.service_name,
+            "service.version": config.service_version,
+            "service.instance.id": config.service_instance_id,
+            "neural.hive.component": config.neural_hive_component,
+            "neural.hive.layer": config.neural_hive_layer,
+            "neural.hive.domain": config.neural_hive_domain or "unknown",
+            "deployment.environment": config.environment,
+            "telemetry.sdk.name": "neural_hive_observability",
+            "telemetry.sdk.version": "1.0.0",
+        }
+    )
 
     # Configurar tracer provider
     tracer_provider = TracerProvider(resource=resource)
@@ -86,7 +89,7 @@ def init_tracing(config: ObservabilityConfig) -> None:
             otlp_exporter,
             max_queue_size=config.trace_batch_size,
             export_timeout_millis=config.trace_export_timeout_ms,
-            schedule_delay_millis=config.trace_schedule_delay_ms
+            schedule_delay_millis=config.trace_schedule_delay_ms,
         )
         tracer_provider.add_span_processor(span_processor)
 
@@ -100,14 +103,14 @@ def init_tracing(config: ObservabilityConfig) -> None:
 
     # Criar tracer
     _tracer = trace.get_tracer(
-        __name__,
-        instrumenting_library_version="1.0.0",
-        tracer_provider=tracer_provider
+        __name__, instrumenting_library_version="1.0.0", tracer_provider=tracer_provider
     )
+
 
 def get_tracer() -> Optional[trace.Tracer]:
     """Retorna o tracer configurado."""
     return _tracer
+
 
 @contextmanager
 def correlation_context(
@@ -115,7 +118,7 @@ def correlation_context(
     plan_id: Optional[str] = None,
     user_id: Optional[str] = None,
     domain: Optional[str] = None,
-    **additional_context
+    **additional_context,
 ):
     """
     Context manager para correlação distribuída.
@@ -161,12 +164,13 @@ def correlation_context(
             if token:
                 detach(token)
 
+
 def trace_intent(
     operation_name: Optional[str] = None,
     extract_intent_id_from: Optional[str] = None,
     extract_plan_id_from: Optional[str] = None,
     include_args: bool = False,
-    include_result: bool = False
+    include_result: bool = False,
 ):
     """
     Decorator para tracing automático de operações com intent_id.
@@ -180,6 +184,7 @@ def trace_intent(
         include_args: Incluir argumentos no span
         include_result: Incluir resultado no span
     """
+
     def decorator(func: Callable) -> Callable:
         is_async = inspect.iscoroutinefunction(func)
 
@@ -242,8 +247,7 @@ def trace_intent(
                 return await func(*args, **kwargs)
 
             op_name = operation_name or (
-                f"{_config.neural_hive_component}.{func.__name__}" if _config 
-                else func.__name__
+                f"{_config.neural_hive_component}.{func.__name__}" if _config else func.__name__
             )
             intent_id, plan_id = _extract_ids(args, kwargs)
 
@@ -272,8 +276,7 @@ def trace_intent(
                 return func(*args, **kwargs)
 
             op_name = operation_name or (
-                f"{_config.neural_hive_component}.{func.__name__}" if _config 
-                else func.__name__
+                f"{_config.neural_hive_component}.{func.__name__}" if _config else func.__name__
             )
             intent_id, plan_id = _extract_ids(args, kwargs)
 
@@ -297,13 +300,15 @@ def trace_intent(
                     raise
 
         return async_wrapper if is_async else sync_wrapper
+
     return decorator
+
 
 def trace_plan(
     operation_name: Optional[str] = None,
     extract_plan_id_from: Optional[str] = None,
     include_args: bool = False,
-    include_result: bool = False
+    include_result: bool = False,
 ):
     """
     Decorator específico para tracing de operações de planos.
@@ -318,15 +323,16 @@ def trace_plan(
         operation_name=operation_name,
         extract_plan_id_from=extract_plan_id_from,
         include_args=include_args,
-        include_result=include_result
+        include_result=include_result,
     )
+
 
 def trace_grpc_method(
     operation_name: Optional[str] = None,
     extract_intent_id_from: Optional[str] = None,
     extract_plan_id_from: Optional[str] = None,
     include_request: bool = False,
-    include_response: bool = False
+    include_response: bool = False,
 ):
     """
     Decorator para tracing de métodos gRPC com enriquecimento padrão.
@@ -338,6 +344,7 @@ def trace_grpc_method(
         include_request: Registrar request no span
         include_response: Registrar response no span
     """
+
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(self, request, context, *args, **kwargs):
@@ -351,6 +358,7 @@ def trace_grpc_method(
                 invocation_metadata = context.invocation_metadata() if context else []
                 metadata = {k: v for k, v in invocation_metadata}
                 from .grpc_instrumentation import extract_grpc_context
+
                 extracted = extract_grpc_context(context)
                 if isinstance(extracted, tuple):
                     grpc_context, grpc_token = extracted
@@ -369,7 +377,8 @@ def trace_grpc_method(
                 plan_id = getattr(request, extract_plan_id_from, plan_id)
 
             span_name = operation_name or (
-                f"{_config.neural_hive_component}.grpc.{func.__name__}" if _config 
+                f"{_config.neural_hive_component}.grpc.{func.__name__}"
+                if _config
                 else f"grpc.{func.__name__}"
             )
 
@@ -407,7 +416,9 @@ def trace_grpc_method(
                     span.record_exception(exc)
                     status_code_attr = getattr(exc, "code", None)
                     try:
-                        status_code_value = status_code_attr() if callable(status_code_attr) else status_code_attr
+                        status_code_value = (
+                            status_code_attr() if callable(status_code_attr) else status_code_attr
+                        )
                     except Exception:
                         status_code_value = None
 
@@ -415,7 +426,9 @@ def trace_grpc_method(
                         span.set_attribute("grpc.status_code", str(status_code_value))
                         details_attr = getattr(exc, "details", None)
                         try:
-                            details_value = details_attr() if callable(details_attr) else details_attr
+                            details_value = (
+                                details_attr() if callable(details_attr) else details_attr
+                            )
                         except Exception:
                             details_value = None
                         if details_value:
@@ -428,7 +441,9 @@ def trace_grpc_method(
                         detach(grpc_token)
 
         return wrapper
+
     return decorator
+
 
 def enrich_span(
     span: Span,
@@ -436,7 +451,7 @@ def enrich_span(
     plan_id: Optional[str] = None,
     user_id: Optional[str] = None,
     operation_type: Optional[str] = None,
-    **additional_attributes
+    **additional_attributes,
 ) -> None:
     """
     Enriche span com atributos específicos do Neural Hive-Mind.
@@ -466,6 +481,7 @@ def enrich_span(
         if value is not None:
             span.set_attribute(f"neural.hive.{key}", str(value))
 
+
 def get_current_trace_id() -> Optional[str]:
     """Retorna o trace ID atual."""
     span = trace.get_current_span()
@@ -473,12 +489,14 @@ def get_current_trace_id() -> Optional[str]:
         return format(span.get_span_context().trace_id, "032x")
     return None
 
+
 def get_current_span_id() -> Optional[str]:
     """Retorna o span ID atual."""
     span = trace.get_current_span()
     if span and span.get_span_context().is_valid:
         return format(span.get_span_context().span_id, "016x")
     return None
+
 
 def get_correlation_context() -> Dict[str, Any]:
     """
@@ -507,6 +525,7 @@ def get_correlation_context() -> Dict[str, Any]:
 
     return context
 
+
 def _is_sensitive_param(param_name: str) -> bool:
     """
     Verifica se um parâmetro contém dados sensíveis.
@@ -518,19 +537,29 @@ def _is_sensitive_param(param_name: str) -> bool:
         True se o parâmetro for sensível
     """
     sensitive_patterns = [
-        "password", "passwd", "pwd", "secret", "token", "key",
-        "credential", "auth", "session", "cookie", "pii",
-        "ssn", "cpf", "email", "phone", "address"
+        "password",
+        "passwd",
+        "pwd",
+        "secret",
+        "token",
+        "key",
+        "credential",
+        "auth",
+        "session",
+        "cookie",
+        "pii",
+        "ssn",
+        "cpf",
+        "email",
+        "phone",
+        "address",
     ]
 
     param_lower = param_name.lower()
     return any(pattern in param_lower for pattern in sensitive_patterns)
 
-def create_child_span(
-    name: str,
-    parent_span: Optional[Span] = None,
-    **attributes
-) -> Span:
+
+def create_child_span(name: str, parent_span: Optional[Span] = None, **attributes) -> Span:
     """
     Cria um span filho com atributos padrão do Neural Hive-Mind.
 
@@ -565,21 +594,22 @@ def create_child_span(
 
     return span
 
+
 def inject_context_to_headers(headers: Dict[str, str]) -> Dict[str, str]:
     """
     Injeta contexto OpenTelemetry em headers.
-    
+
     Args:
         headers: Headers existentes
-        
+
     Returns:
         Headers com contexto injetado
     """
     from opentelemetry.propagate import inject
-    
+
     new_headers = headers.copy()
     inject(new_headers)
-    
+
     # Adicionar baggage items como headers customizados
     correlation = get_correlation_context()
     if "intent_id" in correlation:
@@ -588,13 +618,14 @@ def inject_context_to_headers(headers: Dict[str, str]) -> Dict[str, str]:
         new_headers["x-neural-hive-plan-id"] = correlation["plan_id"]
     if "user_id" in correlation:
         new_headers["x-neural-hive-user-id"] = correlation["user_id"]
-    
+
     return new_headers
+
 
 def extract_context_from_headers(headers: Dict[str, str]):
     """
     Extrai contexto OpenTelemetry de headers e define no contexto atual.
-    
+
     Args:
         headers: Headers com contexto
 
@@ -602,14 +633,14 @@ def extract_context_from_headers(headers: Dict[str, str]):
         Token de contexto para ser usado em detach() pelo chamador, ou None
     """
     from opentelemetry.propagate import extract
-    
+
     token = None
     try:
         ctx = extract(headers)
         token = attach(ctx)
     except Exception:
         token = None
-    
+
     # Extrair e definir baggage items
     if "x-neural-hive-intent-id" in headers:
         set_baggage("neural.hive.intent.id", headers["x-neural-hive-intent-id"])

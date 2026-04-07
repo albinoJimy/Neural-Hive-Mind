@@ -16,7 +16,7 @@ from aioresponses import aioresponses
 import uuid
 
 
-ARGOCD_BASE_URL = 'http://argocd.test:8080'
+ARGOCD_BASE_URL = "http://argocd.test:8080"
 
 
 @pytest.fixture
@@ -24,7 +24,7 @@ def worker_config():
     """Configuracao do worker para testes de integracao."""
     config = MagicMock()
     config.argocd_url = ARGOCD_BASE_URL
-    config.argocd_token = 'test-token'
+    config.argocd_token = "test-token"
     config.argocd_enabled = True
     config.flux_enabled = False
     return config
@@ -48,21 +48,21 @@ def deploy_ticket():
     """Ticket de deploy para testes."""
     ticket_id = str(uuid.uuid4())
     return {
-        'ticket_id': ticket_id,
-        'task_id': f'task-{ticket_id[:8]}',
-        'task_type': 'DEPLOY',
-        'parameters': {
-            'namespace': 'production',
-            'deployment_name': 'integration-test-app',
-            'image': 'my-registry/my-app:v1.0.0',
-            'replicas': 3,
-            'repo_url': 'https://github.com/org/repo',
-            'chart_path': 'charts/my-app',
-            'revision': 'main',
-            'provider': 'argocd',
-            'timeout_seconds': 10,
-            'poll_interval': 1
-        }
+        "ticket_id": ticket_id,
+        "task_id": f"task-{ticket_id[:8]}",
+        "task_type": "DEPLOY",
+        "parameters": {
+            "namespace": "production",
+            "deployment_name": "integration-test-app",
+            "image": "my-registry/my-app:v1.0.0",
+            "replicas": 3,
+            "repo_url": "https://github.com/org/repo",
+            "chart_path": "charts/my-app",
+            "revision": "main",
+            "provider": "argocd",
+            "timeout_seconds": 10,
+            "poll_interval": 1,
+        },
     }
 
 
@@ -70,11 +70,8 @@ def deploy_ticket():
 def argocd_client():
     """Cliente ArgoCD real para testes de integracao."""
     from clients.argocd_client import ArgoCDClient
-    return ArgoCDClient(
-        base_url=ARGOCD_BASE_URL,
-        token='test-token',
-        timeout=30
-    )
+
+    return ArgoCDClient(base_url=ARGOCD_BASE_URL, token="test-token", timeout=30)
 
 
 @pytest.fixture
@@ -88,7 +85,7 @@ def deploy_executor_integration(worker_config, mock_metrics, argocd_client):
         code_forge_client=None,
         metrics=mock_metrics,
         argocd_client=argocd_client,
-        flux_client=None
+        flux_client=None,
     )
 
 
@@ -98,104 +95,95 @@ class TestFullDeploymentFlow:
     @pytest.mark.asyncio
     @pytest.mark.integration
     async def test_full_deployment_flow_success(
-        self,
-        deploy_executor_integration,
-        deploy_ticket,
-        argocd_client
+        self, deploy_executor_integration, deploy_ticket, argocd_client
     ):
         """Deve executar fluxo completo de deployment com sucesso."""
-        app_name = deploy_ticket['parameters']['deployment_name']
+        app_name = deploy_ticket["parameters"]["deployment_name"]
 
         with aioresponses() as m:
             # Mock create application
             m.post(
-                f'{ARGOCD_BASE_URL}/api/v1/applications',
-                payload={'metadata': {'name': app_name}},
-                status=200
+                f"{ARGOCD_BASE_URL}/api/v1/applications",
+                payload={"metadata": {"name": app_name}},
+                status=200,
             )
 
             # Mock get status - first call returns Progressing
             m.get(
-                f'{ARGOCD_BASE_URL}/api/v1/applications/{app_name}',
+                f"{ARGOCD_BASE_URL}/api/v1/applications/{app_name}",
                 payload={
-                    'metadata': {'name': app_name},
-                    'status': {
-                        'health': {'status': 'Progressing'},
-                        'sync': {'status': 'Syncing'}
-                    }
+                    "metadata": {"name": app_name},
+                    "status": {"health": {"status": "Progressing"}, "sync": {"status": "Syncing"}},
                 },
-                status=200
+                status=200,
             )
 
             # Mock get status - second call returns Healthy
             m.get(
-                f'{ARGOCD_BASE_URL}/api/v1/applications/{app_name}',
+                f"{ARGOCD_BASE_URL}/api/v1/applications/{app_name}",
                 payload={
-                    'metadata': {'name': app_name},
-                    'status': {
-                        'health': {'status': 'Healthy', 'message': 'All resources healthy'},
-                        'sync': {'status': 'Synced', 'revision': 'abc123'}
-                    }
+                    "metadata": {"name": app_name},
+                    "status": {
+                        "health": {"status": "Healthy", "message": "All resources healthy"},
+                        "sync": {"status": "Synced", "revision": "abc123"},
+                    },
                 },
-                status=200
+                status=200,
             )
 
             result = await deploy_executor_integration.execute(deploy_ticket)
 
-            assert result['success'] is True
-            assert result['output']['status'] == 'healthy'
-            assert result['metadata']['provider'] == 'argocd'
+            assert result["success"] is True
+            assert result["output"]["status"] == "healthy"
+            assert result["metadata"]["provider"] == "argocd"
 
     @pytest.mark.asyncio
     @pytest.mark.integration
     async def test_deployment_with_multiple_polling_cycles(
-        self,
-        deploy_executor_integration,
-        deploy_ticket,
-        argocd_client
+        self, deploy_executor_integration, deploy_ticket, argocd_client
     ):
         """Deve fazer multiple polling cycles ate ficar healthy."""
-        app_name = deploy_ticket['parameters']['deployment_name']
+        app_name = deploy_ticket["parameters"]["deployment_name"]
 
         with aioresponses() as m:
             # Mock create application
             m.post(
-                f'{ARGOCD_BASE_URL}/api/v1/applications',
-                payload={'metadata': {'name': app_name}},
-                status=200
+                f"{ARGOCD_BASE_URL}/api/v1/applications",
+                payload={"metadata": {"name": app_name}},
+                status=200,
             )
 
             # Mock get status - multiple Progressing responses
             for _ in range(3):
                 m.get(
-                    f'{ARGOCD_BASE_URL}/api/v1/applications/{app_name}',
+                    f"{ARGOCD_BASE_URL}/api/v1/applications/{app_name}",
                     payload={
-                        'metadata': {'name': app_name},
-                        'status': {
-                            'health': {'status': 'Progressing'},
-                            'sync': {'status': 'Syncing'}
-                        }
+                        "metadata": {"name": app_name},
+                        "status": {
+                            "health": {"status": "Progressing"},
+                            "sync": {"status": "Syncing"},
+                        },
                     },
-                    status=200
+                    status=200,
                 )
 
             # Final Healthy response
             m.get(
-                f'{ARGOCD_BASE_URL}/api/v1/applications/{app_name}',
+                f"{ARGOCD_BASE_URL}/api/v1/applications/{app_name}",
                 payload={
-                    'metadata': {'name': app_name},
-                    'status': {
-                        'health': {'status': 'Healthy'},
-                        'sync': {'status': 'Synced', 'revision': 'xyz789'}
-                    }
+                    "metadata": {"name": app_name},
+                    "status": {
+                        "health": {"status": "Healthy"},
+                        "sync": {"status": "Synced", "revision": "xyz789"},
+                    },
                 },
-                status=200
+                status=200,
             )
 
             result = await deploy_executor_integration.execute(deploy_ticket)
 
-            assert result['success'] is True
-            assert result['output']['status'] == 'healthy'
+            assert result["success"] is True
+            assert result["output"]["status"] == "healthy"
 
 
 class TestDeploymentHealthCheckPolling:
@@ -203,16 +191,9 @@ class TestDeploymentHealthCheckPolling:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_polling_respects_interval(
-        self,
-        argocd_client
-    ):
+    async def test_polling_respects_interval(self, argocd_client):
         """Deve respeitar intervalo de polling."""
-        from clients.argocd_client import (
-            ApplicationStatus,
-            HealthStatus,
-            SyncStatus
-        )
+        from clients.argocd_client import ApplicationStatus, HealthStatus, SyncStatus
 
         call_times = []
 
@@ -223,28 +204,24 @@ class TestDeploymentHealthCheckPolling:
             if len(call_times) >= 3:
                 return ApplicationStatus(
                     name=app_name,
-                    health=HealthStatus(status='Healthy'),
-                    sync=SyncStatus(status='Synced')
+                    health=HealthStatus(status="Healthy"),
+                    sync=SyncStatus(status="Synced"),
                 )
             return ApplicationStatus(
                 name=app_name,
-                health=HealthStatus(status='Progressing'),
-                sync=SyncStatus(status='Syncing')
+                health=HealthStatus(status="Progressing"),
+                sync=SyncStatus(status="Syncing"),
             )
 
         argocd_client.get_application_status = mock_get_status
 
         try:
-            await argocd_client.wait_for_health(
-                'test-app',
-                poll_interval=1,
-                timeout=10
-            )
+            await argocd_client.wait_for_health("test-app", poll_interval=1, timeout=10)
 
             # Verificar que houve intervalo entre chamadas
             assert len(call_times) >= 3
             for i in range(1, len(call_times)):
-                interval = call_times[i] - call_times[i-1]
+                interval = call_times[i] - call_times[i - 1]
                 assert interval >= 0.9  # Permitir pequena variacao
 
         finally:
@@ -257,41 +234,39 @@ class TestDeploymentTimeoutHandling:
     @pytest.mark.asyncio
     @pytest.mark.integration
     async def test_deployment_timeout_after_max_attempts(
-        self,
-        deploy_executor_integration,
-        deploy_ticket
+        self, deploy_executor_integration, deploy_ticket
     ):
         """Deve falhar com timeout apos limite de tentativas."""
-        app_name = deploy_ticket['parameters']['deployment_name']
-        deploy_ticket['parameters']['timeout_seconds'] = 3
-        deploy_ticket['parameters']['poll_interval'] = 1
+        app_name = deploy_ticket["parameters"]["deployment_name"]
+        deploy_ticket["parameters"]["timeout_seconds"] = 3
+        deploy_ticket["parameters"]["poll_interval"] = 1
 
         with aioresponses() as m:
             # Mock create application
             m.post(
-                f'{ARGOCD_BASE_URL}/api/v1/applications',
-                payload={'metadata': {'name': app_name}},
-                status=200
+                f"{ARGOCD_BASE_URL}/api/v1/applications",
+                payload={"metadata": {"name": app_name}},
+                status=200,
             )
 
             # Mock get status - sempre Progressing (nunca fica healthy)
             for _ in range(10):
                 m.get(
-                    f'{ARGOCD_BASE_URL}/api/v1/applications/{app_name}',
+                    f"{ARGOCD_BASE_URL}/api/v1/applications/{app_name}",
                     payload={
-                        'metadata': {'name': app_name},
-                        'status': {
-                            'health': {'status': 'Progressing'},
-                            'sync': {'status': 'Syncing'}
-                        }
+                        "metadata": {"name": app_name},
+                        "status": {
+                            "health": {"status": "Progressing"},
+                            "sync": {"status": "Syncing"},
+                        },
                     },
-                    status=200
+                    status=200,
                 )
 
             result = await deploy_executor_integration.execute(deploy_ticket)
 
-            assert result['success'] is False
-            assert result['output']['status'] == 'timeout'
+            assert result["success"] is False
+            assert result["output"]["status"] == "timeout"
 
 
 class TestDeploymentAuthenticationError:
@@ -299,45 +274,35 @@ class TestDeploymentAuthenticationError:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_authentication_error_401(
-        self,
-        deploy_executor_integration,
-        deploy_ticket
-    ):
+    async def test_authentication_error_401(self, deploy_executor_integration, deploy_ticket):
         """Deve tratar erro 401 de autenticacao."""
         with aioresponses() as m:
             # Mock create application com erro 401
             m.post(
-                f'{ARGOCD_BASE_URL}/api/v1/applications',
-                payload={'error': 'Unauthorized'},
-                status=401
+                f"{ARGOCD_BASE_URL}/api/v1/applications",
+                payload={"error": "Unauthorized"},
+                status=401,
             )
 
             result = await deploy_executor_integration.execute(deploy_ticket)
 
-            assert result['success'] is False
-            assert result['output']['status'] == 'error'
+            assert result["success"] is False
+            assert result["output"]["status"] == "error"
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_authentication_error_403(
-        self,
-        deploy_executor_integration,
-        deploy_ticket
-    ):
+    async def test_authentication_error_403(self, deploy_executor_integration, deploy_ticket):
         """Deve tratar erro 403 de permissao."""
         with aioresponses() as m:
             # Mock create application com erro 403
             m.post(
-                f'{ARGOCD_BASE_URL}/api/v1/applications',
-                payload={'error': 'Forbidden'},
-                status=403
+                f"{ARGOCD_BASE_URL}/api/v1/applications", payload={"error": "Forbidden"}, status=403
             )
 
             result = await deploy_executor_integration.execute(deploy_ticket)
 
-            assert result['success'] is False
-            assert result['output']['status'] == 'error'
+            assert result["success"] is False
+            assert result["output"]["status"] == "error"
 
 
 class TestDeploymentRollbackScenarios:
@@ -345,75 +310,64 @@ class TestDeploymentRollbackScenarios:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_deployment_degraded_status(
-        self,
-        deploy_executor_integration,
-        deploy_ticket
-    ):
+    async def test_deployment_degraded_status(self, deploy_executor_integration, deploy_ticket):
         """Deve aceitar status Degraded como parcialmente healthy."""
-        app_name = deploy_ticket['parameters']['deployment_name']
+        app_name = deploy_ticket["parameters"]["deployment_name"]
 
         with aioresponses() as m:
             # Mock create application
             m.post(
-                f'{ARGOCD_BASE_URL}/api/v1/applications',
-                payload={'metadata': {'name': app_name}},
-                status=200
+                f"{ARGOCD_BASE_URL}/api/v1/applications",
+                payload={"metadata": {"name": app_name}},
+                status=200,
             )
 
             # Mock get status - retorna Degraded
             m.get(
-                f'{ARGOCD_BASE_URL}/api/v1/applications/{app_name}',
+                f"{ARGOCD_BASE_URL}/api/v1/applications/{app_name}",
                 payload={
-                    'metadata': {'name': app_name},
-                    'status': {
-                        'health': {'status': 'Degraded', 'message': 'Some pods not ready'},
-                        'sync': {'status': 'Synced', 'revision': 'abc123'}
-                    }
+                    "metadata": {"name": app_name},
+                    "status": {
+                        "health": {"status": "Degraded", "message": "Some pods not ready"},
+                        "sync": {"status": "Synced", "revision": "abc123"},
+                    },
                 },
-                status=200
+                status=200,
             )
 
             result = await deploy_executor_integration.execute(deploy_ticket)
 
             # Degraded eh considerado "healthy" (com ressalvas)
-            assert result['success'] is True
-            assert result['output']['status'] == 'degraded'
+            assert result["success"] is True
+            assert result["output"]["status"] == "degraded"
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_deployment_missing_status(
-        self,
-        deploy_executor_integration,
-        deploy_ticket
-    ):
+    async def test_deployment_missing_status(self, deploy_executor_integration, deploy_ticket):
         """Deve tratar resposta sem status."""
-        app_name = deploy_ticket['parameters']['deployment_name']
+        app_name = deploy_ticket["parameters"]["deployment_name"]
 
         with aioresponses() as m:
             # Mock create application
             m.post(
-                f'{ARGOCD_BASE_URL}/api/v1/applications',
-                payload={'metadata': {'name': app_name}},
-                status=200
+                f"{ARGOCD_BASE_URL}/api/v1/applications",
+                payload={"metadata": {"name": app_name}},
+                status=200,
             )
 
             # Mock get status - Healthy
             m.get(
-                f'{ARGOCD_BASE_URL}/api/v1/applications/{app_name}',
+                f"{ARGOCD_BASE_URL}/api/v1/applications/{app_name}",
                 payload={
-                    'metadata': {'name': app_name},
-                    'status': {
-                        'health': {'status': 'Healthy'},
-                        'sync': {'status': 'Synced'}
-                    }
+                    "metadata": {"name": app_name},
+                    "status": {"health": {"status": "Healthy"}, "sync": {"status": "Synced"}},
                 },
-                status=200
+                status=200,
             )
 
             result = await deploy_executor_integration.execute(deploy_ticket)
 
-            assert result['success'] is True
+            assert result["success"] is True
 
 
 class TestDeploymentServerErrors:
@@ -421,41 +375,30 @@ class TestDeploymentServerErrors:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_server_error_500(
-        self,
-        deploy_executor_integration,
-        deploy_ticket
-    ):
+    async def test_server_error_500(self, deploy_executor_integration, deploy_ticket):
         """Deve tratar erro 500 do servidor."""
         with aioresponses() as m:
             # Mock create application com erro 500
             m.post(
-                f'{ARGOCD_BASE_URL}/api/v1/applications',
-                payload={'error': 'Internal Server Error'},
-                status=500
+                f"{ARGOCD_BASE_URL}/api/v1/applications",
+                payload={"error": "Internal Server Error"},
+                status=500,
             )
 
             result = await deploy_executor_integration.execute(deploy_ticket)
 
-            assert result['success'] is False
+            assert result["success"] is False
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_connection_error(
-        self,
-        worker_config,
-        mock_metrics,
-        deploy_ticket
-    ):
+    async def test_connection_error(self, worker_config, mock_metrics, deploy_ticket):
         """Deve tratar erro de conexao."""
         from executors.deploy_executor import DeployExecutor
         from clients.argocd_client import ArgoCDClient
 
         # Cliente com URL invalida
         client = ArgoCDClient(
-            base_url='http://nonexistent-server:9999',
-            token='test-token',
-            timeout=5
+            base_url="http://nonexistent-server:9999", token="test-token", timeout=5
         )
 
         executor = DeployExecutor(
@@ -464,13 +407,13 @@ class TestDeploymentServerErrors:
             code_forge_client=None,
             metrics=mock_metrics,
             argocd_client=client,
-            flux_client=None
+            flux_client=None,
         )
 
         result = await executor.execute(deploy_ticket)
 
-        assert result['success'] is False
-        assert result['output']['status'] == 'error'
+        assert result["success"] is False
+        assert result["output"]["status"] == "error"
 
         await client.close()
 

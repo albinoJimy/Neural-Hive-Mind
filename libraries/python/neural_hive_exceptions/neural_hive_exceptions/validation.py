@@ -46,7 +46,7 @@ class ValidationError(NeuralHiveError):
         value: Optional[Any] = None,
         reason: Optional[str] = None,
         code: Optional[str] = None,
-        details: Optional[Dict[str, Any]] = None
+        details: Optional[Dict[str, Any]] = None,
     ):
         code = code or ValidationErrorCode.INVALID_INPUT
 
@@ -59,12 +59,7 @@ class ValidationError(NeuralHiveError):
         if reason:
             error_details["reason"] = reason
 
-        super().__init__(
-            message=message,
-            code=code,
-            details=error_details,
-            http_status=400
-        )
+        super().__init__(message=message, code=code, details=error_details, http_status=400)
 
     @classmethod
     def missing_field(cls, field: str) -> "ValidationError":
@@ -72,23 +67,18 @@ class ValidationError(NeuralHiveError):
         return cls(
             message=f"Required field '{field}' is missing",
             field=field,
-            code=ValidationErrorCode.MISSING_REQUIRED_FIELD
+            code=ValidationErrorCode.MISSING_REQUIRED_FIELD,
         )
 
     @classmethod
-    def invalid_format(
-        cls,
-        field: str,
-        value: Any,
-        expected_format: str
-    ) -> "ValidationError":
+    def invalid_format(cls, field: str, value: Any, expected_format: str) -> "ValidationError":
         """Erro para formato inválido."""
         return cls(
             message=f"Field '{field}' has invalid format",
             field=field,
             value=value,
             reason=f"Expected format: {expected_format}",
-            code=ValidationErrorCode.INVALID_FORMAT
+            code=ValidationErrorCode.INVALID_FORMAT,
         )
 
     @classmethod
@@ -97,7 +87,7 @@ class ValidationError(NeuralHiveError):
         field: str,
         value: float,
         min_val: Optional[float] = None,
-        max_val: Optional[float] = None
+        max_val: Optional[float] = None,
     ) -> "ValidationError":
         """Erro para valor fora do range permitido."""
         parts = []
@@ -111,7 +101,7 @@ class ValidationError(NeuralHiveError):
             field=field,
             value=value,
             reason=f"Must satisfy: {', '.join(parts)}",
-            code=ValidationErrorCode.OUT_OF_RANGE
+            code=ValidationErrorCode.OUT_OF_RANGE,
         )
 
 
@@ -119,16 +109,10 @@ class SchemaValidationError(ValidationError):
     """Erro específico para validação de schema."""
 
     def __init__(
-        self,
-        message: str,
-        schema_name: str,
-        errors: Optional[List[Dict[str, Any]]] = None
+        self, message: str, schema_name: str, errors: Optional[List[Dict[str, Any]]] = None
     ):
         super().__init__(
             message=message,
             code=ValidationErrorCode.SCHEMA_MISMATCH,
-            details={
-                "schema": schema_name,
-                "errors": errors or []
-            }
+            details={"schema": schema_name, "errors": errors or []},
         )

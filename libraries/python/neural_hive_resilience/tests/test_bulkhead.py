@@ -207,6 +207,7 @@ class TestThreadPoolBulkhead:
 
         def blocking_io():
             import time
+
             time.sleep(0.1)
             return "done"
 
@@ -228,13 +229,11 @@ class TestThreadPoolBulkhead:
 
         def blocking_task(task_id):
             import time
+
             time.sleep(0.1)
             return task_id
 
-        tasks = [
-            bulkhead.run_in_thread(blocking_task, i)
-            for i in range(4)
-        ]
+        tasks = [bulkhead.run_in_thread(blocking_task, i) for i in range(4)]
 
         results = await asyncio.gather(*tasks)
         assert sorted(results) == [0, 1, 2, 3]

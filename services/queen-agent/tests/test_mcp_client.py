@@ -168,9 +168,7 @@ async def test_mcp_client_execute_tool_success():
     )
     execute_response.raise_for_status = MagicMock()
 
-    mock_http_client.post = AsyncMock(
-        side_effect=[init_response, tools_response, execute_response]
-    )
+    mock_http_client.post = AsyncMock(side_effect=[init_response, tools_response, execute_response])
     mock_http_client.aclose = AsyncMock()
 
     with patch("httpx.AsyncClient", return_value=mock_http_client):
@@ -178,16 +176,12 @@ async def test_mcp_client_execute_tool_success():
 
         # Manually add tool for testing
         from src.clients.mcp_client import MCPTool
+
         client._tools["scan_code"] = MCPTool(
-            name="scan_code",
-            description="Scan code",
-            input_schema={}
+            name="scan_code", description="Scan code", input_schema={}
         )
 
-        result = await client.execute_tool(
-            tool_name="scan_code",
-            arguments={"path": "/app/src"}
-        )
+        result = await client.execute_tool(tool_name="scan_code", arguments={"path": "/app/src"})
 
         assert result["output"] == "Scan complete, no vulnerabilities found"
         assert result["exitCode"] == 0
@@ -221,10 +215,7 @@ async def test_mcp_client_execute_tool_not_found():
         await client.connect()
 
         with pytest.raises(ValueError, match="Tool not found"):
-            await client.execute_tool(
-                tool_name="nonexistent_tool",
-                arguments={}
-            )
+            await client.execute_tool(tool_name="nonexistent_tool", arguments={})
 
         await client.close()
 
@@ -265,9 +256,7 @@ async def test_mcp_client_execute_tool_http_error():
         )
     )
 
-    mock_http_client.post = AsyncMock(
-        side_effect=[init_response, tools_response, error_response]
-    )
+    mock_http_client.post = AsyncMock(side_effect=[init_response, tools_response, error_response])
     mock_http_client.aclose = AsyncMock()
 
     with patch("httpx.AsyncClient", return_value=mock_http_client):
@@ -275,11 +264,8 @@ async def test_mcp_client_execute_tool_http_error():
 
         # Add tool manually
         from src.clients.mcp_client import MCPTool
-        client._tools["scan"] = MCPTool(
-            name="scan",
-            description="Scan",
-            input_schema={}
-        )
+
+        client._tools["scan"] = MCPTool(name="scan", description="Scan", input_schema={})
 
         with pytest.raises(MCPToolExecutionError, match="HTTP error"):
             await client.execute_tool(tool_name="scan", arguments={})
@@ -334,14 +320,12 @@ async def test_mcp_client_json_rpc_error():
         return_value={
             "jsonrpc": "2.0",
             "id": 1,
-            "error": {"code": -32601, "message": "Method not found"}
+            "error": {"code": -32601, "message": "Method not found"},
         }
     )
     error_response.raise_for_status = MagicMock()
 
-    mock_http_client.post = AsyncMock(
-        side_effect=[init_response, tools_response, error_response]
-    )
+    mock_http_client.post = AsyncMock(side_effect=[init_response, tools_response, error_response])
     mock_http_client.aclose = AsyncMock()
 
     with patch("httpx.AsyncClient", return_value=mock_http_client):
@@ -349,11 +333,8 @@ async def test_mcp_client_json_rpc_error():
 
         # Add tool
         from src.clients.mcp_client import MCPTool
-        client._tools["test"] = MCPTool(
-            name="test",
-            description="Test",
-            input_schema={}
-        )
+
+        client._tools["test"] = MCPTool(name="test", description="Test", input_schema={})
 
         # O erro JSON-RPC é wrapped em MCPToolExecutionError
         with pytest.raises(MCPToolExecutionError, match="Tool execution failed"):
@@ -407,9 +388,7 @@ async def test_mcp_client_get_tool():
     )
     tools_response.raise_for_status = MagicMock()
 
-    mock_http_client.post = AsyncMock(
-        side_effect=[init_response, tools_response]
-    )
+    mock_http_client.post = AsyncMock(side_effect=[init_response, tools_response])
     mock_http_client.aclose = AsyncMock()
 
     with patch("httpx.AsyncClient", return_value=mock_http_client):
@@ -439,6 +418,7 @@ async def test_mcp_client_close_without_connect():
 
 # ============ HTTPMCPClient Tests ============
 
+
 @pytest.mark.asyncio
 async def test_http_mcp_client_connect_success():
     """Testa conexão bem-sucedida com servidor HTTP MCP."""
@@ -448,11 +428,7 @@ async def test_http_mcp_client_connect_success():
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.json = MagicMock(
-        return_value={
-            "status": "healthy",
-            "server": "Scout HTTP Server",
-            "version": "1.0.0"
-        }
+        return_value={"status": "healthy", "server": "Scout HTTP Server", "version": "1.0.0"}
     )
     mock_response.raise_for_status = MagicMock()
     mock_http_client.get = AsyncMock(return_value=mock_response)
@@ -480,11 +456,7 @@ async def test_http_mcp_client_list_tools():
     health_response = MagicMock()
     health_response.status_code = 200
     health_response.json = MagicMock(
-        return_value={
-            "status": "healthy",
-            "server": "Scout HTTP Server",
-            "version": "1.0.0"
-        }
+        return_value={"status": "healthy", "server": "Scout HTTP Server", "version": "1.0.0"}
     )
     health_response.raise_for_status = MagicMock()
 
@@ -501,9 +473,7 @@ async def test_http_mcp_client_list_tools():
     )
     tools_response.raise_for_status = MagicMock()
 
-    mock_http_client.get = AsyncMock(
-        side_effect=[health_response, tools_response]
-    )
+    mock_http_client.get = AsyncMock(side_effect=[health_response, tools_response])
     mock_http_client.aclose = AsyncMock()
 
     with patch("httpx.AsyncClient", return_value=mock_http_client):
@@ -545,17 +515,11 @@ async def test_http_mcp_client_execute_tool_success():
     exec_response = MagicMock()
     exec_response.status_code = 200
     exec_response.json = MagicMock(
-        return_value={
-            "total_files": 10,
-            "total_dirs": 2,
-            "languages": {"python": 10}
-        }
+        return_value={"total_files": 10, "total_dirs": 2, "languages": {"python": 10}}
     )
     exec_response.raise_for_status = MagicMock()
 
-    mock_http_client.get = AsyncMock(
-        side_effect=[health_response, tools_response]
-    )
+    mock_http_client.get = AsyncMock(side_effect=[health_response, tools_response])
     mock_http_client.post = AsyncMock(return_value=exec_response)
     mock_http_client.aclose = AsyncMock()
 
@@ -563,8 +527,7 @@ async def test_http_mcp_client_execute_tool_success():
         await client.connect()
 
         result = await client.execute_tool(
-            tool_name="scan",
-            arguments={"path": "/repo", "max_depth": 3}
+            tool_name="scan", arguments={"path": "/repo", "max_depth": 3}
         )
 
         assert result["total_files"] == 10
@@ -592,9 +555,7 @@ async def test_http_mcp_client_execute_tool_not_found():
     tools_response.json = MagicMock(return_value={"tools": []})
     tools_response.raise_for_status = MagicMock()
 
-    mock_http_client.get = AsyncMock(
-        side_effect=[health_response, tools_response]
-    )
+    mock_http_client.get = AsyncMock(side_effect=[health_response, tools_response])
     mock_http_client.aclose = AsyncMock()
 
     with patch("httpx.AsyncClient", return_value=mock_http_client):
@@ -647,9 +608,7 @@ async def test_http_mcp_client_tools_count():
     )
     tools_response.raise_for_status = MagicMock()
 
-    mock_http_client.get = AsyncMock(
-        side_effect=[health_response, tools_response]
-    )
+    mock_http_client.get = AsyncMock(side_effect=[health_response, tools_response])
     mock_http_client.aclose = AsyncMock()
 
     with patch("httpx.AsyncClient", return_value=mock_http_client):

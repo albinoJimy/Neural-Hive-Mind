@@ -90,9 +90,7 @@ class TestAcquireLeadership:
         mock_redis.client.set.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_acquire_leadership_already_exists(
-        self, leader_election, mock_redis
-    ):
+    async def test_acquire_leadership_already_exists(self, leader_election, mock_redis):
         """Testa falha quando já existe líder"""
         mock_redis.client.set.return_value = False
         mock_redis.client.get.return_value = b"other-node"
@@ -103,9 +101,7 @@ class TestAcquireLeadership:
         assert leader_election.state.role == NodeRole.FOLLOWER
 
     @pytest.mark.asyncio
-    async def test_acquire_leadership_increments_term(
-        self, leader_election, mock_redis
-    ):
+    async def test_acquire_leadership_increments_term(self, leader_election, mock_redis):
         """Testa que termo é incrementado em cada aquisição"""
         mock_redis.client.set.return_value = True
 

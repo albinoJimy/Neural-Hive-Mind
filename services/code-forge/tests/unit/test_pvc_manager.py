@@ -14,7 +14,7 @@ from src.services.kaniko.pvc_manager import (
     CONFIGMAP_MAX_BYTES,
     detect_large_context_and_create_pvc,
     cleanup_build_pvc,
-    get_pvc_mount_spec
+    get_pvc_mount_spec,
 )
 
 
@@ -76,10 +76,7 @@ class TestPVCManagerInitialization:
 
     def test_initialization_with_custom_values(self):
         """Testa inicialização com valores customizados."""
-        manager = PVCManager(
-            namespace="custom-namespace",
-            storage_class="ssd"
-        )
+        manager = PVCManager(namespace="custom-namespace", storage_class="ssd")
 
         assert manager.namespace == "custom-namespace"
         assert manager.storage_class == "ssd"
@@ -103,10 +100,13 @@ class TestDetectContextSize:
         assert size < CONFIGMAP_MAX_BYTES
         assert size < 1024 * 1024  # Menos de 1MB
 
-    def test_detect_context_size_with_dockerfile_only(self, pvc_manager, sample_dockerfile, tmp_path):
+    def test_detect_context_size_with_dockerfile_only(
+        self, pvc_manager, sample_dockerfile, tmp_path
+    ):
         """Testa detecção com apenas Dockerfile."""
         empty_context = str(tmp_path / "empty")
         import os
+
         os.makedirs(empty_context, exist_ok=True)
 
         size = pvc_manager.detect_context_size(sample_dockerfile, empty_context)
@@ -184,8 +184,7 @@ class TestCalculatePVCSize:
     def test_calculate_size_with_custom_margin(self, pvc_manager):
         """Testa cálculo com margem customizada."""
         size_gb = pvc_manager.calculate_pvc_size_gb(
-            1024 * 1024 * 1024,  # 1GB
-            margin_multiplier=2.0  # 2x de margem
+            1024 * 1024 * 1024, margin_multiplier=2.0  # 1GB  # 2x de margem
         )
 
         # 1GB * 2 = 2GB, int(2) + 1 = 3 (arredondamento para cima)
@@ -220,10 +219,7 @@ class TestCreatePVCForBuild:
         # Configurar mock para retornar PVC com nome correto
         mock_k8s_client.create_namespaced_persistent_volume_claim.return_value = sample_pvc
 
-        result = pvc_manager.create_pvc_for_build(
-            build_id="test",
-            size_gb=5
-        )
+        result = pvc_manager.create_pvc_for_build(build_id="test", size_gb=5)
 
         # O get_pvc_name gera "kaniko-build-test" para build_id="test"
         assert result is not None
@@ -247,9 +243,7 @@ class TestCreatePVCForBuild:
         mock_k8s_client.create_namespaced_persistent_volume_claim.return_value = sample_pvc
 
         result = pvc_manager.create_pvc_for_build(
-            build_id="test-build",
-            size_gb=2,
-            access_mode="ReadWriteMany"
+            build_id="test-build", size_gb=2, access_mode="ReadWriteMany"
         )
 
         assert result is not None
@@ -395,11 +389,7 @@ class TestListPVCsForBuild:
         mock_pvc = Mock()
         mock_pvc.metadata = Mock()
         mock_pvc.metadata.name = "kaniko-build-mybuild"
-        mock_pvc.metadata.labels = {
-            "app": "kaniko",
-            "temporary": "true",
-            "build-id": "mybuild"
-        }
+        mock_pvc.metadata.labels = {"app": "kaniko", "temporary": "true", "build-id": "mybuild"}
 
         mock_list = Mock()
         mock_list.items = [mock_pvc]
@@ -508,7 +498,7 @@ class TestCleanupAllBuildPVCs:
 class TestConvenienceFunctions:
     """Testes para funções de conveniência."""
 
-    @patch('src.services.kaniko.pvc_manager.PVCManager')
+    @patch("src.services.kaniko.pvc_manager.PVCManager")
     def test_detect_large_context_and_create_pvc_small(self, mock_manager_class):
         """Testa detecção de contexto pequeno (sem PVC)."""
         mock_manager = Mock()
@@ -517,9 +507,7 @@ class TestConvenienceFunctions:
         mock_manager_class.return_value = mock_manager
 
         needs_pvc, pvc_name, pvc_size_gb = detect_large_context_and_create_pvc(
-            "/path/to/Dockerfile",
-            "/path/to/context",
-            "build-123"
+            "/path/to/Dockerfile", "/path/to/context", "build-123"
         )
 
         assert needs_pvc is False
@@ -527,7 +515,7 @@ class TestConvenienceFunctions:
         assert pvc_size_gb is None
         mock_manager.create_pvc_for_build.assert_not_called()
 
-    @patch('src.services.kaniko.pvc_manager.PVCManager')
+    @patch("src.services.kaniko.pvc_manager.PVCManager")
     def test_detect_large_context_and_create_pvc_large_success(self, mock_manager_class):
         """Testa detecção de contexto grande com criação bem-sucedida."""
         mock_pvc = Mock()
@@ -542,9 +530,7 @@ class TestConvenienceFunctions:
         mock_manager_class.return_value = mock_manager
 
         needs_pvc, pvc_name, pvc_size_gb = detect_large_context_and_create_pvc(
-            "/path/to/Dockerfile",
-            "/path/to/context",
-            "build-123"
+            "/path/to/Dockerfile", "/path/to/context", "build-123"
         )
 
         assert needs_pvc is True
@@ -552,7 +538,7 @@ class TestConvenienceFunctions:
         assert pvc_size_gb == 2
         mock_manager.create_pvc_for_build.assert_called_once_with("build-123", 2)
 
-    @patch('src.services.kaniko.pvc_manager.PVCManager')
+    @patch("src.services.kaniko.pvc_manager.PVCManager")
     def test_detect_large_context_and_create_pvc_failure(self, mock_manager_class):
         """Testa detecção de contexto grande com falha na criação."""
         mock_manager = Mock()
@@ -563,9 +549,7 @@ class TestConvenienceFunctions:
         mock_manager_class.return_value = mock_manager
 
         needs_pvc, pvc_name, pvc_size_gb = detect_large_context_and_create_pvc(
-            "/path/to/Dockerfile",
-            "/path/to/context",
-            "build-123"
+            "/path/to/Dockerfile", "/path/to/context", "build-123"
         )
 
         # Em caso de erro, retorna False
@@ -573,7 +557,7 @@ class TestConvenienceFunctions:
         assert pvc_name is None
         assert pvc_size_gb is None
 
-    @patch('src.services.kaniko.pvc_manager.PVCManager')
+    @patch("src.services.kaniko.pvc_manager.PVCManager")
     def test_cleanup_build_pvc(self, mock_manager_class):
         """Testa função de conveniência para cleanup."""
         mock_manager = Mock()
@@ -588,7 +572,7 @@ class TestConvenienceFunctions:
         # Verifica que cleanup_pvc foi chamado com o nome (ignora_not_found tem default True)
         mock_manager.cleanup_pvc.assert_called_once_with("kaniko-build-test")
 
-    @patch('src.services.kaniko.pvc_manager.PVCManager')
+    @patch("src.services.kaniko.pvc_manager.PVCManager")
     def test_get_pvc_mount_spec(self, mock_manager_class):
         """Testa função de conveniência para mount spec."""
         mock_manager = Mock()
@@ -597,10 +581,7 @@ class TestConvenienceFunctions:
 
         result = get_pvc_mount_spec("my-pvc")
 
-        assert result == {
-            "name": "my-pvc",
-            "mountPath": "/custom-mount"
-        }
+        assert result == {"name": "my-pvc", "mountPath": "/custom-mount"}
         mock_manager.get_pvc_mount_path.assert_called_once_with("my-pvc")
 
 

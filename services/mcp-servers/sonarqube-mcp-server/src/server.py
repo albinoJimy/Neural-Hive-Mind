@@ -18,7 +18,7 @@ settings = get_settings()
 mcp = FastMCP(
     name="SonarQube MCP Server",
     version=settings.service_version,
-    instructions="Análise de qualidade de código e métricas via SonarQube"
+    instructions="Análise de qualidade de código e métricas via SonarQube",
 )
 
 
@@ -46,8 +46,4 @@ def get_sonarqube_info() -> str:
 # Registrar ferramentas
 register_sonarqube_tools(mcp)
 
-logger.info(
-    "sonarqube_mcp_server_initialized",
-    name=mcp.name,
-    version=settings.service_version
-)
+logger.info("sonarqube_mcp_server_initialized", name=mcp.name, version=settings.service_version)

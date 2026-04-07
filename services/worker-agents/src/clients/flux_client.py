@@ -29,7 +29,6 @@ class FluxTimeoutError(Exception):
     """Timeout aguardando Kustomization ficar ready."""
 
 
-
 class SourceReference(BaseModel):
     """Referencia a fonte GitRepository ou OCIRepository."""
 

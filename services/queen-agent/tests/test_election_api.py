@@ -18,9 +18,7 @@ def mock_app_state():
     state.leader_election.node_id = "test-node-1"
     state.leader_election.is_running = True
     state.leader_election.get_state = MagicMock(
-        return_value=ElectionState(
-            role=NodeRole.LEADER, leader_id="test-node-1", term=1
-        )
+        return_value=ElectionState(role=NodeRole.LEADER, leader_id="test-node-1", term=1)
     )
     state.leader_election.get_leader_metadata = AsyncMock(
         return_value={"node_id": "test-node-1", "term": "1", "acquired_at": "2024-01-01T00:00:00"}

@@ -118,10 +118,7 @@ def test_get_unified_domain():
     # Testes de mapeamento válido
     assert mapper.get_unified_domain("security-analysis") == UnifiedDomain.SECURITY
     assert mapper.get_unified_domain("architecture-review") == UnifiedDomain.TECHNICAL
-    assert (
-        mapper.get_unified_domain("performance-optimization")
-        == UnifiedDomain.OPERATIONAL
-    )
+    assert mapper.get_unified_domain("performance-optimization") == UnifiedDomain.OPERATIONAL
     assert mapper.get_unified_domain("code-quality") == UnifiedDomain.TECHNICAL
 
     # Teste de domínio inválido

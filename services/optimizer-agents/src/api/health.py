@@ -323,7 +323,9 @@ async def deep_health_check():
     overall_status = "healthy" if all_healthy else "unhealthy"
 
     # Determine HTTP status code
-    status_code = status.HTTP_200_OK if overall_status == "healthy" else status.HTTP_503_SERVICE_UNAVAILABLE
+    status_code = (
+        status.HTTP_200_OK if overall_status == "healthy" else status.HTTP_503_SERVICE_UNAVAILABLE
+    )
 
     return JSONResponse(
         status_code=status_code,
@@ -336,10 +338,7 @@ async def deep_health_check():
             "resources": resources.dict(),
             "dependencies": [dep.dict() for dep in dependencies],
             "ml_models": ml_models,
-            "checks": {
-                dep.name: dep.status
-                for dep in dependencies
-            },
+            "checks": {dep.name: dep.status for dep in dependencies},
         },
     )
 

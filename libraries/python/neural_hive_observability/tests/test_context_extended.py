@@ -31,8 +31,7 @@ class TestContextManagerHttpHeaders:
     def test_extract_http_headers_with_all_fields(self):
         """Testa extração de todos os campos de headers HTTP."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
         ctx_manager = ContextManager(config)
 
@@ -41,7 +40,7 @@ class TestContextManagerHttpHeaders:
             "X-Neural-Hive-Plan-Id": "plan-456",
             "X-Neural-Hive-User-Id": "user-789",
             "X-Neural-Hive-Domain": "test-domain",
-            "X-Neural-Hive-Channel": "web"
+            "X-Neural-Hive-Channel": "web",
         }
 
         result = ctx_manager.extract_http_headers(headers)
@@ -56,15 +55,11 @@ class TestContextManagerHttpHeaders:
     def test_extract_http_headers_partial(self):
         """Testa extração parcial de headers."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
         ctx_manager = ContextManager(config)
 
-        headers = {
-            "X-Neural-Hive-Intent-Id": "intent-123",
-            "X-Neural-Hive-Channel": "api"
-        }
+        headers = {"X-Neural-Hive-Intent-Id": "intent-123", "X-Neural-Hive-Channel": "api"}
 
         result = ctx_manager.extract_http_headers(headers)
 
@@ -76,8 +71,7 @@ class TestContextManagerHttpHeaders:
     def test_extract_http_headers_empty(self):
         """Testa extração de headers vazios."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
         ctx_manager = ContextManager(config)
 
@@ -87,17 +81,14 @@ class TestContextManagerHttpHeaders:
     def test_extract_http_headers_sets_baggage(self):
         """Testa que extração define baggage."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
         ctx_manager = ContextManager(config)
 
-        headers = {
-            "X-Neural-Hive-Intent-Id": "intent-123"
-        }
+        headers = {"X-Neural-Hive-Intent-Id": "intent-123"}
 
         # Mock attach para evitar problemas de contexto
-        with patch('neural_hive_observability.context.attach'):
+        with patch("neural_hive_observability.context.attach"):
             result = ctx_manager.extract_http_headers(headers)
 
         # Resultado deve conter o intent_id
@@ -111,8 +102,7 @@ class TestContextManagerKafkaHeaders:
     def test_inject_kafka_headers_converts_to_bytes(self):
         """Testa que injeção converte para bytes."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
         ctx_manager = ContextManager(config)
 
@@ -125,15 +115,11 @@ class TestContextManagerKafkaHeaders:
     def test_extract_kafka_headers_converts_from_bytes(self):
         """Testa que extração converte de bytes."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
         ctx_manager = ContextManager(config)
 
-        headers = {
-            b"X-Neural-Hive-Intent-Id": b"intent-123",
-            b"X-Neural-Hive-Plan-Id": b"plan-456"
-        }
+        headers = {b"X-Neural-Hive-Intent-Id": b"intent-123", b"X-Neural-Hive-Plan-Id": b"plan-456"}
 
         result = ctx_manager.extract_kafka_headers(headers)
 
@@ -144,14 +130,11 @@ class TestContextManagerKafkaHeaders:
     def test_extract_kafka_headers_with_string_values(self):
         """Testa extração com valores string."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
         ctx_manager = ContextManager(config)
 
-        headers = {
-            "X-Neural-Hive-Intent-Id": "intent-123"
-        }
+        headers = {"X-Neural-Hive-Intent-Id": "intent-123"}
 
         result = ctx_manager.extract_kafka_headers(headers)
 
@@ -161,8 +144,7 @@ class TestContextManagerKafkaHeaders:
     def test_extract_kafka_headers_empty(self):
         """Testa extração de headers Kafka vazios."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
         ctx_manager = ContextManager(config)
 
@@ -176,8 +158,7 @@ class TestContextManagerGetters:
     def test_get_intent_id_from_baggage(self):
         """Testa get_intent_id."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
         ctx_manager = ContextManager(config)
 
@@ -188,8 +169,7 @@ class TestContextManagerGetters:
     def test_get_plan_id_from_baggage(self):
         """Testa get_plan_id."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
         ctx_manager = ContextManager(config)
 
@@ -199,8 +179,7 @@ class TestContextManagerGetters:
     def test_get_user_id_from_baggage(self):
         """Testa get_user_id."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
         ctx_manager = ContextManager(config)
 
@@ -210,8 +189,7 @@ class TestContextManagerGetters:
     def test_get_domain_from_baggage(self):
         """Testa get_domain."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
         ctx_manager = ContextManager(config)
 
@@ -221,8 +199,7 @@ class TestContextManagerGetters:
     def test_get_channel_from_baggage(self):
         """Testa get_channel."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
         ctx_manager = ContextManager(config)
 
@@ -236,14 +213,12 @@ class TestChildContext:
     def test_child_context_initialization(self):
         """Testa inicialização do ChildContext."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
         parent_manager = ContextManager(config)
 
         child_ctx = parent_manager.create_child_context(
-            intent_id="child-intent",
-            operation="child-op"
+            intent_id="child-intent", operation="child-op"
         )
 
         assert child_ctx.parent_manager == parent_manager
@@ -253,16 +228,12 @@ class TestChildContext:
     def test_child_context_inherits_parent_ids(self):
         """Testa que contexto filho herda IDs do pai."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
         parent_manager = ContextManager(config)
 
         # Definir IDs no contexto pai
-        with parent_manager.correlation_context(
-            intent_id="parent-intent",
-            plan_id="parent-plan"
-        ):
+        with parent_manager.correlation_context(intent_id="parent-intent", plan_id="parent-plan"):
             child_ctx = parent_manager.create_child_context()
 
             # IDs devem ser herdados
@@ -272,15 +243,12 @@ class TestChildContext:
     def test_child_context_overrides_parent_ids(self):
         """Testa que contexto filho pode sobrescrever IDs."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
         parent_manager = ContextManager(config)
 
         with parent_manager.correlation_context(intent_id="parent-intent"):
-            child_ctx = parent_manager.create_child_context(
-                intent_id="child-intent"
-            )
+            child_ctx = parent_manager.create_child_context(intent_id="child-intent")
 
             # ID filho deve sobrescrever pai
             assert child_ctx.intent_id == "child-intent"
@@ -288,19 +256,18 @@ class TestChildContext:
     def test_child_context_enter_exit(self):
         """Testa enter/exit do ChildContext."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
         parent_manager = ContextManager(config)
 
         child_ctx = parent_manager.create_child_context(
-            intent_id="test-intent",
-            operation="test-op"
+            intent_id="test-intent", operation="test-op"
         )
 
         # Mock attach/detach
-        with patch('neural_hive_observability.context.attach') as mock_attach, \
-             patch('neural_hive_observability.context.detach') as mock_detach:
+        with patch("neural_hive_observability.context.attach") as mock_attach, patch(
+            "neural_hive_observability.context.detach"
+        ) as mock_detach:
             mock_attach.return_value = "token"
 
             with child_ctx:
@@ -311,14 +278,11 @@ class TestChildContext:
     def test_child_context_get_correlation(self):
         """Testa get_correlation do ChildContext."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
         parent_manager = ContextManager(config)
 
-        child_ctx = parent_manager.create_child_context(
-            intent_id="test-intent"
-        )
+        child_ctx = parent_manager.create_child_context(intent_id="test-intent")
 
         correlation = child_ctx.get_correlation()
         assert isinstance(correlation, dict)
@@ -332,25 +296,25 @@ class TestExtractContextFromHeaders:
         headers = {
             "x-neural-hive-intent-id": "intent-123",
             "x-neural-hive-plan-id": "plan-456",
-            "baggage": "neural.hive.channel=api"
+            "baggage": "neural.hive.channel=api",
         }
 
         token = extract_context_from_headers(headers)
 
         # Token pode ser None ou um token válido
-        assert token is None or hasattr(token, '__detach__')
+        assert token is None or hasattr(token, "__detach__")
 
     def test_extract_from_list_headers(self):
         """Testa extração de headers como lista de tuplas."""
         headers = [
             (b"x-neural-hive-intent-id", b"intent-123"),
-            (b"x-neural-hive-plan-id", b"plan-456")
+            (b"x-neural-hive-plan-id", b"plan-456"),
         ]
 
         token = extract_context_from_headers(headers)
 
         # Não deve lançar exceção
-        assert token is None or hasattr(token, '__detach__')
+        assert token is None or hasattr(token, "__detach__")
 
     def test_extract_from_empty_headers(self):
         """Testa extração de headers vazios."""
@@ -367,7 +331,7 @@ class TestSetBaggageValue:
     def test_set_baggage_value_with_valid_key_value(self):
         """Testa definir baggage com chave e valor válidos."""
         # Mock attach
-        with patch('neural_hive_observability.context.attach'):
+        with patch("neural_hive_observability.context.attach"):
             set_baggage_value("test.key", "test-value")
             # Não deve lançar exceção
 
@@ -426,11 +390,7 @@ class TestExtractContextFromMetadata:
 
     def test_extract_from_grpc_metadata_lowercase(self):
         """Testa extração de metadata gRPC (lowercase)."""
-        metadata = {
-            "intent-id": "intent-123",
-            "plan-id": "plan-456",
-            "user-id": "user-789"
-        }
+        metadata = {"intent-id": "intent-123", "plan-id": "plan-456", "user-id": "user-789"}
 
         result = extract_context_from_metadata(metadata)
 
@@ -444,7 +404,7 @@ class TestExtractContextFromMetadata:
         metadata = {
             "X-Neural-Hive-Intent-Id": "intent-123",
             "x-neural-hive-plan-id": "plan-456",
-            "X-Neural-Hive-Domain": "test-domain"
+            "X-Neural-Hive-Domain": "test-domain",
         }
 
         result = extract_context_from_metadata(metadata)
@@ -456,9 +416,7 @@ class TestExtractContextFromMetadata:
 
     def test_extract_from_baggage_header(self):
         """Testa extração de header baggage W3C."""
-        metadata = {
-            "baggage": "neural.hive.intent.id=intent-123,neural.hive.channel=api"
-        }
+        metadata = {"baggage": "neural.hive.intent.id=intent-123,neural.hive.channel=api"}
 
         result = extract_context_from_metadata(metadata)
 
@@ -471,7 +429,7 @@ class TestExtractContextFromMetadata:
         metadata = {
             "x-neural-hive-intent-id": "intent-123",
             "baggage": "neural.hive.channel=api,neural.hive.domain=test",
-            "x-request-id": "req-456"
+            "x-request-id": "req-456",
         }
 
         result = extract_context_from_metadata(metadata)
@@ -502,8 +460,7 @@ class TestContextManagerCorrelationContextExtended:
     def test_correlation_context_with_all_parameters(self):
         """Testa correlation_context com todos os parâmetros."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
         ctx_manager = ContextManager(config)
 
@@ -514,7 +471,7 @@ class TestContextManagerCorrelationContextExtended:
             domain="test-domain",
             channel="test-channel",
             custom_field="custom-value",
-            another_field=123
+            another_field=123,
         ):
             correlation = ctx_manager.get_current_correlation()
             # Deve retornar um dicionário
@@ -523,28 +480,22 @@ class TestContextManagerCorrelationContextExtended:
     def test_correlation_context_with_none_values(self):
         """Testa correlation_context com valores None."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
         ctx_manager = ContextManager(config)
 
-        with ctx_manager.correlation_context(
-            intent_id=None,
-            plan_id=None,
-            user_id=None
-        ):
+        with ctx_manager.correlation_context(intent_id=None, plan_id=None, user_id=None):
             # Não deve lançar exceção
             pass
 
     def test_correlation_context_cleanup_on_exception(self):
         """Testa que correlation_context limpa mesmo com exceção."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
         ctx_manager = ContextManager(config)
 
-        with patch('neural_hive_observability.context.detach') as mock_detach:
+        with patch("neural_hive_observability.context.detach") as mock_detach:
             try:
                 with ctx_manager.correlation_context(intent_id="test"):
                     raise ValueError("Test exception")
@@ -561,8 +512,7 @@ class TestContextManagerGetCorrelationExtended:
     def test_get_correlation_without_active_span(self):
         """Testa get_correlation sem span ativo."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
         ctx_manager = ContextManager(config)
 
@@ -574,15 +524,11 @@ class TestContextManagerGetCorrelationExtended:
     def test_get_correlation_includes_baggage(self):
         """Testa que get_correlation inclui baggage."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
         ctx_manager = ContextManager(config)
 
-        with ctx_manager.correlation_context(
-            intent_id="test-intent",
-            domain="test-domain"
-        ):
+        with ctx_manager.correlation_context(intent_id="test-intent", domain="test-domain"):
             correlation = ctx_manager.get_current_correlation()
 
             # Baggage deve estar incluído
@@ -595,15 +541,11 @@ class TestContextManagerInjectHttpHeadersExtended:
     def test_inject_http_headers_preserves_existing(self):
         """Testa que headers existentes são preservados."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
         ctx_manager = ContextManager(config)
 
-        existing = {
-            "Authorization": "Bearer token",
-            "Content-Type": "application/json"
-        }
+        existing = {"Authorization": "Bearer token", "Content-Type": "application/json"}
 
         result = ctx_manager.inject_http_headers(existing)
 
@@ -613,15 +555,11 @@ class TestContextManagerInjectHttpHeadersExtended:
     def test_inject_http_headers_with_correlation(self):
         """Testa injeção com contexto de correlação."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
         ctx_manager = ContextManager(config)
 
-        with ctx_manager.correlation_context(
-            intent_id="test-intent",
-            channel="api"
-        ):
+        with ctx_manager.correlation_context(intent_id="test-intent", channel="api"):
             result = ctx_manager.inject_http_headers({})
 
             # Headers de correlação devem estar presentes

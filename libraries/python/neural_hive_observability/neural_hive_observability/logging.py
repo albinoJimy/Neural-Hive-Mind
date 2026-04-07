@@ -18,9 +18,7 @@ from .config import ObservabilityConfig
 
 # Processor para adicionar correlação do OpenTelemetry
 def _add_trace_correlation(
-    logger: logging.Logger,
-    method_name: str,
-    event_dict: Dict[str, Any]
+    logger: logging.Logger, method_name: str, event_dict: Dict[str, Any]
 ) -> Dict[str, Any]:
     """
     Adiciona trace_id e span_id do OpenTelemetry ao log.
@@ -43,9 +41,7 @@ def _add_trace_correlation(
 
 # Processor para adicionar timestamp UTC
 def _add_timestamp_utc(
-    logger: logging.Logger,
-    method_name: str,
-    event_dict: Dict[str, Any]
+    logger: logging.Logger, method_name: str, event_dict: Dict[str, Any]
 ) -> Dict[str, Any]:
     """Adiciona timestamp UTC ao log."""
     event_dict["timestamp"] = datetime.now(timezone.utc).isoformat()
@@ -54,9 +50,7 @@ def _add_timestamp_utc(
 
 # Processor para adicionar metadados do serviço
 def _add_service_metadata(
-    logger: logging.Logger,
-    method_name: str,
-    event_dict: Dict[str, Any]
+    logger: logging.Logger, method_name: str, event_dict: Dict[str, Any]
 ) -> Dict[str, Any]:
     """Adiciona metadados do serviço ao log."""
     # Obtém configuração do context ou usa defaults
@@ -78,9 +72,7 @@ def _add_service_metadata(
 
 # Processor para adicionar nível de log padrão
 def _add_log_level(
-    logger: logging.Logger,
-    method_name: str,
-    event_dict: Dict[str, Any]
+    logger: logging.Logger, method_name: str, event_dict: Dict[str, Any]
 ) -> Dict[str, Any]:
     """Adiciona nível de log ao evento."""
     event_dict["level"] = method_name.upper()
@@ -89,9 +81,7 @@ def _add_log_level(
 
 # Processor para adicionar nome do logger
 def _add_logger_name(
-    logger: logging.Logger,
-    method_name: str,
-    event_dict: Dict[str, Any]
+    logger: logging.Logger, method_name: str, event_dict: Dict[str, Any]
 ) -> Dict[str, Any]:
     """Adiciona nome do logger ao evento."""
     event_dict["logger"] = logger.name
@@ -107,11 +97,7 @@ class NeuralHiveLogger:
     e campos de negócio (intent_id, plan_id, user_id).
     """
 
-    def __init__(
-        self,
-        name: str,
-        config: Optional[ObservabilityConfig] = None
-    ):
+    def __init__(self, name: str, config: Optional[ObservabilityConfig] = None):
         """
         Inicializa logger.
 
@@ -216,7 +202,7 @@ class NeuralHiveLogger:
         intent_id: Optional[str] = None,
         plan_id: Optional[str] = None,
         user_id: Optional[str] = None,
-        **extra
+        **extra,
     ) -> "NeuralHiveLogger":
         """
         Retorna logger com múltiplos IDs de correlação vinculados.
@@ -241,19 +227,14 @@ class NeuralHiveLogger:
         return self.bind(**context)
 
     # Métodos específicos de operação
-    def log_intent_start(
-        self,
-        intent_id: str,
-        user_input: str,
-        channel: str = "unknown"
-    ):
+    def log_intent_start(self, intent_id: str, user_input: str, channel: str = "unknown"):
         """Log início de processamento de intenção."""
         self.info(
             "Iniciando processamento de intenção",
             intent_id=intent_id,
             operation="intent_start",
             channel=channel,
-            user_input_length=len(user_input)
+            user_input_length=len(user_input),
         )
 
     def log_intent_completion(
@@ -261,7 +242,7 @@ class NeuralHiveLogger:
         intent_id: str,
         confidence: float,
         processing_duration: float,
-        channel: str = "unknown"
+        channel: str = "unknown",
     ):
         """Log conclusão de processamento de intenção."""
         self.info(
@@ -270,14 +251,11 @@ class NeuralHiveLogger:
             operation="intent_completion",
             channel=channel,
             confidence=confidence,
-            processing_duration_seconds=processing_duration
+            processing_duration_seconds=processing_duration,
         )
 
     def log_plan_execution_start(
-        self,
-        plan_id: str,
-        intent_id: Optional[str] = None,
-        plan_type: str = "unknown"
+        self, plan_id: str, intent_id: Optional[str] = None, plan_type: str = "unknown"
     ):
         """Log início de execução de plano."""
         self.info(
@@ -285,7 +263,7 @@ class NeuralHiveLogger:
             plan_id=plan_id,
             intent_id=intent_id,
             operation="plan_execution_start",
-            plan_type=plan_type
+            plan_type=plan_type,
         )
 
     def log_plan_execution_completion(
@@ -294,7 +272,7 @@ class NeuralHiveLogger:
         success: bool,
         execution_duration: float,
         intent_id: Optional[str] = None,
-        plan_type: str = "unknown"
+        plan_type: str = "unknown",
     ):
         """Log conclusão de execução de plano."""
         message = "Plano executado com sucesso" if success else "Falha na execução do plano"
@@ -305,7 +283,7 @@ class NeuralHiveLogger:
             operation="plan_execution_completion",
             plan_type=plan_type,
             success=success,
-            execution_duration_seconds=execution_duration
+            execution_duration_seconds=execution_duration,
         )
 
 
@@ -336,13 +314,9 @@ def init_logging(config: ObservabilityConfig) -> None:
 
     # Formato depende de config.log_format
     if config.log_format.lower() == "json":
-        formatter = logging.Formatter(
-            '%(message)s'  # structlog já formata como JSON
-        )
+        formatter = logging.Formatter("%(message)s")  # structlog já formata como JSON
     else:
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
+        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
     console_handler.setFormatter(formatter)
     stdlib_logger.addHandler(console_handler)
@@ -376,7 +350,8 @@ def init_logging(config: ObservabilityConfig) -> None:
 
     # Configurar structlog
     structlog.configure(
-        processors=shared_processors + [
+        processors=shared_processors
+        + [
             structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
         ],
         context_class=dict,
@@ -393,16 +368,13 @@ def init_logging(config: ObservabilityConfig) -> None:
         )
     else:
         # Formato texto legível
-        processor = structlog.stdlib.ProcessorFormatter(
-            processor=renderer
-        )
+        processor = structlog.stdlib.ProcessorFormatter(processor=renderer)
 
     console_handler.setFormatter(processor)
 
 
 def get_logger(
-    name: Optional[str] = None,
-    config: Optional[ObservabilityConfig] = None
+    name: Optional[str] = None, config: Optional[ObservabilityConfig] = None
 ) -> NeuralHiveLogger:
     """
     Retorna logger estruturado com suporte a correlação.
@@ -434,6 +406,7 @@ def get_logger(
     if name is None:
         # Obter nome do módulo chamador
         import inspect
+
         frame = inspect.currentframe()
         if frame and frame.f_back:
             name = frame.f_back.f_globals.get("__name__", "unknown")
@@ -453,6 +426,7 @@ class CorrelationFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         import json
+
         log_data = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "level": record.levelname,
@@ -491,12 +465,7 @@ class NeuralHiveLoggerAdapter(logging.LoggerAdapter):
 
 
 # Funções legadas para compatibilidade
-def log_intent_start(
-    logger,
-    intent_id: str,
-    user_input: str,
-    channel: str = "unknown"
-):
+def log_intent_start(logger, intent_id: str, user_input: str, channel: str = "unknown"):
     """Log início de processamento de intenção (legado)."""
     if isinstance(logger, NeuralHiveLogger):
         logger.log_intent_start(intent_id, user_input, channel)
@@ -504,16 +473,12 @@ def log_intent_start(
         logger.info_with_correlation(
             "Iniciando processamento de intenção",
             intent_id=intent_id,
-            extra_fields={"operation": "intent_start", "channel": channel}
+            extra_fields={"operation": "intent_start", "channel": channel},
         )
 
 
 def log_intent_completion(
-    logger,
-    intent_id: str,
-    confidence: float,
-    processing_duration: float,
-    channel: str = "unknown"
+    logger, intent_id: str, confidence: float, processing_duration: float, channel: str = "unknown"
 ):
     """Log conclusão de processamento de intenção (legado)."""
     if isinstance(logger, NeuralHiveLogger):
@@ -525,16 +490,13 @@ def log_intent_completion(
             extra_fields={
                 "operation": "intent_completion",
                 "confidence": confidence,
-                "processing_duration_seconds": processing_duration
-            }
+                "processing_duration_seconds": processing_duration,
+            },
         )
 
 
 def log_plan_execution_start(
-    logger,
-    plan_id: str,
-    intent_id: Optional[str] = None,
-    plan_type: str = "unknown"
+    logger, plan_id: str, intent_id: Optional[str] = None, plan_type: str = "unknown"
 ):
     """Log início de execução de plano (legado)."""
     if isinstance(logger, NeuralHiveLogger):
@@ -544,7 +506,7 @@ def log_plan_execution_start(
             "Iniciando execução de plano",
             plan_id=plan_id,
             intent_id=intent_id,
-            extra_fields={"operation": "plan_execution_start", "plan_type": plan_type}
+            extra_fields={"operation": "plan_execution_start", "plan_type": plan_type},
         )
 
 
@@ -554,11 +516,13 @@ def log_plan_execution_completion(
     success: bool,
     execution_duration: float,
     intent_id: Optional[str] = None,
-    plan_type: str = "unknown"
+    plan_type: str = "unknown",
 ):
     """Log conclusão de execução de plano (legado)."""
     if isinstance(logger, NeuralHiveLogger):
-        logger.log_plan_execution_completion(plan_id, success, execution_duration, intent_id, plan_type)
+        logger.log_plan_execution_completion(
+            plan_id, success, execution_duration, intent_id, plan_type
+        )
     else:
         message = "Plano executado com sucesso" if success else "Falha na execução do plano"
         logger.info_with_correlation(
@@ -569,6 +533,6 @@ def log_plan_execution_completion(
                 "operation": "plan_execution_completion",
                 "plan_type": plan_type,
                 "success": success,
-                "execution_duration_seconds": execution_duration
-            }
+                "execution_duration_seconds": execution_duration,
+            },
         )

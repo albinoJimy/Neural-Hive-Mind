@@ -27,9 +27,7 @@ class TestExplainabilityGeneratorInitialization:
 
     def test_initialization_creates_ledger(self, mock_config):
         """Verifica criação de ledger."""
-        with patch(
-            "neural_hive_specialists.explainability_generator.MongoClient"
-        ) as mock_mongo:
+        with patch("neural_hive_specialists.explainability_generator.MongoClient") as mock_mongo:
             gen = ExplainabilityGenerator(mock_config)
 
             assert gen.ledger_v2 is not None
@@ -42,9 +40,7 @@ class TestGenerateWithModel:
     @pytest.fixture
     def generator(self, mock_config):
         """Cria generator com MongoDB mockado."""
-        with patch(
-            "neural_hive_specialists.explainability_generator.MongoClient"
-        ) as mock_mongo:
+        with patch("neural_hive_specialists.explainability_generator.MongoClient") as mock_mongo:
             gen = ExplainabilityGenerator(mock_config)
             # Mock ledger_v2 para evitar chamadas reais ao MongoDB
             gen.ledger_v2 = MagicMock()
@@ -63,7 +59,7 @@ class TestGenerateWithModel:
         generator._feature_extractor.extract_features = MagicMock(
             return_value={
                 "aggregated_features": {"feature1": 0.5, "feature2": 0.3},
-                "feature_names": ["feature1", "feature2"]
+                "feature_names": ["feature1", "feature2"],
             }
         )
 
@@ -72,7 +68,7 @@ class TestGenerateWithModel:
             return_value={
                 "feature_importances": [
                     {"feature_name": "feature1", "importance": 0.6, "contribution": "positive"},
-                    {"feature_name": "feature2", "importance": 0.3, "contribution": "positive"}
+                    {"feature_name": "feature2", "importance": 0.3, "contribution": "positive"},
                 ]
             }
         )
@@ -118,9 +114,7 @@ class TestGenerateWithoutModel:
     @pytest.fixture
     def generator(self, mock_config):
         """Cria generator com ledger mockado."""
-        with patch(
-            "neural_hive_specialists.explainability_generator.MongoClient"
-        ) as mock_mongo:
+        with patch("neural_hive_specialists.explainability_generator.MongoClient") as mock_mongo:
             gen = ExplainabilityGenerator(mock_config)
             gen.ledger_v2 = MagicMock()
             gen.ledger_v2.persist = MagicMock(return_value="test_token_v2")
@@ -204,9 +198,7 @@ class TestPersistenceAndRetrieval:
     @pytest.fixture
     def generator(self, mock_config):
         """Cria generator com MongoDB mockado."""
-        with patch(
-            "neural_hive_specialists.explainability_generator.MongoClient"
-        ) as mock_mongo:
+        with patch("neural_hive_specialists.explainability_generator.MongoClient") as mock_mongo:
             mock_collection = MagicMock()
             mock_mongo.return_value.__getitem__.return_value.__getitem__.return_value = (
                 mock_collection
@@ -244,9 +236,7 @@ class TestCircuitBreaker:
         """Cria generator com circuit breaker habilitado."""
         mock_config.enable_circuit_breaker = True
         mock_config.enable_legacy_explainability_persistence = True
-        with patch(
-            "neural_hive_specialists.explainability_generator.MongoClient"
-        ):
+        with patch("neural_hive_specialists.explainability_generator.MongoClient"):
             gen = ExplainabilityGenerator(mock_config, metrics=mock_metrics)
             return gen
 
@@ -261,9 +251,7 @@ class TestCircuitBreaker:
         """Testa comportamento quando circuit breaker está aberto."""
         # Criar um circuit breaker que vai falhar
         generator._persist_breaker = Mock()
-        generator._persist_breaker.call = Mock(
-            side_effect=CircuitBreakerError("Circuit open")
-        )
+        generator._persist_breaker.call = Mock(side_effect=CircuitBreakerError("Circuit open"))
 
         # Deve retornar token mesmo com circuit breaker aberto
         token, metadata = generator.generate(
@@ -280,9 +268,7 @@ class TestCircuitBreaker:
         # O circuit breaker propaga CircuitBreakerError quando está aberto
         # Testa que o erro é devidamente propagado
         generator._retrieve_breaker = Mock()
-        generator._retrieve_breaker.call = Mock(
-            side_effect=CircuitBreakerError("Circuit open")
-        )
+        generator._retrieve_breaker.call = Mock(side_effect=CircuitBreakerError("Circuit open"))
 
         # Deve propagar o erro do circuit breaker
         with pytest.raises(CircuitBreakerError):
@@ -394,16 +380,10 @@ class TestReasoningLinks:
 
     def test_build_reasoning_links_exact_match(self, generator):
         """Testa link exato entre factor e feature."""
-        reasoning_factors = [
-            {"factor_name": "complexity", "score": 0.8, "weight": 0.5}
-        ]
-        feature_importances = [
-            {"feature_name": "complexity", "importance": 0.6}
-        ]
+        reasoning_factors = [{"factor_name": "complexity", "score": 0.8, "weight": 0.5}]
+        feature_importances = [{"feature_name": "complexity", "importance": 0.6}]
 
-        links = generator._build_reasoning_links(
-            reasoning_factors, feature_importances
-        )
+        links = generator._build_reasoning_links(reasoning_factors, feature_importances)
 
         assert "complexity" in links
         assert links["complexity"]["match_type"] == "exact"

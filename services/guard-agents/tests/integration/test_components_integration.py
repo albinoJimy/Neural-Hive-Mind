@@ -16,10 +16,7 @@ async def test_producer_publishes_to_kafka():
     mock_kafka_producer = AsyncMock()
     mock_kafka_producer.send_and_wait = AsyncMock(return_value=Mock(partition=0, offset=123))
 
-    producer = RemediationProducer(
-        bootstrap_servers="localhost:9092",
-        topic="remediation-actions"
-    )
+    producer = RemediationProducer(bootstrap_servers="localhost:9092", topic="remediation-actions")
     producer.producer = mock_kafka_producer
     producer._connected = True
 
@@ -29,7 +26,7 @@ async def test_producer_publishes_to_kafka():
         incident_id="INC-001",
         action_type="restart_pod",
         status="completed",
-        details={"pod": "api-gateway-123"}
+        details={"pod": "api-gateway-123"},
     )
 
     assert success is True
@@ -46,10 +43,7 @@ async def test_self_healing_client_triggers_remediation():
     mock_http_client = AsyncMock()
     mock_response = Mock()
     mock_response.status_code = 200
-    mock_response.json = Mock(return_value={
-        "remediation_id": "REM-001",
-        "status": "pending"
-    })
+    mock_response.json = Mock(return_value={"remediation_id": "REM-001", "status": "pending"})
     mock_response.raise_for_status = Mock()
     mock_http_client.post = AsyncMock(return_value=mock_response)
 
@@ -58,10 +52,7 @@ async def test_self_healing_client_triggers_remediation():
 
     # Acionar remediação
     result = await client.trigger_remediation(
-        remediation_id="REM-001",
-        incident_id="INC-001",
-        playbook_id="RB-SEC-001",
-        parameters={}
+        remediation_id="REM-001", incident_id="INC-001", playbook_id="RB-SEC-001", parameters={}
     )
 
     assert result["remediation_id"] == "REM-001"
@@ -79,12 +70,9 @@ async def test_opa_client_evaluates_policy():
     mock_http_client = AsyncMock()
     mock_response = Mock()
     mock_response.status_code = 200
-    mock_response.json = Mock(return_value={
-        "result": {
-            "allowed": True,
-            "reason": "Policy evaluation passed"
-        }
-    })
+    mock_response.json = Mock(
+        return_value={"result": {"allowed": True, "reason": "Policy evaluation passed"}}
+    )
     mock_response.raise_for_status = Mock()
     mock_http_client.post = AsyncMock(return_value=mock_response)
 
@@ -94,7 +82,7 @@ async def test_opa_client_evaluates_policy():
     # Avaliar política
     result = await client.evaluate_policy(
         policy_path="security/unauthorized_access",
-        input_data={"incident": {"severity": "critical"}}
+        input_data={"incident": {"severity": "critical"}},
     )
 
     assert result["allowed"] is True
@@ -116,14 +104,12 @@ async def test_prometheus_client_validates_sla():
         response.status_code = 200
 
         if "query=" in str(kwargs.get("params", {})):
-            response.json = Mock(return_value={
-                "status": "success",
-                "data": {
-                    "result": [
-                        {"value": [1234567890, "0.99"]}
-                    ]
+            response.json = Mock(
+                return_value={
+                    "status": "success",
+                    "data": {"result": [{"value": [1234567890, "0.99"]}]},
                 }
-            })
+            )
 
         response.raise_for_status = Mock()
         return response
@@ -136,11 +122,7 @@ async def test_prometheus_client_validates_sla():
     # Validar SLA
     result = await client.validate_sla_restoration(
         service="api-gateway",
-        sla_targets={
-            "min_success_rate": 99.9,
-            "max_latency_p99": 0.5,
-            "max_error_rate": 0.1
-        }
+        sla_targets={"min_success_rate": 99.9, "max_latency_p99": 0.5, "max_error_rate": 0.1},
     )
 
     assert "sla_restored" in result
@@ -159,16 +141,14 @@ async def test_policy_enforcer_with_opa_istio():
     mock_redis.set = AsyncMock()
 
     mock_opa_client = AsyncMock()
-    mock_opa_client.evaluate_policy = AsyncMock(return_value={
-        "allowed": True,
-        "reason": "Policy passed"
-    })
+    mock_opa_client.evaluate_policy = AsyncMock(
+        return_value={"allowed": True, "reason": "Policy passed"}
+    )
 
     mock_istio_client = AsyncMock()
-    mock_istio_client.block_ip = AsyncMock(return_value={
-        "success": True,
-        "name": "block-ip-10-0-0-100"
-    })
+    mock_istio_client.block_ip = AsyncMock(
+        return_value={"success": True, "name": "block-ip-10-0-0-100"}
+    )
 
     # Criar enforcer
     enforcer = PolicyEnforcer(
@@ -177,7 +157,7 @@ async def test_policy_enforcer_with_opa_istio():
         opa_client=mock_opa_client,
         istio_client=mock_istio_client,
         opa_enabled=True,
-        istio_enabled=True
+        istio_enabled=True,
     )
 
     # Enforçar política
@@ -186,11 +166,7 @@ async def test_policy_enforcer_with_opa_istio():
         "threat_type": "dos_attack",
         "severity": "critical",
         "affected_resources": ["api-gateway"],
-        "anomaly": {
-            "details": {
-                "source_ip": "10.0.0.100"
-            }
-        }
+        "anomaly": {"details": {"source_ip": "10.0.0.100"}},
     }
 
     result = await enforcer.enforce_policy(incident)
@@ -216,14 +192,12 @@ async def test_remediation_coordinator_with_engine():
     mock_kafka_producer.publish_remediation_result = AsyncMock(return_value=True)
 
     mock_sh_client = AsyncMock()
-    mock_sh_client.trigger_remediation = AsyncMock(return_value={
-        "remediation_id": "REM-001",
-        "status": "pending"
-    })
-    mock_sh_client.wait_for_completion = AsyncMock(return_value={
-        "remediation_id": "REM-001",
-        "status": "completed"
-    })
+    mock_sh_client.trigger_remediation = AsyncMock(
+        return_value={"remediation_id": "REM-001", "status": "pending"}
+    )
+    mock_sh_client.wait_for_completion = AsyncMock(
+        return_value={"remediation_id": "REM-001", "status": "completed"}
+    )
 
     # Criar coordinator
     coordinator = RemediationCoordinator(
@@ -231,14 +205,14 @@ async def test_remediation_coordinator_with_engine():
         mongodb_client=mock_mongodb,
         kafka_producer=mock_kafka_producer,
         self_healing_client=mock_sh_client,
-        use_self_healing_engine=True
+        use_self_healing_engine=True,
     )
 
     # Coordenar remediação
     incident = {
         "incident_id": "INC-001",
         "runbook_id": "RB-SEC-001-CRITICAL",
-        "severity": "critical"
+        "severity": "critical",
     }
 
     enforcement_result = {"success": True}
@@ -279,7 +253,9 @@ async def test_full_pipeline_integration():
     mock_kafka.publish_remediation_result = AsyncMock(return_value=True)
 
     mock_sh = AsyncMock()
-    mock_sh.trigger_remediation = AsyncMock(return_value={"remediation_id": "REM-001", "status": "pending"})
+    mock_sh.trigger_remediation = AsyncMock(
+        return_value={"remediation_id": "REM-001", "status": "pending"}
+    )
     mock_sh.wait_for_completion = AsyncMock(return_value={"status": "completed"})
 
     # Criar componentes
@@ -289,7 +265,7 @@ async def test_full_pipeline_integration():
         opa_client=mock_opa,
         istio_client=mock_istio,
         opa_enabled=True,
-        istio_enabled=True
+        istio_enabled=True,
     )
 
     coordinator = RemediationCoordinator(
@@ -297,7 +273,7 @@ async def test_full_pipeline_integration():
         mongodb_client=mock_mongodb,
         kafka_producer=mock_kafka,
         self_healing_client=mock_sh,
-        use_self_healing_engine=True
+        use_self_healing_engine=True,
     )
 
     # Simular incidente
@@ -307,7 +283,7 @@ async def test_full_pipeline_integration():
         "severity": "critical",
         "runbook_id": "RB-AVAIL-001-CRITICAL",
         "affected_resources": ["api-gateway"],
-        "anomaly": {"details": {"source_ip": "10.0.0.100"}}
+        "anomaly": {"details": {"source_ip": "10.0.0.100"}},
     }
 
     # Executar pipeline

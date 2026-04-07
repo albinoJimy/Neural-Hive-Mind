@@ -1,6 +1,7 @@
 """Migration m001: Criar coleção optimization_recommendations."""
 import logging
 from datetime import datetime, timezone
+
 UTC = timezone.utc  # type: ignore
 from typing import Any
 

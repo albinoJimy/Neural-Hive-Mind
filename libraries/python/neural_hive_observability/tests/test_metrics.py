@@ -33,7 +33,7 @@ class TestNeuralHiveMetricsInit:
         config = ObservabilityConfig(
             service_name="test-service",
             neural_hive_component="test-component",
-            neural_hive_layer="test-layer"
+            neural_hive_layer="test-layer",
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -44,8 +44,7 @@ class TestNeuralHiveMetricsInit:
     def test_singleton_pattern(self):
         """Testa padrão singleton."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics1 = NeuralHiveMetrics(config)
@@ -61,8 +60,7 @@ class TestNeuralHiveMetricsInit:
         NeuralHiveMetrics._registry = None
 
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         custom_registry = CollectorRegistry()
@@ -79,7 +77,7 @@ class TestNeuralHiveMetricsInit:
             service_name="test-service",
             service_version="1.0.0",
             neural_hive_component="test-component",
-            neural_hive_layer="test-layer"
+            neural_hive_layer="test-layer",
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -89,8 +87,7 @@ class TestNeuralHiveMetricsInit:
     def test_creates_request_metrics(self):
         """Testa que cria métricas de request."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -101,8 +98,7 @@ class TestNeuralHiveMetricsInit:
     def test_creates_intent_metrics(self):
         """Testa que cria métricas de intenção."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -114,8 +110,7 @@ class TestNeuralHiveMetricsInit:
     def test_creates_plan_metrics(self):
         """Testa que cria métricas de plano."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -127,8 +122,7 @@ class TestNeuralHiveMetricsInit:
     def test_creates_infrastructure_metrics(self):
         """Testa que cria métricas de infraestrutura."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -140,8 +134,7 @@ class TestNeuralHiveMetricsInit:
     def test_creates_slo_metrics(self):
         """Testa que cria métricas SLO."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -154,8 +147,7 @@ class TestNeuralHiveMetricsInit:
     def test_creates_cache_metrics(self):
         """Testa que cria métricas de cache."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -167,8 +159,7 @@ class TestNeuralHiveMetricsInit:
     def test_creates_queue_metrics(self):
         """Testa que cria métricas de fila."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -179,8 +170,7 @@ class TestNeuralHiveMetricsInit:
     def test_creates_tracing_export_metrics(self):
         """Testa que cria métricas de export de tracing."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -199,7 +189,7 @@ class TestRequestMetrics:
         config = ObservabilityConfig(
             service_name="test-service",
             neural_hive_component="test-component",
-            neural_hive_layer="test-layer"
+            neural_hive_layer="test-layer",
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -211,8 +201,7 @@ class TestRequestMetrics:
     def test_increment_requests_with_default_channel(self):
         """Testa incremento com canal padrão."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -222,8 +211,7 @@ class TestRequestMetrics:
     def test_observe_captura_duration(self):
         """Testa observação de duração de captura."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -235,8 +223,7 @@ class TestRequestMetrics:
     def test_observe_captura_duration_with_trace_exemplar(self):
         """Testa observação com exemplar de trace."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -245,14 +232,13 @@ class TestRequestMetrics:
             0.5,
             channel="web",
             trace_id="12345678901234567890123456789012",
-            span_id="1234567890123456"
+            span_id="1234567890123456",
         )
 
     def test_observe_geracao_duration(self):
         """Testa observação de duração de geração."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -262,8 +248,7 @@ class TestRequestMetrics:
     def test_observe_orquestracao_duration(self):
         """Testa observação de duração de orquestração."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -277,8 +262,7 @@ class TestIntentMetrics:
     def test_increment_intentions(self):
         """Testa incremento de intenções."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -289,8 +273,7 @@ class TestIntentMetrics:
     def test_observe_intent_confidence(self):
         """Testa observação de confiança de intenção."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -302,8 +285,7 @@ class TestIntentMetrics:
     def test_increment_low_confidence_routed(self):
         """Testa incremento de roteamento por baixa confiança."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -318,8 +300,7 @@ class TestPlanMetrics:
     def test_increment_plans(self):
         """Testa incremento de planos."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -330,35 +311,23 @@ class TestPlanMetrics:
     def test_observe_plan_execution(self):
         """Testa observação de execução de plano."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
 
-        metrics.observe_plan_execution(
-            duration=10.5,
-            channel="web",
-            plan_type="data_processing"
-        )
-        metrics.observe_plan_execution(
-            duration=5.2,
-            channel="api",
-            plan_type="validation"
-        )
+        metrics.observe_plan_execution(duration=10.5, channel="web", plan_type="data_processing")
+        metrics.observe_plan_execution(duration=5.2, channel="api", plan_type="validation")
 
     def test_set_plan_execution_success_rate(self):
         """Testa definição de taxa de sucesso."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
 
-        metrics.plan_execution_success_rate.labels(
-            *metrics._common_label_values, "web"
-        ).set(0.95)
+        metrics.plan_execution_success_rate.labels(*metrics._common_label_values, "web").set(0.95)
 
 
 class TestInfrastructureMetrics:
@@ -367,8 +336,7 @@ class TestInfrastructureMetrics:
     def test_set_active_connections(self):
         """Testa definição de conexões ativas."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -380,8 +348,7 @@ class TestInfrastructureMetrics:
     def test_update_memory_usage(self):
         """Testa atualização de uso de memória."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -392,8 +359,7 @@ class TestInfrastructureMetrics:
     def test_set_health_status(self):
         """Testa definição de status de saúde."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -409,8 +375,7 @@ class TestSLOMetrics:
     def test_set_slo_availability(self):
         """Testa definição de disponibilidade SLO."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -421,8 +386,7 @@ class TestSLOMetrics:
     def test_set_slo_latency_percentile(self):
         """Testa definição de percentil de latência SLO."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -434,8 +398,7 @@ class TestSLOMetrics:
     def test_set_slo_error_budget_remaining(self):
         """Testa definição de error budget restante."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -446,8 +409,7 @@ class TestSLOMetrics:
     def test_set_slo_error_budget_burn_rate(self):
         """Testa definição de taxa de queima de error budget."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -462,8 +424,7 @@ class TestCacheMetrics:
     def test_increment_cache_hits(self):
         """Testa incremento de cache hits."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -474,8 +435,7 @@ class TestCacheMetrics:
     def test_increment_cache_misses(self):
         """Testa incremento de cache misses."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -486,8 +446,7 @@ class TestCacheMetrics:
     def test_increment_cache_evictions(self):
         """Testa incremento de evicções de cache."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -498,8 +457,7 @@ class TestCacheMetrics:
     def test_calculate_cache_hit_rate(self):
         """Testa cálculo de taxa de hit de cache."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -519,8 +477,7 @@ class TestCacheMetrics:
     def test_calculate_cache_hit_rate_with_no_data(self):
         """Testa cálculo com nenhum dado."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -537,8 +494,7 @@ class TestQueueMetrics:
     def test_set_queue_depth(self):
         """Testa definição de profundidade da fila."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -550,8 +506,7 @@ class TestQueueMetrics:
     def test_set_queue_processing_lag(self):
         """Testa definição de lag de processamento da fila."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -566,8 +521,7 @@ class TestTracingExportMetrics:
     def test_increment_span_export_failures(self):
         """Testa incremento de falhas de export."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -578,8 +532,7 @@ class TestTracingExportMetrics:
     def test_increment_span_export_success(self):
         """Testa incremento de exports bem-sucedidos."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -590,8 +543,7 @@ class TestTracingExportMetrics:
     def test_observe_span_export_duration(self):
         """Testa observação de duração de export."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -602,8 +554,7 @@ class TestTracingExportMetrics:
     def test_set_span_export_queue_size(self):
         """Testa definição de tamanho da fila de export."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -621,7 +572,7 @@ class TestInitMetrics:
         config = ObservabilityConfig(
             service_name="test-service",
             neural_hive_component="test-component",
-            prometheus_port=0  # Não iniciar servidor HTTP
+            prometheus_port=0,  # Não iniciar servidor HTTP
         )
 
         metrics = init_metrics(config)
@@ -632,9 +583,7 @@ class TestInitMetrics:
     def test_init_metrics_singleton(self):
         """Testa que init_metrics retorna singleton."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component",
-            prometheus_port=0
+            service_name="test-service", neural_hive_component="test-component", prometheus_port=0
         )
 
         metrics1 = init_metrics(config)
@@ -646,6 +595,7 @@ class TestInitMetrics:
         """Testa que inicia servidor HTTP quando porta configurada."""
         # Resetar o global _metrics para garantir nova inicialização
         import neural_hive_observability.metrics as metrics_module
+
         metrics_module._metrics = None
         # Reset singleton também
         NeuralHiveMetrics._instance = None
@@ -654,10 +604,10 @@ class TestInitMetrics:
         config = ObservabilityConfig(
             service_name="test-service",
             neural_hive_component="test-component",
-            prometheus_port=9091
+            prometheus_port=9091,
         )
 
-        with patch('neural_hive_observability.metrics.start_http_server') as mock_server:
+        with patch("neural_hive_observability.metrics.start_http_server") as mock_server:
             init_metrics(config)
             mock_server.assert_called_once()
 
@@ -669,6 +619,7 @@ class TestGetMetrics:
         """Testa que retorna None quando não inicializado."""
         # Resetar módulo
         import neural_hive_observability.metrics as metrics_module
+
         metrics_module._metrics = None
 
         result = get_metrics()
@@ -677,9 +628,7 @@ class TestGetMetrics:
     def test_get_metrics_returns_instance_after_init(self):
         """Testa que retorna instância após inicialização."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component",
-            prometheus_port=0
+            service_name="test-service", neural_hive_component="test-component", prometheus_port=0
         )
 
         init_metrics(config)
@@ -695,8 +644,7 @@ class TestObserveWithExemplar:
     def test_observe_with_exemplar_with_valid_data(self):
         """Testa observação com exemplar válido."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -711,8 +659,7 @@ class TestObserveWithExemplar:
     def test_observe_with_exemplar_without_exemplar(self):
         """Testa observação sem exemplar."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -725,8 +672,7 @@ class TestObserveWithExemplar:
     def test_observe_with_exemplar_with_empty_dict(self):
         """Testa observação com dicionário vazio."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)
@@ -743,8 +689,7 @@ class TestServiceStartupMetrics:
     def test_service_startup_total_counter(self):
         """Testa contador de startups."""
         config = ObservabilityConfig(
-            service_name="test-service",
-            neural_hive_component="test-component"
+            service_name="test-service", neural_hive_component="test-component"
         )
 
         metrics = NeuralHiveMetrics(config)

@@ -164,7 +164,9 @@ class TestCronJobManifests:
             docs = list(yaml.safe_load_all(f))
             cronjob = next((d for d in docs if d.get("kind") == "CronJob"), None)
 
-        deadline = cronjob["spec"]["jobTemplate"]["spec"]["template"]["spec"].get("activeDeadlineSeconds")
+        deadline = cronjob["spec"]["jobTemplate"]["spec"]["template"]["spec"].get(
+            "activeDeadlineSeconds"
+        )
         assert deadline is not None
         assert deadline > 0
         assert deadline <= 10800  # Max 3 horas
@@ -190,7 +192,17 @@ class TestCronJobManagerScript:
         with open(path) as f:
             content = f.read()
 
-        required_functions = ["apply", "delete", "list", "status", "trigger", "suspend", "resume", "logs", "validate"]
+        required_functions = [
+            "apply",
+            "delete",
+            "list",
+            "status",
+            "trigger",
+            "suspend",
+            "resume",
+            "logs",
+            "validate",
+        ]
         for func in required_functions:
             assert func in content, f"Função '{func}' não encontrada no script"
 

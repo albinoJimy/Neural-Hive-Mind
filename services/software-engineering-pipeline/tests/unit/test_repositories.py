@@ -24,9 +24,7 @@ async def test_create_and_find_run():
     )
 
     # Mock the collection methods
-    repo.collection.insert_one = AsyncMock(
-        return_value=MagicMock(inserted_id="mock-id")
-    )
+    repo.collection.insert_one = AsyncMock(return_value=MagicMock(inserted_id="mock-id"))
     repo.collection.find_one = AsyncMock(
         return_value={
             "_id": "mock-id",
@@ -57,9 +55,7 @@ async def test_update_run_status():
     )
 
     # Mock the collection methods
-    repo.collection.insert_one = AsyncMock(
-        return_value=MagicMock(inserted_id="mock-id-2")
-    )
+    repo.collection.insert_one = AsyncMock(return_value=MagicMock(inserted_id="mock-id-2"))
     repo.collection.update_one = AsyncMock(return_value=MagicMock(modified_count=1))
 
     run_id = await repo.create(run)

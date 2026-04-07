@@ -30,7 +30,6 @@ class GitLabCITimeoutError(Exception):
     """Timeout aguardando pipeline do GitLab CI."""
 
 
-
 @dataclass
 class PipelineStatus:
     """Representa status de um pipeline GitLab CI."""
@@ -800,9 +799,7 @@ class GitLabCIClient:
                     return (lines_covered / lines_valid) * 100
 
             # Detectar formato LCOV
-            elif (
-                content.startswith(("TN:", "SF:")) or "end_of_record" in content
-            ):
+            elif content.startswith(("TN:", "SF:")) or "end_of_record" in content:
                 lines_found = 0
                 lines_hit = 0
 

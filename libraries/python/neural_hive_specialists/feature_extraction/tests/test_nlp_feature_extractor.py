@@ -7,7 +7,7 @@ Valida extração de features NLP de texto de intenções.
 import pytest
 from neural_hive_specialists.feature_extraction.nlp_feature_extractor import (
     NLPFeatureExtractor,
-    get_nlp_extractor
+    get_nlp_extractor,
 )
 
 
@@ -121,12 +121,12 @@ class TestNLPFeatureExtractor:
 
         # Validar múltiplos domínios detectados
         assert features["domain_security"] > 0  # authentication, JWT, SQL injection
-        assert features["domain_devops"] > 0     # kubernetes, docker, CI/CD
-        assert features["domain_database"] > 0   # SQL
+        assert features["domain_devops"] > 0  # kubernetes, docker, CI/CD
+        assert features["domain_database"] > 0  # SQL
 
         # Validar ações
-        assert features["action_create"] >= 1     # Create, Add
-        assert features["action_deploy"] >= 1     # Deploy
+        assert features["action_create"] >= 1  # Create, Add
+        assert features["action_deploy"] >= 1  # Deploy
 
         # Validar padrões técnicos
         assert features["technical_patterns_count"] >= 1

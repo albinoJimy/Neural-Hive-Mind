@@ -21,14 +21,15 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 class Colors:
     """Cores para terminal."""
-    HEADER = '\033[95m'
-    BLUE = '\033[94m'
-    CYAN = '\033[96m'
-    GREEN = '\033[92m'
-    YELLOW = '\033[93m'
-    RED = '\033[91m'
-    END = '\033[0m'
-    BOLD = '\033[1m'
+
+    HEADER = "\033[95m"
+    BLUE = "\033[94m"
+    CYAN = "\033[96m"
+    GREEN = "\033[92m"
+    YELLOW = "\033[93m"
+    RED = "\033[91m"
+    END = "\033[0m"
+    BOLD = "\033[1m"
 
 
 def print_header(text: str):
@@ -71,7 +72,8 @@ def setup_python_fastapi(test_dir: Path) -> Path:
     project_dir.mkdir(exist_ok=True)
 
     # main.py
-    (project_dir / "main.py").write_text('''from fastapi import FastAPI
+    (project_dir / "main.py").write_text(
+        """from fastapi import FastAPI
 app = FastAPI()
 
 @app.get("/")
@@ -81,12 +83,15 @@ def read_root():
 @app.get("/health")
 def health():
     return {"status": "healthy"}
-''')
+"""
+    )
 
     # requirements.txt
-    (project_dir / "requirements.txt").write_text('''fastapi==0.104.1
+    (project_dir / "requirements.txt").write_text(
+        """fastapi==0.104.1
 uvicorn==0.24.0
-''')
+"""
+    )
 
     print_success(f"Projeto Python criado em {project_dir}")
     return project_dir
@@ -98,7 +103,8 @@ def setup_nodejs_express(test_dir: Path) -> Path:
     project_dir.mkdir(exist_ok=True)
 
     # package.json
-    (project_dir / "package.json").write_text('''{
+    (project_dir / "package.json").write_text(
+        """{
   "name": "test-express",
   "version": "1.0.0",
   "main": "index.js",
@@ -106,15 +112,18 @@ def setup_nodejs_express(test_dir: Path) -> Path:
     "express": "^4.18.2"
   }
 }
-''')
+"""
+    )
 
     # index.js
-    (project_dir / "index.js").write_text('''const express = require('express');
+    (project_dir / "index.js").write_text(
+        """const express = require('express');
 const app = express();
 app.get('/', (req, res) => res.json({message: 'Hello World'}));
 app.get('/health', (req, res) => res.json({status: 'healthy'}));
 app.listen(3000);
-''')
+"""
+    )
 
     print_success(f"Projeto Node.js criado em {project_dir}")
     return project_dir
@@ -126,7 +135,8 @@ def setup_go_gin(test_dir: Path) -> Path:
     project_dir.mkdir(exist_ok=True)
 
     # main.go
-    (project_dir / "main.go").write_text('''package main
+    (project_dir / "main.go").write_text(
+        """package main
 
 import "github.com/gin-gonic/gin"
 
@@ -140,15 +150,18 @@ func main() {
     })
     r.Run(":8080")
 }
-''')
+"""
+    )
 
     # go.mod
-    (project_dir / "go.mod").write_text('''module test-gin
+    (project_dir / "go.mod").write_text(
+        """module test-gin
 
 go 1.21
 
 require github.com/gin-gonic/gin v1.9.1
-''')
+"""
+    )
 
     print_success(f"Projeto Go criado em {project_dir}")
     return project_dir
@@ -162,28 +175,22 @@ def check_prerequisites() -> dict:
 
     # Python
     try:
-        result = subprocess.run(
-            ["python3", "--version"],
-            capture_output=True, text=True
-        )
+        result = subprocess.run(["python3", "--version"], capture_output=True, text=True)
         results["python"] = {
             "available": True,
             "version": result.stdout.strip(),
-            "color": Colors.GREEN if result.returncode == 0 else Colors.RED
+            "color": Colors.GREEN if result.returncode == 0 else Colors.RED,
         }
     except FileNotFoundError:
         results["python"] = {"available": False, "color": Colors.RED}
 
     # Docker
     try:
-        result = subprocess.run(
-            ["docker", "--version"],
-            capture_output=True, text=True
-        )
+        result = subprocess.run(["docker", "--version"], capture_output=True, text=True)
         results["docker"] = {
             "available": True,
             "version": result.stdout.strip(),
-            "color": Colors.GREEN if result.returncode == 0 else Colors.RED
+            "color": Colors.GREEN if result.returncode == 0 else Colors.RED,
         }
     except FileNotFoundError:
         results["docker"] = {"available": False, "color": Colors.RED}
@@ -191,13 +198,12 @@ def check_prerequisites() -> dict:
     # kubectl
     try:
         result = subprocess.run(
-            ["kubectl", "version", "--client", "--short"],
-            capture_output=True, text=True
+            ["kubectl", "version", "--client", "--short"], capture_output=True, text=True
         )
         results["kubectl"] = {
             "available": True,
-            "version": result.stdout.strip().split('\n')[0],
-            "color": Colors.GREEN if result.returncode == 0 else Colors.RED
+            "version": result.stdout.strip().split("\n")[0],
+            "color": Colors.GREEN if result.returncode == 0 else Colors.RED,
         }
     except FileNotFoundError:
         results["kubectl"] = {"available": False, "color": Colors.YELLOW}
@@ -205,12 +211,11 @@ def check_prerequisites() -> dict:
     # Cluster connection
     try:
         result = subprocess.run(
-            ["kubectl", "cluster-info"],
-            capture_output=True, text=True, timeout=5
+            ["kubectl", "cluster-info"], capture_output=True, text=True, timeout=5
         )
         results["cluster"] = {
             "available": result.returncode == 0,
-            "color": Colors.GREEN if result.returncode == 0 else Colors.RED
+            "color": Colors.GREEN if result.returncode == 0 else Colors.RED,
         }
     except (FileNotFoundError, subprocess.TimeoutExpired):
         results["cluster"] = {"available": False, "color": Colors.YELLOW}
@@ -227,7 +232,8 @@ def check_prerequisites() -> dict:
 def print_menu():
     """Imprime menu de testes."""
     print_header("CODEFORGE BUILDS REAIS - TESTE MANUAL")
-    print(f"""
+    print(
+        f"""
 {Colors.BOLD}Selecione um caso de teste:{Colors.END}
 
   {Colors.GREEN}[BÁSICO]{Colors.END}
@@ -257,14 +263,17 @@ def print_menu():
   h - Ajuda
   q - Sair
 
-  {Colors.CYAN}Opção:{Colors.END} """, end="")
+  {Colors.CYAN}Opção:{Colors.END} """,
+        end="",
+    )
 
 
 def print_help():
     """Imprime ajuda."""
     print_header("AJUDA - TESTE MANUAL")
 
-    print(f"""
+    print(
+        f"""
 {Colors.BOLD}Fluxo Recomendado:{Colors.END}
 
   1. Execute {Colors.GREEN}'p'{Colors.END} para verificar pré-requisitos
@@ -283,7 +292,8 @@ def print_help():
   - Ambiente de teste: /tmp/codeforge-test/
   - Métricas: metrics/build_metrics.jsonl
   - Logs: Ver logs durante execução dos testes
-    """)
+    """
+    )
 
 
 def run_tc001():
@@ -299,7 +309,7 @@ def run_tc001():
         from src.services.dockerfile_generator import (
             DockerfileGenerator,
             ArtifactType,
-            PythonVersion
+            PythonVersion,
         )
 
         generator = DockerfileGenerator()
@@ -308,7 +318,7 @@ def run_tc001():
             artifact_type=ArtifactType.MICROSERVICE,
             framework="fastapi",
             port=8000,
-            healthcheck_path="/health"
+            healthcheck_path="/health",
         )
 
         # Salvar Dockerfile
@@ -320,7 +330,7 @@ def run_tc001():
 
         # Verificar conteúdo
         print("\n--- Conteúdo do Dockerfile (primeiras 15 linhas) ---")
-        for i, line in enumerate(dockerfile.split('\n')[:15], 1):
+        for i, line in enumerate(dockerfile.split("\n")[:15], 1):
             print(f"{i:2d}: {line}")
 
         # Validar elementos
@@ -333,7 +343,9 @@ def run_tc001():
 
         print("\n--- Validações ---")
         for check, passed in checks.items():
-            status = f"{Colors.GREEN}✓ PASS{Colors.END}" if passed else f"{Colors.RED}✗ FAIL{Colors.END}"
+            status = (
+                f"{Colors.GREEN}✓ PASS{Colors.END}" if passed else f"{Colors.RED}✗ FAIL{Colors.END}"
+            )
             print(f"  {status} {check}")
 
         all_passed = all(checks.values())
@@ -347,6 +359,7 @@ def run_tc001():
     except Exception as e:
         print_error(f"Erro ao executar teste: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -371,7 +384,7 @@ def run_tc004():
         from src.services.dockerfile_generator import (
             DockerfileGenerator,
             ArtifactType,
-            PythonVersion
+            PythonVersion,
         )
 
         generator = DockerfileGenerator()
@@ -379,7 +392,7 @@ def run_tc004():
             python_version=PythonVersion.PYTHON_3_11_SLIM,
             artifact_type=ArtifactType.MICROSERVICE,
             framework="fastapi",
-            port=8000
+            port=8000,
         )
         (project_dir / "Dockerfile").write_text(dockerfile)
         print_success("Dockerfile gerado")
@@ -395,16 +408,13 @@ def run_tc004():
         from src.services.container_builder import ContainerBuilder, BuilderType
 
         async def build():
-            builder = ContainerBuilder(
-                builder_type=BuilderType.DOCKER,
-                enable_metrics=True
-            )
+            builder = ContainerBuilder(builder_type=BuilderType.DOCKER, enable_metrics=True)
 
             result = await builder.build_container(
                 dockerfile_path=str(project_dir / "Dockerfile"),
                 build_context=str(project_dir),
                 image_tag="test-python:latest",
-                platforms=["linux/amd64"]
+                platforms=["linux/amd64"],
             )
 
             return result
@@ -412,7 +422,9 @@ def run_tc004():
         result = asyncio.run(build())
 
         print("\n--- Resultado do Build ---")
-        print(f"  Success: {Colors.GREEN if result.success else Colors.RED}{result.success}{Colors.END}")
+        print(
+            f"  Success: {Colors.GREEN if result.success else Colors.RED}{result.success}{Colors.END}"
+        )
         print(f"  Image Tag: {result.image_tag or 'N/A'}")
         print(f"  Digest: {result.image_digest or 'N/A'}")
         print(f"  Size: {result.size_bytes or 0:,} bytes" if result.size_bytes else "  Size: N/A")
@@ -431,7 +443,8 @@ def run_tc004():
             try:
                 output = subprocess.run(
                     ["docker", "images", "test-python:latest", "--format", "{{.ID}}"],
-                    capture_output=True, text=True
+                    capture_output=True,
+                    text=True,
                 )
                 if output.stdout.strip():
                     print_success(f"Imagem criada: {output.stdout.strip()}")
@@ -448,6 +461,7 @@ def run_tc004():
     except Exception as e:
         print_error(f"Erro ao executar build: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -470,36 +484,38 @@ def run_tc009():
         print(f"Builds bem-sucedidos: {report['summary']['successful_builds']}")
         print(f"Taxa de sucesso: {report['summary']['success_rate']:.1%}")
 
-        if report['duration_by_language']:
+        if report["duration_by_language"]:
             print(f"\n--- Duração por Linguagem ---")
-            for lang, stats in report['duration_by_language'].items():
+            for lang, stats in report["duration_by_language"].items():
                 print(f"  {lang}:")
                 print(f"    Média: {stats['mean']:.2f}s")
                 print(f"    Mediana: {stats['median']:.2f}s")
                 print(f"    Min/Max: {stats['min']:.2f}s / {stats['max']:.2f}s")
                 print(f"    Count: {stats['count']}")
 
-        if report['cache_hit_rate_by_language']:
+        if report["cache_hit_rate_by_language"]:
             print(f"\n--- Cache Hit Rate por Linguagem ---")
-            for lang, rate in report['cache_hit_rate_by_language'].items():
+            for lang, rate in report["cache_hit_rate_by_language"].items():
                 print(f"  {lang}: {rate:.1f}%")
 
-        ma = report['multi_arch_impact']
-        if ma['single_arch_count'] > 0 or ma['multi_arch_count'] > 0:
+        ma = report["multi_arch_impact"]
+        if ma["single_arch_count"] > 0 or ma["multi_arch_count"] > 0:
             print(f"\n--- Impacto Multi-arch ---")
             print(f"  Single-arch builds: {ma['single_arch_count']}")
             print(f"  Multi-arch builds: {ma['multi_arch_count']}")
-            if ma['single_arch_avg_duration'] > 0:
+            if ma["single_arch_avg_duration"] > 0:
                 print(f"  Avg single-arch: {ma['single_arch_avg_duration']:.2f}s")
-            if ma['multi_arch_avg_duration'] > 0:
+            if ma["multi_arch_avg_duration"] > 0:
                 print(f"  Avg multi-arch: {ma['multi_arch_avg_duration']:.2f}s")
-            if ma['multi_arch_overhead_percent'] > 0:
+            if ma["multi_arch_overhead_percent"] > 0:
                 print(f"  Overhead: {ma['multi_arch_overhead_percent']:.1f}%")
 
         # Verificar arquivo de métricas
         metrics_file = Path("metrics/build_metrics.jsonl")
         if metrics_file.exists():
-            line_count = len(metrics_file.read_text().split('\n')) if metrics_file.read_text() else 0
+            line_count = (
+                len(metrics_file.read_text().split("\n")) if metrics_file.read_text() else 0
+            )
             print(f"\n--- Métricas Persistidas ---")
             print_success(f"Arquivo: {metrics_file}")
             print(f"Linhas: {line_count}")
@@ -510,6 +526,7 @@ def run_tc009():
     except Exception as e:
         print_error(f"Erro ao executar teste: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -558,15 +575,19 @@ def clean_environment():
     try:
         result = subprocess.run(
             ["docker", "images", "--format", "{{.Repository}}:{{.Tag}}"],
-            capture_output=True, text=True
+            capture_output=True,
+            text=True,
         )
-        test_images = ["test-python:latest", "test-cache:1", "test-cache:2",
-                       "test-multiarch:latest"]
+        test_images = [
+            "test-python:latest",
+            "test-cache:1",
+            "test-cache:2",
+            "test-multiarch:latest",
+        ]
 
         for img in test_images:
             if img in result.stdout:
-                subprocess.run(["docker", "rmi", "-f", img],
-                             capture_output=True)
+                subprocess.run(["docker", "rmi", "-f", img], capture_output=True)
                 print_success(f"Removida: {img}")
     except:
         pass
@@ -593,7 +614,7 @@ def show_metrics():
 
     print_step("Lendo arquivo de métricas...")
     content = metrics_file.read_text()
-    lines = [l for l in content.split('\n') if l.strip()]
+    lines = [l for l in content.split("\n") if l.strip()]
 
     print(f"\nTotal de registros: {len(lines)}")
     print(f"Arquivo: {metrics_file}")
@@ -602,13 +623,16 @@ def show_metrics():
     if lines:
         print("\n--- Últimos 5 registros ---")
         import json
+
         for line in lines[-5:]:
             try:
                 data = json.loads(line)
-                print(f"  {data['timestamp'][:19]} | {data['language']:<10} | "
-                      f"{data.get('framework', 'N/A'):<10} | "
-                      f"{'✓' if data['success'] else '✗'} | "
-                      f"{data['duration_seconds']:.1f}s")
+                print(
+                    f"  {data['timestamp'][:19]} | {data['language']:<10} | "
+                    f"{data.get('framework', 'N/A'):<10} | "
+                    f"{'✓' if data['success'] else '✗'} | "
+                    f"{data['duration_seconds']:.1f}s"
+                )
             except:
                 pass
 
@@ -635,24 +659,24 @@ def main():
         print_menu()
         choice = input().strip().lower()
 
-        if choice == 'q':
+        if choice == "q":
             print("\nAté logo!")
             break
-        elif choice == 'h':
+        elif choice == "h":
             print_help()
-        elif choice == 'p':
+        elif choice == "p":
             check_prerequisites()
-        elif choice == 'e':
+        elif choice == "e":
             setup_environment()
-        elif choice == 'c':
+        elif choice == "c":
             clean_environment()
-        elif choice == 'm':
+        elif choice == "m":
             show_metrics()
-        elif choice == '1':
+        elif choice == "1":
             run_tc001()
-        elif choice == '4':
+        elif choice == "4":
             run_tc004()
-        elif choice == '9':
+        elif choice == "9":
             run_tc009()
         else:
             print_info(f"Opção '{choice}' não implementada. Use 'h' para ajuda.")

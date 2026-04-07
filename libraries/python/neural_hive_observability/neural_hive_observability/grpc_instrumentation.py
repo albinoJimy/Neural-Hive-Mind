@@ -125,7 +125,9 @@ class NeuralHiveGrpcServerInterceptor(grpc.ServerInterceptor):
 
         return wrapper
 
-    def _wrap_stream_stream(self, handler, otel_context, metadata: Dict[str, str], method_path: str):
+    def _wrap_stream_stream(
+        self, handler, otel_context, metadata: Dict[str, str], method_path: str
+    ):
         def wrapper(request_iterator, servicer_context):
             token = attach(otel_context)
             span = trace.get_current_span()
@@ -159,7 +161,9 @@ class NeuralHiveGrpcServerInterceptor(grpc.ServerInterceptor):
 
         for header, attr in self._header_mapping().items():
             if header in metadata:
-                baggage_ctx = set_baggage(f"neural.hive.{attr.replace('_', '.')}", metadata[header], baggage_ctx)
+                baggage_ctx = set_baggage(
+                    f"neural.hive.{attr.replace('_', '.')}", metadata[header], baggage_ctx
+                )
 
         return baggage_ctx
 
@@ -228,7 +232,7 @@ def init_grpc_instrumentation(config: ObservabilityConfig) -> NeuralHiveGrpcServ
 def create_instrumented_grpc_server(
     config: ObservabilityConfig,
     max_workers: int = 10,
-    interceptors: Optional[List[grpc.ServerInterceptor]] = None
+    interceptors: Optional[List[grpc.ServerInterceptor]] = None,
 ) -> grpc.Server:
     """
     Cria servidor gRPC com interceptors padrão Neural Hive.
@@ -254,15 +258,14 @@ def create_instrumented_grpc_server(
     server = grpc.server(
         futures.ThreadPoolExecutor(max_workers=max_workers),
         interceptors=base_interceptors,
-        options=options
+        options=options,
     )
 
     return server
 
 
 def create_instrumented_async_grpc_server(
-    config: ObservabilityConfig,
-    interceptors: Optional[List[grpc.aio.ServerInterceptor]] = None
+    config: ObservabilityConfig, interceptors: Optional[List[grpc.aio.ServerInterceptor]] = None
 ) -> grpc.aio.Server:
     """
     Cria servidor gRPC assíncrono com interceptors padrão Neural Hive.
@@ -283,18 +286,13 @@ def create_instrumented_async_grpc_server(
 
     all_interceptors = list(interceptors) if interceptors else []
 
-    server = grpc.aio.server(
-        interceptors=all_interceptors,
-        options=options
-    )
+    server = grpc.aio.server(interceptors=all_interceptors, options=options)
 
     return server
 
 
 def instrument_grpc_channel(
-    channel: grpc.Channel,
-    service_name: str = "",
-    target_service: str = ""
+    channel: grpc.Channel, service_name: str = "", target_service: str = ""
 ) -> grpc.Channel:
     """
     Instrumenta um canal gRPC cliente com tracing OpenTelemetry.
@@ -337,7 +335,7 @@ def extract_grpc_context(servicer_context) -> Tuple[Dict[str, str], Optional[Any
     # Suportar dict diretamente (para casos onde o contexto já foi extraído)
     if isinstance(servicer_context, dict):
         metadata = {k.lower(): v for k, v in servicer_context.items() if k and v}
-    elif hasattr(servicer_context, 'invocation_metadata'):
+    elif hasattr(servicer_context, "invocation_metadata"):
         # ServicerContext padrão do gRPC
         try:
             for key, value in servicer_context.invocation_metadata() or []:

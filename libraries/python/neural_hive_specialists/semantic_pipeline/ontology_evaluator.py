@@ -232,9 +232,7 @@ class OntologyBasedEvaluator:
             density = graph_features.get("density", 0.0)
 
             # Score final de complexidade
-            complexity_score = (
-                complexity_factor * 0.4 + path_complexity * 0.3 + density * 0.3
-            )
+            complexity_score = complexity_factor * 0.4 + path_complexity * 0.3 + density * 0.3
 
             logger.debug(
                 "Complexity evaluated",

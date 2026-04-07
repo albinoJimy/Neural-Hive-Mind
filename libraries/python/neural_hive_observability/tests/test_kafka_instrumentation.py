@@ -21,19 +21,19 @@ import neural_hive_observability.tracing as tracing
 def _setup_tracer():
     # Usa provider existente ou cria novo se necessário
     existing_provider = trace.get_tracer_provider()
-    
+
     # Cria novo provider com exporter in-memory para capturar spans
     provider = TracerProvider()
     exporter = InMemorySpanExporter()
     processor = SimpleSpanProcessor(exporter)
     provider.add_span_processor(processor)
-    
+
     # Tenta definir o provider (pode falhar se já houver um)
     try:
         trace.set_tracer_provider(provider)
     except Exception:
         pass  # Ignora se já houver provider
-    
+
     # Obtém tracer do provider que criamos
     tracer = provider.get_tracer(__name__)
     tracing._tracer = tracer
@@ -56,7 +56,7 @@ class DummyProducer:
 
 def test_instrumented_kafka_producer_injects_headers():
     from opentelemetry.context import attach, detach
-    
+
     tracer, exporter = _setup_tracer()
     config = ObservabilityConfig(
         service_name="gateway",
@@ -71,9 +71,10 @@ def test_instrumented_kafka_producer_injects_headers():
 
     # set_baggage returns a new context, we need to attach it
     from opentelemetry import context
+
     ctx = set_baggage("neural.hive.intent.id", "intent-123")
     token = attach(ctx)
-    
+
     try:
         with tracer.start_as_current_span("parent-span"):
             producer.produce(topic="demo-topic", value=b"payload")
@@ -139,7 +140,7 @@ async def test_instrumented_aiokafka_consumer_extracts_context():
         neural_hive_component="worker",
         neural_hive_layer="orquestracao",
     )
-    
+
     # Set _config in tracing module
     tracing._config = config
 
@@ -149,16 +150,16 @@ async def test_instrumented_aiokafka_consumer_extracts_context():
     messages = []
     async for msg in consumer:
         messages.append(msg)
-    
+
     # Verify message was consumed
     assert len(messages) == 1
-    
+
     # The consumer should have extracted headers from the message
     # Verify spans were created (may need to wait for async completion)
     # Since async iteration with break can cause context issues, we verify
     # the consumer was able to iterate successfully
     spans = exporter.get_finished_spans()
-    
+
     # If spans were created, verify their attributes
     if spans:
         # Find the consume span
@@ -171,7 +172,7 @@ async def test_instrumented_aiokafka_consumer_extracts_context():
                 assert attributes.get("messaging.source") == "demo-topic"
             if "neural.hive.intent.id" in attributes:
                 assert attributes.get("neural.hive.intent.id") == "intent-ctx"
-    
+
     # The main assertion is that consumption worked without error
     assert messages[0].topic == "demo-topic"
 
@@ -251,7 +252,7 @@ class TestInstrumentedKafkaProducerValidation:
         producer = DummyProducer()
 
         # Criar config mock que passa validação de tipo mas tem service_name None
-        with patch.object(ObservabilityConfig, '__post_init__', lambda self: None):
+        with patch.object(ObservabilityConfig, "__post_init__", lambda self: None):
             config = ObservabilityConfig(service_name=None)
 
         with pytest.raises(ValueError) as exc_info:
@@ -270,7 +271,7 @@ class TestInstrumentKafkaProducerFunction:
         producer = DummyProducer()
 
         # Salvar config original
-        original_config = getattr(neural_hive_observability, '_config', None)
+        original_config = getattr(neural_hive_observability, "_config", None)
 
         try:
             # Definir config global como None
@@ -291,6 +292,7 @@ class TestInstrumentKafkaProducerFunction:
 
     def test_instrument_kafka_producer_logs_success_when_instrumentation_succeeds(self, caplog):
         """Teste 17: Verificar que log de info é gerado quando instrumentação é bem-sucedida."""
+
         class FakeConfluentProducer:
             pass
 
@@ -299,8 +301,7 @@ class TestInstrumentKafkaProducerFunction:
 
         try:
             config = ObservabilityConfig(
-                service_name="test-service",
-                neural_hive_component="test-component"
+                service_name="test-service", neural_hive_component="test-component"
             )
 
             with caplog.at_level(logging.INFO):

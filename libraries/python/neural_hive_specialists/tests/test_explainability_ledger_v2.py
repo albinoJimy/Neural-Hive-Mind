@@ -329,12 +329,8 @@ class TestExplainabilityLedgerV2Queries:
             "feature_names": sample_explainability_data["feature_names"],
             "model_version": sample_explainability_data["model_version"],
             "model_type": sample_explainability_data["model_type"],
-            "importance_vectors": sample_explainability_data[
-                "feature_importances"
-            ],  # Usar alias
-            "human_readable_summary": sample_explainability_data[
-                "human_readable_summary"
-            ],
+            "importance_vectors": sample_explainability_data["feature_importances"],  # Usar alias
+            "human_readable_summary": sample_explainability_data["human_readable_summary"],
             "detailed_narrative": sample_explainability_data["detailed_narrative"],
             "prediction": sample_explainability_data["prediction"],
             "computation_time_ms": sample_explainability_data["computation_time_ms"],
@@ -344,8 +340,5 @@ class TestExplainabilityLedgerV2Queries:
         record = ExplainabilityRecordSchema(**data_with_alias)
 
         # Internamente, deve ter sido mapeado para feature_importances
-        assert (
-            record.feature_importances
-            == sample_explainability_data["feature_importances"]
-        )
+        assert record.feature_importances == sample_explainability_data["feature_importances"]
         assert len(record.feature_importances) > 0

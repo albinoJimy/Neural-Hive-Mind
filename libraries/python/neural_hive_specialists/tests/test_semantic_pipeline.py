@@ -26,10 +26,12 @@ class TestSemanticPipeline:
     def mock_feature_extractor(self):
         """Feature extractor mockado."""
         mock_fe = Mock()
-        mock_fe.extract_features = Mock(return_value={
-            "metadata_features": {"domain": "technical"},
-            "task_features": {"num_tasks": 2},
-        })
+        mock_fe.extract_features = Mock(
+            return_value={
+                "metadata_features": {"domain": "technical"},
+                "task_features": {"num_tasks": 2},
+            }
+        )
         return mock_fe
 
     @pytest.fixture
@@ -90,8 +92,8 @@ class TestSemanticPipeline:
         assert pipeline.semantic_weight == 0.7
         assert pipeline.ontology_weight == 0.3
 
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_pipeline.SemanticAnalyzer')
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_pipeline.OntologyBasedEvaluator')
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_pipeline.SemanticAnalyzer")
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_pipeline.OntologyBasedEvaluator")
     def test_evaluate_plan_success(
         self,
         mock_ontology_evaluator_class,
@@ -138,8 +140,8 @@ class TestSemanticPipeline:
         assert 0.0 <= result["risk_score"] <= 1.0
         assert result["recommendation"] == "approve"
 
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_pipeline.SemanticAnalyzer')
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_pipeline.OntologyBasedEvaluator')
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_pipeline.SemanticAnalyzer")
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_pipeline.OntologyBasedEvaluator")
     def test_evaluate_plan_generates_mitigations_for_low_scores(
         self,
         mock_ontology_evaluator_class,
@@ -181,8 +183,8 @@ class TestSemanticPipeline:
         assert "performance_optimization" in mitigation_types
         assert "quality_enhancement" in mitigation_types
 
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_pipeline.SemanticAnalyzer')
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_pipeline.OntologyBasedEvaluator')
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_pipeline.SemanticAnalyzer")
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_pipeline.OntologyBasedEvaluator")
     def test_evaluate_plan_with_empty_tasks(
         self,
         mock_ontology_evaluator_class,
@@ -329,8 +331,8 @@ class TestSemanticPipeline:
         assert "security_improvement" in mitigation_types
         assert "performance_optimization" in mitigation_types
 
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_pipeline.SemanticAnalyzer')
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_pipeline.OntologyBasedEvaluator')
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_pipeline.SemanticAnalyzer")
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_pipeline.OntologyBasedEvaluator")
     def test_evaluate_plan_metadata_contains_all_scores(
         self,
         mock_ontology_evaluator_class,
@@ -380,8 +382,8 @@ class TestSemanticPipeline:
         assert "domain" in metadata
         assert "num_tasks" in metadata
 
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_pipeline.SemanticAnalyzer')
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_pipeline.OntologyBasedEvaluator')
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_pipeline.SemanticAnalyzer")
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_pipeline.OntologyBasedEvaluator")
     def test_evaluate_plan_clamps_scores_to_valid_range(
         self,
         mock_ontology_evaluator_class,
@@ -417,8 +419,8 @@ class TestSemanticPipeline:
         assert 0.0 <= result["confidence_score"] <= 1.0
         assert 0.0 <= result["risk_score"] <= 1.0
 
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_pipeline.SemanticAnalyzer')
-    @patch('neural_hive_specialists.semantic_pipeline.semantic_pipeline.OntologyBasedEvaluator')
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_pipeline.SemanticAnalyzer")
+    @patch("neural_hive_specialists.semantic_pipeline.semantic_pipeline.OntologyBasedEvaluator")
     def test_evaluate_plan_reasoning_factors_structure(
         self,
         mock_ontology_evaluator_class,

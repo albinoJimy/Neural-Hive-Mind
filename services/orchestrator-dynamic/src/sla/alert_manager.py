@@ -6,6 +6,7 @@ Responsável por publicar alertas proativos e eventos de violação no Kafka.
 
 import uuid
 from datetime import datetime, timezone
+
 UTC = timezone.utc  # type: ignore
 
 import structlog

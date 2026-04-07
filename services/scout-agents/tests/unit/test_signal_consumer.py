@@ -55,7 +55,7 @@ def consumer(mock_settings, mock_exploration_engine, mock_pheromone_client, mock
         settings=mock_settings,
         exploration_engine=mock_exploration_engine,
         pheromone_client=mock_pheromone_client,
-        metrics=mock_metrics
+        metrics=mock_metrics,
     )
 
 
@@ -78,7 +78,7 @@ class TestSignalFeedbackConsumerInitialization:
         mock_producer = MagicMock()
         mock_producer.start = AsyncMock()
 
-        with patch('src.consumers.signal_consumer.instrument_kafka_consumer') as mock_instrument:
+        with patch("src.consumers.signal_consumer.instrument_kafka_consumer") as mock_instrument:
             mock_instrument.return_value = mock_producer
 
             await consumer.initialize()
@@ -94,23 +94,21 @@ class TestProcessMessage:
     async def test_process_signal_feedback(self, consumer):
         """Deve processar feedback de sinal."""
         signal_data = {
-            'signal_id': 'signal-123',
-            'signal_type': 'PATTERN_EMERGING',
-            'exploration_domain': 'BUSINESS',
-            'curiosity_score': 0.8,
-            'confidence': 0.9,
-            'relevance_score': 0.7,
-            'risk_score': 0.2,
-            'correlation_id': 'corr-789',
-            'metadata': {
-                'used_in_exploration': True
-            }
+            "signal_id": "signal-123",
+            "signal_type": "PATTERN_EMERGING",
+            "exploration_domain": "BUSINESS",
+            "curiosity_score": 0.8,
+            "confidence": 0.9,
+            "relevance_score": 0.7,
+            "risk_score": 0.2,
+            "correlation_id": "corr-789",
+            "metadata": {"used_in_exploration": True},
         }
 
         message = MagicMock()
         message.value = signal_data
         message.headers = []
-        message.topic = 'exploration-signals'
+        message.topic = "exploration-signals"
         message.partition = 0
         message.offset = 0
 
@@ -122,24 +120,22 @@ class TestProcessMessage:
 
         # Verificar estatísticas atualizadas
         key = "BUSINESS:PATTERN_EMERGING"
-        assert consumer.signal_stats[key]['total'] == 1
-        assert consumer.signal_stats[key]['acted_upon'] == 1
-        assert consumer.signal_stats[key]['ignored'] == 0
+        assert consumer.signal_stats[key]["total"] == 1
+        assert consumer.signal_stats[key]["acted_upon"] == 1
+        assert consumer.signal_stats[key]["ignored"] == 0
 
     @pytest.mark.asyncio
     async def test_process_ignored_signal(self, consumer):
         """Deve processar sinal ignorado (não utilizado)."""
         signal_data = {
-            'signal_id': 'signal-123',
-            'signal_type': 'PATTERN_EMERGING',
-            'exploration_domain': 'BUSINESS',
-            'curiosity_score': 0.8,
-            'confidence': 0.9,
-            'relevance_score': 0.7,
-            'risk_score': 0.2,
-            'metadata': {
-                'used_in_exploration': False  # Não utilizado
-            }
+            "signal_id": "signal-123",
+            "signal_type": "PATTERN_EMERGING",
+            "exploration_domain": "BUSINESS",
+            "curiosity_score": 0.8,
+            "confidence": 0.9,
+            "relevance_score": 0.7,
+            "risk_score": 0.2,
+            "metadata": {"used_in_exploration": False},  # Não utilizado
         }
 
         message = MagicMock()
@@ -153,19 +149,19 @@ class TestProcessMessage:
 
         # Verificar estatísticas
         key = "BUSINESS:PATTERN_EMERGING"
-        assert consumer.signal_stats[key]['ignored'] == 1
-        assert consumer.signal_stats[key]['acted_upon'] == 0
+        assert consumer.signal_stats[key]["ignored"] == 1
+        assert consumer.signal_stats[key]["acted_upon"] == 0
 
     @pytest.mark.asyncio
     async def test_update_signal_stats_rolling_average(self, consumer):
         """Deve calcular média móvel de curiosity score."""
         # Primeiro sinal
         signal_data_1 = {
-            'signal_id': 'signal-1',
-            'signal_type': 'PATTERN_EMERGING',
-            'exploration_domain': 'BUSINESS',
-            'curiosity_score': 0.5,
-            'metadata': {'used_in_exploration': True}
+            "signal_id": "signal-1",
+            "signal_type": "PATTERN_EMERGING",
+            "exploration_domain": "BUSINESS",
+            "curiosity_score": 0.5,
+            "metadata": {"used_in_exploration": True},
         }
 
         message_1 = MagicMock()
@@ -179,11 +175,11 @@ class TestProcessMessage:
 
         # Segundo sinal com score diferente
         signal_data_2 = {
-            'signal_id': 'signal-2',
-            'signal_type': 'PATTERN_EMERGING',
-            'exploration_domain': 'BUSINESS',
-            'curiosity_score': 0.9,
-            'metadata': {'used_in_exploration': True}
+            "signal_id": "signal-2",
+            "signal_type": "PATTERN_EMERGING",
+            "exploration_domain": "BUSINESS",
+            "curiosity_score": 0.9,
+            "metadata": {"used_in_exploration": True},
         }
 
         message_2 = MagicMock()
@@ -194,7 +190,7 @@ class TestProcessMessage:
 
         # Média deve ser (0.5 + 0.9) / 2 = 0.7
         key = "BUSINESS:PATTERN_EMERGING"
-        assert abs(consumer.signal_stats[key]['avg_curiosity'] - 0.7) < 0.01
+        assert abs(consumer.signal_stats[key]["avg_curiosity"] - 0.7) < 0.01
 
 
 class TestAdjustExplorationParameters:
@@ -206,29 +202,25 @@ class TestAdjustExplorationParameters:
         # Preparar estatísticas
         key = "BUSINESS:PATTERN_EMERGING"
         consumer.signal_stats[key] = {
-            'total': 20,
-            'acted_upon': 3,  # 15% utilização (baixa)
-            'ignored': 17,
-            'avg_curiosity': 0.8,  # Alta curiosidade
-            'last_updated': datetime.now(timezone.utc)
+            "total": 20,
+            "acted_upon": 3,  # 15% utilização (baixa)
+            "ignored": 17,
+            "avg_curiosity": 0.8,  # Alta curiosidade
+            "last_updated": datetime.now(timezone.utc),
         }
 
         signal = {
-            'signal_type': 'PATTERN_EMERGING',
-            'exploration_domain': 'BUSINESS',
-            'curiosity_score': 0.8,
-            'relevance_score': 0.7
+            "signal_type": "PATTERN_EMERGING",
+            "exploration_domain": "BUSINESS",
+            "curiosity_score": 0.8,
+            "relevance_score": 0.7,
         }
 
-        with patch.object(consumer, '_adjust_thresholds', new=AsyncMock()) as mock_adjust:
+        with patch.object(consumer, "_adjust_thresholds", new=AsyncMock()) as mock_adjust:
             await consumer._adjust_exploration_parameters(signal)
 
             # Deve reduzir thresholds
-            mock_adjust.assert_called_once_with(
-                'BUSINESS',
-                'lower',
-                0.05
-            )
+            mock_adjust.assert_called_once_with("BUSINESS", "lower", 0.05)
 
     @pytest.mark.asyncio
     async def test_increase_thresholds_high_utilization(self, consumer):
@@ -236,29 +228,25 @@ class TestAdjustExplorationParameters:
         # Preparar estatísticas
         key = "BUSINESS:PATTERN_EMERGING"
         consumer.signal_stats[key] = {
-            'total': 20,
-            'acted_upon': 18,  # 90% utilização (alta)
-            'ignored': 2,
-            'avg_curiosity': 0.4,  # Baixa curiosidade
-            'last_updated': datetime.now(timezone.utc)
+            "total": 20,
+            "acted_upon": 18,  # 90% utilização (alta)
+            "ignored": 2,
+            "avg_curiosity": 0.4,  # Baixa curiosidade
+            "last_updated": datetime.now(timezone.utc),
         }
 
         signal = {
-            'signal_type': 'PATTERN_EMERGING',
-            'exploration_domain': 'BUSINESS',
-            'curiosity_score': 0.4,
-            'relevance_score': 0.7
+            "signal_type": "PATTERN_EMERGING",
+            "exploration_domain": "BUSINESS",
+            "curiosity_score": 0.4,
+            "relevance_score": 0.7,
         }
 
-        with patch.object(consumer, '_adjust_thresholds', new=AsyncMock()) as mock_adjust:
+        with patch.object(consumer, "_adjust_thresholds", new=AsyncMock()) as mock_adjust:
             await consumer._adjust_exploration_parameters(signal)
 
             # Deve aumentar thresholds
-            mock_adjust.assert_called_once_with(
-                'BUSINESS',
-                'higher',
-                0.05
-            )
+            mock_adjust.assert_called_once_with("BUSINESS", "higher", 0.05)
 
     @pytest.mark.asyncio
     async def test_wait_for_minimum_samples(self, consumer):
@@ -266,21 +254,21 @@ class TestAdjustExplorationParameters:
         # Estatísticas insuficientes
         key = "BUSINESS:PATTERN_EMERGING"
         consumer.signal_stats[key] = {
-            'total': 5,  # Menos que 10
-            'acted_upon': 1,
-            'ignored': 4,
-            'avg_curiosity': 0.8,
-            'last_updated': datetime.now(timezone.utc)
+            "total": 5,  # Menos que 10
+            "acted_upon": 1,
+            "ignored": 4,
+            "avg_curiosity": 0.8,
+            "last_updated": datetime.now(timezone.utc),
         }
 
         signal = {
-            'signal_type': 'PATTERN_EMERGING',
-            'exploration_domain': 'BUSINESS',
-            'curiosity_score': 0.8,
-            'relevance_score': 0.7
+            "signal_type": "PATTERN_EMERGING",
+            "exploration_domain": "BUSINESS",
+            "curiosity_score": 0.8,
+            "relevance_score": 0.7,
         }
 
-        with patch.object(consumer, '_adjust_thresholds', new=AsyncMock()) as mock_adjust:
+        with patch.object(consumer, "_adjust_thresholds", new=AsyncMock()) as mock_adjust:
             await consumer._adjust_exploration_parameters(signal)
 
             # Não deve ajustar
@@ -291,22 +279,24 @@ class TestAdjustExplorationParameters:
         """Deve reforçar feromônio para sinal de alta relevância."""
         key = "BUSINESS:PATTERN_EMERGING"
         consumer.signal_stats[key] = {
-            'total': 20,
-            'acted_upon': 10,
-            'ignored': 10,
-            'avg_curiosity': 0.7,
-            'last_updated': datetime.now(timezone.utc)
+            "total": 20,
+            "acted_upon": 10,
+            "ignored": 10,
+            "avg_curiosity": 0.7,
+            "last_updated": datetime.now(timezone.utc),
         }
 
         signal = {
-            'signal_id': 'signal-123',
-            'signal_type': 'PATTERN_EMERGING',
-            'exploration_domain': 'BUSINESS',
-            'curiosity_score': 0.7,
-            'relevance_score': 0.8  # Alta relevância
+            "signal_id": "signal-123",
+            "signal_type": "PATTERN_EMERGING",
+            "exploration_domain": "BUSINESS",
+            "curiosity_score": 0.7,
+            "relevance_score": 0.8,  # Alta relevância
         }
 
-        with patch.object(consumer, '_reinforce_signal_pheromone', new=AsyncMock()) as mock_reinforce:
+        with patch.object(
+            consumer, "_reinforce_signal_pheromone", new=AsyncMock()
+        ) as mock_reinforce:
             await consumer._adjust_exploration_parameters(signal)
 
             # Deve reforçar feromônio
@@ -320,33 +310,33 @@ class TestGetFeedbackStats:
         """Deve retornar estatísticas vazias quando não há dados."""
         stats = consumer.get_feedback_stats()
 
-        assert stats['total_signals'] == 0
-        assert stats['total_acted_upon'] == 0
-        assert stats['by_type'] == {}
+        assert stats["total_signals"] == 0
+        assert stats["total_acted_upon"] == 0
+        assert stats["by_type"] == {}
 
     def test_get_feedback_stats_with_data(self, consumer):
         """Deve retornar estatísticas corretas."""
-        consumer.signal_stats['BUSINESS:PATTERN_EMERGING'] = {
-            'total': 10,
-            'acted_upon': 7,
-            'ignored': 3,
-            'avg_curiosity': 0.75,
-            'last_updated': datetime.now(timezone.utc)
+        consumer.signal_stats["BUSINESS:PATTERN_EMERGING"] = {
+            "total": 10,
+            "acted_upon": 7,
+            "ignored": 3,
+            "avg_curiosity": 0.75,
+            "last_updated": datetime.now(timezone.utc),
         }
-        consumer.signal_stats['TECHNICAL:ANOMALY_POSITIVE'] = {
-            'total': 5,
-            'acted_upon': 2,
-            'ignored': 3,
-            'avg_curiosity': 0.6,
-            'last_updated': datetime.now(timezone.utc)
+        consumer.signal_stats["TECHNICAL:ANOMALY_POSITIVE"] = {
+            "total": 5,
+            "acted_upon": 2,
+            "ignored": 3,
+            "avg_curiosity": 0.6,
+            "last_updated": datetime.now(timezone.utc),
         }
 
         stats = consumer.get_feedback_stats()
 
-        assert stats['total_signals'] == 15
-        assert stats['total_acted_upon'] == 9
-        assert 'BUSINESS:PATTERN_EMERGING' in stats['by_type']
-        assert 'TECHNICAL:ANOMALY_POSITIVE' in stats['by_type']
+        assert stats["total_signals"] == 15
+        assert stats["total_acted_upon"] == 9
+        assert "BUSINESS:PATTERN_EMERGING" in stats["by_type"]
+        assert "TECHNICAL:ANOMALY_POSITIVE" in stats["by_type"]
 
 
 class TestConsumerLifecycle:
@@ -360,7 +350,7 @@ class TestConsumerLifecycle:
         mock_producer.stop = AsyncMock()
         mock_producer.__aiter__ = AsyncMock(return_value=iter([]))
 
-        with patch('src.consumers.signal_consumer.instrument_kafka_consumer') as mock_instrument:
+        with patch("src.consumers.signal_consumer.instrument_kafka_consumer") as mock_instrument:
             mock_instrument.return_value = mock_producer
 
             await consumer.initialize()

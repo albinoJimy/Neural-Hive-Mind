@@ -32,6 +32,7 @@ async def test_readiness_endpoint_mongodb_connected():
 
     # Simular MongoDB conectado
     import src.main
+
     src.main.mongo_client = mock_mongo
     src.main.explanation_producer = None
 
@@ -39,6 +40,7 @@ async def test_readiness_endpoint_mongodb_connected():
 
     # Parse JSONResponse body
     import json
+
     body = json.loads(response.body.decode())
     assert body["status"] == "ready"
     assert body["checks"]["mongodb"] is True
@@ -52,6 +54,7 @@ async def test_readiness_endpoint_mongodb_disconnected():
 
     # Simular MongoDB desconectado
     import src.main
+
     src.main.mongo_client = None
     src.main.explanation_producer = None
 
@@ -59,6 +62,7 @@ async def test_readiness_endpoint_mongodb_disconnected():
 
     # Parse JSONResponse body
     import json
+
     body = json.loads(response.body.decode())
     assert body["status"] == "not_ready"
     assert body["checks"]["mongodb"] is False
@@ -76,6 +80,7 @@ async def test_readiness_endpoint_with_kafka():
     mock_producer.producer = MagicMock()
 
     import src.main
+
     src.main.mongo_client = mock_mongo
     src.main.explanation_producer = mock_producer
 
@@ -83,6 +88,7 @@ async def test_readiness_endpoint_with_kafka():
 
     # Parse JSONResponse body
     import json
+
     body = json.loads(response.body.decode())
     assert body["status"] == "ready"
     assert body["checks"]["kafka_producer"] is True
@@ -105,14 +111,17 @@ async def test_get_explainability_by_token_success():
     from src.main import get_explainability_by_token, db
 
     mock_db = MagicMock()
-    mock_db.explainability_ledger.find_one = AsyncMock(return_value={
-        "explainability_token": "token-123",
-        "decision_id": "decision-123",
-        "method": "shap",
-        "generated_at": datetime.now()
-    })
+    mock_db.explainability_ledger.find_one = AsyncMock(
+        return_value={
+            "explainability_token": "token-123",
+            "decision_id": "decision-123",
+            "method": "shap",
+            "generated_at": datetime.now(),
+        }
+    )
 
     import src.main
+
     src.main.db = mock_db
 
     response = await get_explainability_by_token("token-123")
@@ -131,6 +140,7 @@ async def test_get_explainability_by_token_not_found():
     mock_db.explainability_ledger.find_one = AsyncMock(return_value=None)
 
     import src.main
+
     src.main.db = mock_db
 
     with pytest.raises(HTTPException) as exc_info:
@@ -145,13 +155,16 @@ async def test_get_explanation_extended():
     from src.main import get_explanation_extended, api_extensions
 
     mock_extensions = AsyncMock()
-    mock_extensions.get_explainability_by_decision_id = AsyncMock(return_value={
-        "decision_id": "decision-123",
-        "method": "hierarchical",
-        "hierarchical_data": {"seniority_weights": [0.3, 0.5, 0.2]}
-    })
+    mock_extensions.get_explainability_by_decision_id = AsyncMock(
+        return_value={
+            "decision_id": "decision-123",
+            "method": "hierarchical",
+            "hierarchical_data": {"seniority_weights": [0.3, 0.5, 0.2]},
+        }
+    )
 
     import src.main
+
     src.main.api_extensions = mock_extensions
 
     response = await get_explanation_extended("decision-123")
@@ -166,19 +179,20 @@ async def test_generate_explanation():
     from src.main import generate_explanation_endpoint, GenerateExplanationRequest, api_extensions
 
     mock_extensions = AsyncMock()
-    mock_extensions.generate_explanation = AsyncMock(return_value={
-        "decision_id": "decision-123",
-        "explainability_token": "token-456",
-        "explanation": "Generated explanation"
-    })
+    mock_extensions.generate_explanation = AsyncMock(
+        return_value={
+            "decision_id": "decision-123",
+            "explainability_token": "token-456",
+            "explanation": "Generated explanation",
+        }
+    )
 
     import src.main
+
     src.main.api_extensions = mock_extensions
 
     request = GenerateExplanationRequest(
-        decision_id="decision-123",
-        format="json",
-        include_shap=True
+        decision_id="decision-123", format="json", include_shap=True
     )
 
     response = await generate_explanation_endpoint(request)
@@ -193,13 +207,13 @@ async def test_get_explanation_formatted():
     from src.main import get_explanation_formatted, api_extensions
 
     mock_extensions = AsyncMock()
-    mock_extensions.get_explainability_by_decision_id = AsyncMock(return_value={
-        "decision_id": "decision-123",
-        "explanation": "Test explanation"
-    })
+    mock_extensions.get_explainability_by_decision_id = AsyncMock(
+        return_value={"decision_id": "decision-123", "explanation": "Test explanation"}
+    )
     mock_extensions.format_explanation = MagicMock(return_value="<html>Formatted</html>")
 
     import src.main
+
     src.main.api_extensions = mock_extensions
 
     response = await get_explanation_formatted("decision-123", "html")
@@ -214,11 +228,12 @@ async def test_get_explanation_formatted_invalid_format():
     from fastapi import HTTPException
 
     mock_extensions = AsyncMock()
-    mock_extensions.get_explainability_by_decision_id = AsyncMock(return_value={
-        "decision_id": "decision-123"
-    })
+    mock_extensions.get_explainability_by_decision_id = AsyncMock(
+        return_value={"decision_id": "decision-123"}
+    )
 
     import src.main
+
     src.main.api_extensions = mock_extensions
 
     with pytest.raises(HTTPException) as exc_info:
@@ -236,14 +251,14 @@ async def test_get_explainability_stats():
     mock_db = MagicMock()
     # aggregate() retorna um cursor com método to_list
     mock_cursor = AsyncMock()
-    mock_cursor.to_list = AsyncMock(return_value=[
-        {"_id": "shap", "count": 150},
-        {"_id": "hierarchical", "count": 80}
-    ])
+    mock_cursor.to_list = AsyncMock(
+        return_value=[{"_id": "shap", "count": 150}, {"_id": "hierarchical", "count": 80}]
+    )
     mock_db.explainability_ledger.aggregate = Mock(return_value=mock_cursor)
     mock_db.explainability_ledger.count_documents = AsyncMock(return_value=230)
 
     import src.main
+
     src.main.db = mock_db
 
     response = await get_explainability_stats()
@@ -261,19 +276,15 @@ async def test_get_explainability_stats_with_date_filter():
     mock_db = MagicMock()
     # aggregate() retorna um cursor com método to_list
     mock_cursor = AsyncMock()
-    mock_cursor.to_list = AsyncMock(return_value=[
-        {"_id": "shap", "count": 50}
-    ])
+    mock_cursor.to_list = AsyncMock(return_value=[{"_id": "shap", "count": 50}])
     mock_db.explainability_ledger.aggregate = Mock(return_value=mock_cursor)
     mock_db.explainability_ledger.count_documents = AsyncMock(return_value=50)
 
     import src.main
+
     src.main.db = mock_db
 
-    response = await get_explainability_stats(
-        start_date="2026-03-01",
-        end_date="2026-03-30"
-    )
+    response = await get_explainability_stats(start_date="2026-03-01", end_date="2026-03-30")
 
     assert response["total_explanations"] == 50
 

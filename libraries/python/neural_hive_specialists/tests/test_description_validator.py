@@ -160,7 +160,9 @@ class TestValidateDescription:
         """Testa validação com keywords de QoS."""
         description = "Process with idempotent transaction and retry logic"
 
-        result = validator.validate_description(description, domain="business-logic", qos="exactly_once")
+        result = validator.validate_description(
+            description, domain="business-logic", qos="exactly_once"
+        )
 
         assert result["metrics"]["qos_score"] > 0.5
 
@@ -384,9 +386,7 @@ class TestScoreSecurityKeywords:
         """Testa score para nível confidential com keywords."""
         description = "Encrypt and authenticate"
 
-        score, issues = validator._score_security_keywords(
-            description, "confidential"
-        )
+        score, issues = validator._score_security_keywords(description, "confidential")
 
         assert score > 0.5
 
@@ -450,7 +450,10 @@ class TestValidatePlanDescriptions:
         """Testa validação de plano válido."""
         cognitive_plan = {
             "tasks": [
-                {"task_id": "1", "description": "Create service with authentication and encryption"},
+                {
+                    "task_id": "1",
+                    "description": "Create service with authentication and encryption",
+                },
                 {"task_id": "2", "description": "Validate data with proper checks"},
             ],
             "original_domain": "security-analysis",
@@ -703,6 +706,7 @@ class TestGetValidator:
         """Testa que get_validator cria instância se necessário."""
         # Limpar instância global
         import neural_hive_specialists.validation.description_validator as m
+
         m._validator_instance = None
 
         validator = get_validator()

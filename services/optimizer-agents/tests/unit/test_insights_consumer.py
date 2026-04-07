@@ -70,38 +70,42 @@ def sample_hypothesis():
                 parameter="technical_weight",
                 previous_value=0.25,
                 new_value="0.30",
-                justification="Improve accuracy"
+                justification="Improve accuracy",
             )
         ],
         expected_improvement=0.15,
         confidence_score=0.85,
         risk_score=0.3,
         priority=3,
-        metadata={"context_id": "test-001"}
+        metadata={"context_id": "test-001"},
     )
 
 
 @pytest.fixture
-def insights_consumer(mock_settings, mock_optimization_engine, mock_experiment_manager, mock_metrics):
+def insights_consumer(
+    mock_settings, mock_optimization_engine, mock_experiment_manager, mock_metrics
+):
     """Fixture do InsightsConsumer."""
     return InsightsConsumer(
         settings=mock_settings,
         optimization_engine=mock_optimization_engine,
         experiment_manager=mock_experiment_manager,
-        metrics=mock_metrics
+        metrics=mock_metrics,
     )
 
 
 class TestInsightsConsumerInitialization:
     """Testes de inicialização do InsightsConsumer."""
 
-    def test_initialization_with_all_dependencies(self, mock_settings, mock_optimization_engine, mock_experiment_manager, mock_metrics):
+    def test_initialization_with_all_dependencies(
+        self, mock_settings, mock_optimization_engine, mock_experiment_manager, mock_metrics
+    ):
         """Testa inicialização com todas as dependências."""
         consumer = InsightsConsumer(
             settings=mock_settings,
             optimization_engine=mock_optimization_engine,
             experiment_manager=mock_experiment_manager,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
 
         assert consumer.settings == mock_settings
@@ -122,7 +126,7 @@ class TestInsightsConsumerInitialization:
 
     def test_initialization_without_settings(self):
         """Testa inicialização sem settings (usa get_settings)."""
-        with patch('src.consumers.insights_consumer.get_settings') as mock_get_settings:
+        with patch("src.consumers.insights_consumer.get_settings") as mock_get_settings:
             mock_settings = Mock()
             mock_settings.kafka_bootstrap_servers = "localhost:9092"
             mock_get_settings.return_value = mock_settings
@@ -138,11 +142,11 @@ class TestInsightsConsumerStart:
 
     def test_start_creates_kafka_consumer(self, insights_consumer):
         """Testa que start cria consumer Kafka."""
-        with patch('src.consumers.insights_consumer.Consumer') as mock_consumer_class:
+        with patch("src.consumers.insights_consumer.Consumer") as mock_consumer_class:
             mock_consumer = Mock()
             mock_consumer_class.return_value = mock_consumer
 
-            with patch('asyncio.create_task'):
+            with patch("asyncio.create_task"):
                 insights_consumer.start()
 
                 mock_consumer_class.assert_called_once()
@@ -152,15 +156,15 @@ class TestInsightsConsumerStart:
 
     def test_start_sets_running_flag(self, insights_consumer):
         """Testa que start define flag running como True."""
-        with patch('src.consumers.insights_consumer.Consumer'):
-            with patch('asyncio.create_task'):
+        with patch("src.consumers.insights_consumer.Consumer"):
+            with patch("asyncio.create_task"):
                 insights_consumer.start()
                 assert insights_consumer.running is True
 
     def test_start_creates_background_task(self, insights_consumer):
         """Testa que start cria tarefa em background."""
-        with patch('src.consumers.insights_consumer.Consumer'):
-            with patch('asyncio.create_task') as mock_create_task:
+        with patch("src.consumers.insights_consumer.Consumer"):
+            with patch("asyncio.create_task") as mock_create_task:
                 mock_task = Mock()
                 mock_create_task.return_value = mock_task
 
@@ -170,7 +174,9 @@ class TestInsightsConsumerStart:
 
     def test_start_handles_exception(self, insights_consumer):
         """Testa que start trata exceções adequadamente."""
-        with patch('src.consumers.insights_consumer.Consumer', side_effect=Exception("Kafka error")):
+        with patch(
+            "src.consumers.insights_consumer.Consumer", side_effect=Exception("Kafka error")
+        ):
             with pytest.raises(Exception) as exc_info:
                 insights_consumer.start()
 
@@ -187,7 +193,7 @@ class TestProcessMessage:
             "insight_id": "insight-001",
             "insight_type": "OPERATIONAL",
             "priority": "HIGH",
-            "metrics": {"latency_p95": 200.0}
+            "metrics": {"latency_p95": 200.0},
         }
 
         mock_msg = Mock()
@@ -209,13 +215,15 @@ class TestProcessMessage:
         await insights_consumer._process_message(mock_msg)
 
     @pytest.mark.asyncio
-    async def test_process_message_filters_low_priority(self, insights_consumer, mock_optimization_engine):
+    async def test_process_message_filters_low_priority(
+        self, insights_consumer, mock_optimization_engine
+    ):
         """Testa filtragem de insights de baixa prioridade."""
         insight_data = {
             "insight_id": "insight-001",
             "insight_type": "OPERATIONAL",
             "priority": "MEDIUM",  # Deve ser filtrado
-            "metrics": {"latency_p95": 200.0}
+            "metrics": {"latency_p95": 200.0},
         }
 
         mock_msg = Mock()
@@ -228,13 +236,15 @@ class TestProcessMessage:
         mock_optimization_engine.analyze_opportunity.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_process_message_accepts_high_priority(self, insights_consumer, mock_optimization_engine):
+    async def test_process_message_accepts_high_priority(
+        self, insights_consumer, mock_optimization_engine
+    ):
         """Testa aceitação de insights de alta prioridade."""
         insight_data = {
             "insight_id": "insight-001",
             "insight_type": "OPERATIONAL",
             "priority": "HIGH",  # Deve ser aceito
-            "metrics": {"latency_p95": 200.0}
+            "metrics": {"latency_p95": 200.0},
         }
 
         mock_msg = Mock()
@@ -247,13 +257,15 @@ class TestProcessMessage:
         mock_optimization_engine.analyze_opportunity.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_process_message_accepts_critical_priority(self, insights_consumer, mock_optimization_engine):
+    async def test_process_message_accepts_critical_priority(
+        self, insights_consumer, mock_optimization_engine
+    ):
         """Testa aceitação de insights de prioridade crítica."""
         insight_data = {
             "insight_id": "insight-002",
             "insight_type": "ANOMALY",
             "priority": "CRITICAL",  # Deve ser aceito
-            "metrics": {"latency_p95": 500.0}
+            "metrics": {"latency_p95": 500.0},
         }
 
         mock_msg = Mock()
@@ -266,13 +278,15 @@ class TestProcessMessage:
         mock_optimization_engine.analyze_opportunity.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_process_message_with_unknown_priority(self, insights_consumer, mock_optimization_engine):
+    async def test_process_message_with_unknown_priority(
+        self, insights_consumer, mock_optimization_engine
+    ):
         """Testa comportamento com prioridade desconhecida."""
         insight_data = {
             "insight_id": "insight-003",
             "insight_type": "STRATEGIC",
             "priority": "UNKNOWN",
-            "metrics": {"latency_p95": 200.0}
+            "metrics": {"latency_p95": 200.0},
         }
 
         mock_msg = Mock()
@@ -289,7 +303,9 @@ class TestHypothesisGeneration:
     """Testes de geração de hipóteses."""
 
     @pytest.mark.asyncio
-    async def test_process_message_generates_hypotheses(self, insights_consumer, mock_optimization_engine, sample_hypothesis):
+    async def test_process_message_generates_hypotheses(
+        self, insights_consumer, mock_optimization_engine, sample_hypothesis
+    ):
         """Testa geração de hipóteses a partir de insight."""
         mock_optimization_engine.analyze_opportunity.return_value = [sample_hypothesis]
 
@@ -297,7 +313,7 @@ class TestHypothesisGeneration:
             "insight_id": "insight-001",
             "insight_type": "OPERATIONAL",
             "priority": "HIGH",
-            "metrics": {"latency_p95": 200.0}
+            "metrics": {"latency_p95": 200.0},
         }
 
         mock_msg = Mock()
@@ -310,7 +326,13 @@ class TestHypothesisGeneration:
         mock_optimization_engine.analyze_opportunity.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_process_message_submits_to_experiment_manager(self, insights_consumer, mock_optimization_engine, mock_experiment_manager, sample_hypothesis):
+    async def test_process_message_submits_to_experiment_manager(
+        self,
+        insights_consumer,
+        mock_optimization_engine,
+        mock_experiment_manager,
+        sample_hypothesis,
+    ):
         """Testa submissão de hipótese para ExperimentManager."""
         mock_optimization_engine.analyze_opportunity.return_value = [sample_hypothesis]
         mock_experiment_manager.submit_experiment.return_value = "exp-123"
@@ -319,7 +341,7 @@ class TestHypothesisGeneration:
             "insight_id": "insight-001",
             "insight_type": "OPERATIONAL",
             "priority": "HIGH",
-            "metrics": {"latency_p95": 200.0}
+            "metrics": {"latency_p95": 200.0},
         }
 
         mock_msg = Mock()
@@ -332,7 +354,9 @@ class TestHypothesisGeneration:
         mock_experiment_manager.submit_experiment.assert_called_once_with(sample_hypothesis)
 
     @pytest.mark.asyncio
-    async def test_process_message_handles_experiment_manager_none(self, insights_consumer, mock_optimization_engine, sample_hypothesis):
+    async def test_process_message_handles_experiment_manager_none(
+        self, insights_consumer, mock_optimization_engine, sample_hypothesis
+    ):
         """Testa processamento sem ExperimentManager."""
         insights_consumer.experiment_manager = None
         mock_optimization_engine.analyze_opportunity.return_value = [sample_hypothesis]
@@ -341,7 +365,7 @@ class TestHypothesisGeneration:
             "insight_id": "insight-001",
             "insight_type": "OPERATIONAL",
             "priority": "HIGH",
-            "metrics": {"latency_p95": 200.0}
+            "metrics": {"latency_p95": 200.0},
         }
 
         mock_msg = Mock()
@@ -352,7 +376,13 @@ class TestHypothesisGeneration:
         await insights_consumer._process_message(mock_msg)
 
     @pytest.mark.asyncio
-    async def test_process_message_handles_submit_experiment_none(self, insights_consumer, mock_optimization_engine, mock_experiment_manager, sample_hypothesis):
+    async def test_process_message_handles_submit_experiment_none(
+        self,
+        insights_consumer,
+        mock_optimization_engine,
+        mock_experiment_manager,
+        sample_hypothesis,
+    ):
         """Testa quando submit_experiment retorna None."""
         mock_optimization_engine.analyze_opportunity.return_value = [sample_hypothesis]
         mock_experiment_manager.submit_experiment.return_value = None
@@ -361,7 +391,7 @@ class TestHypothesisGeneration:
             "insight_id": "insight-001",
             "insight_type": "OPERATIONAL",
             "priority": "HIGH",
-            "metrics": {"latency_p95": 200.0}
+            "metrics": {"latency_p95": 200.0},
         }
 
         mock_msg = Mock()
@@ -372,7 +402,13 @@ class TestHypothesisGeneration:
         await insights_consumer._process_message(mock_msg)
 
     @pytest.mark.asyncio
-    async def test_process_message_handles_submit_experiment_exception(self, insights_consumer, mock_optimization_engine, mock_experiment_manager, sample_hypothesis):
+    async def test_process_message_handles_submit_experiment_exception(
+        self,
+        insights_consumer,
+        mock_optimization_engine,
+        mock_experiment_manager,
+        sample_hypothesis,
+    ):
         """Testa tratamento de exceção ao submeter experimento."""
         mock_optimization_engine.analyze_opportunity.return_value = [sample_hypothesis]
         mock_experiment_manager.submit_experiment.side_effect = Exception("Submission failed")
@@ -381,7 +417,7 @@ class TestHypothesisGeneration:
             "insight_id": "insight-001",
             "insight_type": "OPERATIONAL",
             "priority": "HIGH",
-            "metrics": {"latency_p95": 200.0}
+            "metrics": {"latency_p95": 200.0},
         }
 
         mock_msg = Mock()
@@ -400,7 +436,7 @@ class TestHypothesisGeneration:
             "insight_id": "insight-001",
             "insight_type": "OPERATIONAL",
             "priority": "HIGH",
-            "metrics": {"latency_p95": 200.0}
+            "metrics": {"latency_p95": 200.0},
         }
 
         mock_msg = Mock()
@@ -415,7 +451,9 @@ class TestMetrics:
     """Testes de métricas."""
 
     @pytest.mark.asyncio
-    async def test_process_message_records_hypothesis_generated(self, insights_consumer, mock_optimization_engine, mock_metrics, sample_hypothesis):
+    async def test_process_message_records_hypothesis_generated(
+        self, insights_consumer, mock_optimization_engine, mock_metrics, sample_hypothesis
+    ):
         """Testa registro de hipótese gerada nas métricas."""
         mock_optimization_engine.analyze_opportunity.return_value = [sample_hypothesis]
 
@@ -423,7 +461,7 @@ class TestMetrics:
             "insight_id": "insight-001",
             "insight_type": "OPERATIONAL",
             "priority": "HIGH",
-            "metrics": {"latency_p95": 200.0}
+            "metrics": {"latency_p95": 200.0},
         }
 
         mock_msg = Mock()
@@ -436,7 +474,9 @@ class TestMetrics:
         mock_metrics.record_hypothesis_generated.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_process_message_handles_metrics_none(self, insights_consumer, mock_optimization_engine, sample_hypothesis):
+    async def test_process_message_handles_metrics_none(
+        self, insights_consumer, mock_optimization_engine, sample_hypothesis
+    ):
         """Testa processamento sem métricas."""
         insights_consumer.metrics = None
         mock_optimization_engine.analyze_opportunity.return_value = [sample_hypothesis]
@@ -445,7 +485,7 @@ class TestMetrics:
             "insight_id": "insight-001",
             "insight_type": "OPERATIONAL",
             "priority": "HIGH",
-            "metrics": {"latency_p95": 200.0}
+            "metrics": {"latency_p95": 200.0},
         }
 
         mock_msg = Mock()
