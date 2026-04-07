@@ -4,6 +4,7 @@ Testes unitários para Gateway de Intenções.
 GAP-04: Cobertura de Testes 16% → 70%
 Testa roteamento, NLU, e comunicação com STE.
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch, Mock
 from datetime import datetime, timedelta, timezone

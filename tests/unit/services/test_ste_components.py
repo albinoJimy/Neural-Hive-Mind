@@ -4,6 +4,7 @@ Testes unitários para componentes do STE.
 GAP-04: Cobertura de Testes 16% → 70%
 Testa tradução semântica, NLP e geração de planos cognitivos.
 """
+
 import pytest
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4

@@ -4,6 +4,7 @@ Testes de idempotência para o DecisionConsumer.
 Verifica que decisões duplicadas são detectadas e ignoradas corretamente,
 e que o sistema continua funcionando mesmo quando Redis está indisponível (fail-open).
 """
+
 import sys
 from pathlib import Path
 from types import SimpleNamespace

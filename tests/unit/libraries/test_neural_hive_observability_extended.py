@@ -4,6 +4,7 @@ Testes unitários estendidos para neural_hive_observability.
 GAP-04: Cobertura de Testes 16% → 70%
 Testa logging, métricas e tracing.
 """
+
 import pytest
 import asyncio
 from datetime import datetime, timedelta, timezone

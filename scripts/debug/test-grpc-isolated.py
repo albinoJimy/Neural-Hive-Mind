@@ -242,9 +242,11 @@ class IsolatedSpecialistTester:
                     error_type=type(e).__name__,
                     response_type=type(response).__name__,
                     has_evaluated_at=response.HasField("evaluated_at") if response else False,
-                    evaluated_at_type=type(response.evaluated_at).__name__
-                    if response and response.HasField("evaluated_at")
-                    else None,
+                    evaluated_at_type=(
+                        type(response.evaluated_at).__name__
+                        if response and response.HasField("evaluated_at")
+                        else None
+                    ),
                     traceback=traceback.format_exc(),
                 )
 

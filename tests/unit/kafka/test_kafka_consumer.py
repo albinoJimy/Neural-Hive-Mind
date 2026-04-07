@@ -4,6 +4,7 @@ Testes unitários para Kafka Consumer.
 GAP-04: Cobertura de Testes 16% → 70%
 Testa funcionalidades de consumo de mensagens Kafka via aiokafka.
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timedelta

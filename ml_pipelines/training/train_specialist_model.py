@@ -596,9 +596,9 @@ def temporal_split(
         val_samples=len(df_val),
         test_samples=len(df_test),
         train_date_max=str(train_max_date) if train_max_date else None,
-        val_date_range=f"{val_min_date} to {val_max_date}"
-        if val_min_date and val_max_date
-        else None,
+        val_date_range=(
+            f"{val_min_date} to {val_max_date}" if val_min_date and val_max_date else None
+        ),
         test_date_min=str(test_min_date) if test_min_date else None,
         temporal_integrity_valid=temporal_integrity_valid,
     )
@@ -782,12 +782,16 @@ def load_dataset_with_real_data_priority(
                 "quality_score": quality_report["quality_score"],
                 "quality_passed": quality_report["passed"],
                 "quality_warnings": quality_report.get("warnings", []),
-                "date_range_start": df_real["created_at"].min().isoformat()
-                if "created_at" in df_real.columns and len(df_real) > 0
-                else None,
-                "date_range_end": df_real["created_at"].max().isoformat()
-                if "created_at" in df_real.columns and len(df_real) > 0
-                else None,
+                "date_range_start": (
+                    df_real["created_at"].min().isoformat()
+                    if "created_at" in df_real.columns and len(df_real) > 0
+                    else None
+                ),
+                "date_range_end": (
+                    df_real["created_at"].max().isoformat()
+                    if "created_at" in df_real.columns and len(df_real) > 0
+                    else None
+                ),
             }
 
             # Comparar com baseline sintético
@@ -2228,9 +2232,9 @@ def main():
                 metadata={
                     "mlflow_run_id": mlflow.active_run().info.run_id,
                     "data_source": data_source,
-                    "promoted": "true"
-                    if args.promote_if_better == "true" and model_registered
-                    else "false",
+                    "promoted": (
+                        "true" if args.promote_if_better == "true" and model_registered else "false"
+                    ),
                 },
             )
             loop.run_until_complete(

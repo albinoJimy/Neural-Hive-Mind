@@ -557,9 +557,9 @@ class OnlinePerformanceMonitor:
                 "prediction_variance": variance,
                 "memory_usage_mb": memory,
                 "model_size_mb": model_size,
-                "memory_growth_mb": memory - self._initial_memory_mb
-                if self._initial_memory_mb
-                else 0,
+                "memory_growth_mb": (
+                    memory - self._initial_memory_mb if self._initial_memory_mb else 0
+                ),
                 "total_updates": len(self._update_timestamps),
                 "current_loss": self._loss_history[-1][1] if self._loss_history else None,
             },

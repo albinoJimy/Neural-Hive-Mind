@@ -484,9 +484,9 @@ class IncrementalLearner:
             "loss_history": list(recent_losses),  # Histórico completo
             "updates_count": self._update_count,  # Quantidade de updates
             "updates_since_improvement": updates_since_improvement,
-            "gradient_norm": self._gradient_norm_history[-1]
-            if self._gradient_norm_history
-            else float("inf"),
+            "gradient_norm": (
+                self._gradient_norm_history[-1] if self._gradient_norm_history else float("inf")
+            ),
         }
 
     def save_checkpoint(self, path: Optional[str] = None) -> str:
@@ -646,9 +646,9 @@ class IncrementalLearner:
             "model_version": self._model_version,
             "update_count": self._update_count,
             "total_samples_seen": self._total_samples_seen,
-            "last_update_time": self._last_update_time.isoformat()
-            if self._last_update_time
-            else None,
+            "last_update_time": (
+                self._last_update_time.isoformat() if self._last_update_time else None
+            ),
             "algorithm": self.config.incremental_algorithm,
             "classes": self.classes,
             "feature_count": len(self.feature_names) if self.feature_names else None,

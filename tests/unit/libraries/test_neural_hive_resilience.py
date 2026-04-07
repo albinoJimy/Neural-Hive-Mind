@@ -4,6 +4,7 @@ Testes unitários para neural_hive_resilience.
 GAP-04: Cobertura de Testes 16% → 70%
 Testa circuit breakers, retries, e timeouts.
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timedelta, timezone

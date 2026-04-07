@@ -4,6 +4,7 @@ Testes de integração E2E para Cognitive Pipeline.
 GAP-04: Cobertura de Testes 16% → 70%
 Testa fluxo completo: Gateway → STE → Specialists → Consensus.
 """
+
 import asyncio
 import pytest
 from datetime import datetime, timedelta, timezone

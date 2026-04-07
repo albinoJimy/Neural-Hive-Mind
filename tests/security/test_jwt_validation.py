@@ -3,6 +3,7 @@ Testes de validação JWT para GAP-04 - Security/Auth Coverage.
 
 Testa scenarios de validação de tokens JWT via SPIFFE/python-jose.
 """
+
 import pytest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, AsyncMock, patch

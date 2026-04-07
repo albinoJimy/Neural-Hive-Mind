@@ -1,6 +1,7 @@
 """
 Testes para Optimizer MCP Server.
 """
+
 import sys
 import os
 import pytest

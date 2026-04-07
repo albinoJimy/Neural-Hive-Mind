@@ -4,6 +4,7 @@ Testes unitários para Kafka Producer.
 GAP-04: Cobertura de Testes 16% → 70%
 Testa funcionalidades de produção de mensagens Kafka via aiokafka.
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime, timedelta, timezone

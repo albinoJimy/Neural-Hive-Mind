@@ -4,6 +4,7 @@ Testes unitários para state management e cache.
 GAP-04: Cobertura de Testes 16% → 70%
 Testa gerenciamento de estado, cache e sessão.
 """
+
 import pytest
 import asyncio
 from datetime import datetime, timedelta, timezone

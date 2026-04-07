@@ -126,19 +126,21 @@ class E2EMetricsCollector:
                 "total": specialist_total,
                 "passed": specialist_passed,
                 "failed": specialist_total - specialist_passed,
-                "success_rate": (specialist_passed / specialist_total * 100)
-                if specialist_total > 0
-                else 0,
+                "success_rate": (
+                    (specialist_passed / specialist_total * 100) if specialist_total > 0 else 0
+                ),
                 "latency_avg": statistics.mean(latencies) if latencies else 0,
                 "latency_median": statistics.median(latencies) if latencies else 0,
                 "latency_min": min(latencies) if latencies else 0,
                 "latency_max": max(latencies) if latencies else 0,
-                "opinion_count_avg": statistics.mean(opinion_counts_for_specialist)
-                if opinion_counts_for_specialist
-                else 0,
-                "opinion_count_total": sum(opinion_counts_for_specialist)
-                if opinion_counts_for_specialist
-                else 0,
+                "opinion_count_avg": (
+                    statistics.mean(opinion_counts_for_specialist)
+                    if opinion_counts_for_specialist
+                    else 0
+                ),
+                "opinion_count_total": (
+                    sum(opinion_counts_for_specialist) if opinion_counts_for_specialist else 0
+                ),
             }
 
         # Overall latency stats
@@ -159,12 +161,16 @@ class E2EMetricsCollector:
                 "stdev": statistics.stdev(all_latencies) if len(all_latencies) > 1 else 0,
                 "min": min(all_latencies) if all_latencies else 0,
                 "max": max(all_latencies) if all_latencies else 0,
-                "p95": statistics.quantiles(all_latencies, n=20)[18]
-                if len(all_latencies) >= 20
-                else (max(all_latencies) if all_latencies else 0),
-                "p99": statistics.quantiles(all_latencies, n=100)[98]
-                if len(all_latencies) >= 100
-                else (max(all_latencies) if all_latencies else 0),
+                "p95": (
+                    statistics.quantiles(all_latencies, n=20)[18]
+                    if len(all_latencies) >= 20
+                    else (max(all_latencies) if all_latencies else 0)
+                ),
+                "p99": (
+                    statistics.quantiles(all_latencies, n=100)[98]
+                    if len(all_latencies) >= 100
+                    else (max(all_latencies) if all_latencies else 0)
+                ),
             },
             "total_errors": len(self.errors),
             "errors_by_type": self._group_errors_by_type(),

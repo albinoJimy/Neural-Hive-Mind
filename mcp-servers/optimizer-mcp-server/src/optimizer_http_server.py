@@ -10,6 +10,7 @@ Expõe endpoints REST para:
 Este servidor HTTP expõe as mesmas funcionalidades do Optimizer MCP Server
 mas usando endpoints REST simples em vez do protocolo MCP stdio.
 """
+
 import ast
 import json
 import os
@@ -746,16 +747,16 @@ class OptimizerHTTPRequestHandler(BaseHTTPRequestHandler):
                     "issues": [_issue_to_dict(i) for i in issues],
                     "issue_count": len(issues),
                     "summary": {
-                        "complexity": "high"
-                        if metrics.max_complexity > 20
-                        else "medium"
-                        if metrics.max_complexity > 10
-                        else "low",
-                        "maintainability": "good"
-                        if len(issues) < 5
-                        else "needs_attention"
-                        if len(issues) < 10
-                        else "poor",
+                        "complexity": (
+                            "high"
+                            if metrics.max_complexity > 20
+                            else "medium" if metrics.max_complexity > 10 else "low"
+                        ),
+                        "maintainability": (
+                            "good"
+                            if len(issues) < 5
+                            else "needs_attention" if len(issues) < 10 else "poor"
+                        ),
                     },
                 }
                 self._set_json_headers()

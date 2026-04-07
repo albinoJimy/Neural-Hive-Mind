@@ -204,7 +204,7 @@ async def test_opa_security_missing_authentication(
     ticket = {
         **sample_execution_ticket,
         "tenant_id": "tenant-123",
-        "user_id": "user@example.com"
+        "user_id": "user@example.com",
         # jwt_token ausente
     }
 

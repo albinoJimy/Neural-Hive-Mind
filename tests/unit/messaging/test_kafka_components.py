@@ -4,6 +4,7 @@ Testes unitários para componentes Kafka.
 GAP-04: Cobertura de Testes 16% → 70%
 Testa produtores, consumidores e tópicos Kafka.
 """
+
 import pytest
 import asyncio
 from datetime import datetime, timedelta, timezone

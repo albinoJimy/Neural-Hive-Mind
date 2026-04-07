@@ -4,6 +4,7 @@ Testes unitários para Orchestrator Dynamic.
 GAP-04: Cobertura de Testes 16% → 70%
 Testa orquestração de workflows, Temporal, e coordenação de workers.
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch, Mock
 from datetime import datetime, timedelta, timezone

@@ -96,9 +96,9 @@ def run_test_suite(gateway_url: str, test_intents: List[Dict]) -> Dict:
         "confidence_stats": {
             "mean": round(statistics.mean(confidence_scores), 3) if confidence_scores else 0,
             "median": round(statistics.median(confidence_scores), 3) if confidence_scores else 0,
-            "stdev": round(statistics.stdev(confidence_scores), 3)
-            if len(confidence_scores) > 1
-            else 0,
+            "stdev": (
+                round(statistics.stdev(confidence_scores), 3) if len(confidence_scores) > 1 else 0
+            ),
             "min": round(min(confidence_scores), 3) if confidence_scores else 0,
             "max": round(max(confidence_scores), 3) if confidence_scores else 0,
         },

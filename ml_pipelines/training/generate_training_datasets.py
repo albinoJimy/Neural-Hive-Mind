@@ -1299,9 +1299,11 @@ class DatasetGenerator:
             actual_distribution=label_counts,
             attempts=attempts,
             quality_rejection_rate=round(
-                (self.stats["description_quality_rejections"] / attempts * 100)
-                if attempts > 0
-                else 0,
+                (
+                    (self.stats["description_quality_rejections"] / attempts * 100)
+                    if attempts > 0
+                    else 0
+                ),
                 2,
             ),
         )

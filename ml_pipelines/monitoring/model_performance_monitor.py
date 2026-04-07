@@ -510,22 +510,26 @@ def main():
             "degradation_reasons": report.degradation_reasons,
             "recommendations": report.recommendations,
             "timestamp": report.timestamp.isoformat(),
-            "mlflow_metrics": {
-                "precision": report.mlflow_metrics.precision,
-                "recall": report.mlflow_metrics.recall,
-                "f1_score": report.mlflow_metrics.f1_score,
-                "run_id": report.mlflow_metrics.run_id,
-            }
-            if report.mlflow_metrics
-            else None,
-            "feedback_stats": {
-                "avg_rating": report.feedback_stats.avg_rating,
-                "total_count": report.feedback_stats.total_count,
-                "positive_count": report.feedback_stats.positive_count,
-                "negative_count": report.feedback_stats.negative_count,
-            }
-            if report.feedback_stats
-            else None,
+            "mlflow_metrics": (
+                {
+                    "precision": report.mlflow_metrics.precision,
+                    "recall": report.mlflow_metrics.recall,
+                    "f1_score": report.mlflow_metrics.f1_score,
+                    "run_id": report.mlflow_metrics.run_id,
+                }
+                if report.mlflow_metrics
+                else None
+            ),
+            "feedback_stats": (
+                {
+                    "avg_rating": report.feedback_stats.avg_rating,
+                    "total_count": report.feedback_stats.total_count,
+                    "positive_count": report.feedback_stats.positive_count,
+                    "negative_count": report.feedback_stats.negative_count,
+                }
+                if report.feedback_stats
+                else None
+            ),
         }
         print(json.dumps(report_dict, indent=2))
     else:

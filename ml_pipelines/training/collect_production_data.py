@@ -311,9 +311,9 @@ class ProductionDataCollector:
         logger.info(
             f"Dataset gerado para {specialist_type}",
             total_samples=len(df),
-            label_distribution=df["label"].value_counts().to_dict()
-            if "label" in df.columns
-            else {},
+            label_distribution=(
+                df["label"].value_counts().to_dict() if "label" in df.columns else {}
+            ),
         )
 
         return df

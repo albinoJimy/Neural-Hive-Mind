@@ -7,6 +7,7 @@ Expõe ferramentas para:
 - Analisar dependências
 - Identificar tecnologias usadas
 """
+
 import asyncio
 import os
 from pathlib import Path
@@ -309,9 +310,11 @@ async def scan_directory(
         "languages": result.languages,
         "frameworks": result.frameworks,
         "summary": {
-            "primary_language": max(result.languages.items(), key=lambda x: x[1])[0]
-            if result.languages
-            else "unknown",
+            "primary_language": (
+                max(result.languages.items(), key=lambda x: x[1])[0]
+                if result.languages
+                else "unknown"
+            ),
             "total_languages": len(result.languages),
         },
     }
@@ -434,9 +437,11 @@ async def analyze_project_structure(path: str = ".") -> dict[str, Any]:
                 "total_files": scan_result.total_files,
                 "total_dirs": scan_result.total_dirs,
                 "languages": scan_result.languages,
-                "primary_language": max(scan_result.languages.items(), key=lambda x: x[1])[0]
-                if scan_result.languages
-                else "unknown",
+                "primary_language": (
+                    max(scan_result.languages.items(), key=lambda x: x[1])[0]
+                    if scan_result.languages
+                    else "unknown"
+                ),
             },
             "dependencies": dependencies,
             "common_files": found_files,

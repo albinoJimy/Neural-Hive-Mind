@@ -4,6 +4,7 @@ Testes unitários para Approval Service.
 GAP-04: Cobertura de Testes 16% → 70%
 Testa aprovação, rejeição, e feedback de decisões.
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timedelta, timezone

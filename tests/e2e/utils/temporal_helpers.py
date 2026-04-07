@@ -199,9 +199,11 @@ class TemporalTestHelper:
         async for event in handle.fetch_history_events():
             event_dict = {
                 "event_id": event.event_id,
-                "event_type": event.event_type.name
-                if hasattr(event.event_type, "name")
-                else str(event.event_type),
+                "event_type": (
+                    event.event_type.name
+                    if hasattr(event.event_type, "name")
+                    else str(event.event_type)
+                ),
                 "timestamp": event.event_time,
             }
 

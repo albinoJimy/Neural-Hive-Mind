@@ -584,9 +584,9 @@ class AutoRetrainOrchestrator:
             msg = MIMEMultipart()
             msg["From"] = smtp_user
             msg["To"] = ", ".join(recipients)
-            msg[
-                "Subject"
-            ] = f"Auto-Retrain {status.upper()} - {details.get('specialist_type', 'N/A')}"
+            msg["Subject"] = (
+                f"Auto-Retrain {status.upper()} - {details.get('specialist_type', 'N/A')}"
+            )
 
             body = f"""
 Auto-Retrain Status: {status.upper()}

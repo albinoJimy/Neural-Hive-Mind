@@ -4,6 +4,7 @@ Testes unitários para gRPC Timeout Handling.
 GAP-04: Cobertura de Testes 16% → 70%
 Testa timeout, retry, backoff em chamadas gRPC.
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timedelta, timezone

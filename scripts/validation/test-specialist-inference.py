@@ -409,9 +409,11 @@ class SpecialistInferenceTester:
                     "confidence_score": response.opinion.confidence_score,
                     "risk_score": response.opinion.risk_score,
                     "recommendation": response.opinion.recommendation,
-                    "reasoning_summary": response.opinion.reasoning_summary[:100] + "..."
-                    if len(response.opinion.reasoning_summary) > 100
-                    else response.opinion.reasoning_summary,
+                    "reasoning_summary": (
+                        response.opinion.reasoning_summary[:100] + "..."
+                        if len(response.opinion.reasoning_summary) > 100
+                        else response.opinion.reasoning_summary
+                    ),
                 }
 
                 if self.verbose:

@@ -4,6 +4,7 @@ Testes de idempotência para o ExecutionEngine.
 Verifica que tickets duplicados são detectados e ignorados corretamente,
 e que o sistema continua funcionando mesmo quando Redis está indisponível (fail-open).
 """
+
 import sys
 import os
 from pathlib import Path

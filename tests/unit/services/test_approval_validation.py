@@ -4,6 +4,7 @@ Testes unitários para validação do Approval Service.
 GAP-04: Cobertura de Testes 16% → 70%
 Testa validação de aprovações, feedbacks e decisões.
 """
+
 import pytest
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
@@ -39,7 +40,7 @@ class TestApprovalRequestValidation:
         """Deve rejeitar requisição sem confiança."""
         request = {
             "plan_id": str(uuid4()),
-            "consensus_verdict": "approve"
+            "consensus_verdict": "approve",
             # confidence faltando
         }
 

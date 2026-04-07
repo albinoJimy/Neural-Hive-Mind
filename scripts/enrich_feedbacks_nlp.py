@@ -16,57 +16,69 @@ def extract_basic_nlp_features(text):
 
     features = {
         # Domínios
-        "domain_security": 1.0
-        if re.search(
-            r"\b(security|ssl|tls|authentication|authorization|password|login)\b", text, re.I
-        )
-        else 0.0,
-        "domain_performance": 1.0
-        if re.search(r"\b(performance|optimize|index|cache|speed|latency|query)\b", text, re.I)
-        else 0.0,
-        "domain_database": 1.0
-        if re.search(r"\b(database|db|sql|mongo|query|table|schema|migration)\b", text, re.I)
-        else 0.0,
-        "domain_devops": 1.0
-        if re.search(r"\b(deploy|container|docker|kubernetes|ci/cd|pipeline|build)\b", text, re.I)
-        else 0.0,
-        "domain_testing": 1.0
-        if re.search(r"\b(test|testing|unit|integration|e2e|coverage)\b", text, re.I)
-        else 0.0,
+        "domain_security": (
+            1.0
+            if re.search(
+                r"\b(security|ssl|tls|authentication|authorization|password|login)\b", text, re.I
+            )
+            else 0.0
+        ),
+        "domain_performance": (
+            1.0
+            if re.search(r"\b(performance|optimize|index|cache|speed|latency|query)\b", text, re.I)
+            else 0.0
+        ),
+        "domain_database": (
+            1.0
+            if re.search(r"\b(database|db|sql|mongo|query|table|schema|migration)\b", text, re.I)
+            else 0.0
+        ),
+        "domain_devops": (
+            1.0
+            if re.search(
+                r"\b(deploy|container|docker|kubernetes|ci/cd|pipeline|build)\b", text, re.I
+            )
+            else 0.0
+        ),
+        "domain_testing": (
+            1.0
+            if re.search(r"\b(test|testing|unit|integration|e2e|coverage)\b", text, re.I)
+            else 0.0
+        ),
         # Ações
         "action_create": 1.0 if re.search(r"\b(create|add|insert|new|make)\b", text, re.I) else 0.0,
-        "action_update": 1.0
-        if re.search(r"\b(update|modify|change|edit|alter)\b", text, re.I)
-        else 0.0,
-        "action_delete": 1.0
-        if re.search(r"\b(delete|drop|remove|destroy|clean)\b", text, re.I)
-        else 0.0,
-        "action_read": 1.0
-        if re.search(r"\b(get|fetch|select|read|query|find)\b", text, re.I)
-        else 0.0,
-        "action_deploy": 1.0
-        if re.search(r"\b(deploy|release|publish|ship)\b", text, re.I)
-        else 0.0,
+        "action_update": (
+            1.0 if re.search(r"\b(update|modify|change|edit|alter)\b", text, re.I) else 0.0
+        ),
+        "action_delete": (
+            1.0 if re.search(r"\b(delete|drop|remove|destroy|clean)\b", text, re.I) else 0.0
+        ),
+        "action_read": (
+            1.0 if re.search(r"\b(get|fetch|select|read|query|find)\b", text, re.I) else 0.0
+        ),
+        "action_deploy": (
+            1.0 if re.search(r"\b(deploy|release|publish|ship)\b", text, re.I) else 0.0
+        ),
         # Palavras-chave de risco
         "has_backup": 1.0 if re.search(r"\bbackup|save|preserve|restore\b", text, re.I) else 0.0,
-        "has_verification": 1.0
-        if re.search(r"\bverify|validation|check|confirm|test\b", text, re.I)
-        else 0.0,
-        "has_all": 1.0
-        if re.search(r"\ball\b.*\b(users|records|data|tables)\b", text, re.I)
-        else 0.0,
+        "has_verification": (
+            1.0 if re.search(r"\bverify|validation|check|confirm|test\b", text, re.I) else 0.0
+        ),
+        "has_all": (
+            1.0 if re.search(r"\ball\b.*\b(users|records|data|tables)\b", text, re.I) else 0.0
+        ),
         # Métricas de texto
         "text_length_chars": len(text),
         "text_length_words": len(text.split()),
         "has_number": 1.0 if re.search(r"\d+", text) else 0.0,
         # Sentimento/risco simples baseado em palavras
-        "risk_high": 1.0
-        if re.search(r"\b(delete|drop|destroy|remove|disable)\b", text, re.I)
-        else 0.0,
+        "risk_high": (
+            1.0 if re.search(r"\b(delete|drop|destroy|remove|disable)\b", text, re.I) else 0.0
+        ),
         "risk_medium": 1.0 if re.search(r"\b(update|change|modify|alter)\b", text, re.I) else 0.0,
-        "risk_low": 1.0
-        if re.search(r"\b(create|add|verify|check|test|backup)\b", text, re.I)
-        else 0.0,
+        "risk_low": (
+            1.0 if re.search(r"\b(create|add|verify|check|test|backup)\b", text, re.I) else 0.0
+        ),
     }
 
     # Determinar domínio primário

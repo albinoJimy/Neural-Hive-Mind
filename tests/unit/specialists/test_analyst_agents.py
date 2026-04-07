@@ -4,6 +4,7 @@ Testes unitários para Analyst Agents.
 GAP-04: Cobertura de Testes 16% → 70%
 Testa análise de dados, insights, e recomendações.
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timedelta, timezone

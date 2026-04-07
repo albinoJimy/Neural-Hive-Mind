@@ -97,28 +97,28 @@ class ApprovalPredictor:
 
         # Palavras-chave de risco
         features = {
-            "has_backup": 1.0
-            if re.search(r"\bbackup|save|preserve|restore\b", text, re.I)
-            else 0.0,
-            "has_verification": 1.0
-            if re.search(r"\bverify|validation|check|confirm|test\b", text, re.I)
-            else 0.0,
-            "has_all": 1.0
-            if re.search(r"\ball\b.*\b(users|records|data|tables)\b", text, re.I)
-            else 0.0,
+            "has_backup": (
+                1.0 if re.search(r"\bbackup|save|preserve|restore\b", text, re.I) else 0.0
+            ),
+            "has_verification": (
+                1.0 if re.search(r"\bverify|validation|check|confirm|test\b", text, re.I) else 0.0
+            ),
+            "has_all": (
+                1.0 if re.search(r"\ball\b.*\b(users|records|data|tables)\b", text, re.I) else 0.0
+            ),
             # Métricas de texto
             "text_length_chars": len(text),
             "text_length_words": len(text.split()),
             # Risco
-            "risk_high": 1.0
-            if re.search(r"\b(delete|drop|destroy|remove|disable)\b", text, re.I)
-            else 0.0,
-            "risk_medium": 1.0
-            if re.search(r"\b(update|change|modify|alter)\b", text, re.I)
-            else 0.0,
-            "risk_low": 1.0
-            if re.search(r"\b(create|add|verify|check|test|backup)\b", text, re.I)
-            else 0.0,
+            "risk_high": (
+                1.0 if re.search(r"\b(delete|drop|destroy|remove|disable)\b", text, re.I) else 0.0
+            ),
+            "risk_medium": (
+                1.0 if re.search(r"\b(update|change|modify|alter)\b", text, re.I) else 0.0
+            ),
+            "risk_low": (
+                1.0 if re.search(r"\b(create|add|verify|check|test|backup)\b", text, re.I) else 0.0
+            ),
         }
 
         # Score de risco simples

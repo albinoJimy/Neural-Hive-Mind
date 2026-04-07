@@ -430,17 +430,19 @@ class ShadowValidator:
             "pass_rate": passed_count / len(recent),
             "avg_kl_divergence": float(np.mean(kl_values)),
             "avg_latency_ratio": float(np.mean(latency_ratios)),
-            "avg_accuracy_ratio": float(
-                np.mean(
-                    [
-                        r.metrics.get("accuracy_ratio", 1.0)
-                        for r in recent
-                        if "accuracy_ratio" in r.metrics
-                    ]
+            "avg_accuracy_ratio": (
+                float(
+                    np.mean(
+                        [
+                            r.metrics.get("accuracy_ratio", 1.0)
+                            for r in recent
+                            if "accuracy_ratio" in r.metrics
+                        ]
+                    )
                 )
-            )
-            if any("accuracy_ratio" in r.metrics for r in recent)
-            else None,
+                if any("accuracy_ratio" in r.metrics for r in recent)
+                else None
+            ),
             "common_failures": [{"type": f[0], "count": f[1]} for f in common_failures],
             "last_validation": recent[-1].to_dict() if recent else None,
         }

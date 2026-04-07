@@ -10,6 +10,7 @@ Nota: Os testes usam offset snapshot antes de publicar mensagens para garantir
 que apenas mensagens do teste atual sejam consumidas, evitando interferência
 de mensagens históricas em ambientes compartilhados.
 """
+
 import asyncio
 import uuid
 from collections import defaultdict

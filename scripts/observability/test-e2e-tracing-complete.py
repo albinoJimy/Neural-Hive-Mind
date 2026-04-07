@@ -794,9 +794,9 @@ class E2ETracingValidator:
                 {
                     "issue": f"intent_id propagation failed in {intent_propagation_failures}/{total_scenarios} scenarios",
                     "recommendation": "Check baggage/header injection in Kafka producer and extraction in consumers",
-                    "severity": "high"
-                    if intent_propagation_failures == total_scenarios
-                    else "medium",
+                    "severity": (
+                        "high" if intent_propagation_failures == total_scenarios else "medium"
+                    ),
                 }
             )
 
@@ -806,9 +806,9 @@ class E2ETracingValidator:
                 {
                     "issue": f"plan_id propagation failed in {plan_propagation_failures}/{total_scenarios} scenarios",
                     "recommendation": "Ensure orchestrator-dynamic sets plan_id in baggage and propagates to specialists via gRPC metadata",
-                    "severity": "critical"
-                    if plan_propagation_failures == total_scenarios
-                    else "high",
+                    "severity": (
+                        "critical" if plan_propagation_failures == total_scenarios else "high"
+                    ),
                 }
             )
 
@@ -828,9 +828,9 @@ class E2ETracingValidator:
                 {
                     "issue": f"Trace continuity issues in {trace_continuity_failures}/{total_scenarios} scenarios",
                     "recommendation": "Check context propagation between services (Kafka headers, gRPC metadata) - traces are fragmented",
-                    "severity": "critical"
-                    if trace_continuity_failures == total_scenarios
-                    else "high",
+                    "severity": (
+                        "critical" if trace_continuity_failures == total_scenarios else "high"
+                    ),
                 }
             )
 

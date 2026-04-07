@@ -4,6 +4,7 @@ Testes unitários estendidos para specialists.
 GAP-04: Cobertura de Testes 16% → 70%
 Testa componentes de especialistas com baixa cobertura.
 """
+
 import pytest
 import asyncio
 from datetime import datetime, timedelta, timezone

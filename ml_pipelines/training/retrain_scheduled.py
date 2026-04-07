@@ -77,13 +77,15 @@ def get_retraining_summary() -> dict:
     return {
         "distribution": distribution,
         "total_samples": sum(distribution.values()),
-        "last_model": {
-            "version": last_model.get("version"),
-            "trained_at": last_model.get("trained_at"),
-            "f1_score": last_model.get("metrics", {}).get("f1_score"),
-        }
-        if last_model
-        else None,
+        "last_model": (
+            {
+                "version": last_model.get("version"),
+                "trained_at": last_model.get("trained_at"),
+                "f1_score": last_model.get("metrics", {}).get("f1_score"),
+            }
+            if last_model
+            else None
+        ),
     }
 
 
