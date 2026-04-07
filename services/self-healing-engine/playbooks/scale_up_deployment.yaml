@@ -22,14 +22,14 @@ validation_checks:
   - "deployment_ready"
   - "pods_running"
 status: "AVAILABLE"
-steps:
-  - name: "Scale deployment"
+actions:
+  - name: "scale_deployment"
     action: "scale_deployment"
     parameters:
       deployment_name: "{{ deployment_name }}"
       namespace: "{{ namespace }}"
       replicas: "{{ target_replicas }}"
-  - name: "Wait for deployment to be ready"
+  - name: "wait_for_deployment_ready"
     action: "wait_for_deployment"
     parameters:
       deployment_name: "{{ deployment_name }}"

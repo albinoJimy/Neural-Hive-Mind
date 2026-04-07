@@ -21,13 +21,13 @@ validation_checks:
   - "pod_running"
   - "pod_ready"
 status: "AVAILABLE"
-steps:
-  - name: "Delete pod"
+actions:
+  - name: "delete_pod"
     action: "delete_pod"
     parameters:
       pod_name: "{{ pod_name }}"
       namespace: "{{ namespace }}"
-  - name: "Wait for pod to be recreated"
+  - name: "wait_for_pod_recreated"
     action: "wait_for_pod"
     parameters:
       pod_name: "{{ pod_name }}"

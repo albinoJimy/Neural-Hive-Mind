@@ -17,8 +17,8 @@ validation_checks:
   - "peer_authentication_applied"
   - "mtls_strict_enforced"
 status: "AVAILABLE"
-steps:
-  - name: "Apply PeerAuthentication"
+actions:
+  - name: "apply_peer_authentication"
     action: "apply_policy"
     parameters:
       policy_type: "ISTIO_PEER_AUTHENTICATION"
@@ -32,7 +32,7 @@ steps:
         spec:
           mtls:
             mode: STRICT
-  - name: "Wait for policy to propagate"
+  - name: "wait_for_propagation"
     action: "wait"
     parameters:
       seconds: 10
