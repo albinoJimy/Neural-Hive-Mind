@@ -3,7 +3,7 @@ Configurações do SLA Management System usando Pydantic Settings.
 """
 
 from functools import lru_cache
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
@@ -19,7 +19,7 @@ class PrometheusSettings(BaseSettings):
         description="URL do Prometheus",
     )
     tls_verify: bool = Field(default=True, description="Verificar certificado TLS do Prometheus")
-    ca_bundle: Optional[str] = Field(
+    ca_bundle: str | None = Field(
         default=None, description="Caminho para CA bundle do Prometheus"
     )
     timeout_seconds: int = Field(default=30, description="Timeout para queries")
@@ -46,7 +46,7 @@ class RedisSettings(BaseSettings):
         default="redis-cluster.redis-cluster.svc.cluster.local:6379",
         description="Nodes do Redis separados por vírgula",
     )
-    password: Optional[str] = Field(
+    password: str | None = Field(
         default=None, description="Senha do Redis (OBRIGATÓRIO em produção)"
     )
     ssl: bool = Field(default=False)
@@ -54,7 +54,7 @@ class RedisSettings(BaseSettings):
     cache_ttl_seconds: int = Field(default=60, description="TTL para budgets")
 
     @property
-    def cluster_nodes_list(self) -> List[str]:
+    def cluster_nodes_list(self) -> list[str]:
         """Retorna lista de nodes a partir da string."""
         if not self.cluster_nodes:
             return []
@@ -64,14 +64,14 @@ class RedisSettings(BaseSettings):
 class KafkaSettings(BaseSettings):
     """Configurações do Kafka."""
 
-    bootstrap_servers: List[str] = Field(
+    bootstrap_servers: list[str] = Field(
         default=["neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092"]
     )
     enabled: bool = Field(default=True, description="Habilitar conexão Kafka")
     budget_topic: str = Field(default="sla.budgets")
     freeze_topic: str = Field(default="sla.freeze.events")
     violations_topic: str = Field(default="sla.violations")
-    producer_config: Dict[str, Any] = Field(default={"compression_type": "gzip", "acks": "all"})
+    producer_config: dict[str, Any] = Field(default={"compression_type": "gzip", "acks": "all"})
 
 
 class AlertmanagerSettings(BaseSettings):
@@ -79,7 +79,7 @@ class AlertmanagerSettings(BaseSettings):
 
     url: str = Field(default="https://alertmanager.monitoring.svc.cluster.local:9093")
     tls_verify: bool = Field(default=True, description="Verificar certificado TLS do Alertmanager")
-    ca_bundle: Optional[str] = Field(
+    ca_bundle: str | None = Field(
         default=None, description="Caminho para CA bundle do Alertmanager"
     )
     webhook_path: str = Field(default="/webhooks/alertmanager")
@@ -89,8 +89,8 @@ class AlertmanagerSettings(BaseSettings):
 class SlackSettings(BaseSettings):
     """Configurações do Slack."""
 
-    webhook_url: Optional[str] = Field(default=None, description="Webhook URL para Slack alerts")
-    default_channel: Optional[str] = Field(
+    webhook_url: str | None = Field(default=None, description="Webhook URL para Slack alerts")
+    default_channel: str | None = Field(
         default="#alerts", description="Canal padrão para alertas"
     )
 
@@ -98,12 +98,32 @@ class SlackSettings(BaseSettings):
 class PagerDutySettings(BaseSettings):
     """Configurações do PagerDuty."""
 
-    routing_key: Optional[str] = Field(
+    routing_key: str | None = Field(
         default=None, description="Routing key para PagerDuty Events API v2"
     )
     api_url: str = Field(
         default="https://events.pagerduty.com/v2/enqueue",
         description="URL para PagerDuty Events API",
+    )
+
+
+class SLAAlertConsumerSettings(BaseSettings):
+    """Configurações do consumidor de alertas SLA."""
+
+    enable_sla_alert_consumer: bool = Field(
+        default=False, description="Habilitar consumer de alertas SLA via Kafka"
+    )
+    sla_alerts_topics: list[str] = Field(
+        default=["sla.alerts", "sla.violations"],
+        description="Tópicos Kafka para consumo de alertas SLA",
+    )
+    consumer_group_id: str = Field(
+        default="sla-alert-consumer",
+        description="ID do consumer group Kafka",
+    )
+    auto_offset_reset: str = Field(
+        default="latest",
+        description="Estratégia de offset Kafka (latest, earliest)",
     )
 
 
@@ -160,6 +180,9 @@ class Settings(BaseSettings):
     alertmanager: AlertmanagerSettings = Field(default_factory=AlertmanagerSettings)
     slack: SlackSettings = Field(default_factory=SlackSettings)
     pagerduty: PagerDutySettings = Field(default_factory=PagerDutySettings)
+    sla_alert_consumer: SLAAlertConsumerSettings = Field(
+        default_factory=SLAAlertConsumerSettings
+    )
     calculator: CalculatorSettings = Field(default_factory=CalculatorSettings)
     policy: PolicySettings = Field(default_factory=PolicySettings)
     kubernetes: KubernetesSettings = Field(default_factory=KubernetesSettings)
@@ -167,7 +190,7 @@ class Settings(BaseSettings):
     model_config = {"env_file": ".env", "env_nested_delimiter": "__", "case_sensitive": False}
 
     @property
-    def CORS_ORIGINS(self) -> List[str]:
+    def CORS_ORIGINS(self) -> list[str]:
         """
         CORS origins dinâmicas por ambiente usando neural_hive_security.
         """

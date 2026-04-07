@@ -14,7 +14,16 @@ import json
 from datetime import datetime, timezone
 
 UTC = timezone.utc  # type: ignore
-from enum import StrEnum
+from enum import Enum
+import sys
+
+# Python 3.10 compatibility: StrEnum was added in Python 3.11
+if sys.version_info >= (3, 11):
+    from enum import StrEnum as _StrEnum
+else:
+    class _StrEnum(str, Enum):
+        """Polyfill for StrEnum on Python 3.10"""
+        pass
 from typing import Any
 
 import structlog
@@ -26,7 +35,7 @@ from neural_hive_observability.context import extract_context_from_headers, set_
 logger = structlog.get_logger(__name__)
 
 
-class StrategicDecisionType(StrEnum):
+class StrategicDecisionType(_StrEnum):
     """Tipos de decisões estratégicas"""
 
     WORKFLOW_ADJUSTMENT = "WORKFLOW_ADJUSTMENT"
