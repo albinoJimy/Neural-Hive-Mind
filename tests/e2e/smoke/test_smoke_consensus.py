@@ -26,9 +26,7 @@ class TestConsensusHealth:
         """
         result = await consensus_health_helper.check_health()
 
-        assert (
-            result["available"] is True
-        ), f"Consensus Engine não disponível: {result['error']}"
+        assert result["available"] is True, f"Consensus Engine não disponível: {result['error']}"
         assert result["status_code"] == 200
         assert result["response"] is not None
         assert result["response"].get("status") == "healthy"
@@ -144,9 +142,7 @@ class TestConsensusReadiness:
         checks = result["response"]["checks"]
         # Analyst Agent é opcional
         if "analyst_agent" in checks:
-            assert checks["analyst_agent"] is None or isinstance(
-                checks["analyst_agent"], bool
-            )
+            assert checks["analyst_agent"] is None or isinstance(checks["analyst_agent"], bool)
 
     async def test_ready_checks_otel_pipeline_optional(self, consensus_health_helper):
         """
@@ -262,7 +258,4 @@ class TestConsensusGracefulDegradation:
 
         assert result["available"] is False
         assert result["status_code"] is None
-        assert (
-            result["error"] in {"timeout", "connection_refused"}
-            or result["error"] is not None
-        )
+        assert result["error"] in {"timeout", "connection_refused"} or result["error"] is not None

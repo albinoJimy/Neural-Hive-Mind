@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional
 # ID Validations
 # =============================================================================
 
+
 def assert_valid_plan_id(plan_id: str, prefix: str = "plan-") -> None:
     """
     Valida formato de plan_id.
@@ -50,7 +51,9 @@ def assert_valid_opinion_id(opinion_id: str, prefix: str = "opinion-") -> None:
         prefix: Prefixo esperado (default: "opinion-")
     """
     assert isinstance(opinion_id, str), f"opinion_id deve ser string, got {type(opinion_id)}"
-    assert opinion_id.startswith(prefix), f"opinion_id deve começar com '{prefix}', got: {opinion_id}"
+    assert opinion_id.startswith(
+        prefix
+    ), f"opinion_id deve começar com '{prefix}', got: {opinion_id}"
 
 
 def assert_valid_specialist_id(specialist_id: str) -> None:
@@ -59,8 +62,12 @@ def assert_valid_specialist_id(specialist_id: str) -> None:
 
     Aceita formatos como "specialist-technical" ou "specialist-business".
     """
-    assert isinstance(specialist_id, str), f"specialist_id deve ser string, got {type(specialist_id)}"
-    assert "specialist" in specialist_id.lower(), f"specialist_id deve conter 'specialist', got: {specialist_id}"
+    assert isinstance(
+        specialist_id, str
+    ), f"specialist_id deve ser string, got {type(specialist_id)}"
+    assert (
+        "specialist" in specialist_id.lower()
+    ), f"specialist_id deve conter 'specialist', got: {specialist_id}"
 
 
 def assert_valid_workflow_id(workflow_id: str, prefix: str = "workflow-") -> None:
@@ -72,12 +79,15 @@ def assert_valid_workflow_id(workflow_id: str, prefix: str = "workflow-") -> Non
         prefix: Prefixo esperado (default: "workflow-")
     """
     assert isinstance(workflow_id, str), f"workflow_id deve ser string, got {type(workflow_id)}"
-    assert workflow_id.startswith(prefix), f"workflow_id deve começar com '{prefix}', got: {workflow_id}"
+    assert workflow_id.startswith(
+        prefix
+    ), f"workflow_id deve começar com '{prefix}', got: {workflow_id}"
 
 
 # =============================================================================
 # Value Range Validations
 # =============================================================================
+
 
 def assert_valid_confidence(
     confidence: float,
@@ -95,10 +105,12 @@ def assert_valid_confidence(
     Raises:
         AssertionError: Se o valor estiver fora do range
     """
-    assert isinstance(confidence, (int, float)), f"confidence deve ser numérico, got {type(confidence)}"
-    assert min_val <= confidence <= max_val, (
-        f"confidence deve estar entre {min_val} e {max_val}, got: {confidence}"
-    )
+    assert isinstance(
+        confidence, (int, float)
+    ), f"confidence deve ser numérico, got {type(confidence)}"
+    assert (
+        min_val <= confidence <= max_val
+    ), f"confidence deve estar entre {min_val} e {max_val}, got: {confidence}"
 
 
 def assert_valid_percentage(value: float, name: str = "percentage") -> None:
@@ -113,7 +125,9 @@ def assert_valid_percentage(value: float, name: str = "percentage") -> None:
     assert 0 <= value <= 100, f"{name} deve estar entre 0 e 100, got: {value}"
 
 
-def assert_valid_duration_ms(duration_ms: int, min_ms: int = 0, max_ms: Optional[int] = None) -> None:
+def assert_valid_duration_ms(
+    duration_ms: int, min_ms: int = 0, max_ms: Optional[int] = None
+) -> None:
     """
     Valida uma duração em milissegundos.
 
@@ -160,7 +174,9 @@ def assert_valid_risk_band(risk_band: str) -> None:
         risk_band: Banda de risco a validar
     """
     assert isinstance(risk_band, str), f"risk_band deve ser string, got {type(risk_band)}"
-    assert risk_band in VALID_RISK_BANDS, f"risk_band deve ser um de {VALID_RISK_BANDS}, got: {risk_band}"
+    assert (
+        risk_band in VALID_RISK_BANDS
+    ), f"risk_band deve ser um de {VALID_RISK_BANDS}, got: {risk_band}"
 
 
 VALID_PRIORITIES = {"low", "normal", "high", "critical"}
@@ -174,7 +190,9 @@ def assert_valid_priority(priority: str) -> None:
         priority: Prioridade a validar
     """
     assert isinstance(priority, str), f"priority deve ser string, got {type(priority)}"
-    assert priority in VALID_PRIORITIES, f"priority deve ser um de {VALID_PRIORITIES}, got: {priority}"
+    assert (
+        priority in VALID_PRIORITIES
+    ), f"priority deve ser um de {VALID_PRIORITIES}, got: {priority}"
 
 
 VALID_STATUSES = {
@@ -203,6 +221,7 @@ def assert_valid_status(status: str) -> None:
 # =============================================================================
 # Task/Dependency Validations
 # =============================================================================
+
 
 def assert_tasks_dependent(task_a: Dict[str, Any], task_b: Dict[str, Any]) -> None:
     """
@@ -262,6 +281,7 @@ def assert_no_circular_dependencies(tasks: List[Dict[str, Any]]) -> None:
 # Decision/Opinion Validations
 # =============================================================================
 
+
 def assert_consolidated_decision(
     decision: Dict[str, Any],
     expected_decision: Optional[bool] = None,
@@ -288,9 +308,9 @@ def assert_consolidated_decision(
     assert_valid_confidence(decision["approval_rate"])
 
     if expected_decision is not None:
-        assert decision["final_decision"] == expected_decision, (
-            f"Expected final_decision={expected_decision}, got: {decision['final_decision']}"
-        )
+        assert (
+            decision["final_decision"] == expected_decision
+        ), f"Expected final_decision={expected_decision}, got: {decision['final_decision']}"
 
 
 def assert_specialist_opinion(
@@ -340,14 +360,13 @@ def assert_approve_reject_balance(
         min_total: Mínimo total de opiniões
     """
     total = approve_count + reject_count
-    assert total >= min_total, (
-        f"Total de opiniões ({total}) deve ser >= {min_total}"
-    )
+    assert total >= min_total, f"Total de opiniões ({total}) deve ser >= {min_total}"
 
 
 # =============================================================================
 # CognitivePlan Validations
 # =============================================================================
+
 
 def assert_cognitive_plan(plan: Dict[str, Any]) -> None:
     """
@@ -384,6 +403,7 @@ def assert_cognitive_plan(plan: Dict[str, Any]) -> None:
 # HTTP Response Validations
 # =============================================================================
 
+
 def assert_http_response(
     response: Dict[str, Any],
     expected_status: int = 200,
@@ -398,9 +418,9 @@ def assert_http_response(
         expected_fields: Campos esperados no body (opcional)
     """
     assert "status_code" in response, "response deve ter field 'status_code'"
-    assert response["status_code"] == expected_status, (
-        f"Expected status={expected_status}, got: {response['status_code']}"
-    )
+    assert (
+        response["status_code"] == expected_status
+    ), f"Expected status={expected_status}, got: {response['status_code']}"
 
     if expected_fields:
         body = response.get("json", response.get("body", {}))
@@ -411,6 +431,7 @@ def assert_http_response(
 # =============================================================================
 # Kafka Message Validations
 # =============================================================================
+
 
 def assert_kafka_message(
     message: Dict[str, Any],
@@ -423,9 +444,7 @@ def assert_kafka_message(
         message: Mensagem a validar
         required_headers: Headers obrigatórios (opcional)
     """
-    assert "key" in message or "value" in message, (
-        "message deve ter field 'key' ou 'value'"
-    )
+    assert "key" in message or "value" in message, "message deve ter field 'key' ou 'value'"
 
     if required_headers:
         headers = message.get("headers", {})
@@ -436,6 +455,7 @@ def assert_kafka_message(
 # =============================================================================
 # ML Feedback Validations
 # =============================================================================
+
 
 def assert_feedback_structure(feedback: Dict[str, Any]) -> None:
     """
@@ -456,9 +476,10 @@ def assert_feedback_structure(feedback: Dict[str, Any]) -> None:
         assert field in feedback, f"feedback deve ter field '{field}'"
 
     # Validar que human_decision é approve/reject
-    assert feedback["human_decision"] in {"approve", "reject"}, (
-        f"human_decision deve ser 'approve' ou 'reject', got: {feedback['human_decision']}"
-    )
+    assert feedback["human_decision"] in {
+        "approve",
+        "reject",
+    }, f"human_decision deve ser 'approve' ou 'reject', got: {feedback['human_decision']}"
 
     assert_valid_confidence(feedback["specialist_confidence"])
     assert_valid_domain(feedback["domain"])
@@ -471,11 +492,13 @@ def assert_feedback_semantic_features(feedback: Dict[str, Any]) -> None:
     Args:
         feedback: Feedback a validar
     """
-    assert "intent_raw_text" in feedback, "feedback deve ter 'intent_raw_text' para features semânticas"
+    assert (
+        "intent_raw_text" in feedback
+    ), "feedback deve ter 'intent_raw_text' para features semânticas"
 
-    assert isinstance(feedback["intent_raw_text"], str), (
-        f"intent_raw_text deve ser string, got: {type(feedback['intent_raw_text'])}"
-    )
+    assert isinstance(
+        feedback["intent_raw_text"], str
+    ), f"intent_raw_text deve ser string, got: {type(feedback['intent_raw_text'])}"
 
     assert len(feedback["intent_raw_text"]) > 0, "intent_raw_text não pode estar vazio"
 

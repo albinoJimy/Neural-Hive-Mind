@@ -15,35 +15,42 @@ from typing import Dict, Any, List
 GATEWAY_URL = "http://10.97.189.184:8000"
 TIMEOUT = 30
 
+
 # Cores para output
 class Colors:
-    GREEN = '\033[92m'
-    RED = '\033[91m'
-    YELLOW = '\033[93m'
-    BLUE = '\033[94m'
-    CYAN = '\033[96m'
-    RESET = '\033[0m'
-    BOLD = '\033[1m'
+    GREEN = "\033[92m"
+    RED = "\033[91m"
+    YELLOW = "\033[93m"
+    BLUE = "\033[94m"
+    CYAN = "\033[96m"
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+
 
 def print_step(step: str, message: str):
     """Imprime passo do teste"""
     print(f"\n{Colors.BLUE}{Colors.BOLD}[{step}]{Colors.RESET} {message}")
 
+
 def print_success(message: str):
     """Imprime mensagem de sucesso"""
     print(f"{Colors.GREEN}✓ {message}{Colors.RESET}")
+
 
 def print_error(message: str):
     """Imprime mensagem de erro"""
     print(f"{Colors.RED}✗ {message}{Colors.RESET}")
 
+
 def print_info(message: str):
     """Imprime informação"""
     print(f"{Colors.CYAN}  {message}{Colors.RESET}")
 
+
 def print_json(data: Dict[Any, Any]):
     """Imprime JSON formatado"""
     print(f"{Colors.YELLOW}{json.dumps(data, indent=2, ensure_ascii=False)}{Colors.RESET}")
+
 
 def test_gateway_health() -> bool:
     """Testa health check do gateway"""
@@ -63,6 +70,7 @@ def test_gateway_health() -> bool:
         print_error(f"Erro ao conectar no Gateway: {e}")
         return False
 
+
 def send_intent(intent_text: str, specialist_type: str = None) -> Dict[Any, Any]:
     """Envia intenção para o gateway"""
     print_step("2/5", f"Enviando intenção: '{intent_text}'")
@@ -72,8 +80,8 @@ def send_intent(intent_text: str, specialist_type: str = None) -> Dict[Any, Any]
         "context": {
             "user_id": "test-user-e2e",
             "session_id": f"test-session-{int(time.time())}",
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        },
     }
 
     if specialist_type:
@@ -83,11 +91,7 @@ def send_intent(intent_text: str, specialist_type: str = None) -> Dict[Any, Any]
     print_json(payload)
 
     try:
-        response = requests.post(
-            f"{GATEWAY_URL}/intentions",
-            json=payload,
-            timeout=TIMEOUT
-        )
+        response = requests.post(f"{GATEWAY_URL}/intentions", json=payload, timeout=TIMEOUT)
 
         print_info(f"Status Code: {response.status_code}")
 
@@ -106,6 +110,7 @@ def send_intent(intent_text: str, specialist_type: str = None) -> Dict[Any, Any]
     except Exception as e:
         print_error(f"Erro ao enviar intenção: {e}")
         return None
+
 
 def verify_nlu_processing(result: Dict[Any, Any]) -> bool:
     """Verifica processamento NLU"""
@@ -138,6 +143,7 @@ def verify_nlu_processing(result: Dict[Any, Any]) -> bool:
     print_success("Processamento NLU validado")
     return True
 
+
 def verify_specialist_routing(result: Dict[Any, Any], expected_specialist: str = None) -> bool:
     """Verifica roteamento para specialist"""
     print_step("4/5", "Verificando roteamento para Specialist")
@@ -163,6 +169,7 @@ def verify_specialist_routing(result: Dict[Any, Any], expected_specialist: str =
     else:
         print_error("Informação de roteamento não encontrada")
         return False
+
 
 def verify_end_to_end_response(result: Dict[Any, Any]) -> bool:
     """Verifica resposta end-to-end completa"""
@@ -200,6 +207,7 @@ def verify_end_to_end_response(result: Dict[Any, Any]) -> bool:
         print_success(f"Timestamp: {result['timestamp']}")
 
     return has_response
+
 
 def run_test_scenario(intent_text: str, specialist_type: str = None, description: str = None):
     """Executa um cenário de teste completo"""
@@ -248,10 +256,13 @@ def run_test_scenario(intent_text: str, specialist_type: str = None, description
         print_info(f"Resposta: {'✓' if response_ok else '✗'}")
         return False
 
+
 def main():
     """Função principal"""
     print(f"\n{Colors.BOLD}{Colors.CYAN}{'='*80}{Colors.RESET}")
-    print(f"{Colors.BOLD}{Colors.CYAN}TESTE DE FLUXO COMPLETO END-TO-END - NEURAL HIVE MIND{Colors.RESET}")
+    print(
+        f"{Colors.BOLD}{Colors.CYAN}TESTE DE FLUXO COMPLETO END-TO-END - NEURAL HIVE MIND{Colors.RESET}"
+    )
     print(f"{Colors.BOLD}{Colors.CYAN}{'='*80}{Colors.RESET}\n")
 
     # Cenários de teste
@@ -259,42 +270,37 @@ def main():
         {
             "intent": "Preciso criar uma API REST com autenticação JWT",
             "specialist": "business",
-            "description": "Teste 1: Intenção de negócio (Business Specialist)"
+            "description": "Teste 1: Intenção de negócio (Business Specialist)",
         },
         {
             "intent": "Como otimizar performance deste algoritmo de ordenação?",
             "specialist": "technical",
-            "description": "Teste 2: Questão técnica (Technical Specialist)"
+            "description": "Teste 2: Questão técnica (Technical Specialist)",
         },
         {
             "intent": "Qual o melhor padrão de design para este sistema distribuído?",
             "specialist": "architecture",
-            "description": "Teste 3: Arquitetura (Architecture Specialist)"
+            "description": "Teste 3: Arquitetura (Architecture Specialist)",
         },
         {
             "intent": "Quais são as melhores práticas para code review?",
             "specialist": "behavior",
-            "description": "Teste 4: Práticas de desenvolvimento (Behavior Specialist)"
+            "description": "Teste 4: Práticas de desenvolvimento (Behavior Specialist)",
         },
         {
             "intent": "Como evoluir este microserviço mantendo compatibilidade?",
             "specialist": "evolution",
-            "description": "Teste 5: Evolução de sistema (Evolution Specialist)"
-        }
+            "description": "Teste 5: Evolução de sistema (Evolution Specialist)",
+        },
     ]
 
     results = []
 
     for scenario in scenarios:
         result = run_test_scenario(
-            scenario["intent"],
-            scenario.get("specialist"),
-            scenario.get("description")
+            scenario["intent"], scenario.get("specialist"), scenario.get("description")
         )
-        results.append({
-            "scenario": scenario.get("description"),
-            "passed": result
-        })
+        results.append({"scenario": scenario.get("description"), "passed": result})
         time.sleep(2)  # Pausa entre cenários
 
     # Relatório final
@@ -306,7 +312,11 @@ def main():
     total = len(results)
 
     for i, result in enumerate(results, 1):
-        status = f"{Colors.GREEN}PASSOU{Colors.RESET}" if result["passed"] else f"{Colors.RED}FALHOU{Colors.RESET}"
+        status = (
+            f"{Colors.GREEN}PASSOU{Colors.RESET}"
+            if result["passed"]
+            else f"{Colors.RED}FALHOU{Colors.RESET}"
+        )
         print(f"{i}. {result['scenario']}: {status}")
 
     print(f"\n{Colors.BOLD}Total: {passed}/{total} cenários passaram{Colors.RESET}")
@@ -317,6 +327,7 @@ def main():
     else:
         print(f"\n{Colors.RED}{Colors.BOLD}✗ ALGUNS TESTES FALHARAM{Colors.RESET}")
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

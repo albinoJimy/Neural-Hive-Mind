@@ -14,7 +14,9 @@ try:
     import temporalio.activity  # type: ignore
 except ImportError:  # pragma: no cover
     temporalio = SimpleNamespace()
-    temporalio.activity = SimpleNamespace(logger=SimpleNamespace(info=lambda *a, **k: None, warning=lambda *a, **k: None))
+    temporalio.activity = SimpleNamespace(
+        logger=SimpleNamespace(info=lambda *a, **k: None, warning=lambda *a, **k: None)
+    )
     sys.modules["temporalio"] = temporalio
     sys.modules["temporalio.activity"] = temporalio.activity
 
@@ -27,7 +29,12 @@ def create_sample_cognitive_plan():
         "intent_id": "intent-456",
         "tasks": [
             {"task_id": "t1", "task_type": "ANALYZE", "estimated_duration_ms": 1000},
-            {"task_id": "t2", "task_type": "EXECUTE", "estimated_duration_ms": 1000, "dependencies": ["t1"]},
+            {
+                "task_id": "t2",
+                "task_type": "EXECUTE",
+                "estimated_duration_ms": 1000,
+                "dependencies": ["t1"],
+            },
         ],
         "execution_order": ["t1", "t2"],
         "priority": "NORMAL",

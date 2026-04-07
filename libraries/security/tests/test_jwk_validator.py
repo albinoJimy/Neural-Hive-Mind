@@ -11,13 +11,18 @@ from unittest.mock import MagicMock, AsyncMock, patch
 import time
 
 from neural_hive_security.jwt.jwk_validator import JWKValidator, JWKValidationError
-from neural_hive_security.jwt.jwt_verifier import JWTVerifier, JWTVerificationError, VerificationStatus
+from neural_hive_security.jwt.jwt_verifier import (
+    JWTVerifier,
+    JWTVerificationError,
+    VerificationStatus,
+)
 from neural_hive_security.config import SPIFFEConfig
 
 
 # =============================================================================
 # Test: JWKValidator - Estrutura JWK
 # =============================================================================
+
 
 class TestJWKValidator:
     """Testes de validação de estrutura JWK."""
@@ -31,7 +36,7 @@ class TestJWKValidator:
             "kid": "key-123",
             "alg": "RS256",
             "n": "0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw",
-            "e": "AQAB"
+            "e": "AQAB",
         }
 
         result = validator.validate(valid_rsa_jwk)
@@ -49,7 +54,7 @@ class TestJWKValidator:
             "alg": "ES256",
             "crv": "P-256",
             "x": "WKn-ZIGevcwGIyyrzFoZNBdaq9_TsqzGl96oc0CWuis",
-            "y": "y77t-RvAHRKTsSGdIYUfweuOvwrvDD-Q3Hv5J0fSKbE"
+            "y": "y77t-RvAHRKTsSGdIYUfweuOvwrvDD-Q3Hv5J0fSKbE",
         }
 
         result = validator.validate(valid_ec_jwk)
@@ -60,12 +65,7 @@ class TestJWKValidator:
         """Deve rejeitar JWK sem campo 'kty' (key type)."""
         validator = JWKValidator()
 
-        invalid_jwk = {
-            "kid": "key-123",
-            "alg": "RS256",
-            "n": "...",
-            "e": "AQAB"
-        }
+        invalid_jwk = {"kid": "key-123", "alg": "RS256", "n": "...", "e": "AQAB"}
 
         result = validator.validate(invalid_jwk)
 
@@ -76,12 +76,7 @@ class TestJWKValidator:
         """Deve rejeitar JWK sem campo 'kid' (key ID)."""
         validator = JWKValidator()
 
-        invalid_jwk = {
-            "kty": "RSA",
-            "alg": "RS256",
-            "n": "...",
-            "e": "AQAB"
-        }
+        invalid_jwk = {"kty": "RSA", "alg": "RS256", "n": "...", "e": "AQAB"}
 
         result = validator.validate(invalid_jwk)
 
@@ -92,12 +87,7 @@ class TestJWKValidator:
         """Deve rejeitar JWK sem campo 'alg' (algorithm)."""
         validator = JWKValidator()
 
-        invalid_jwk = {
-            "kty": "RSA",
-            "kid": "key-123",
-            "n": "...",
-            "e": "AQAB"
-        }
+        invalid_jwk = {"kty": "RSA", "kid": "key-123", "n": "...", "e": "AQAB"}
 
         result = validator.validate(invalid_jwk)
 
@@ -111,46 +101,43 @@ class TestJWKValidator:
         invalid_jwk = {
             "kty": "oct",  # Symmetric key (não suportado para trust bundles)
             "kid": "key-123",
-            "alg": "HS256"
+            "alg": "HS256",
         }
 
         result = validator.validate(invalid_jwk)
 
         assert result is False
-        assert any("kty" in error or "not supported" in error.lower() for error in validator.get_errors())
+        assert any(
+            "kty" in error or "not supported" in error.lower() for error in validator.get_errors()
+        )
 
     def test_reject_jwk_missing_rsa_components(self):
         """Deve rejeitar JWK RSA sem componentes 'n' e 'e'."""
         validator = JWKValidator()
 
-        invalid_jwk = {
-            "kty": "RSA",
-            "kid": "key-123",
-            "alg": "RS256"
-        }
+        invalid_jwk = {"kty": "RSA", "kid": "key-123", "alg": "RS256"}
 
         result = validator.validate(invalid_jwk)
 
         assert result is False
         errors = validator.get_errors()
-        assert any("n" in error or "e" in error or "components" in error.lower() for error in errors)
+        assert any(
+            "n" in error or "e" in error or "components" in error.lower() for error in errors
+        )
 
     def test_reject_jwk_missing_ec_components(self):
         """Deve rejeitar JWK EC sem componentes 'x' e 'y'."""
         validator = JWKValidator()
 
-        invalid_jwk = {
-            "kty": "EC",
-            "kid": "key-123",
-            "alg": "ES256",
-            "crv": "P-256"
-        }
+        invalid_jwk = {"kty": "EC", "kid": "key-123", "alg": "ES256", "crv": "P-256"}
 
         result = validator.validate(invalid_jwk)
 
         assert result is False
         errors = validator.get_errors()
-        assert any("x" in error or "y" in error or "components" in error.lower() for error in errors)
+        assert any(
+            "x" in error or "y" in error or "components" in error.lower() for error in errors
+        )
 
     def test_reject_malformed_jwk_not_dict(self):
         """Deve rejeitar JWK que não é um dicionário."""
@@ -159,7 +146,9 @@ class TestJWKValidator:
         result = validator.validate("not-a-dict")
 
         assert result is False
-        assert any("dict" in error.lower() or "type" in error.lower() for error in validator.get_errors())
+        assert any(
+            "dict" in error.lower() or "type" in error.lower() for error in validator.get_errors()
+        )
 
     def test_reject_empty_jwk(self):
         """Deve rejeitar JWK vazio."""
@@ -181,15 +170,15 @@ class TestJWKValidator:
                     "kid": "key-1",
                     "alg": "RS256",
                     "n": "0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw",
-                    "e": "AQAB"
+                    "e": "AQAB",
                 },
                 {
                     "kty": "RSA",
                     "kid": "key-2",
                     "alg": "RS256",
                     "n": "another modulus here",
-                    "e": "AQAB"
-                }
+                    "e": "AQAB",
+                },
             ]
         }
 
@@ -210,15 +199,15 @@ class TestJWKValidator:
                     "kid": "key-1",
                     "alg": "RS256",
                     "n": "0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw",
-                    "e": "AQAB"
+                    "e": "AQAB",
                 },
                 {
                     "kty": "RSA",
                     "kid": "key-2",
                     # Missing alg - invalid
                     "n": "another modulus here",
-                    "e": "AQAB"
-                }
+                    "e": "AQAB",
+                },
             ]
         }
 
@@ -233,6 +222,7 @@ class TestJWKValidator:
 # Test: JWTVerifier - Verificação de Assinatura
 # =============================================================================
 
+
 class TestJWTVerifier:
     """Testes de verificação JWT."""
 
@@ -244,20 +234,18 @@ class TestJWTVerifier:
             "kid": "test-key-1",
             "alg": "RS256",
             "n": "0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw",
-            "e": "AQAB"
+            "e": "AQAB",
         }
 
     @pytest.fixture
     def spiffe_config(self):
         """Configuração SPIFFE para testes."""
-        return SPIFFEConfig(
-            trust_domain="neural-hive.local",
-            jwt_audience="test-audience"
-        )
+        return SPIFFEConfig(trust_domain="neural-hive.local", jwt_audience="test-audience")
 
     def _create_test_token(self, payload, secret="test-secret", kid="test-key-1"):
         """Helper para criar token JWT com header kid."""
         import jwt
+
         headers = {"kid": kid}
         return jwt.encode(payload, secret, algorithm="HS256", headers=headers)
 
@@ -275,7 +263,7 @@ class TestJWTVerifier:
             "aud": "test-audience",
             "exp": datetime.now(timezone.utc) + timedelta(hours=1),
             "iat": datetime.now(timezone.utc),
-            "nbf": datetime.now(timezone.utc)
+            "nbf": datetime.now(timezone.utc),
         }
 
         token = self._create_test_token(payload, secret, "test-key-1")
@@ -284,7 +272,7 @@ class TestJWTVerifier:
             trust_domain="neural-hive.local",
             verification_keys={"test-key-1": secret},  # Incluir chave
             enable_verification=False,  # Desabilitar para teste simples
-            allowed_algorithms={"HS256", "RS256", "ES256"}  # Permitir HS256 para teste
+            allowed_algorithms={"HS256", "RS256", "ES256"},  # Permitir HS256 para teste
         )
 
         result = await verifier.verify(token)
@@ -310,7 +298,7 @@ class TestJWTVerifier:
             trust_domain="neural-hive.local",
             verification_keys={},
             enable_verification=False,
-            allowed_algorithms={"HS256", "RS256", "ES256"}
+            allowed_algorithms={"HS256", "RS256", "ES256"},
         )
 
         result = await verifier.verify(token)
@@ -336,7 +324,7 @@ class TestJWTVerifier:
             trust_domain="neural-hive.local",
             verification_keys={"test-key-1": secret2},  # Segredo errado
             enable_verification=True,
-            allowed_algorithms={"HS256", "RS256", "ES256"}
+            allowed_algorithms={"HS256", "RS256", "ES256"},
         )
 
         result = await verifier.verify(token)
@@ -361,7 +349,7 @@ class TestJWTVerifier:
             trust_domain="neural-hive.local",
             verification_keys={},
             enable_verification=False,
-            allowed_algorithms={"HS256", "RS256", "ES256"}
+            allowed_algorithms={"HS256", "RS256", "ES256"},
         )
 
         result = await verifier.verify(token)
@@ -386,7 +374,7 @@ class TestJWTVerifier:
             trust_domain="neural-hive.local",
             verification_keys={},
             enable_verification=False,
-            allowed_algorithms={"HS256", "RS256", "ES256"}
+            allowed_algorithms={"HS256", "RS256", "ES256"},
         )
 
         result = await verifier.verify(token)
@@ -411,7 +399,7 @@ class TestJWTVerifier:
             trust_domain="neural-hive.local",  # Trust domain esperado
             verification_keys={},
             enable_verification=False,
-            allowed_algorithms={"HS256", "RS256", "ES256"}
+            allowed_algorithms={"HS256", "RS256", "ES256"},
         )
 
         result = await verifier.verify(token)
@@ -437,7 +425,7 @@ class TestJWTVerifier:
             trust_domain="neural-hive.local",
             verification_keys={},
             enable_verification=False,
-            allowed_algorithms={"HS256", "RS256", "ES256"}
+            allowed_algorithms={"HS256", "RS256", "ES256"},
         )
 
         result = await verifier.verify(token)
@@ -449,6 +437,7 @@ class TestJWTVerifier:
 # =============================================================================
 # Test: KeyCache - Cache de chaves com TTL
 # =============================================================================
+
 
 class TestKeyCache:
     """Testes de cache de chaves com TTL."""
@@ -537,12 +526,14 @@ class TestKeyCache:
 # Test: Token Substitution Attack (SEC-008)
 # =============================================================================
 
+
 class TestTokenSubstitutionAttack:
     """Testes de segurança contra ataques de substituição de token."""
 
     def _create_test_token(self, payload, secret="test-secret", kid="test-key-1"):
         """Helper para criar token JWT com header kid."""
         import jwt
+
         headers = {"kid": kid}
         return jwt.encode(payload, secret, algorithm="HS256", headers=headers)
 
@@ -564,7 +555,7 @@ class TestTokenSubstitutionAttack:
             trust_domain="neural-hive.local",
             verification_keys={"key-1": "wrong-secret-32-bytes-long-hmac"},  # Segredo errado
             enable_verification=True,
-            allowed_algorithms={"HS256", "RS256", "ES256"}
+            allowed_algorithms={"HS256", "RS256", "ES256"},
         )
 
         result = await verifier.verify(token)
@@ -589,7 +580,7 @@ class TestTokenSubstitutionAttack:
             trust_domain="neural-hive.local",
             verification_keys={},
             enable_verification=True,
-            allowed_algorithms={"RS256", "ES256"}  # Não inclui "none"
+            allowed_algorithms={"RS256", "ES256"},  # Não inclui "none"
         )
 
         result = await verifier.verify(token)
@@ -609,13 +600,13 @@ class TestTokenSubstitutionAttack:
                     "kid": "legitimate-key",
                     "alg": "RS256",
                     "n": "0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw",
-                    "e": "AQAB"
+                    "e": "AQAB",
                 },
                 {
                     "kty": "RSA",
                     "kid": "injected-key",
                     # Falta alg - chave mal formada
-                }
+                },
             ]
         }
 
@@ -630,6 +621,7 @@ class TestTokenSubstitutionAttack:
 # Test: Integração com SPIFFE Manager
 # =============================================================================
 
+
 class TestSPIFFEManagerIntegration:
     """Testes de integração com SPIFFE Manager."""
 
@@ -640,8 +632,7 @@ class TestSPIFFEManagerIntegration:
         from neural_hive_security.jwt.jwk_validator import JWKValidator
 
         config = SPIFFEConfig(
-            workload_api_socket="unix:///tmp/test.sock",
-            trust_domain="test.local"
+            workload_api_socket="unix:///tmp/test.sock", trust_domain="test.local"
         )
 
         manager = SPIFFEManager(config)
@@ -657,7 +648,7 @@ class TestSPIFFEManagerIntegration:
                     "kid": "test-key",
                     "alg": "RS256",
                     "n": "0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw",
-                    "e": "AQAB"
+                    "e": "AQAB",
                 }
             ]
         }
@@ -673,6 +664,7 @@ class TestSPIFFEManagerIntegration:
 # Test: Métricas Prometheus
 # =============================================================================
 
+
 class TestPrometheusMetrics:
     """Testes de métricas Prometheus para verificação JWT."""
 
@@ -681,7 +673,7 @@ class TestPrometheusMetrics:
         """Deve registrar métricas de verificação JWT."""
         from neural_hive_security.jwt.metrics import (
             JWTVerificationMetrics,
-            get_jwt_verification_metrics
+            get_jwt_verification_metrics,
         )
 
         metrics = get_jwt_verification_metrics()
@@ -702,7 +694,7 @@ class TestPrometheusMetrics:
         """Deve registrar métricas de validação JWK."""
         from neural_hive_security.jwt.metrics import (
             JWKValidationMetrics,
-            get_jwk_validation_metrics
+            get_jwk_validation_metrics,
         )
 
         metrics = get_jwk_validation_metrics()

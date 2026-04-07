@@ -57,7 +57,9 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "integration: Integration tests")
     config.addinivalue_line("markers", "flow_c: Flow C specific tests")
     config.addinivalue_line("markers", "phase2: Phase 2 specific tests")
-    config.addinivalue_line("markers", "smoke: Quick smoke tests (<10min) for core service validation")
+    config.addinivalue_line(
+        "markers", "smoke: Quick smoke tests (<10min) for core service validation"
+    )
 
 
 @pytest.fixture(scope="session")
@@ -380,6 +382,7 @@ def synthetic_decision() -> Dict[str, Any]:
 def test_plan_id() -> str:
     """Fixture providing a unique test plan ID."""
     import uuid
+
     return f"plan-pytest-{uuid.uuid4().hex[:8]}"
 
 
@@ -387,6 +390,7 @@ def test_plan_id() -> str:
 def test_intent_id() -> str:
     """Fixture providing a unique test intent ID."""
     import uuid
+
     return f"intent-pytest-{uuid.uuid4().hex[:8]}"
 
 
@@ -440,6 +444,7 @@ def mock_executor_registry():
 
     Usado para injetar executores simulados em testes de falha.
     """
+
     class MockExecutorRegistry:
         def __init__(self):
             self._executors = {}

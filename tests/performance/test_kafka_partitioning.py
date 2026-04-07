@@ -23,6 +23,7 @@ from confluent_kafka.admin import AdminClient
 try:
     from src.clients.kafka_producer import KafkaProducerClient
     from src.config import get_settings
+
     KAFKA_AVAILABLE = True
 except ImportError:
     KAFKA_AVAILABLE = False
@@ -50,8 +51,7 @@ async def test_partition_distribution_with_multiple_plans():
     # Capturar offsets atuais ANTES de publicar para evitar consumir mensagens históricas
     print("📍 Capturando offsets atuais...")
     start_offsets = await _get_current_end_offsets(
-        config.kafka_bootstrap_servers,
-        config.kafka_tickets_topic
+        config.kafka_bootstrap_servers, config.kafka_tickets_topic
     )
 
     # Gerar tickets
@@ -73,7 +73,7 @@ async def test_partition_distribution_with_multiple_plans():
         config.kafka_bootstrap_servers,
         config.kafka_tickets_topic,
         num_plans * tickets_per_plan,
-        start_offsets=start_offsets
+        start_offsets=start_offsets,
     )
 
     # Validações
@@ -124,8 +124,7 @@ async def test_partition_distribution_with_burst():
     # Capturar offsets atuais ANTES de publicar para evitar consumir mensagens históricas
     print("📍 Capturando offsets atuais...")
     start_offsets = await _get_current_end_offsets(
-        config.kafka_bootstrap_servers,
-        config.kafka_tickets_topic
+        config.kafka_bootstrap_servers, config.kafka_tickets_topic
     )
 
     # Plan com burst
@@ -154,7 +153,7 @@ async def test_partition_distribution_with_burst():
         config.kafka_bootstrap_servers,
         config.kafka_tickets_topic,
         590,  # 500 + 90
-        start_offsets=start_offsets
+        start_offsets=start_offsets,
     )
 
     # Validar que burst não causou hot partition inesperada
@@ -180,10 +179,7 @@ async def test_partition_distribution_with_burst():
     print("✅ Burst isolado em uma única partition (data locality OK)!")
 
 
-async def _get_current_end_offsets(
-    bootstrap_servers: str,
-    topic: str
-) -> Dict[int, int]:
+async def _get_current_end_offsets(bootstrap_servers: str, topic: str) -> Dict[int, int]:
     """
     Captura os offsets finais atuais de todas as partitions do tópico.
 
@@ -194,10 +190,10 @@ async def _get_current_end_offsets(
         Dict mapeando partition -> offset final atual
     """
     consumer_config = {
-        'bootstrap.servers': bootstrap_servers,
-        'group.id': f'test-offset-checker-{uuid.uuid4()}',
-        'auto.offset.reset': 'latest',
-        'enable.auto.commit': False
+        "bootstrap.servers": bootstrap_servers,
+        "group.id": f"test-offset-checker-{uuid.uuid4()}",
+        "auto.offset.reset": "latest",
+        "enable.auto.commit": False,
     }
 
     consumer = Consumer(consumer_config)
@@ -234,7 +230,7 @@ async def _consume_and_analyze(
     bootstrap_servers: str,
     topic: str,
     expected_messages: int,
-    start_offsets: Optional[Dict[int, int]] = None
+    start_offsets: Optional[Dict[int, int]] = None,
 ) -> Dict[int, int]:
     """
     Consome mensagens e retorna contagem por partition.
@@ -251,10 +247,10 @@ async def _consume_and_analyze(
         Dict mapeando partition -> contagem de mensagens
     """
     consumer_config = {
-        'bootstrap.servers': bootstrap_servers,
-        'group.id': f'test-partition-analyzer-{uuid.uuid4()}',
-        'auto.offset.reset': 'latest',  # Fallback seguro se não houver start_offsets
-        'enable.auto.commit': False
+        "bootstrap.servers": bootstrap_servers,
+        "group.id": f"test-partition-analyzer-{uuid.uuid4()}",
+        "auto.offset.reset": "latest",  # Fallback seguro se não houver start_offsets
+        "enable.auto.commit": False,
     }
 
     consumer = Consumer(consumer_config)
@@ -267,8 +263,7 @@ async def _consume_and_analyze(
         if start_offsets:
             # Assign manualmente as partitions com offsets específicos
             topic_partitions = [
-                TopicPartition(topic, p, offset)
-                for p, offset in start_offsets.items()
+                TopicPartition(topic, p, offset) for p, offset in start_offsets.items()
             ]
             consumer.assign(topic_partitions)
             print(f"   Consumindo a partir dos offsets: {start_offsets}")
@@ -303,46 +298,43 @@ async def _consume_and_analyze(
 def _create_test_ticket(plan_id: str, index: int) -> Dict:
     """Cria ticket de teste."""
     return {
-        'ticket_id': str(uuid.uuid4()),
-        'plan_id': plan_id,
-        'intent_id': str(uuid.uuid4()),
-        'decision_id': str(uuid.uuid4()),
-        'task_id': f'task-{index}',
-        'task_type': 'BUILD',
-        'description': f'Test task {index}',
-        'dependencies': [],
-        'status': 'PENDING',
-        'priority': 'NORMAL',
-        'risk_band': 'low',
-        'sla': {
-            'deadline': 1234567890000,
-            'timeout_ms': 60000,
-            'max_retries': 3
+        "ticket_id": str(uuid.uuid4()),
+        "plan_id": plan_id,
+        "intent_id": str(uuid.uuid4()),
+        "decision_id": str(uuid.uuid4()),
+        "task_id": f"task-{index}",
+        "task_type": "BUILD",
+        "description": f"Test task {index}",
+        "dependencies": [],
+        "status": "PENDING",
+        "priority": "NORMAL",
+        "risk_band": "low",
+        "sla": {"deadline": 1234567890000, "timeout_ms": 60000, "max_retries": 3},
+        "qos": {
+            "delivery_mode": "AT_LEAST_ONCE",
+            "consistency": "EVENTUAL",
+            "durability": "PERSISTENT",
         },
-        'qos': {
-            'delivery_mode': 'AT_LEAST_ONCE',
-            'consistency': 'EVENTUAL',
-            'durability': 'PERSISTENT'
-        },
-        'parameters': {},
-        'required_capabilities': [],
-        'security_level': 'INTERNAL',
-        'created_at': 1234567890000,
-        'started_at': None,
-        'completed_at': None,
-        'estimated_duration_ms': None,
-        'actual_duration_ms': None,
-        'retry_count': 0,
-        'error_message': None,
-        'compensation_ticket_id': None,
-        'metadata': {},
-        'schema_version': 1
+        "parameters": {},
+        "required_capabilities": [],
+        "security_level": "INTERNAL",
+        "created_at": 1234567890000,
+        "started_at": None,
+        "completed_at": None,
+        "estimated_duration_ms": None,
+        "actual_duration_ms": None,
+        "retry_count": 0,
+        "error_message": None,
+        "compensation_ticket_id": None,
+        "metadata": {},
+        "schema_version": 1,
     }
 
 
 def _calculate_cv(values: List[int], mean: float) -> float:
     """Calcula coeficiente de variação."""
     import math
+
     if mean == 0 or not values:
         return 0
     variance = sum((x - mean) ** 2 for x in values) / len(values)

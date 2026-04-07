@@ -14,6 +14,7 @@ from uuid import uuid4
 # Test: Kafka Consumer Initialization
 # =============================================================================
 
+
 class TestKafkaConsumerInit:
     """Testes de inicialização do Kafka Consumer."""
 
@@ -27,7 +28,7 @@ class TestKafkaConsumerInit:
             "bootstrap_servers": "localhost:9092",
             "group_id": "test-group",
             "auto_offset_reset": "earliest",
-            "enable_auto_commit": False
+            "enable_auto_commit": False,
         }
 
         # Simulação: consumer seria inicializado com config
@@ -44,7 +45,7 @@ class TestKafkaConsumerInit:
             "security_protocol": "SASL_SSL",
             "sasl_mechanism": "PLAIN",
             "sasl_username": "test-user",
-            "sasl_password": "test-pass"
+            "sasl_password": "test-pass",
         }
 
         assert config["security_protocol"] == "SASL_SSL"
@@ -54,6 +55,7 @@ class TestKafkaConsumerInit:
 # =============================================================================
 # Test: Kafka Consumer Subscribe
 # =============================================================================
+
 
 class TestKafkaConsumerSubscribe:
     """Testes de subscrição a tópicos Kafka."""
@@ -85,6 +87,7 @@ class TestKafkaConsumerSubscribe:
 # =============================================================================
 # Test: Kafka Consumer Poll
 # =============================================================================
+
 
 class TestKafkaConsumerPoll:
     """Testes de polling de mensagens Kafka."""
@@ -134,6 +137,7 @@ class TestKafkaConsumerPoll:
 # Test: Kafka Consumer Commit
 # =============================================================================
 
+
 class TestKafkaConsumerCommit:
     """Testes de commit de offsets Kafka."""
 
@@ -150,9 +154,7 @@ class TestKafkaConsumerCommit:
     @pytest.mark.asyncio
     async def test_commit_with_offsets(self):
         """Deve fazer commit de offsets específicos."""
-        offsets = {
-            MagicMock(topic="test-topic", partition=0): 100
-        }
+        offsets = {MagicMock(topic="test-topic", partition=0): 100}
         mock_consumer = AsyncMock()
         mock_consumer.commit = AsyncMock(return_value=True)
 
@@ -164,6 +166,7 @@ class TestKafkaConsumerCommit:
 # =============================================================================
 # Test: Kafka Message Deserialization
 # =============================================================================
+
 
 class TestKafkaMessageDeserialization:
     """Testes de deserialização de mensagens Kafka."""
@@ -186,10 +189,7 @@ class TestKafkaMessageDeserialization:
         schema = {
             "type": "record",
             "name": "TestRecord",
-            "fields": [
-                {"name": "user_id", "type": "string"},
-                {"name": "action", "type": "string"}
-            ]
+            "fields": [{"name": "user_id", "type": "string"}, {"name": "action", "type": "string"}],
         }
 
         # Validação do schema
@@ -201,6 +201,7 @@ class TestKafkaMessageDeserialization:
 # Test: Kafka Consumer Error Handling
 # =============================================================================
 
+
 class TestKafkaConsumerErrors:
     """Testes de tratamento de erros do Kafka Consumer."""
 
@@ -210,9 +211,7 @@ class TestKafkaConsumerErrors:
         from aiokafka.errors import KafkaConnectionError
 
         mock_consumer = AsyncMock()
-        mock_consumer.start = AsyncMock(
-            side_effect=KafkaConnectionError()
-        )
+        mock_consumer.start = AsyncMock(side_effect=KafkaConnectionError())
 
         with pytest.raises(KafkaConnectionError):
             await mock_consumer.start()
@@ -228,12 +227,14 @@ class TestKafkaConsumerErrors:
         # Simulação de erro ao deserializar
         with pytest.raises(Exception):
             import json
+
             json.loads(mock_message.value)
 
 
 # =============================================================================
 # Test: Kafka Consumer Rebalancing
 # =============================================================================
+
 
 class TestKafkaConsumerRebalancing:
     """Testes de rebalancing do Kafka Consumer."""
@@ -258,6 +259,7 @@ class TestKafkaConsumerRebalancing:
 # =============================================================================
 # Test: Kafka Consumer Metrics
 # =============================================================================
+
 
 class TestKafkaConsumerMetrics:
     """Testes de métricas do Kafka Consumer."""
@@ -288,6 +290,7 @@ class TestKafkaConsumerMetrics:
 # Test: Kafka Consumer Health Check
 # =============================================================================
 
+
 class TestKafkaConsumerHealth:
     """Testes de health check do Kafka Consumer."""
 
@@ -315,6 +318,7 @@ class TestKafkaConsumerHealth:
 # =============================================================================
 # Test: Kafka Consumer Graceful Shutdown
 # =============================================================================
+
 
 class TestKafkaConsumerShutdown:
     """Testes de desligamento gracioso do Kafka Consumer."""

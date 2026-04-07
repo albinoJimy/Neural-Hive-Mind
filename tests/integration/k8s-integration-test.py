@@ -10,24 +10,24 @@ import time
 from datetime import datetime, timezone
 import uuid
 
+
 def run_kubectl(cmd):
     """Executa comando kubectl e retorna output"""
-    result = subprocess.run(
-        cmd,
-        shell=True,
-        capture_output=True,
-        text=True
-    )
+    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
     return result.stdout.strip(), result.returncode
+
 
 def log_info(msg):
     print(f"[INFO] {msg}")
 
+
 def log_success(msg):
     print(f"[✓] {msg}")
 
+
 def log_error(msg):
     print(f"[✗] {msg}")
+
 
 def main():
     print("=" * 70)
@@ -39,9 +39,7 @@ def main():
     log_info("1. Testando Redis...")
     redis_pod = "redis-59dbc7c5f-6pqbr"
 
-    output, code = run_kubectl(
-        f"kubectl exec -n redis-cluster {redis_pod} -- redis-cli ping"
-    )
+    output, code = run_kubectl(f"kubectl exec -n redis-cluster {redis_pod} -- redis-cli ping")
 
     if code == 0 and "PONG" in output:
         log_success("Redis: PONG")
@@ -52,12 +50,14 @@ def main():
     # 2. Armazenar metadata no Redis
     log_info("2. Armazenando metadata no Redis...")
     intent_id = str(uuid.uuid4())
-    metadata = json.dumps({
-        "intent_id": intent_id,
-        "domain": "TECHNICAL",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "source": "k8s-integration-test"
-    })
+    metadata = json.dumps(
+        {
+            "intent_id": intent_id,
+            "domain": "TECHNICAL",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "source": "k8s-integration-test",
+        }
+    )
 
     run_kubectl(
         f"kubectl exec -n redis-cluster {redis_pod} -- redis-cli SET intent:{intent_id} '{metadata}'"
@@ -83,7 +83,7 @@ def main():
         "text": "Teste de integração end-to-end K8s",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "kafka_topic": "intentions.technical",
-        "metadata": {"test": "integration"}
+        "metadata": {"test": "integration"},
     }
 
     doc_json = json.dumps(doc).replace("'", "\\'")
@@ -104,9 +104,9 @@ def main():
     # 4. Verificar documento no MongoDB
     log_info("4. Verificando documento no MongoDB...")
     output, code = run_kubectl(
-        f'kubectl exec -n mongodb-cluster {mongodb_pod} -- mongosh '
-        f'mongodb://localhost:27017/neural_hive_test -u root -p local_dev_password '
-        f'--authenticationDatabase admin --quiet --eval '
+        f"kubectl exec -n mongodb-cluster {mongodb_pod} -- mongosh "
+        f"mongodb://localhost:27017/neural_hive_test -u root -p local_dev_password "
+        f"--authenticationDatabase admin --quiet --eval "
         f'"db.intents.findOne({{intent_id: \\"{intent_id}\\"}})"'
     )
 
@@ -118,9 +118,7 @@ def main():
 
     # 5. Verificar tópicos Kafka
     log_info("5. Verificando tópicos Kafka...")
-    output, code = run_kubectl(
-        "kubectl get kafkatopic -n kafka --no-headers | wc -l"
-    )
+    output, code = run_kubectl("kubectl get kafkatopic -n kafka --no-headers | wc -l")
 
     if code == 0:
         topics_count = int(output)
@@ -159,6 +157,7 @@ def main():
     print("=" * 70)
 
     return 0
+
 
 if __name__ == "__main__":
     exit(main())

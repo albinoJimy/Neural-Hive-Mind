@@ -135,9 +135,7 @@ def main():
         required=True,
         help="MongoDB URI (ex: mongodb://user:pass@host:port/db?authSource=admin)",
     )
-    parser.add_argument(
-        "--database", required=True, help="Nome do database (ex: neural_hive)"
-    )
+    parser.add_argument("--database", required=True, help="Nome do database (ex: neural_hive)")
     parser.add_argument(
         "--collection",
         required=True,
@@ -150,9 +148,7 @@ def main():
     args = parser.parse_args()
 
     # Executar verificação
-    result = verify_collection(
-        args.mongo_uri, args.database, args.collection, args.sample_size
-    )
+    result = verify_collection(args.mongo_uri, args.database, args.collection, args.sample_size)
 
     # Imprimir resultado em JSON
     print(json.dumps(result, indent=2, ensure_ascii=False))

@@ -182,7 +182,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Scanner de imports e requirements.")
     parser.add_argument("--output", type=Path, default=ROOT_DIR / "reports" / "unused-imports.json")
     parser.add_argument("--service", help="Audita apenas um serviço específico")
-    parser.add_argument("--check-conflicts", action="store_true", help="Mostra conflitos de versões consolidadas")
+    parser.add_argument(
+        "--check-conflicts", action="store_true", help="Mostra conflitos de versões consolidadas"
+    )
     args = parser.parse_args()
 
     results: Dict[str, Dict[str, object]] = {}
@@ -203,11 +205,7 @@ def main() -> None:
 
     if args.check_conflicts:
         matrix = payload["version_matrix"]
-        conflicts = {
-            pkg: specs
-            for pkg, specs in matrix.items()
-            if len(set(specs.values())) > 1
-        }
+        conflicts = {pkg: specs for pkg, specs in matrix.items() if len(set(specs.values())) > 1}
         if conflicts:
             print("Conflitos de versões encontrados:")
             for pkg, specs in conflicts.items():

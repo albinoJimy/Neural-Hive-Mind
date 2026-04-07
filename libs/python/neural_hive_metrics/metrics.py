@@ -338,7 +338,9 @@ class NeuralHiveMetrics(BaseMetrics):
 
         self.record_counter("errors", labels=error_labels)
 
-    def record_system_health(self, component: str, healthy: bool, labels: Optional[Dict[str, str]] = None):
+    def record_system_health(
+        self, component: str, healthy: bool, labels: Optional[Dict[str, str]] = None
+    ):
         """Registra saúde do sistema."""
         health_labels = {
             "component": component,
@@ -379,11 +381,15 @@ class BarramentoMetrics(BaseMetrics):
         # Duração do roteamento (SLO: ≤150ms)
         self.record_histogram("routing_duration", duration, labels=routing_labels)
 
-    def record_throughput(self, messages_per_second: float, labels: Optional[Dict[str, str]] = None):
+    def record_throughput(
+        self, messages_per_second: float, labels: Optional[Dict[str, str]] = None
+    ):
         """Registra throughput do barramento."""
         self.record_gauge("throughput_messages_per_second", messages_per_second, labels=labels)
 
-    def record_queue_depth(self, queue_name: str, depth: int, labels: Optional[Dict[str, str]] = None):
+    def record_queue_depth(
+        self, queue_name: str, depth: int, labels: Optional[Dict[str, str]] = None
+    ):
         """Registra profundidade da fila."""
         queue_labels = {"queue": queue_name, **(labels or {})}
         self.record_gauge("queue_depth", float(depth), labels=queue_labels)
@@ -438,7 +444,9 @@ class CognicaoMetrics(BaseMetrics):
         self.record_counter("knowledge_access", labels=knowledge_labels)
         self.record_histogram("knowledge_access_duration", duration, labels=knowledge_labels)
 
-    def record_reasoning_quality(self, quality_score: float, reasoning_type: str, labels: Optional[Dict[str, str]] = None):
+    def record_reasoning_quality(
+        self, quality_score: float, reasoning_type: str, labels: Optional[Dict[str, str]] = None
+    ):
         """Registra qualidade do raciocínio."""
         reasoning_labels = {"type": reasoning_type, **(labels or {})}
         self.record_gauge("reasoning_quality_score", quality_score, labels=reasoning_labels)
@@ -490,7 +498,13 @@ class ExperienciaMetrics(BaseMetrics):
         self.record_histogram("interaction_duration", duration, labels=interaction_labels)
         self.record_gauge("user_satisfaction_score", user_satisfaction, labels=interaction_labels)
 
-    def record_channel_health(self, channel: str, healthy: bool, response_time: float, labels: Optional[Dict[str, str]] = None):
+    def record_channel_health(
+        self,
+        channel: str,
+        healthy: bool,
+        response_time: float,
+        labels: Optional[Dict[str, str]] = None,
+    ):
         """Registra saúde do canal."""
         channel_labels = {"channel": channel, **(labels or {})}
 
@@ -556,7 +570,9 @@ class OrquestracaoMetrics(BaseMetrics):
         }
 
         self.record_counter("coordination_events", labels=coord_labels)
-        self.record_gauge("coordination_components_count", float(components_involved), labels=coord_labels)
+        self.record_gauge(
+            "coordination_components_count", float(components_involved), labels=coord_labels
+        )
 
 
 class ExecucaoMetrics(BaseMetrics):

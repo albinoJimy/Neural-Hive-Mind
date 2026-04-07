@@ -28,6 +28,7 @@ class ProbabilisticModelWrapper(mlflow.pyfunc.PythonModel):
             context: Contexto do modelo pyfunc contendo artifacts
         """
         import joblib
+
         model_path = context.artifacts["sklearn_model"]
         self._model = joblib.load(model_path)
 
@@ -35,7 +36,7 @@ class ProbabilisticModelWrapper(mlflow.pyfunc.PythonModel):
         self,
         context: mlflow.pyfunc.PythonModelContext,
         model_input: pd.DataFrame,
-        params: dict = None
+        params: dict = None,
     ) -> np.ndarray:
         """
         Retorna probabilidades via predict_proba() do modelo sklearn subjacente.

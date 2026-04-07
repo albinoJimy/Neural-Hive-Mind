@@ -16,6 +16,7 @@ import json
 # Test: Structured Logging
 # =============================================================================
 
+
 class TestStructuredLogging:
     """Testes de logging estruturado."""
 
@@ -25,10 +26,7 @@ class TestStructuredLogging:
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "level": "INFO",
             "message": "Agent registered",
-            "context": {
-                "agent_id": str(uuid4()),
-                "agent_type": "WORKER"
-            }
+            "context": {"agent_id": str(uuid4()), "agent_type": "WORKER"},
         }
 
         assert "context" in log_entry
@@ -49,7 +47,7 @@ class TestStructuredLogging:
             "timestamp": "2026-03-29T12:00:00",
             "level": "INFO",
             "message": "Test log",
-            "context": {"key": "value"}
+            "context": {"key": "value"},
         }
 
         json_str = json.dumps(log_entry)
@@ -66,10 +64,7 @@ class TestStructuredLogging:
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "level": "ERROR",
                 "message": "An error occurred",
-                "exception": {
-                    "type": type(e).__name__,
-                    "message": str(e)
-                }
+                "exception": {"type": type(e).__name__, "message": str(e)},
             }
 
         assert log_entry["exception"]["type"] == "ValueError"
@@ -80,7 +75,7 @@ class TestStructuredLogging:
         logs = [
             {"level": "DEBUG", "message": "Debug msg"},
             {"level": "INFO", "message": "Info msg"},
-            {"level": "ERROR", "message": "Error msg"}
+            {"level": "ERROR", "message": "Error msg"},
         ]
 
         min_level = "INFO"
@@ -97,6 +92,7 @@ def _level_rank(level: str) -> int:
 # =============================================================================
 # Test: Metrics Collection
 # =============================================================================
+
 
 class TestMetricsCollection:
     """Testes de coleta de métricas."""
@@ -123,7 +119,7 @@ class TestMetricsCollection:
         histogram = {
             "type": "histogram",
             "buckets": [0, 10, 50, 100, 500],
-            "counts": [0, 0, 0, 0, 0]
+            "counts": [0, 0, 0, 0, 0],
         }
 
         # Registrar valor 75
@@ -136,14 +132,7 @@ class TestMetricsCollection:
 
     def test_summary_metric(self):
         """Deve criar métrica summary."""
-        summary = {
-            "type": "summary",
-            "count": 100,
-            "sum": 5000,
-            "min": 10,
-            "max": 100,
-            "avg": 50
-        }
+        summary = {"type": "summary", "count": 100, "sum": 5000, "min": 10, "max": 100, "avg": 50}
 
         assert summary["avg"] == summary["sum"] / summary["count"]
 
@@ -152,10 +141,7 @@ class TestMetricsCollection:
         metric = {
             "name": "requests_total",
             "value": 100,
-            "labels": {
-                "service": "gateway",
-                "endpoint": "/api/v1/intent"
-            }
+            "labels": {"service": "gateway", "endpoint": "/api/v1/intent"},
         }
 
         assert metric["labels"]["service"] == "gateway"
@@ -164,6 +150,7 @@ class TestMetricsCollection:
 # =============================================================================
 # Test: Distributed Tracing
 # =============================================================================
+
 
 class TestDistributedTracing:
     """Testes de tracing distribuído."""
@@ -177,7 +164,7 @@ class TestDistributedTracing:
             "operation_name": "process_intent",
             "start_time": datetime.now(timezone.utc).isoformat(),
             "end_time": None,
-            "status": "started"
+            "status": "started",
         }
 
         assert span["status"] == "started"
@@ -191,34 +178,24 @@ class TestDistributedTracing:
             "trace_id": str(uuid4()),
             "span_id": str(uuid4()),
             "parent_span_id": parent_id,
-            "operation_name": "validate_input"
+            "operation_name": "validate_input",
         }
 
         assert span["parent_span_id"] == parent_id
 
     def test_span_tags(self):
         """Deve adicionar tags ao span."""
-        span = {
-            "span_id": str(uuid4()),
-            "tags": {
-                "user_id": "user-123",
-                "intent": "query_balance"
-            }
-        }
+        span = {"span_id": str(uuid4()), "tags": {"user_id": "user-123", "intent": "query_balance"}}
 
         assert span["tags"]["intent"] == "query_balance"
 
     def test_span_events(self):
         """Deve adicionar eventos ao span."""
-        span = {
-            "span_id": str(uuid4()),
-            "events": []
-        }
+        span = {"span_id": str(uuid4()), "events": []}
 
-        span["events"].append({
-            "name": "validation_complete",
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        })
+        span["events"].append(
+            {"name": "validation_complete", "timestamp": datetime.now(timezone.utc).isoformat()}
+        )
 
         assert len(span["events"]) == 1
 
@@ -228,7 +205,7 @@ class TestDistributedTracing:
             "span_id": str(uuid4()),
             "start_time": datetime.now(timezone.utc) - timedelta(seconds=1),
             "end_time": None,
-            "status": "started"
+            "status": "started",
         }
 
         span["end_time"] = datetime.now(timezone.utc)
@@ -242,49 +219,35 @@ class TestDistributedTracing:
 # Test: Trace Propagation
 # =============================================================================
 
+
 class TestTracePropagation:
     """Testes de propagação de trace."""
 
     def test_inject_trace_context(self):
         """Deve injetar contexto de trace."""
-        trace_context = {
-            "trace_id": str(uuid4()),
-            "span_id": str(uuid4())
-        }
+        trace_context = {"trace_id": str(uuid4()), "span_id": str(uuid4())}
 
-        headers = {
-            "X-Trace-ID": trace_context["trace_id"],
-            "X-Span-ID": trace_context["span_id"]
-        }
+        headers = {"X-Trace-ID": trace_context["trace_id"], "X-Span-ID": trace_context["span_id"]}
 
         assert "X-Trace-ID" in headers
         assert headers["X-Trace-ID"] == trace_context["trace_id"]
 
     def test_extract_trace_context(self):
         """Deve extrair contexto de trace."""
-        headers = {
-            "X-Trace-ID": "trace-123",
-            "X-Span-ID": "span-456"
-        }
+        headers = {"X-Trace-ID": "trace-123", "X-Span-ID": "span-456"}
 
-        trace_context = {
-            "trace_id": headers.get("X-Trace-ID"),
-            "span_id": headers.get("X-Span-ID")
-        }
+        trace_context = {"trace_id": headers.get("X-Trace-ID"), "span_id": headers.get("X-Span-ID")}
 
         assert trace_context["trace_id"] == "trace-123"
 
     def test_continue_trace(self):
         """Deve continuar trace existente."""
-        parent_trace = {
-            "trace_id": "trace-123",
-            "span_id": "span-456"
-        }
+        parent_trace = {"trace_id": "trace-123", "span_id": "span-456"}
 
         child_span = {
             "trace_id": parent_trace["trace_id"],
             "span_id": str(uuid4()),
-            "parent_span_id": parent_trace["span_id"]
+            "parent_span_id": parent_trace["span_id"],
         }
 
         assert child_span["trace_id"] == "trace-123"
@@ -292,14 +255,9 @@ class TestTracePropagation:
 
     def test_baggage_propagation(self):
         """Deve propagar baggage."""
-        baggage = {
-            "user_id": "user-123",
-            "session_id": "session-456"
-        }
+        baggage = {"user_id": "user-123", "session_id": "session-456"}
 
-        headers = {
-            "X-Baggage": ",".join(f"{k}={v}" for k, v in baggage.items())
-        }
+        headers = {"X-Baggage": ",".join(f"{k}={v}" for k, v in baggage.items())}
 
         assert "user_id=user-123" in headers["X-Baggage"]
 
@@ -307,6 +265,7 @@ class TestTracePropagation:
 # =============================================================================
 # Test: Performance Metrics
 # =============================================================================
+
 
 class TestPerformanceMetrics:
     """Testes de métricas de performance."""
@@ -317,6 +276,7 @@ class TestPerformanceMetrics:
 
         # Simula operação
         import time
+
         time.sleep(0.01)
 
         end_time = datetime.now(timezone.utc)
@@ -359,7 +319,7 @@ class TestPerformanceMetrics:
         time_series = [
             {"timestamp": "T10:00", "value": 10},
             {"timestamp": "T10:01", "value": 20},
-            {"timestamp": "T10:02", "value": 30}
+            {"timestamp": "T10:02", "value": 30},
         ]
 
         avg = sum(p["value"] for p in time_series) / len(time_series)
@@ -371,6 +331,7 @@ class TestPerformanceMetrics:
 # Test: Log Aggregation
 # =============================================================================
 
+
 class TestLogAggregation:
     """Testes de agregação de logs."""
 
@@ -379,7 +340,7 @@ class TestLogAggregation:
         logs = [
             {"service": "gateway", "level": "INFO", "count": 1},
             {"service": "gateway", "level": "ERROR", "count": 1},
-            {"service": "worker", "level": "INFO", "count": 1}
+            {"service": "worker", "level": "INFO", "count": 1},
         ]
 
         by_service = {}
@@ -396,12 +357,7 @@ class TestLogAggregation:
 
     def test_aggregate_by_level(self):
         """Deve agregar logs por nível."""
-        logs = [
-            {"level": "INFO"},
-            {"level": "INFO"},
-            {"level": "ERROR"},
-            {"level": "WARNING"}
-        ]
+        logs = [{"level": "INFO"}, {"level": "INFO"}, {"level": "ERROR"}, {"level": "WARNING"}]
 
         by_level = {}
         for log in logs:
@@ -417,7 +373,7 @@ class TestLogAggregation:
             {"timestamp": "T10:00", "level": "INFO"},
             {"timestamp": "T10:01", "level": "INFO"},
             {"timestamp": "T10:02", "level": "ERROR"},
-            {"timestamp": "T11:00", "level": "INFO"}
+            {"timestamp": "T11:00", "level": "INFO"},
         ]
 
         # Agregar por hora
@@ -435,6 +391,7 @@ class TestLogAggregation:
 # =============================================================================
 # Test: Alert Rules
 # =============================================================================
+
 
 class TestAlertRules:
     """Testes de regras de alerta."""
@@ -480,6 +437,7 @@ class TestAlertRules:
 # Test: Dashboard Queries
 # =============================================================================
 
+
 class TestDashboardQueries:
     """Testes de consultas de dashboard."""
 
@@ -488,16 +446,13 @@ class TestDashboardQueries:
         metrics = [
             {"timestamp": "2026-03-29T10:00:00", "value": 10},
             {"timestamp": "2026-03-29T11:00:00", "value": 20},
-            {"timestamp": "2026-03-29T12:00:00", "value": 30}
+            {"timestamp": "2026-03-29T12:00:00", "value": 30},
         ]
 
         start = "2026-03-29T10:30:00"
         end = "2026-03-29T12:30:00"
 
-        filtered = [
-            m for m in metrics
-            if start <= m["timestamp"] <= end
-        ]
+        filtered = [m for m in metrics if start <= m["timestamp"] <= end]
 
         assert len(filtered) == 2
 
@@ -507,7 +462,7 @@ class TestDashboardQueries:
             {"timestamp": "2026-03-29T10:05", "value": 10},
             {"timestamp": "2026-03-29T10:15", "value": 20},
             {"timestamp": "2026-03-29T10:25", "value": 30},
-            {"timestamp": "2026-03-29T10:35", "value": 40}
+            {"timestamp": "2026-03-29T10:35", "value": 40},
         ]
 
         # Agregar por hora (extrair "T10" do timestamp)
@@ -520,7 +475,7 @@ class TestDashboardQueries:
                 windows[window] = []
             windows[window].append(m["value"])
 
-        avg_by_window = {w: sum(v)/len(v) for w, v in windows.items()}
+        avg_by_window = {w: sum(v) / len(v) for w, v in windows.items()}
 
         assert "10" in avg_by_window
         assert avg_by_window["10"] == 25
@@ -530,7 +485,7 @@ class TestDashboardQueries:
         time_series = [
             {"timestamp": "T10:00", "value": 100},
             {"timestamp": "T10:05", "value": 150},
-            {"timestamp": "T10:10", "value": 200}
+            {"timestamp": "T10:10", "value": 200},
         ]
 
         # Taxa por minuto

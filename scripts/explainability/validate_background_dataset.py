@@ -34,11 +34,7 @@ def load_dataset(dataset_path: str) -> pd.DataFrame:
 
     try:
         df = pd.read_parquet(dataset_path)
-        logger.info(
-            "Dataset loaded",
-            shape=df.shape,
-            columns=list(df.columns)
-        )
+        logger.info("Dataset loaded", shape=df.shape, columns=list(df.columns))
         return df
     except Exception as e:
         logger.error("Failed to load dataset", error=str(e))
@@ -79,7 +75,7 @@ def check_feature_variance(df: pd.DataFrame, min_variance: float) -> Tuple[bool,
             low_variance_features.append((col, variance))
 
     if low_variance_features:
-        features_str = ', '.join([f"{col}({var:.6f})" for col, var in low_variance_features])
+        features_str = ", ".join([f"{col}({var:.6f})" for col, var in low_variance_features])
         return False, f"Low variance features: {features_str}"
 
     return True, "All features have adequate variance"
@@ -126,7 +122,7 @@ def check_feature_correlations(df: pd.DataFrame, max_correlation: float = 0.95) 
                 )
 
     if high_corr_pairs:
-        pairs_str = ', '.join([f"{f1}-{f2}({corr:.3f})" for f1, f2, corr in high_corr_pairs[:5]])
+        pairs_str = ", ".join([f"{f1}-{f2}({corr:.3f})" for f1, f2, corr in high_corr_pairs[:5]])
         return False, f"High correlations detected: {pairs_str}"
 
     return True, "No high correlations between features"
@@ -139,23 +135,23 @@ def generate_statistics_report(df: pd.DataFrame) -> Dict:
     numeric_df = df.select_dtypes(include=[np.number])
 
     report = {
-        'num_samples': len(df),
-        'num_features': len(df.columns),
-        'num_numeric_features': len(numeric_df.columns),
-        'memory_usage_mb': df.memory_usage(deep=True).sum() / (1024 * 1024),
-        'feature_statistics': {}
+        "num_samples": len(df),
+        "num_features": len(df.columns),
+        "num_numeric_features": len(numeric_df.columns),
+        "memory_usage_mb": df.memory_usage(deep=True).sum() / (1024 * 1024),
+        "feature_statistics": {},
     }
 
     # Estatísticas por feature
     for col in numeric_df.columns:
-        report['feature_statistics'][col] = {
-            'mean': float(numeric_df[col].mean()),
-            'std': float(numeric_df[col].std()),
-            'min': float(numeric_df[col].min()),
-            'max': float(numeric_df[col].max()),
-            'median': float(numeric_df[col].median()),
-            'variance': float(numeric_df[col].var()),
-            'nunique': int(numeric_df[col].nunique())
+        report["feature_statistics"][col] = {
+            "mean": float(numeric_df[col].mean()),
+            "std": float(numeric_df[col].std()),
+            "min": float(numeric_df[col].min()),
+            "max": float(numeric_df[col].max()),
+            "median": float(numeric_df[col].median()),
+            "variance": float(numeric_df[col].var()),
+            "nunique": int(numeric_df[col].nunique()),
         }
 
     return report
@@ -163,9 +159,9 @@ def generate_statistics_report(df: pd.DataFrame) -> Dict:
 
 def print_report(report: Dict):
     """Imprime relatório formatado."""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("BACKGROUND DATASET STATISTICS REPORT")
-    print("="*80)
+    print("=" * 80)
 
     print(f"\nDataset Overview:")
     print(f"  Samples: {report['num_samples']}")
@@ -174,48 +170,35 @@ def print_report(report: Dict):
 
     print(f"\nTop 10 Features by Variance:")
     features_by_var = sorted(
-        report['feature_statistics'].items(),
-        key=lambda x: x[1]['variance'],
-        reverse=True
+        report["feature_statistics"].items(), key=lambda x: x[1]["variance"], reverse=True
     )[:10]
 
     for feature, stats in features_by_var:
-        print(f"  {feature:30s} | var={stats['variance']:.6f} | mean={stats['mean']:.3f} | std={stats['std']:.3f}")
+        print(
+            f"  {feature:30s} | var={stats['variance']:.6f} | mean={stats['mean']:.3f} | std={stats['std']:.3f}"
+        )
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description='Validate SHAP background dataset'
+    parser = argparse.ArgumentParser(description="Validate SHAP background dataset")
+    parser.add_argument(
+        "--dataset-path", required=True, help="Path to background dataset (Parquet)"
     )
     parser.add_argument(
-        '--dataset-path',
-        required=True,
-        help='Path to background dataset (Parquet)'
+        "--min-samples", type=int, default=50, help="Minimum number of samples required"
     )
     parser.add_argument(
-        '--min-samples',
-        type=int,
-        default=50,
-        help='Minimum number of samples required'
+        "--min-variance", type=float, default=0.001, help="Minimum variance required for features"
     )
     parser.add_argument(
-        '--min-variance',
-        type=float,
-        default=0.001,
-        help='Minimum variance required for features'
-    )
-    parser.add_argument(
-        '--max-correlation',
+        "--max-correlation",
         type=float,
         default=0.95,
-        help='Maximum correlation allowed between features'
+        help="Maximum correlation allowed between features",
     )
-    parser.add_argument(
-        '--output-report',
-        help='Path to save JSON report (optional)'
-    )
+    parser.add_argument("--output-report", help="Path to save JSON report (optional)")
 
     args = parser.parse_args()
 
@@ -224,7 +207,7 @@ def main():
         processors=[
             structlog.processors.TimeStamper(fmt="iso"),
             structlog.processors.add_log_level,
-            structlog.dev.ConsoleRenderer()
+            structlog.dev.ConsoleRenderer(),
         ]
     )
 
@@ -238,13 +221,13 @@ def main():
             ("Missing Values", check_missing_values(df)),
             ("Feature Variance", check_feature_variance(df, args.min_variance)),
             ("Feature Distributions", check_feature_distributions(df)),
-            ("Feature Correlations", check_feature_correlations(df, args.max_correlation))
+            ("Feature Correlations", check_feature_correlations(df, args.max_correlation)),
         ]
 
         # Imprimir resultados
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("VALIDATION RESULTS")
-        print("="*80)
+        print("=" * 80)
 
         all_passed = True
         for check_name, (passed, message) in validations:
@@ -253,7 +236,7 @@ def main():
             if not passed:
                 all_passed = False
 
-        print("="*80)
+        print("=" * 80)
 
         # Gerar relatório estatístico
         report = generate_statistics_report(df)
@@ -262,7 +245,8 @@ def main():
         # Salvar relatório JSON se solicitado
         if args.output_report:
             import json
-            with open(args.output_report, 'w') as f:
+
+            with open(args.output_report, "w") as f:
                 json.dump(report, f, indent=2)
             logger.info("Report saved", path=args.output_report)
 
@@ -279,5 +263,5 @@ def main():
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

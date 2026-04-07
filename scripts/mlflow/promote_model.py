@@ -18,9 +18,9 @@ logger = structlog.get_logger()
 def promote_model(
     model_name: str,
     model_version: str,
-    target_stage: str = 'Production',
+    target_stage: str = "Production",
     archive_existing: bool = True,
-    tracking_uri: str = None
+    tracking_uri: str = None,
 ) -> bool:
     """
     Promove modelo para stage target.
@@ -45,28 +45,25 @@ def promote_model(
             "Promoting model",
             model_name=model_name,
             version=model_version,
-            target_stage=target_stage
+            target_stage=target_stage,
         )
 
         # Arquivar modelos existentes no stage target se solicitado
         if archive_existing:
-            existing_versions = client.get_latest_versions(
-                name=model_name,
-                stages=[target_stage]
-            )
+            existing_versions = client.get_latest_versions(name=model_name, stages=[target_stage])
 
             for existing_version in existing_versions:
                 logger.info(
                     "Archiving existing model",
                     version=existing_version.version,
-                    stage=existing_version.current_stage
+                    stage=existing_version.current_stage,
                 )
 
                 client.transition_model_version_stage(
                     name=model_name,
                     version=existing_version.version,
-                    stage='Archived',
-                    archive_existing_versions=False
+                    stage="Archived",
+                    archive_existing_versions=False,
                 )
 
         # Promover nova versão
@@ -74,14 +71,14 @@ def promote_model(
             name=model_name,
             version=model_version,
             stage=target_stage,
-            archive_existing_versions=False  # Já arquivamos manualmente
+            archive_existing_versions=False,  # Já arquivamos manualmente
         )
 
         logger.info(
             "Model promoted successfully",
             model_name=model_name,
             version=model_version,
-            target_stage=target_stage
+            target_stage=target_stage,
         )
 
         return True
@@ -92,19 +89,27 @@ def promote_model(
             model_name=model_name,
             version=model_version,
             target_stage=target_stage,
-            error=str(e)
+            error=str(e),
         )
         return False
 
 
 def main():
     """Função principal."""
-    parser = argparse.ArgumentParser(description='Promote MLflow model')
-    parser.add_argument('--model-name', required=True, help='Model name')
-    parser.add_argument('--model-version', required=True, help='Model version')
-    parser.add_argument('--target-stage', default='Production', help='Target stage (default: Production)')
-    parser.add_argument('--no-archive-existing', action='store_true', help='Do not archive existing models in target stage')
-    parser.add_argument('--tracking-uri', default=os.getenv('MLFLOW_TRACKING_URI'), help='MLflow tracking URI')
+    parser = argparse.ArgumentParser(description="Promote MLflow model")
+    parser.add_argument("--model-name", required=True, help="Model name")
+    parser.add_argument("--model-version", required=True, help="Model version")
+    parser.add_argument(
+        "--target-stage", default="Production", help="Target stage (default: Production)"
+    )
+    parser.add_argument(
+        "--no-archive-existing",
+        action="store_true",
+        help="Do not archive existing models in target stage",
+    )
+    parser.add_argument(
+        "--tracking-uri", default=os.getenv("MLFLOW_TRACKING_URI"), help="MLflow tracking URI"
+    )
 
     args = parser.parse_args()
 
@@ -113,11 +118,11 @@ def main():
         model_version=args.model_version,
         target_stage=args.target_stage,
         archive_existing=not args.no_archive_existing,
-        tracking_uri=args.tracking_uri
+        tracking_uri=args.tracking_uri,
     )
 
     sys.exit(0 if success else 1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

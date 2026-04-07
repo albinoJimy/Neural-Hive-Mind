@@ -9,7 +9,13 @@ from tests.e2e.utils.k8s_helpers import get_pod_logs
 @pytest.mark.e2e
 def test_kubernetes_cluster_accessible(k8s_client):
     namespaces = [ns.metadata.name for ns in k8s_client.list_namespace().items]
-    expected = {"fluxo-a", "semantic-translation", "consensus-orchestration", "neural-hive-orchestration", "neural-hive-execution"}
+    expected = {
+        "fluxo-a",
+        "semantic-translation",
+        "consensus-orchestration",
+        "neural-hive-orchestration",
+        "neural-hive-execution",
+    }
     assert expected.issubset(set(namespaces))
 
 
@@ -74,5 +80,7 @@ async def test_all_services_healthy(k8s_client):
             conditions = pod.status.conditions or []
             ready = any(c.type == "Ready" and c.status == "True" for c in conditions)
             assert ready, f"Pod {pod.metadata.name} não está Ready em {ns}"
-            logs = get_pod_logs(k8s_client, ns, f"app={pod.metadata.labels.get('app','')}", tail_lines=5)
+            logs = get_pod_logs(
+                k8s_client, ns, f"app={pod.metadata.labels.get('app','')}", tail_lines=5
+            )
             assert logs is not None

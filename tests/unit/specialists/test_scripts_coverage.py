@@ -14,22 +14,15 @@ from uuid import uuid4
 # Test: Disaster Recovery Backup
 # =============================================================================
 
+
 class TestDisasterRecoveryBackup:
     """Testes de backup de recuperação de desastre."""
 
     def test_backup_configuration_validation(self):
         """Deve validar configuração de backup."""
-        config = {
-            "storage_type": "s3",
-            "bucket": "backups-bucket",
-            "retention_days": 30
-        }
+        config = {"storage_type": "s3", "bucket": "backups-bucket", "retention_days": 30}
 
-        is_valid = all([
-            "storage_type" in config,
-            "bucket" in config,
-            config["retention_days"] > 0
-        ])
+        is_valid = all(["storage_type" in config, "bucket" in config, config["retention_days"] > 0])
 
         assert is_valid is True
 
@@ -53,12 +46,7 @@ class TestDisasterRecoveryBackup:
 
     def test_backup_full(self):
         """Deve criar backup completo."""
-        all_files = [
-            "opinions.db",
-            "feedback.db",
-            "plans.db",
-            "metadata.db"
-        ]
+        all_files = ["opinions.db", "feedback.db", "plans.db", "metadata.db"]
 
         backup_size = sum(100 for _ in all_files)  # Simula 100MB por arquivo
 
@@ -69,12 +57,13 @@ class TestDisasterRecoveryBackup:
         backups = [
             {"name": "backup_1", "created_at": datetime.now(timezone.utc) - timedelta(days=10)},
             {"name": "backup_2", "created_at": datetime.now(timezone.utc) - timedelta(days=40)},
-            {"name": "backup_3", "created_at": datetime.now(timezone.utc) - timedelta(days=5)}
+            {"name": "backup_3", "created_at": datetime.now(timezone.utc) - timedelta(days=5)},
         ]
         retention_days = 30
 
         expired_backups = [
-            b for b in backups
+            b
+            for b in backups
             if (datetime.now(timezone.utc) - b["created_at"]).days > retention_days
         ]
 
@@ -86,6 +75,7 @@ class TestDisasterRecoveryBackup:
 # Test: Disaster Recovery Restore
 # =============================================================================
 
+
 class TestDisasterRecoveryRestore:
     """Testes de restauração de recuperação de desastre."""
 
@@ -95,14 +85,10 @@ class TestDisasterRecoveryRestore:
             "name": "backup_20260329.tar.gz",
             "checksum": "abc123",
             "size": 1024000,
-            "files": ["opinions.db", "feedback.db"]
+            "files": ["opinions.db", "feedback.db"],
         }
 
-        is_valid = (
-            "checksum" in backup and
-            backup["size"] > 0 and
-            len(backup["files"]) > 0
-        )
+        is_valid = "checksum" in backup and backup["size"] > 0 and len(backup["files"]) > 0
 
         assert is_valid is True
 
@@ -138,16 +124,20 @@ class TestDisasterRecoveryRestore:
         """Deve logar operações de restauração."""
         restore_log = []
 
-        restore_log.append({
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "action": "start",
-            "backup": "backup_20260329.tar.gz"
-        })
-        restore_log.append({
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "action": "complete",
-            "files_restored": 5
-        })
+        restore_log.append(
+            {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "action": "start",
+                "backup": "backup_20260329.tar.gz",
+            }
+        )
+        restore_log.append(
+            {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "action": "complete",
+                "files_restored": 5,
+            }
+        )
 
         assert len(restore_log) == 2
 
@@ -155,6 +145,7 @@ class TestDisasterRecoveryRestore:
 # =============================================================================
 # Test: Retention Policies
 # =============================================================================
+
 
 class TestRetentionPolicies:
     """Testes de políticas de retenção."""
@@ -164,12 +155,13 @@ class TestRetentionPolicies:
         items = [
             {"id": 1, "created_at": datetime.now(timezone.utc) - timedelta(days=10)},
             {"id": 2, "created_at": datetime.now(timezone.utc) - timedelta(days=100)},
-            {"id": 3, "created_at": datetime.now(timezone.utc) - timedelta(days=5)}
+            {"id": 3, "created_at": datetime.now(timezone.utc) - timedelta(days=5)},
         ]
         retention_days = 30
 
         expired_items = [
-            item for item in items
+            item
+            for item in items
             if (datetime.now(timezone.utc) - item["created_at"]).days > retention_days
         ]
 
@@ -187,11 +179,7 @@ class TestRetentionPolicies:
 
     def test_retention_by_size(self):
         """Deve reter baseado em tamanho total."""
-        items = [
-            {"id": 1, "size": 100},
-            {"id": 2, "size": 200},
-            {"id": 3, "size": 150}
-        ]
+        items = [{"id": 1, "size": 100}, {"id": 2, "size": 200}, {"id": 3, "size": 150}]
         max_size = 300
 
         current_size = sum(item["size"] for item in items)
@@ -205,7 +193,7 @@ class TestRetentionPolicies:
         policies = [
             {"name": "by_age", "priority": 1},
             {"name": "by_count", "priority": 2},
-            {"name": "by_size", "priority": 3}
+            {"name": "by_size", "priority": 3},
         ]
 
         sorted_policies = sorted(policies, key=lambda x: x["priority"])
@@ -227,6 +215,7 @@ class TestRetentionPolicies:
 # =============================================================================
 # Test: Retraining Trigger
 # =============================================================================
+
 
 class TestRetrainingTrigger:
     """Testes de gatilho de retreinamento."""
@@ -275,7 +264,7 @@ class TestRetrainingTrigger:
         queue = [
             {"model": "model_a", "priority": "low"},
             {"model": "model_b", "priority": "high"},
-            {"model": "model_c", "priority": "medium"}
+            {"model": "model_c", "priority": "medium"},
         ]
 
         priority_order = {"high": 0, "medium": 1, "low": 2}
@@ -287,6 +276,7 @@ class TestRetrainingTrigger:
 # =============================================================================
 # Test: Business Metrics Collector
 # =============================================================================
+
 
 class TestBusinessMetricsCollector:
     """Testes de coletor de métricas de negócio."""
@@ -312,7 +302,7 @@ class TestBusinessMetricsCollector:
         specialist_stats = {
             "business": {"total": 100, "correct": 85},
             "technical": {"total": 100, "correct": 90},
-            "security": {"total": 100, "correct": 88}
+            "security": {"total": 100, "correct": 88},
         }
 
         for specialist, stats in specialist_stats.items():
@@ -323,13 +313,7 @@ class TestBusinessMetricsCollector:
 
     def test_collect_peak_usage(self):
         """Deve coletar pico de uso."""
-        hourly_requests = {
-            "10:00": 100,
-            "11:00": 250,
-            "12:00": 180,
-            "13:00": 300,
-            "14:00": 200
-        }
+        hourly_requests = {"10:00": 100, "11:00": 250, "12:00": 180, "13:00": 300, "14:00": 200}
 
         peak_hour = max(hourly_requests.items(), key=lambda x: x[1])
 
@@ -349,6 +333,7 @@ class TestBusinessMetricsCollector:
 # =============================================================================
 # Test: Encryption Key Generation
 # =============================================================================
+
 
 class TestEncryptionKeyGeneration:
     """Testes de geração de chave de criptografia."""
@@ -402,19 +387,17 @@ class TestEncryptionKeyGeneration:
 # Test: Anomaly Detector Training
 # =============================================================================
 
+
 class TestAnomalyDetectorTraining:
     """Testes de treinamento de detector de anomalias."""
 
     def test_training_data_validation(self):
         """Deve validar dados de treinamento."""
-        training_data = {
-            "features": [[1, 2], [3, 4], [5, 6]],
-            "labels": [0, 0, 1]
-        }
+        training_data = {"features": [[1, 2], [3, 4], [5, 6]], "labels": [0, 0, 1]}
 
         is_valid = (
-            len(training_data["features"]) == len(training_data["labels"]) and
-            len(training_data["features"]) > 0
+            len(training_data["features"]) == len(training_data["labels"])
+            and len(training_data["features"]) > 0
         )
 
         assert is_valid is True
@@ -433,15 +416,10 @@ class TestAnomalyDetectorTraining:
 
     def test_training_metrics(self):
         """Deve calcular métricas de treinamento."""
-        metrics = {
-            "precision": 0.85,
-            "recall": 0.80,
-            "f1_score": 0.0
-        }
+        metrics = {"precision": 0.85, "recall": 0.80, "f1_score": 0.0}
 
         metrics["f1_score"] = 2 * (
-            (metrics["precision"] * metrics["recall"]) /
-            (metrics["precision"] + metrics["recall"])
+            (metrics["precision"] * metrics["recall"]) / (metrics["precision"] + metrics["recall"])
         )
 
         assert pytest.approx(metrics["f1_score"], 0.01) == 0.824
@@ -458,7 +436,7 @@ class TestAnomalyDetectorTraining:
         model_version = {
             "version": "1.0.0",
             "trained_at": datetime.now(timezone.utc).isoformat(),
-            "training_samples": 1000
+            "training_samples": 1000,
         }
 
         assert model_version["version"] == "1.0.0"
@@ -468,6 +446,7 @@ class TestAnomalyDetectorTraining:
 # Test: Monitoring Retraining Runs
 # =============================================================================
 
+
 class TestRetrainingMonitoring:
     """Testes de monitoramento de retreinamento."""
 
@@ -475,7 +454,7 @@ class TestRetrainingMonitoring:
         """Deve rastrear execuções ativas."""
         active_runs = [
             {"run_id": "run1", "start_time": datetime.now(timezone.utc) - timedelta(minutes=5)},
-            {"run_id": "run2", "start_time": datetime.now(timezone.utc) - timedelta(minutes=10)}
+            {"run_id": "run2", "start_time": datetime.now(timezone.utc) - timedelta(minutes=10)},
         ]
 
         assert len(active_runs) == 2
@@ -500,12 +479,7 @@ class TestRetrainingMonitoring:
 
     def test_track_run_status(self):
         """Deve rastrear status da execução."""
-        run = {
-            "run_id": "run1",
-            "status": "running",
-            "epochs_completed": 50,
-            "total_epochs": 100
-        }
+        run = {"run_id": "run1", "status": "running", "epochs_completed": 50, "total_epochs": 100}
 
         is_complete = run["status"] == "completed"
         is_running = run["status"] == "running"
@@ -515,16 +489,12 @@ class TestRetrainingMonitoring:
 
     def test_notify_on_completion(self):
         """Deve notificar ao completar execução."""
-        run = {
-            "run_id": "run1",
-            "status": "completed",
-            "final_accuracy": 0.92
-        }
+        run = {"run_id": "run1", "status": "completed", "final_accuracy": 0.92}
 
         notification = {
             "run_id": run["run_id"],
             "status": run["status"],
-            "message": f"Run completed with accuracy {run['final_accuracy']}"
+            "message": f"Run completed with accuracy {run['final_accuracy']}",
         }
 
         assert notification["status"] == "completed"
@@ -534,6 +504,7 @@ class TestRetrainingMonitoring:
 # Test: Disaster Recovery Test
 # =============================================================================
 
+
 class TestDisasterRecoveryTest:
     """Testes de teste de recuperação de desastre."""
 
@@ -542,13 +513,13 @@ class TestDisasterRecoveryTest:
         test_plan = {
             "test_id": str(uuid4()),
             "scenarios": ["backup", "restore", "verification"],
-            "target_environment": "staging"
+            "target_environment": "staging",
         }
 
         is_valid = (
-            "test_id" in test_plan and
-            len(test_plan["scenarios"]) > 0 and
-            test_plan["target_environment"] != "production"
+            "test_id" in test_plan
+            and len(test_plan["scenarios"]) > 0
+            and test_plan["target_environment"] != "production"
         )
 
         assert is_valid is True
@@ -557,7 +528,7 @@ class TestDisasterRecoveryTest:
         """Deve executar cenário de teste."""
         scenario = {
             "name": "restore_from_backup",
-            "steps": ["create_backup", "corrupt_data", "restore", "verify"]
+            "steps": ["create_backup", "corrupt_data", "restore", "verify"],
         }
 
         executed_steps = []
@@ -574,12 +545,13 @@ class TestDisasterRecoveryTest:
             "scenarios": {
                 "backup": {"status": "passed", "duration": 30},
                 "restore": {"status": "passed", "duration": 60},
-                "verification": {"status": "failed", "error": "checksum mismatch"}
-            }
+                "verification": {"status": "failed", "error": "checksum mismatch"},
+            },
         }
 
         failed_scenarios = [
-            name for name, result in test_results["scenarios"].items()
+            name
+            for name, result in test_results["scenarios"].items()
             if result["status"] == "failed"
         ]
 
@@ -604,7 +576,7 @@ class TestDisasterRecoveryTest:
             "end_time": (datetime.now(timezone.utc) + timedelta(minutes=10)).isoformat(),
             "total_scenarios": 5,
             "passed_scenarios": 4,
-            "failed_scenarios": 1
+            "failed_scenarios": 1,
         }
 
         success_rate = report["passed_scenarios"] / report["total_scenarios"]

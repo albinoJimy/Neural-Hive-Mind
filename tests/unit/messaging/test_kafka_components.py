@@ -15,6 +15,7 @@ from unittest.mock import AsyncMock, MagicMock
 # Test: Kafka Producer
 # =============================================================================
 
+
 class TestKafkaProducer:
     """Testes de produtor Kafka."""
 
@@ -23,12 +24,12 @@ class TestKafkaProducer:
         config = {
             "bootstrap_servers": "localhost:9092",
             "client_id": "test-producer",
-            "acks": "all"
+            "acks": "all",
         }
 
         producer_config = {
             "bootstrap.servers": config["bootstrap_servers"],
-            "client.id": config["client_id"]
+            "client.id": config["client_id"],
         }
 
         assert "localhost:9092" in producer_config["bootstrap.servers"]
@@ -38,10 +39,11 @@ class TestKafkaProducer:
         message = {
             "event_id": str(uuid4()),
             "event_type": "intent_created",
-            "data": {"text": "Qual meu saldo?"}
+            "data": {"text": "Qual meu saldo?"},
         }
 
         import json
+
         serialized = json.dumps(message).encode("utf-8")
 
         assert isinstance(serialized, bytes)
@@ -51,7 +53,7 @@ class TestKafkaProducer:
         headers = {
             "correlation_id": str(uuid4()),
             "content_type": "application/json",
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         assert "correlation_id" in headers
@@ -78,6 +80,7 @@ class TestKafkaProducer:
 # Test: Kafka Consumer
 # =============================================================================
 
+
 class TestKafkaConsumer:
     """Testes de consumidor Kafka."""
 
@@ -86,13 +89,13 @@ class TestKafkaConsumer:
         config = {
             "bootstrap_servers": "localhost:9092",
             "group_id": "test-consumer-group",
-            "auto_offset_reset": "earliest"
+            "auto_offset_reset": "earliest",
         }
 
         consumer_config = {
             "bootstrap.servers": config["bootstrap_servers"],
             "group.id": config["group_id"],
-            "auto.offset.reset": config["auto_offset_reset"]
+            "auto.offset.reset": config["auto_offset_reset"],
         }
 
         assert consumer_config["group.id"] == "test-consumer-group"
@@ -115,10 +118,7 @@ class TestKafkaConsumer:
 
     def test_consumer_poll(self):
         """Deve fazer poll de mensagens."""
-        messages = [
-            {"value": b"message1", "offset": 0},
-            {"value": b"message2", "offset": 1}
-        ]
+        messages = [{"value": b"message1", "offset": 0}, {"value": b"message2", "offset": 1}]
 
         polled = messages[:1]
 
@@ -138,26 +138,19 @@ class TestKafkaConsumer:
 # Test: Topic Management
 # =============================================================================
 
+
 class TestTopicManagement:
     """Testes de gerenciamento de tópicos."""
 
     def test_create_topic(self):
         """Deve criar tópico."""
-        topic_config = {
-            "name": "intent-events",
-            "partitions": 3,
-            "replication_factor": 2
-        }
+        topic_config = {"name": "intent-events", "partitions": 3, "replication_factor": 2}
 
         assert topic_config["partitions"] == 3
 
     def test_validate_topic_name(self):
         """Deve validar nome do tópico."""
-        valid_names = [
-            "intent-events",
-            "approval_events",
-            "workflow.status"
-        ]
+        valid_names = ["intent-events", "approval_events", "workflow.status"]
 
         topic_name = "intent-events"
         is_valid = topic_name in valid_names
@@ -184,6 +177,7 @@ class TestTopicManagement:
 # Test: Message Patterns
 # =============================================================================
 
+
 class TestMessagePatterns:
     """Testes de padrões de mensagem."""
 
@@ -194,7 +188,7 @@ class TestMessagePatterns:
             "event_type": "IntentCreated",
             "aggregate_id": str(uuid4()),
             "payload": {},
-            "occurred_at": datetime.now(timezone.utc).isoformat()
+            "occurred_at": datetime.now(timezone.utc).isoformat(),
         }
 
         required_fields = ["event_id", "event_type", "aggregate_id"]
@@ -208,7 +202,7 @@ class TestMessagePatterns:
             "command_id": str(uuid4()),
             "command_type": "ProcessIntent",
             "target_id": str(uuid4()),
-            "payload": {}
+            "payload": {},
         }
 
         assert command["command_type"] == "ProcessIntent"
@@ -218,7 +212,7 @@ class TestMessagePatterns:
         query = {
             "query_id": str(uuid4()),
             "query_type": "GetBalance",
-            "params": {"user_id": "user-123"}
+            "params": {"user_id": "user-123"},
         }
 
         assert query["query_type"] == "GetBalance"
@@ -228,6 +222,7 @@ class TestMessagePatterns:
 # Test: Consumer Group Management
 # =============================================================================
 
+
 class TestConsumerGroupManagement:
     """Testes de gerenciamento de grupo de consumidores."""
 
@@ -236,7 +231,7 @@ class TestConsumerGroupManagement:
         group = {
             "group_id": "approval-service-group",
             "members": ["consumer-1", "consumer-2"],
-            "topic": "approval-events"
+            "topic": "approval-events",
         }
 
         assert group["group_id"] == "approval-service-group"
@@ -284,6 +279,7 @@ class TestConsumerGroupManagement:
 # Test: Dead Letter Queue
 # =============================================================================
 
+
 class TestDeadLetterQueue:
     """Testes de Dead Letter Queue."""
 
@@ -296,7 +292,7 @@ class TestDeadLetterQueue:
             "original_message": original_message,
             "error_reason": error_reason,
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "retry_count": 3
+            "retry_count": 3,
         }
 
         assert dlq_message["retry_count"] == 3
@@ -317,7 +313,7 @@ class TestDeadLetterQueue:
             "original_partition": 0,
             "original_offset": 12345,
             "error": ValueError("Invalid format"),
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         assert "original_topic" in dlq_message
@@ -327,6 +323,7 @@ class TestDeadLetterQueue:
 # =============================================================================
 # Test: Idempotency
 # =============================================================================
+
 
 class TestIdempotency:
     """Testes de idempotência."""
@@ -366,6 +363,7 @@ class TestIdempotency:
 # Test: Backpressure
 # =============================================================================
 
+
 class TestBackpressure:
     """Testes de backpressure."""
 
@@ -400,6 +398,7 @@ class TestBackpressure:
 # =============================================================================
 # Test: Offset Management
 # =============================================================================
+
 
 class TestOffsetManagement:
     """Testes de gerenciamento de offset."""
@@ -438,6 +437,7 @@ class TestOffsetManagement:
 # Test: Schema Registry
 # =============================================================================
 
+
 class TestSchemaRegistry:
     """Testes de registro de schema."""
 
@@ -448,27 +448,20 @@ class TestSchemaRegistry:
             "name": "IntentEvent",
             "fields": [
                 {"name": "event_id", "type": "string"},
-                {"name": "event_type", "type": "string"}
-            ]
+                {"name": "event_type", "type": "string"},
+            ],
         }
 
         subject = "intent-events-value"
         schema_id = 1
 
-        registered = {
-            "subject": subject,
-            "schema_id": schema_id,
-            "schema": schema
-        }
+        registered = {"subject": subject, "schema_id": schema_id, "schema": schema}
 
         assert registered["schema_id"] == 1
 
     def test_validate_against_schema(self):
         """Deve validar contra schema."""
-        message = {
-            "event_id": "123",
-            "event_type": "IntentCreated"
-        }
+        message = {"event_id": "123", "event_type": "IntentCreated"}
 
         schema_fields = ["event_id", "event_type"]
         is_valid = all(f in message for f in schema_fields)
@@ -479,10 +472,7 @@ class TestSchemaRegistry:
         """Deve obter versão do schema."""
         schema_id = 1
 
-        versions = {
-            1: {"version": 1, "compatible": True},
-            2: {"version": 2, "compatible": False}
-        }
+        versions = {1: {"version": 1, "compatible": True}, 2: {"version": 2, "compatible": False}}
 
         schema_info = versions.get(schema_id)
 
@@ -492,6 +482,7 @@ class TestSchemaRegistry:
 # =============================================================================
 # Test: Compression
 # =============================================================================
+
 
 class TestCompression:
     """Testes de compressão."""
@@ -530,6 +521,7 @@ class TestCompression:
 # =============================================================================
 # Test: Batch Processing
 # =============================================================================
+
 
 class TestBatchProcessing:
     """Testes de processamento em lote."""

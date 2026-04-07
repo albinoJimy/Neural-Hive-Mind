@@ -14,41 +14,42 @@ GATEWAY_URL = "http://10.97.189.184:8000"
 NUM_TESTS = 10
 
 # Cores
-GREEN = '\033[92m'
-RED = '\033[91m'
-YELLOW = '\033[93m'
-CYAN = '\033[96m'
-BOLD = '\033[1m'
-RESET = '\033[0m'
+GREEN = "\033[92m"
+RED = "\033[91m"
+YELLOW = "\033[93m"
+CYAN = "\033[96m"
+BOLD = "\033[1m"
+RESET = "\033[0m"
 
 # Cenários de teste
 SCENARIOS = [
     {
         "name": "Business Analysis",
         "text": "Preciso analisar o ROI do projeto X e entender o impacto financeiro",
-        "expected_domain": "business"
+        "expected_domain": "business",
     },
     {
         "name": "Technical Implementation",
         "text": "Como implementar autenticação OAuth2 com refresh tokens",
-        "expected_domain": "technical"
+        "expected_domain": "technical",
     },
     {
         "name": "Behavior Analysis",
         "text": "Os usuários estão abandonando o carrinho no checkout",
-        "expected_domain": "behavior"
+        "expected_domain": "behavior",
     },
     {
         "name": "Evolution & Optimization",
         "text": "Como podemos otimizar a performance do sistema de recomendações",
-        "expected_domain": "evolution"
+        "expected_domain": "evolution",
     },
     {
         "name": "Architecture Design",
         "text": "Preciso desenhar uma arquitetura microserviços escalável",
-        "expected_domain": "architecture"
-    }
+        "expected_domain": "architecture",
+    },
 ]
+
 
 def test_gateway_health():
     """Testa health check do gateway"""
@@ -59,26 +60,21 @@ def test_gateway_health():
         print(f"{RED}✗ Gateway health check failed: {e}{RESET}")
         return False
 
+
 def send_intent(text, user_id):
     """Envia intenção para o gateway"""
     payload = {
         "text": text,
         "user_id": user_id,
-        "context": {
-            "source": "test_e2e",
-            "timestamp": datetime.now().isoformat()
-        }
+        "context": {"source": "test_e2e", "timestamp": datetime.now().isoformat()},
     }
 
     start_time = time.time()
-    response = requests.post(
-        f"{GATEWAY_URL}/intentions",
-        json=payload,
-        timeout=30
-    )
+    response = requests.post(f"{GATEWAY_URL}/intentions", json=payload, timeout=30)
     latency_ms = (time.time() - start_time) * 1000
 
     return response, latency_ms
+
 
 def analyze_response(response_data):
     """Analisa a resposta do gateway"""
@@ -93,9 +89,10 @@ def analyze_response(response_data):
         "status": response_data.get("status", "unknown"),
         "domain": response_data.get("domain", "unknown"),
         "confidence": response_data.get("confidence", 0.0),
-        "requires_validation": response_data.get("requires_manual_validation", False)
+        "requires_validation": response_data.get("requires_manual_validation", False),
     }
     return analysis
+
 
 def print_test_header():
     """Imprime cabeçalho do teste"""
@@ -103,16 +100,18 @@ def print_test_header():
     print(f"{CYAN}{BOLD}TESTE E2E - NEURAL HIVE MIND{RESET}")
     print(f"{CYAN}{BOLD}{'='*70}{RESET}\n")
 
+
 def print_iteration_header(iteration, total):
     """Imprime cabeçalho da iteração"""
     print(f"\n{GREEN}{BOLD}{'─'*70}{RESET}")
     print(f"{GREEN}{BOLD}ITERAÇÃO {iteration}/{total}{RESET}")
     print(f"{GREEN}{BOLD}{'─'*70}{RESET}\n")
 
+
 def print_summary(results):
     """Imprime resumo dos testes"""
     total = len(results)
-    passed = sum(1 for r in results if r['status_code'] == 200)
+    passed = sum(1 for r in results if r["status_code"] == 200)
 
     print(f"\n{CYAN}{BOLD}{'='*70}{RESET}")
     print(f"{CYAN}{BOLD}RESUMO DOS TESTES{RESET}")
@@ -124,7 +123,7 @@ def print_summary(results):
     print(f"Taxa de sucesso: {(passed/total*100):.1f}%\n")
 
     # Estatísticas de latência
-    latencies = [r['latency_ms'] for r in results if r['status_code'] == 200]
+    latencies = [r["latency_ms"] for r in results if r["status_code"] == 200]
     if latencies:
         print(f"Latências:")
         print(f"  Min: {min(latencies):.2f}ms")
@@ -134,8 +133,8 @@ def print_summary(results):
     # Distribuição por domínio
     domains = {}
     for r in results:
-        if r['status_code'] == 200:
-            domain = r['analysis']['domain']
+        if r["status_code"] == 200:
+            domain = r["analysis"]["domain"]
             domains[domain] = domains.get(domain, 0) + 1
 
     print(f"Distribuição por domínio:")
@@ -143,10 +142,13 @@ def print_summary(results):
         print(f"  {domain}: {count}")
 
     # Status de validação
-    needs_validation = sum(1 for r in results if r['status_code'] == 200 and r['analysis']['requires_validation'])
+    needs_validation = sum(
+        1 for r in results if r["status_code"] == 200 and r["analysis"]["requires_validation"]
+    )
     print(f"\nRequerem validação manual: {needs_validation}/{passed}")
 
     print(f"\n{CYAN}{BOLD}{'='*70}{RESET}\n")
+
 
 def main():
     """Função principal"""
@@ -170,10 +172,7 @@ def main():
             print(f"Texto: {scenario['text']}")
 
             try:
-                response, latency_ms = send_intent(
-                    scenario['text'],
-                    f"test-user-{iteration}"
-                )
+                response, latency_ms = send_intent(scenario["text"], f"test-user-{iteration}")
 
                 print(f"Latência: {YELLOW}{latency_ms:.2f}ms{RESET}")
                 print(f"Status: {response.status_code}")
@@ -188,32 +187,38 @@ def main():
                     print(f"  Confidence: {analysis['confidence']:.2f}")
                     print(f"  Intent ID: {data.get('intent_id', 'N/A')[:36]}")
 
-                    results.append({
-                        "iteration": iteration,
-                        "scenario": scenario['name'],
-                        "status_code": response.status_code,
-                        "latency_ms": latency_ms,
-                        "analysis": analysis,
-                        "response": data
-                    })
+                    results.append(
+                        {
+                            "iteration": iteration,
+                            "scenario": scenario["name"],
+                            "status_code": response.status_code,
+                            "latency_ms": latency_ms,
+                            "analysis": analysis,
+                            "response": data,
+                        }
+                    )
                 else:
                     print(f"{RED}✗ Erro: {response.status_code}{RESET}")
-                    results.append({
-                        "iteration": iteration,
-                        "scenario": scenario['name'],
-                        "status_code": response.status_code,
-                        "latency_ms": latency_ms,
-                        "error": response.text
-                    })
+                    results.append(
+                        {
+                            "iteration": iteration,
+                            "scenario": scenario["name"],
+                            "status_code": response.status_code,
+                            "latency_ms": latency_ms,
+                            "error": response.text,
+                        }
+                    )
 
             except Exception as e:
                 print(f"{RED}✗ Exceção: {e}{RESET}")
-                results.append({
-                    "iteration": iteration,
-                    "scenario": scenario['name'],
-                    "status_code": 0,
-                    "error": str(e)
-                })
+                results.append(
+                    {
+                        "iteration": iteration,
+                        "scenario": scenario["name"],
+                        "status_code": 0,
+                        "error": str(e),
+                    }
+                )
 
             print()
 
@@ -226,13 +231,14 @@ def main():
 
     # Salva resultados
     output_file = f"e2e-test-results-{datetime.now().strftime('%Y%m%d-%H%M%S')}.json"
-    with open(output_file, 'w') as f:
+    with open(output_file, "w") as f:
         json.dump(results, f, indent=2, default=str)
     print(f"Resultados salvos em: {output_file}")
 
     # Retorna código de saída
-    success_rate = sum(1 for r in results if r['status_code'] == 200) / len(results)
+    success_rate = sum(1 for r in results if r["status_code"] == 200) / len(results)
     return 0 if success_rate > 0.8 else 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

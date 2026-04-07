@@ -43,16 +43,13 @@ __all__ = [
     "OrquestracaoMetrics",
     "ExecucaoMetrics",
     "ResilienciaMetrics",
-
     # Correlation utilities
     "CorrelationContext",
     "trace_correlation",
     "with_correlation",
-
     # Exemplar support
     "ExemplarCollector",
     "create_exemplar",
-
     # Configuration
     "MetricsConfig",
     "configure_metrics",

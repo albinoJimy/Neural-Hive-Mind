@@ -53,21 +53,17 @@ def create_ticket():
             "language": "python",
             "service_name": "test-service-d3-e2e",
             "description": "Teste E2E D3",
-            "framework": "fastapi"
+            "framework": "fastapi",
         },
-        "sla": {
-            "deadline": deadline,
-            "timeout_ms": 14400000,
-            "max_retries": 3
-        },
+        "sla": {"deadline": deadline, "timeout_ms": 14400000, "max_retries": 3},
         "qos": {
             "delivery_mode": "AT_LEAST_ONCE",
             "consistency": "EVENTUAL",
-            "durability": "PERSISTENT"
+            "durability": "PERSISTENT",
         },
         "security_level": "INTERNAL",
         "dependencies": [],
-        "created_at": now_utc
+        "created_at": now_utc,
     }
 
     # Salvar IDs para uso posterior
@@ -164,14 +160,17 @@ def check_logs(trace_id: str):
     # Logs do Worker Agent
     print("Logs do Worker Agent:")
     cmd = f'grep -i "{trace_id}" /proc/1/fd/1 2>/dev/null || echo "Searching in logs..."'
-    result = kubectl_exec(f'bash -c "grep -i {trace_id} /app/logs/*.log 2>/dev/null | tail -20 || echo \'No logs found\'"', capture=False)
+    result = kubectl_exec(
+        f"bash -c \"grep -i {trace_id} /app/logs/*.log 2>/dev/null | tail -20 || echo 'No logs found'\"",
+        capture=False,
+    )
 
     # Usar kubectl logs diretamente
     log_result = subprocess.run(
         f"kubectl logs -n neural-hive deployment/worker-agents --tail=50 | grep -i {trace_id} || echo 'No specific logs'",
         shell=True,
         capture_output=True,
-        text=True
+        text=True,
     )
 
     if log_result.stdout.strip():

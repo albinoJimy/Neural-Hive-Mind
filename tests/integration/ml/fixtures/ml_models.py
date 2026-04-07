@@ -40,10 +40,10 @@ def create_duration_predictor(seed: int = 42, n_estimators: int = 10) -> RandomF
     # Gera target com relação conhecida com features
     # duration = f(task_type, payload, complexity) + ruído
     y_train = (
-        X_train[:, 0] * 5000 +      # task_type contribui até 5s
-        X_train[:, 1] * 2000 +      # payload contribui até 2s
-        X_train[:, 2] * 3000 +      # complexity contribui até 3s
-        np.random.randn(n_samples) * 500  # ruído ~500ms
+        X_train[:, 0] * 5000
+        + X_train[:, 1] * 2000  # task_type contribui até 5s
+        + X_train[:, 2] * 3000  # payload contribui até 2s
+        + np.random.randn(n_samples) * 500  # complexity contribui até 3s  # ruído ~500ms
     )
 
     # Treina modelo
@@ -84,7 +84,9 @@ def create_anomaly_detector(seed: int = 42, contamination: float = 0.1) -> Isola
     return model
 
 
-def create_model_pair(seed_v1: int = 42, seed_v2: int = 43) -> Tuple[RandomForestRegressor, RandomForestRegressor]:
+def create_model_pair(
+    seed_v1: int = 42, seed_v2: int = 43
+) -> Tuple[RandomForestRegressor, RandomForestRegressor]:
     """
     Cria par de modelos para teste de shadow mode.
 
@@ -124,10 +126,10 @@ def create_divergent_model(seed: int = 999) -> RandomForestRegressor:
 
     # Relação diferente com target
     y_train = (
-        X_train[:, 0] * 10000 +     # Peso diferente
-        X_train[:, 1] * 500 +
-        X_train[:, 2] * 8000 +
-        np.random.randn(n_samples) * 2000  # Mais ruído
+        X_train[:, 0] * 10000
+        + X_train[:, 1] * 500  # Peso diferente
+        + X_train[:, 2] * 8000
+        + np.random.randn(n_samples) * 2000  # Mais ruído
     )
 
     model = RandomForestRegressor(n_estimators=5, random_state=seed)
@@ -139,6 +141,7 @@ def create_divergent_model(seed: int = 999) -> RandomForestRegressor:
 # =============================================================================
 # Fixtures Pytest
 # =============================================================================
+
 
 @pytest.fixture
 def mock_duration_predictor() -> RandomForestRegressor:
@@ -188,20 +191,22 @@ def model_with_scaler() -> Tuple[RandomForestRegressor, StandardScaler]:
     np.random.seed(42)
     n_samples = 1000
 
-    X_raw = np.column_stack([
-        np.random.randint(0, 5, n_samples),           # task_type
-        np.random.randint(100, 10000, n_samples),     # payload_size
-        np.random.rand(n_samples)                      # complexity
-    ])
+    X_raw = np.column_stack(
+        [
+            np.random.randint(0, 5, n_samples),  # task_type
+            np.random.randint(100, 10000, n_samples),  # payload_size
+            np.random.rand(n_samples),  # complexity
+        ]
+    )
 
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X_raw)
 
     y = (
-        X_scaled[:, 0] * 1000 +
-        X_scaled[:, 1] * 500 +
-        X_scaled[:, 2] * 800 +
-        np.random.randn(n_samples) * 200
+        X_scaled[:, 0] * 1000
+        + X_scaled[:, 1] * 500
+        + X_scaled[:, 2] * 800
+        + np.random.randn(n_samples) * 200
     )
 
     model = RandomForestRegressor(n_estimators=10, random_state=42)

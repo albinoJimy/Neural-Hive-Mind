@@ -258,9 +258,9 @@ class CircuitBreakerValidator:
             Numero de transicoes
         """
         query = (
-            f'circuit_breaker_transitions_total{{'
+            f"circuit_breaker_transitions_total{{"
             f'circuit="{circuit_name}",from="{from_state}",to="{to_state}"'
-            f'}}'
+            f"}}"
         )
         try:
             async with httpx.AsyncClient(timeout=15.0) as client:

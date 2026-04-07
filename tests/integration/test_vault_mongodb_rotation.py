@@ -64,7 +64,7 @@ async def test_mongodb_credentials_renewal_at_threshold(mock_config, mock_vault_
 
     mock_vault_client.get_database_credentials.side_effect = [
         {"username": "mongo_user1", "password": "mongo_pass1", "ttl": 100},
-        {"username": "mongo_user2", "password": "mongo_pass2", "ttl": 100}
+        {"username": "mongo_user2", "password": "mongo_pass2", "ttl": 100},
     ]
 
     # Buscar credenciais iniciais
@@ -72,7 +72,9 @@ async def test_mongodb_credentials_renewal_at_threshold(mock_config, mock_vault_
     assert initial_creds["username"] == "mongo_user1"
 
     # Simular passagem de tempo (81% do TTL consumido)
-    vault_integration._mongodb_credentials_expiry = datetime.now(timezone.utc) + timedelta(seconds=19)
+    vault_integration._mongodb_credentials_expiry = datetime.now(timezone.utc) + timedelta(
+        seconds=19
+    )
 
     # Chamar renovação
     await vault_integration._renew_mongodb_credentials_if_needed()
@@ -94,14 +96,18 @@ async def test_mongodb_credentials_no_renewal_before_threshold(mock_config, mock
     vault_integration.config = mock_config
 
     mock_vault_client.get_database_credentials.return_value = {
-        "username": "mongo_user1", "password": "mongo_pass1", "ttl": 100
+        "username": "mongo_user1",
+        "password": "mongo_pass1",
+        "ttl": 100,
     }
 
     # Buscar credenciais iniciais
     await vault_integration.get_mongodb_credentials()
 
     # Simular passagem de tempo (apenas 50% do TTL consumido)
-    vault_integration._mongodb_credentials_expiry = datetime.now(timezone.utc) + timedelta(seconds=50)
+    vault_integration._mongodb_credentials_expiry = datetime.now(timezone.utc) + timedelta(
+        seconds=50
+    )
 
     # Chamar renovação
     await vault_integration._renew_mongodb_credentials_if_needed()
@@ -123,14 +129,16 @@ async def test_mongodb_credentials_renewal_on_expiry(mock_config, mock_vault_cli
 
     mock_vault_client.get_database_credentials.side_effect = [
         {"username": "mongo_user1", "password": "mongo_pass1", "ttl": 100},
-        {"username": "mongo_user2", "password": "mongo_pass2", "ttl": 100}
+        {"username": "mongo_user2", "password": "mongo_pass2", "ttl": 100},
     ]
 
     # Buscar credenciais iniciais
     await vault_integration.get_mongodb_credentials()
 
     # Simular expiração (expiry no passado)
-    vault_integration._mongodb_credentials_expiry = datetime.now(timezone.utc) - timedelta(seconds=10)
+    vault_integration._mongodb_credentials_expiry = datetime.now(timezone.utc) - timedelta(
+        seconds=10
+    )
 
     # Chamar renovação
     await vault_integration._renew_mongodb_credentials_if_needed()
@@ -211,7 +219,9 @@ async def test_mongodb_credentials_parse_uri_fallback(mock_config):
     Testa parsing correto da URI do MongoDB para fallback
     """
     mock_config.vault_enabled = False
-    mock_config.mongodb_uri = "mongodb://myuser:mypassword@host1:27017,host2:27017/admin?replicaSet=rs0"
+    mock_config.mongodb_uri = (
+        "mongodb://myuser:mypassword@host1:27017,host2:27017/admin?replicaSet=rs0"
+    )
 
     OrchestratorVaultClient = get_vault_integration_class()
 

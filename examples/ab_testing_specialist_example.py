@@ -9,7 +9,7 @@ import os
 import sys
 
 # Adicionar caminho da biblioteca
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'libraries', 'python'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "libraries", "python"))
 
 from neural_hive_specialists.ab_testing_specialist import ABTestingSpecialist
 from neural_hive_specialists.config import SpecialistConfig
@@ -24,36 +24,30 @@ def create_ab_test_config() -> SpecialistConfig:
     """
     config = SpecialistConfig(
         # Identificação do specialist
-        specialist_type='technical',
-        service_name='technical-ab-test-specialist',
-
+        specialist_type="technical",
+        service_name="technical-ab-test-specialist",
         # MLflow
-        mlflow_tracking_uri=os.getenv('MLFLOW_TRACKING_URI', 'http://localhost:5000'),
-        mlflow_experiment_name='technical-ab-experiment',
-        mlflow_model_name='technical-baseline',  # Modelo padrão
-
+        mlflow_tracking_uri=os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000"),
+        mlflow_experiment_name="technical-ab-experiment",
+        mlflow_model_name="technical-baseline",  # Modelo padrão
         # MongoDB
-        mongodb_uri=os.getenv('MONGODB_URI', 'mongodb://localhost:27017'),
-
+        mongodb_uri=os.getenv("MONGODB_URI", "mongodb://localhost:27017"),
         # Redis
-        redis_cluster_nodes=os.getenv('REDIS_CLUSTER_NODES', 'localhost:6379'),
-
+        redis_cluster_nodes=os.getenv("REDIS_CLUSTER_NODES", "localhost:6379"),
         # Neo4j
-        neo4j_uri=os.getenv('NEO4J_URI', 'bolt://localhost:7687'),
-        neo4j_password=os.getenv('NEO4J_PASSWORD', 'password'),
-
+        neo4j_uri=os.getenv("NEO4J_URI", "bolt://localhost:7687"),
+        neo4j_password=os.getenv("NEO4J_PASSWORD", "password"),
         # Configuração de A/B Testing
         enable_ab_testing=True,
-        ab_test_model_a_name='technical-baseline',  # Modelo A (baseline)
-        ab_test_model_a_stage='Production',
-        ab_test_model_b_name='technical-challenger',  # Modelo B (challenger)
-        ab_test_model_b_stage='Staging',
+        ab_test_model_a_name="technical-baseline",  # Modelo A (baseline)
+        ab_test_model_a_stage="Production",
+        ab_test_model_b_name="technical-challenger",  # Modelo B (challenger)
+        ab_test_model_b_stage="Staging",
         ab_test_traffic_split=0.5,  # 50% para cada variante
-        ab_test_hash_seed='production-seed-2025',  # Seed para hash determinístico
+        ab_test_hash_seed="production-seed-2025",  # Seed para hash determinístico
         ab_test_minimum_sample_size=30,  # Mínimo de amostras para análise estatística
-
         # Configurações opcionais
-        enable_shap_explainability=True
+        enable_shap_explainability=True,
     )
 
     return config
@@ -71,17 +65,17 @@ def example_basic_ab_testing():
 
     # Plano cognitivo para avaliar
     cognitive_plan = {
-        'plan_id': 'plan-abc-123',
-        'intent_id': 'intent-xyz-456',
-        'description': 'Implementar API REST para gestão de usuários',
-        'complexity_score': 0.6,
-        'steps': [
-            'Definir schema de dados',
-            'Implementar CRUD endpoints',
-            'Adicionar autenticação',
-            'Escrever testes'
+        "plan_id": "plan-abc-123",
+        "intent_id": "intent-xyz-456",
+        "description": "Implementar API REST para gestão de usuários",
+        "complexity_score": 0.6,
+        "steps": [
+            "Definir schema de dados",
+            "Implementar CRUD endpoints",
+            "Adicionar autenticação",
+            "Escrever testes",
         ],
-        'estimated_effort_hours': 12
+        "estimated_effort_hours": 12,
     }
 
     # Executar predição
@@ -110,7 +104,7 @@ def example_deterministic_assignment():
     specialist = ABTestingSpecialist(config=config)
 
     # Mesmo plan_id deve sempre receber mesma variante
-    plan_id = 'plan-deterministic-test'
+    plan_id = "plan-deterministic-test"
 
     print(f"Testando determinismo com plan_id: {plan_id}")
     print("Executando 5 predições com mesmo plan_id:\n")
@@ -118,19 +112,23 @@ def example_deterministic_assignment():
     variants = []
     for i in range(5):
         cognitive_plan = {
-            'plan_id': plan_id,  # Mesmo ID
-            'description': f'Test iteration {i+1}',
-            'complexity_score': 0.5
+            "plan_id": plan_id,  # Mesmo ID
+            "description": f"Test iteration {i+1}",
+            "complexity_score": 0.5,
         }
 
         result = specialist.evaluate_cognitive_plan(cognitive_plan)
-        variant = result.metadata.get('ab_test_variant')
+        variant = result.metadata.get("ab_test_variant")
         variants.append(variant)
         print(f"  Iteração {i+1}: variant={variant}")
 
     # Verificar que todas as variantes são iguais
     all_same = all(v == variants[0] for v in variants)
-    print(f"\nTodas as variantes são iguais: {all_same} ✓" if all_same else "ERRO: Variantes diferentes!")
+    print(
+        f"\nTodas as variantes são iguais: {all_same} ✓"
+        if all_same
+        else "ERRO: Variantes diferentes!"
+    )
 
 
 def example_traffic_split_distribution():
@@ -144,17 +142,17 @@ def example_traffic_split_distribution():
     print(f"Traffic split configurado: {config.ab_test_traffic_split}")
     print("Executando 100 predições com plan_ids diferentes:\n")
 
-    variant_counts = {'model_a': 0, 'model_b': 0}
+    variant_counts = {"model_a": 0, "model_b": 0}
 
     for i in range(100):
         cognitive_plan = {
-            'plan_id': f'plan-distribution-{i}',
-            'description': 'Test plan',
-            'complexity_score': 0.5
+            "plan_id": f"plan-distribution-{i}",
+            "description": "Test plan",
+            "complexity_score": 0.5,
         }
 
         result = specialist.evaluate_cognitive_plan(cognitive_plan)
-        variant = result.metadata.get('ab_test_variant')
+        variant = result.metadata.get("ab_test_variant")
         variant_counts[variant] += 1
 
     print(f"Distribuição observada:")
@@ -174,17 +172,17 @@ def example_fallback_handling():
 
     # Simular cenário onde modelo pode falhar
     cognitive_plan = {
-        'plan_id': 'plan-fallback-test',
-        'description': 'Plan that might trigger fallback',
-        'complexity_score': 0.8
+        "plan_id": "plan-fallback-test",
+        "description": "Plan that might trigger fallback",
+        "complexity_score": 0.8,
     }
 
     print("Executando predição (com possível fallback)...")
     result = specialist.evaluate_cognitive_plan(cognitive_plan)
 
     if result:
-        variant = result.metadata.get('ab_test_variant')
-        is_fallback = result.metadata.get('ab_test_fallback', False)
+        variant = result.metadata.get("ab_test_variant")
+        is_fallback = result.metadata.get("ab_test_fallback", False)
 
         print(f"\nResultado:")
         print(f"  Variant: {variant}")
@@ -208,9 +206,9 @@ def example_collect_statistics():
     print("Simulando 50 predições para gerar estatísticas...")
     for i in range(50):
         cognitive_plan = {
-            'plan_id': f'plan-stats-{i}',
-            'description': f'Test plan {i}',
-            'complexity_score': 0.5 + (i % 5) * 0.1
+            "plan_id": f"plan-stats-{i}",
+            "description": f"Test plan {i}",
+            "complexity_score": 0.5 + (i % 5) * 0.1,
         }
         specialist.evaluate_cognitive_plan(cognitive_plan)
 
@@ -235,7 +233,7 @@ def example_collect_statistics():
     print(f"    Recommendations: {stats['model_b']['recommendation_distribution']}")
 
     print(f"\n  Statistical Significance:")
-    sig = stats['statistical_significance']
+    sig = stats["statistical_significance"]
     print(f"    P-value: {sig.get('p_value', 'N/A')}")
     print(f"    Is Significant: {sig.get('is_significant', False)}")
     print(f"    Winner: {sig.get('winner', 'None')}")
@@ -257,9 +255,9 @@ def example_custom_traffic_split():
     print("(90% tráfego para baseline, 10% para challenger)")
 
     cognitive_plan = {
-        'plan_id': 'plan-conservative-split',
-        'description': 'Test with conservative split',
-        'complexity_score': 0.6
+        "plan_id": "plan-conservative-split",
+        "description": "Test with conservative split",
+        "complexity_score": 0.6,
     }
 
     result = specialist.evaluate_cognitive_plan(cognitive_plan)
@@ -274,9 +272,9 @@ def example_monitoring_metrics():
     specialist = ABTestingSpecialist(config=config)
 
     cognitive_plan = {
-        'plan_id': 'plan-metrics-example',
-        'description': 'Test for metrics',
-        'complexity_score': 0.5
+        "plan_id": "plan-metrics-example",
+        "description": "Test for metrics",
+        "complexity_score": 0.5,
     }
 
     print("Executando predição e publicando métricas...")
@@ -284,40 +282,46 @@ def example_monitoring_metrics():
 
     print(f"\nMétricas publicadas no Prometheus:")
     print(f"  - specialist_ab_test_traffic_split")
-    print(f"  - specialist_ab_test_variant_usage_total{{variant=\"{result.metadata.get('ab_test_variant')}\"}}")
-    print(f"  - specialist_ab_test_variant_confidence_score{{variant=\"{result.metadata.get('ab_test_variant')}\"}}")
-    print(f"  - specialist_ab_test_variant_risk_score{{variant=\"{result.metadata.get('ab_test_variant')}\"}}")
-    print(f"  - specialist_ab_test_variant_processing_time_seconds{{variant=\"{result.metadata.get('ab_test_variant')}\"}}")
-    print(f"  - specialist_ab_test_variant_recommendation_distribution{{variant=\"{result.metadata.get('ab_test_variant')}\", recommendation=\"{result.recommendation}\"}}")
+    print(
+        f"  - specialist_ab_test_variant_usage_total{{variant=\"{result.metadata.get('ab_test_variant')}\"}}"
+    )
+    print(
+        f"  - specialist_ab_test_variant_confidence_score{{variant=\"{result.metadata.get('ab_test_variant')}\"}}"
+    )
+    print(
+        f"  - specialist_ab_test_variant_risk_score{{variant=\"{result.metadata.get('ab_test_variant')}\"}}"
+    )
+    print(
+        f"  - specialist_ab_test_variant_processing_time_seconds{{variant=\"{result.metadata.get('ab_test_variant')}\"}}"
+    )
+    print(
+        f"  - specialist_ab_test_variant_recommendation_distribution{{variant=\"{result.metadata.get('ab_test_variant')}\", recommendation=\"{result.recommendation}\"}}"
+    )
 
 
 def example_hash_seed():
     """Exemplo de impacto do hash seed."""
     print("\n=== Exemplo 8: Impacto do Hash Seed ===\n")
 
-    plan_id = 'plan-hash-test'
+    plan_id = "plan-hash-test"
 
     # Testar com seed 1
     config1 = create_ab_test_config()
-    config1.ab_test_hash_seed = 'seed-1'
+    config1.ab_test_hash_seed = "seed-1"
     specialist1 = ABTestingSpecialist(config=config1)
 
-    result1 = specialist1.evaluate_cognitive_plan({
-        'plan_id': plan_id,
-        'description': 'Test',
-        'complexity_score': 0.5
-    })
+    result1 = specialist1.evaluate_cognitive_plan(
+        {"plan_id": plan_id, "description": "Test", "complexity_score": 0.5}
+    )
 
     # Testar com seed 2
     config2 = create_ab_test_config()
-    config2.ab_test_hash_seed = 'seed-2'
+    config2.ab_test_hash_seed = "seed-2"
     specialist2 = ABTestingSpecialist(config=config2)
 
-    result2 = specialist2.evaluate_cognitive_plan({
-        'plan_id': plan_id,
-        'description': 'Test',
-        'complexity_score': 0.5
-    })
+    result2 = specialist2.evaluate_cognitive_plan(
+        {"plan_id": plan_id, "description": "Test", "complexity_score": 0.5}
+    )
 
     print(f"Mesmo plan_id: {plan_id}")
     print(f"  Seed 'seed-1' -> variant: {result1.metadata.get('ab_test_variant')}")
@@ -355,11 +359,12 @@ def main():
     except Exception as e:
         print(f"\n❌ Erro ao executar exemplos: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Nota: Este exemplo requer MLflow, MongoDB, Redis e Neo4j rodando
     # Para rodar sem infraestrutura, use mocks apropriados
     main()

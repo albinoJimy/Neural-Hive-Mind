@@ -21,7 +21,7 @@ import structlog
 from typing import List, Dict, Any
 
 # Adicionar path da biblioteca
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / 'libraries' / 'python'))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent / "libraries" / "python"))
 
 from neural_hive_specialists.feature_extraction.feature_extractor import FeatureExtractor
 
@@ -29,11 +29,7 @@ logger = structlog.get_logger()
 
 
 def fetch_historical_plans(
-    mongodb_uri: str,
-    database: str,
-    collection: str,
-    num_samples: int,
-    specialist_type: str = None
+    mongodb_uri: str, database: str, collection: str, num_samples: int, specialist_type: str = None
 ) -> List[Dict[str, Any]]:
     """
     Busca planos cognitivos históricos do MongoDB.
@@ -52,7 +48,7 @@ def fetch_historical_plans(
         "Fetching historical plans",
         database=database,
         collection=collection,
-        num_samples=num_samples
+        num_samples=num_samples,
     )
 
     client = MongoClient(mongodb_uri)
@@ -62,13 +58,10 @@ def fetch_historical_plans(
     # Query
     query = {}
     if specialist_type:
-        query['specialist_type'] = specialist_type
+        query["specialist_type"] = specialist_type
 
     # Buscar amostras aleatórias
-    pipeline = [
-        {'$match': query},
-        {'$sample': {'size': num_samples}}
-    ]
+    pipeline = [{"$match": query}, {"$sample": {"size": num_samples}}]
 
     plans = list(coll.aggregate(pipeline))
 
@@ -78,8 +71,7 @@ def fetch_historical_plans(
 
 
 def extract_features_from_plans(
-    plans: List[Dict[str, Any]],
-    ontology_path: str = None
+    plans: List[Dict[str, Any]], ontology_path: str = None
 ) -> pd.DataFrame:
     """
     Extrai features estruturadas de planos cognitivos.
@@ -95,8 +87,8 @@ def extract_features_from_plans(
 
     # Inicializar feature extractor
     config = {
-        'ontology_path': ontology_path,
-        'embeddings_model': 'paraphrase-multilingual-MiniLM-L12-v2'
+        "ontology_path": ontology_path,
+        "embeddings_model": "paraphrase-multilingual-MiniLM-L12-v2",
     }
     extractor = FeatureExtractor(config)
 
@@ -105,7 +97,7 @@ def extract_features_from_plans(
     for i, plan in enumerate(plans):
         try:
             features_result = extractor.extract_features(plan)
-            aggregated_features = features_result['aggregated_features']
+            aggregated_features = features_result["aggregated_features"]
             features_list.append(aggregated_features)
 
             if (i + 1) % 100 == 0:
@@ -113,19 +105,13 @@ def extract_features_from_plans(
 
         except Exception as e:
             logger.warning(
-                "Failed to extract features from plan",
-                plan_id=plan.get('plan_id'),
-                error=str(e)
+                "Failed to extract features from plan", plan_id=plan.get("plan_id"), error=str(e)
             )
 
     # Converter para DataFrame
     df = pd.DataFrame(features_list)
 
-    logger.info(
-        "Features extracted",
-        num_samples=len(df),
-        num_features=len(df.columns)
-    )
+    logger.info("Features extracted", num_samples=len(df), num_features=len(df.columns))
 
     return df
 
@@ -168,10 +154,7 @@ def validate_background_dataset(df: pd.DataFrame) -> bool:
             low_variance_features.append(col)
 
     if low_variance_features:
-        logger.warning(
-            "Low variance features detected",
-            features=low_variance_features
-        )
+        logger.warning("Low variance features detected", features=low_variance_features)
     checks.append(True)
 
     # 4. Estatísticas descritivas
@@ -199,55 +182,26 @@ def save_background_dataset(df: pd.DataFrame, output_path: str):
     output_file.parent.mkdir(parents=True, exist_ok=True)
 
     # Salvar em Parquet (compressão eficiente)
-    df.to_parquet(output_path, compression='snappy', index=False)
+    df.to_parquet(output_path, compression="snappy", index=False)
 
     # Estatísticas do arquivo
     file_size_mb = output_file.stat().st_size / (1024 * 1024)
-    logger.info(
-        "Background dataset saved",
-        path=output_path,
-        size_mb=round(file_size_mb, 2)
-    )
+    logger.info("Background dataset saved", path=output_path, size_mb=round(file_size_mb, 2))
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Generate SHAP background dataset from historical cognitive plans'
+        description="Generate SHAP background dataset from historical cognitive plans"
     )
+    parser.add_argument("--mongodb-uri", required=True, help="MongoDB connection URI")
+    parser.add_argument("--database", default="neural_hive", help="MongoDB database name")
+    parser.add_argument("--collection", default="cognitive_plans", help="MongoDB collection name")
     parser.add_argument(
-        '--mongodb-uri',
-        required=True,
-        help='MongoDB connection URI'
+        "--output-path", required=True, help="Output path for background dataset (Parquet)"
     )
-    parser.add_argument(
-        '--database',
-        default='neural_hive',
-        help='MongoDB database name'
-    )
-    parser.add_argument(
-        '--collection',
-        default='cognitive_plans',
-        help='MongoDB collection name'
-    )
-    parser.add_argument(
-        '--output-path',
-        required=True,
-        help='Output path for background dataset (Parquet)'
-    )
-    parser.add_argument(
-        '--num-samples',
-        type=int,
-        default=1000,
-        help='Number of samples to fetch'
-    )
-    parser.add_argument(
-        '--specialist-type',
-        help='Filter by specialist type (optional)'
-    )
-    parser.add_argument(
-        '--ontology-path',
-        help='Path to ontology directory (optional)'
-    )
+    parser.add_argument("--num-samples", type=int, default=1000, help="Number of samples to fetch")
+    parser.add_argument("--specialist-type", help="Filter by specialist type (optional)")
+    parser.add_argument("--ontology-path", help="Path to ontology directory (optional)")
 
     args = parser.parse_args()
 
@@ -256,18 +210,14 @@ def main():
         processors=[
             structlog.processors.TimeStamper(fmt="iso"),
             structlog.processors.add_log_level,
-            structlog.dev.ConsoleRenderer()
+            structlog.dev.ConsoleRenderer(),
         ]
     )
 
     try:
         # 1. Buscar planos históricos
         plans = fetch_historical_plans(
-            args.mongodb_uri,
-            args.database,
-            args.collection,
-            args.num_samples,
-            args.specialist_type
+            args.mongodb_uri, args.database, args.collection, args.num_samples, args.specialist_type
         )
 
         if not plans:
@@ -292,5 +242,5 @@ def main():
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -62,7 +62,7 @@ class FlowCTelemetryPublisher:
         self.producer: Optional[AIOKafkaProducer] = None
         self.redis: Optional[aioredis.Redis] = None
         self.logger = logger.bind(service="flow_c_telemetry")
-        
+
         # In-memory buffer como fallback final
         self._in_memory_buffer: List[Dict[str, Any]] = []
         self._flush_task: Optional[asyncio.Task] = None
@@ -91,7 +91,7 @@ class FlowCTelemetryPublisher:
             self.logger.warning(
                 "redis_buffer_init_failed",
                 error=str(e),
-                message="Usando buffer in-memory como fallback"
+                message="Usando buffer in-memory como fallback",
             )
             self.redis = None
 
@@ -108,7 +108,7 @@ class FlowCTelemetryPublisher:
     async def close(self):
         """Close Kafka producer and Redis connection."""
         self._running = False
-        
+
         # Cancelar background task
         if self._flush_task:
             self._flush_task.cancel()
@@ -130,7 +130,7 @@ class FlowCTelemetryPublisher:
             await self.producer.stop()
         if self.redis:
             await self.redis.close()
-            
+
         self.logger.info(
             "telemetry_publisher_closed",
             unflushed_events=len(self._in_memory_buffer),
@@ -141,10 +141,10 @@ class FlowCTelemetryPublisher:
         while self._running:
             try:
                 await asyncio.sleep(self.flush_interval)
-                
+
                 if not self.producer:
                     continue
-                    
+
                 # Flush Redis buffer
                 if self.redis:
                     try:
@@ -154,12 +154,12 @@ class FlowCTelemetryPublisher:
                             await self.flush_buffer(intent_id)
                     except Exception as e:
                         self.logger.warning("redis_buffer_flush_failed", error=str(e))
-                
+
                 # Flush in-memory buffer
                 if self._in_memory_buffer:
                     events_to_flush = self._in_memory_buffer.copy()
                     self._in_memory_buffer.clear()
-                    
+
                     for event in events_to_flush:
                         try:
                             await self.producer.send_and_wait(self.topic, value=event)
@@ -175,7 +175,7 @@ class FlowCTelemetryPublisher:
                                 "in_memory_flush_failed",
                                 error=str(e),
                             )
-                            
+
             except asyncio.CancelledError:
                 break
             except Exception as e:
@@ -191,8 +191,8 @@ class FlowCTelemetryPublisher:
     ) -> None:
         """Publish FLOW_C_STARTED event."""
         span = trace.get_current_span()
-        trace_id = format(span.get_span_context().trace_id, '032x')
-        span_id = format(span.get_span_context().span_id, '016x')
+        trace_id = format(span.get_span_context().trace_id, "032x")
+        span_id = format(span.get_span_context().span_id, "016x")
 
         event = {
             "event_type": "FLOW_C_STARTED",
@@ -224,8 +224,8 @@ class FlowCTelemetryPublisher:
     ) -> None:
         """Publish TICKET_ASSIGNED event."""
         span = trace.get_current_span()
-        trace_id = format(span.get_span_context().trace_id, '032x')
-        span_id = format(span.get_span_context().span_id, '016x')
+        trace_id = format(span.get_span_context().trace_id, "032x")
+        span_id = format(span.get_span_context().span_id, "016x")
 
         event = {
             "event_type": "TICKET_ASSIGNED",
@@ -259,8 +259,8 @@ class FlowCTelemetryPublisher:
     ) -> None:
         """Publish TICKET_COMPLETED event."""
         span = trace.get_current_span()
-        trace_id = format(span.get_span_context().trace_id, '032x')
-        span_id = format(span.get_span_context().span_id, '016x')
+        trace_id = format(span.get_span_context().trace_id, "032x")
+        span_id = format(span.get_span_context().span_id, "016x")
 
         event = {
             "event_type": "TICKET_COMPLETED",
@@ -314,8 +314,8 @@ class FlowCTelemetryPublisher:
         """
         # Get OpenTelemetry context
         span = trace.get_current_span()
-        trace_id = format(span.get_span_context().trace_id, '032x')
-        span_id = format(span.get_span_context().span_id, '016x')
+        trace_id = format(span.get_span_context().trace_id, "032x")
+        span_id = format(span.get_span_context().span_id, "016x")
 
         event = {
             "event_type": event_type,
@@ -350,7 +350,7 @@ class FlowCTelemetryPublisher:
     async def _buffer_event(self, event: Dict[str, Any]):
         """
         Buffer event to Redis or in-memory if Kafka is unavailable.
-        
+
         Hierarchy:
         1. Redis buffer (preferido)
         2. In-memory buffer (fallback)
@@ -360,7 +360,7 @@ class FlowCTelemetryPublisher:
         if self.redis:
             try:
                 buffer_key = f"telemetry:buffer:{event['intent_id']}"
-                
+
                 # Verificar tamanho do buffer
                 buffer_size = await self.redis.llen(buffer_key)
                 if buffer_size >= self.max_buffer_size:
@@ -371,11 +371,11 @@ class FlowCTelemetryPublisher:
                         buffer_key=buffer_key,
                         buffer_size=buffer_size,
                     )
-                
+
                 await self.redis.lpush(buffer_key, json.dumps(event))
                 await self.redis.expire(buffer_key, self.buffer_ttl)
                 telemetry_buffer_size.inc()
-                
+
                 self.logger.debug("event_buffered_redis", buffer_key=buffer_key)
                 return
             except Exception as e:
@@ -394,8 +394,8 @@ class FlowCTelemetryPublisher:
             telemetry_buffer_drops.inc()
             self.logger.error(
                 "buffer_full_event_dropped",
-                intent_id=event.get('intent_id'),
-                event_type=event.get('event_type'),
+                intent_id=event.get("intent_id"),
+                event_type=event.get("event_type"),
             )
 
     async def flush_buffer(self, intent_id: str):

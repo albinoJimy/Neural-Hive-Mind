@@ -26,7 +26,12 @@ import sys
 import os
 
 # Adiciona path do projeto
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'services', 'orchestrator-dynamic', 'src'))
+sys.path.insert(
+    0,
+    os.path.join(
+        os.path.dirname(__file__), "..", "..", "..", "services", "orchestrator-dynamic", "src"
+    ),
+)
 
 try:
     from ml.model_promotion import (
@@ -34,7 +39,7 @@ try:
         PromotionConfig,
         PromotionRequest,
         PromotionStage,
-        PromotionResult
+        PromotionResult,
     )
 except ImportError:
     ModelPromotionManager = None
@@ -44,14 +49,11 @@ except ImportError:
     PromotionResult = None
 
 # Importa fixtures
-from .fixtures.ml_models import (
-    create_duration_predictor,
-    create_divergent_model
-)
+from .fixtures.ml_models import create_duration_predictor, create_divergent_model
 from .fixtures.test_data import (
     generate_prediction_history,
     generate_shadow_comparisons,
-    generate_validation_metrics
+    generate_validation_metrics,
 )
 
 
@@ -64,6 +66,7 @@ def skip_if_promotion_unavailable():
 # =============================================================================
 # Classe 1: Testes de Pipeline Completo - Sucesso
 # =============================================================================
+
 
 @pytest.mark.integration
 @pytest.mark.ml
@@ -82,7 +85,7 @@ class TestModelPromotionPipelineSuccess:
         test_features_dataset,
         seed_baseline_metrics,
         clean_ml_collections,
-        promotion_config_fast
+        promotion_config_fast,
     ):
         """
         Testa fluxo completo: training -> validation -> shadow -> canary -> rollout -> production
@@ -111,10 +114,10 @@ class TestModelPromotionPipelineSuccess:
             target_stage="Production",
             initiated_by="test_user",
             config_overrides={
-                'shadow_mode_enabled': False,  # Desabilita shadow para teste rápido
-                'canary_enabled': False,  # Desabilita canary
-                'gradual_rollout_enabled': False  # Desabilita gradual rollout
-            }
+                "shadow_mode_enabled": False,  # Desabilita shadow para teste rápido
+                "canary_enabled": False,  # Desabilita canary
+                "gradual_rollout_enabled": False,  # Desabilita gradual rollout
+            },
         )
 
         # Aguarda processamento da promoção
@@ -142,7 +145,7 @@ class TestModelPromotionPipelineSuccess:
         promotion_manager_test,
         model_registry_test,
         clean_ml_collections,
-        promotion_config_direct
+        promotion_config_direct,
     ):
         """
         Testa promoção direta quando shadow/canary/rollout estão desabilitados.
@@ -164,10 +167,10 @@ class TestModelPromotionPipelineSuccess:
             target_stage="Production",
             initiated_by="test_user",
             config_overrides={
-                'shadow_mode_enabled': False,
-                'canary_enabled': False,
-                'gradual_rollout_enabled': False
-            }
+                "shadow_mode_enabled": False,
+                "canary_enabled": False,
+                "gradual_rollout_enabled": False,
+            },
         )
 
         # Aguarda processamento
@@ -184,10 +187,7 @@ class TestModelPromotionPipelineSuccess:
         await promotion_manager_test.close()
 
     async def test_promotion_creates_audit_log_entries(
-        self,
-        promotion_manager_test,
-        mongodb_ml_client,
-        clean_ml_collections
+        self, promotion_manager_test, mongodb_ml_client, clean_ml_collections
     ):
         """
         Testa que promoção cria entradas de auditoria no MongoDB.
@@ -207,19 +207,21 @@ class TestModelPromotionPipelineSuccess:
             version="v2.0",
             target_stage="Production",
             config_overrides={
-                'shadow_mode_enabled': False,
-                'canary_enabled': False,
-                'gradual_rollout_enabled': False
-            }
+                "shadow_mode_enabled": False,
+                "canary_enabled": False,
+                "gradual_rollout_enabled": False,
+            },
         )
 
         # Aguarda processamento
         await asyncio.sleep(1.0)
 
         # Assert - busca logs de auditoria
-        logs = await mongodb_ml_client.db['ml_promotions'].find({
-            'model_name': model_name
-        }).to_list(length=None)
+        logs = (
+            await mongodb_ml_client.db["ml_promotions"]
+            .find({"model_name": model_name})
+            .to_list(length=None)
+        )
 
         # Deve ter pelo menos uma entrada de promoção
         assert len(logs) >= 1
@@ -227,9 +229,9 @@ class TestModelPromotionPipelineSuccess:
         # Verifica estrutura do log
         if logs:
             log = logs[0]
-            assert 'request_id' in log
-            assert 'model_name' in log
-            assert 'source_version' in log
+            assert "request_id" in log
+            assert "model_name" in log
+            assert "source_version" in log
 
         await promotion_manager_test.close()
 
@@ -237,6 +239,7 @@ class TestModelPromotionPipelineSuccess:
 # =============================================================================
 # Classe 2: Testes de Shadow Mode
 # =============================================================================
+
 
 @pytest.mark.integration
 @pytest.mark.ml
@@ -251,7 +254,7 @@ class TestShadowModeIntegration:
         mongodb_ml_client,
         mock_duration_predictor,
         test_features_dataset,
-        clean_ml_collections
+        clean_ml_collections,
     ):
         """
         Testa shadow mode com taxa de acordo alta (> 90%).
@@ -268,36 +271,35 @@ class TestShadowModeIntegration:
 
         # Insere comparações com alto acordo
         comparisons = generate_shadow_comparisons(
-            n_comparisons=100,
-            model_name=model_name,
-            agreement_target=0.95
+            n_comparisons=100, model_name=model_name, agreement_target=0.95
         )
-        await mongodb_ml_client.db['shadow_mode_comparisons'].insert_many(comparisons)
+        await mongodb_ml_client.db["shadow_mode_comparisons"].insert_many(comparisons)
 
         # Act - consulta estatísticas
         pipeline = [
-            {'$match': {'model_name': model_name}},
-            {'$group': {
-                '_id': None,
-                'total': {'$sum': 1},
-                'agreements': {'$sum': {'$cond': ['$agreed', 1, 0]}}
-            }}
+            {"$match": {"model_name": model_name}},
+            {
+                "$group": {
+                    "_id": None,
+                    "total": {"$sum": 1},
+                    "agreements": {"$sum": {"$cond": ["$agreed", 1, 0]}},
+                }
+            },
         ]
-        result = await mongodb_ml_client.db['shadow_mode_comparisons'].aggregate(
-            pipeline
-        ).to_list(length=1)
+        result = (
+            await mongodb_ml_client.db["shadow_mode_comparisons"]
+            .aggregate(pipeline)
+            .to_list(length=1)
+        )
 
         # Assert
         assert len(result) == 1
         stats = result[0]
-        agreement_rate = stats['agreements'] / stats['total']
+        agreement_rate = stats["agreements"] / stats["total"]
         assert agreement_rate >= 0.90
 
     async def test_shadow_mode_agreement_below_threshold_fails(
-        self,
-        promotion_manager_test,
-        mongodb_ml_client,
-        clean_ml_collections
+        self, promotion_manager_test, mongodb_ml_client, clean_ml_collections
     ):
         """
         Testa que shadow mode falha quando acordo < 90%.
@@ -313,36 +315,35 @@ class TestShadowModeIntegration:
 
         # Insere comparações com baixo acordo
         comparisons = generate_shadow_comparisons(
-            n_comparisons=100,
-            model_name=model_name,
-            agreement_target=0.70
+            n_comparisons=100, model_name=model_name, agreement_target=0.70
         )
-        await mongodb_ml_client.db['shadow_mode_comparisons'].insert_many(comparisons)
+        await mongodb_ml_client.db["shadow_mode_comparisons"].insert_many(comparisons)
 
         # Act - calcula taxa de acordo
         pipeline = [
-            {'$match': {'model_name': model_name}},
-            {'$group': {
-                '_id': None,
-                'total': {'$sum': 1},
-                'agreements': {'$sum': {'$cond': ['$agreed', 1, 0]}}
-            }}
+            {"$match": {"model_name": model_name}},
+            {
+                "$group": {
+                    "_id": None,
+                    "total": {"$sum": 1},
+                    "agreements": {"$sum": {"$cond": ["$agreed", 1, 0]}},
+                }
+            },
         ]
-        result = await mongodb_ml_client.db['shadow_mode_comparisons'].aggregate(
-            pipeline
-        ).to_list(length=1)
+        result = (
+            await mongodb_ml_client.db["shadow_mode_comparisons"]
+            .aggregate(pipeline)
+            .to_list(length=1)
+        )
 
         # Assert
         assert len(result) == 1
         stats = result[0]
-        agreement_rate = stats['agreements'] / stats['total']
+        agreement_rate = stats["agreements"] / stats["total"]
         assert agreement_rate < 0.90  # Abaixo do threshold
 
     async def test_shadow_mode_insufficient_predictions_fails(
-        self,
-        promotion_manager_test,
-        mongodb_ml_client,
-        clean_ml_collections
+        self, promotion_manager_test, mongodb_ml_client, clean_ml_collections
     ):
         """
         Testa que shadow mode com poucas predições é detectado.
@@ -357,53 +358,49 @@ class TestShadowModeIntegration:
 
         # Insere poucas comparações
         comparisons = generate_shadow_comparisons(n_comparisons=5, model_name=model_name)
-        await mongodb_ml_client.db['shadow_mode_comparisons'].insert_many(comparisons)
+        await mongodb_ml_client.db["shadow_mode_comparisons"].insert_many(comparisons)
 
         # Act
-        count = await mongodb_ml_client.db['shadow_mode_comparisons'].count_documents(
-            {'model_name': model_name}
+        count = await mongodb_ml_client.db["shadow_mode_comparisons"].count_documents(
+            {"model_name": model_name}
         )
 
         # Assert
         assert count < 10  # Abaixo do mínimo típico
 
     async def test_shadow_mode_persists_comparisons_to_mongodb(
-        self,
-        mongodb_ml_client,
-        clean_ml_collections
+        self, mongodb_ml_client, clean_ml_collections
     ):
         """
         Testa que comparações do shadow mode são persistidas no MongoDB.
         """
         # Arrange
         model_name = "duration_predictor"
-        comparisons = generate_shadow_comparisons(
-            n_comparisons=50,
-            model_name=model_name
-        )
+        comparisons = generate_shadow_comparisons(n_comparisons=50, model_name=model_name)
 
         # Act
-        await mongodb_ml_client.db['shadow_mode_comparisons'].insert_many(comparisons)
+        await mongodb_ml_client.db["shadow_mode_comparisons"].insert_many(comparisons)
 
         # Assert - verifica persistência
-        count = await mongodb_ml_client.db['shadow_mode_comparisons'].count_documents(
-            {'model_name': model_name}
+        count = await mongodb_ml_client.db["shadow_mode_comparisons"].count_documents(
+            {"model_name": model_name}
         )
         assert count == 50
 
         # Verifica estrutura dos documentos
-        doc = await mongodb_ml_client.db['shadow_mode_comparisons'].find_one(
-            {'model_name': model_name}
+        doc = await mongodb_ml_client.db["shadow_mode_comparisons"].find_one(
+            {"model_name": model_name}
         )
-        assert 'production_prediction' in doc
-        assert 'shadow_prediction' in doc
-        assert 'diff_percent' in doc
-        assert 'agreed' in doc
+        assert "production_prediction" in doc
+        assert "shadow_prediction" in doc
+        assert "diff_percent" in doc
+        assert "agreed" in doc
 
 
 # =============================================================================
 # Classe 3: Testes de Canary Deployment
 # =============================================================================
+
 
 @pytest.mark.integration
 @pytest.mark.ml
@@ -418,7 +415,7 @@ class TestCanaryDeploymentIntegration:
         continuous_validator_test,
         mongodb_ml_client,
         seed_baseline_metrics,
-        clean_ml_collections
+        clean_ml_collections,
     ):
         """
         Testa canary deployment com métricas estáveis.
@@ -440,11 +437,11 @@ class TestCanaryDeploymentIntegration:
             version="v2.0",
             target_stage="Production",
             config_overrides={
-                'shadow_mode_enabled': False,
-                'canary_enabled': True,
-                'canary_duration_minutes': 0,  # Imediato para teste
-                'gradual_rollout_enabled': False
-            }
+                "shadow_mode_enabled": False,
+                "canary_enabled": True,
+                "canary_duration_minutes": 0,  # Imediato para teste
+                "gradual_rollout_enabled": False,
+            },
         )
 
         # Aguarda processamento
@@ -458,9 +455,7 @@ class TestCanaryDeploymentIntegration:
         await promotion_manager_test.close()
 
     async def test_canary_traffic_split_is_configured(
-        self,
-        promotion_manager_test,
-        clean_ml_collections
+        self, promotion_manager_test, clean_ml_collections
     ):
         """
         Testa que canary traffic split é configurado.
@@ -477,12 +472,12 @@ class TestCanaryDeploymentIntegration:
             model_name=model_name,
             version="v2.0",
             config_overrides={
-                'shadow_mode_enabled': False,
-                'canary_enabled': True,
-                'canary_traffic_pct': 10.0,
-                'canary_duration_minutes': 0.1,  # Duração curta
-                'gradual_rollout_enabled': False
-            }
+                "shadow_mode_enabled": False,
+                "canary_enabled": True,
+                "canary_traffic_pct": 10.0,
+                "canary_duration_minutes": 0.1,  # Duração curta
+                "gradual_rollout_enabled": False,
+            },
         )
 
         # Verifica se canary está ativo durante promoção
@@ -501,6 +496,7 @@ class TestCanaryDeploymentIntegration:
 # Classe 4: Testes de Gradual Rollout
 # =============================================================================
 
+
 @pytest.mark.integration
 @pytest.mark.ml
 @pytest.mark.ml_integration
@@ -513,7 +509,7 @@ class TestGradualRolloutIntegration:
         promotion_manager_test,
         continuous_validator_test,
         mongodb_ml_client,
-        clean_ml_collections
+        clean_ml_collections,
     ):
         """
         Testa rollout gradual através de todos os estágios (25% -> 50% -> 75% -> 100%).
@@ -536,12 +532,12 @@ class TestGradualRolloutIntegration:
             version="v2.0",
             target_stage="Production",
             config_overrides={
-                'shadow_mode_enabled': False,
-                'canary_enabled': False,
-                'gradual_rollout_enabled': True,
-                'rollout_stages': rollout_stages,
-                'checkpoint_duration_minutes': 0  # Imediato
-            }
+                "shadow_mode_enabled": False,
+                "canary_enabled": False,
+                "gradual_rollout_enabled": True,
+                "rollout_stages": rollout_stages,
+                "checkpoint_duration_minutes": 0,  # Imediato
+            },
         )
 
         # Aguarda processamento
@@ -555,10 +551,7 @@ class TestGradualRolloutIntegration:
         await promotion_manager_test.close()
 
     async def test_gradual_rollout_custom_stages(
-        self,
-        promotion_manager_test,
-        continuous_validator_test,
-        clean_ml_collections
+        self, promotion_manager_test, continuous_validator_test, clean_ml_collections
     ):
         """
         Testa rollout com estágios customizados (10% -> 30% -> 60% -> 100%).
@@ -572,15 +565,15 @@ class TestGradualRolloutIntegration:
 
         # Act
         request = await promotion_manager_test.promote_model(
-            model_name='duration_predictor',
-            version='v2.0',
+            model_name="duration_predictor",
+            version="v2.0",
             config_overrides={
-                'shadow_mode_enabled': False,
-                'canary_enabled': False,
-                'gradual_rollout_enabled': True,
-                'rollout_stages': custom_stages,
-                'checkpoint_duration_minutes': 0
-            }
+                "shadow_mode_enabled": False,
+                "canary_enabled": False,
+                "gradual_rollout_enabled": True,
+                "rollout_stages": custom_stages,
+                "checkpoint_duration_minutes": 0,
+            },
         )
 
         # Aguarda processamento
@@ -597,6 +590,7 @@ class TestGradualRolloutIntegration:
 # Classe 5: Testes de Rollback
 # =============================================================================
 
+
 @pytest.mark.integration
 @pytest.mark.ml
 @pytest.mark.ml_integration
@@ -605,11 +599,7 @@ class TestRollbackIntegration:
     """Testes para rollback automático."""
 
     async def test_rollback_restores_previous_version(
-        self,
-        promotion_manager_test,
-        model_registry_test,
-        mongodb_ml_client,
-        clean_ml_collections
+        self, promotion_manager_test, model_registry_test, mongodb_ml_client, clean_ml_collections
     ):
         """
         Testa que rollback restaura versão anterior do modelo.
@@ -630,10 +620,10 @@ class TestRollbackIntegration:
             model_name=model_name,
             version="v2.0",
             config_overrides={
-                'shadow_mode_enabled': False,
-                'canary_enabled': False,
-                'gradual_rollout_enabled': False
-            }
+                "shadow_mode_enabled": False,
+                "canary_enabled": False,
+                "gradual_rollout_enabled": False,
+            },
         )
         await asyncio.sleep(0.5)
 
@@ -643,13 +633,12 @@ class TestRollbackIntegration:
 
         # Act - executa rollback via registry
         rollback_result = await model_registry_test.rollback_model(
-            model_name=model_name,
-            reason='test_rollback'
+            model_name=model_name, reason="test_rollback"
         )
 
         # Assert
-        assert rollback_result['success'] is True
-        assert rollback_result['restored_version'] == previous_version
+        assert rollback_result["success"] is True
+        assert rollback_result["restored_version"] == previous_version
 
         # Verifica versão restaurada no registry
         current = await model_registry_test.get_current_version(model_name)
@@ -658,10 +647,7 @@ class TestRollbackIntegration:
         await promotion_manager_test.close()
 
     async def test_rollback_creates_audit_entry(
-        self,
-        promotion_manager_test,
-        mongodb_ml_client,
-        clean_ml_collections
+        self, promotion_manager_test, mongodb_ml_client, clean_ml_collections
     ):
         """
         Testa que rollback cria entrada de auditoria.
@@ -671,32 +657,31 @@ class TestRollbackIntegration:
         request_id = f"test_rollback_audit_{uuid.uuid4().hex[:8]}"
 
         # Insere entrada de auditoria manualmente para teste
-        await mongodb_ml_client.db['model_audit_log'].insert_one({
-            'request_id': request_id,
-            'model_name': model_name,
-            'event_type': 'rollback_completed',
-            'timestamp': datetime.datetime.now(timezone.utc),
-            'details': {
-                'reason': 'degradation_detected',
-                'restored_version': 'v1.0'
+        await mongodb_ml_client.db["model_audit_log"].insert_one(
+            {
+                "request_id": request_id,
+                "model_name": model_name,
+                "event_type": "rollback_completed",
+                "timestamp": datetime.datetime.now(timezone.utc),
+                "details": {"reason": "degradation_detected", "restored_version": "v1.0"},
             }
-        })
+        )
 
         # Act - verifica log
-        entry = await mongodb_ml_client.db['model_audit_log'].find_one({
-            'request_id': request_id,
-            'event_type': 'rollback_completed'
-        })
+        entry = await mongodb_ml_client.db["model_audit_log"].find_one(
+            {"request_id": request_id, "event_type": "rollback_completed"}
+        )
 
         # Assert
         assert entry is not None
-        assert entry['details']['reason'] == 'degradation_detected'
-        assert entry['details']['restored_version'] == 'v1.0'
+        assert entry["details"]["reason"] == "degradation_detected"
+        assert entry["details"]["restored_version"] == "v1.0"
 
 
 # =============================================================================
 # Classe 6: Testes de Casos de Borda
 # =============================================================================
+
 
 @pytest.mark.integration
 @pytest.mark.ml
@@ -706,10 +691,7 @@ class TestModelPromotionEdgeCases:
     """Testes para casos de borda e tratamento de erros."""
 
     async def test_promotion_request_with_proper_types(
-        self,
-        promotion_manager_test,
-        model_registry_test,
-        clean_ml_collections
+        self, promotion_manager_test, model_registry_test, clean_ml_collections
     ):
         """
         Testa que promoção usa tipos corretos (PromotionRequest, PromotionConfig).
@@ -727,7 +709,7 @@ class TestModelPromotionEdgeCases:
             model_name=model_name,
             version=version,
             target_stage="Production",
-            initiated_by="test_user"
+            initiated_by="test_user",
         )
 
         # Assert - verifica tipos
@@ -740,16 +722,14 @@ class TestModelPromotionEdgeCases:
             PromotionStage.SHADOW_MODE,
             PromotionStage.CANARY,
             PromotionStage.ROLLING_OUT,
-            PromotionStage.COMPLETED
+            PromotionStage.COMPLETED,
         ]
 
         await asyncio.sleep(0.5)
         await promotion_manager_test.close()
 
     async def test_concurrent_promotions_same_model(
-        self,
-        promotion_manager_test,
-        clean_ml_collections
+        self, promotion_manager_test, clean_ml_collections
     ):
         """
         Testa comportamento com requisições concorrentes para mesmo modelo.
@@ -766,10 +746,10 @@ class TestModelPromotionEdgeCases:
             model_name=model_name,
             version="v2.0",
             config_overrides={
-                'shadow_mode_enabled': False,
-                'canary_enabled': False,
-                'gradual_rollout_enabled': False
-            }
+                "shadow_mode_enabled": False,
+                "canary_enabled": False,
+                "gradual_rollout_enabled": False,
+            },
         )
 
         # Tenta segunda promoção
@@ -777,10 +757,10 @@ class TestModelPromotionEdgeCases:
             model_name=model_name,
             version="v3.0",
             config_overrides={
-                'shadow_mode_enabled': False,
-                'canary_enabled': False,
-                'gradual_rollout_enabled': False
-            }
+                "shadow_mode_enabled": False,
+                "canary_enabled": False,
+                "gradual_rollout_enabled": False,
+            },
         )
 
         # Assert - ambas requests são válidas (manager lida com concorrência)
@@ -791,11 +771,7 @@ class TestModelPromotionEdgeCases:
         await asyncio.sleep(1.0)
         await promotion_manager_test.close()
 
-    async def test_promotion_config_validation(
-        self,
-        promotion_manager_test,
-        clean_ml_collections
-    ):
+    async def test_promotion_config_validation(self, promotion_manager_test, clean_ml_collections):
         """
         Testa validação de configuração.
         """
@@ -806,15 +782,15 @@ class TestModelPromotionEdgeCases:
 
         # Act - promoção com config customizada
         request = await promotion_manager_test.promote_model(
-            model_name='duration_predictor',
-            version='v2.0',
+            model_name="duration_predictor",
+            version="v2.0",
             config_overrides={
-                'gradual_rollout_enabled': True,
-                'rollout_stages': [0.50, 1.0],  # Estágios customizados
-                'shadow_mode_enabled': False,
-                'canary_enabled': False,
-                'checkpoint_duration_minutes': 0
-            }
+                "gradual_rollout_enabled": True,
+                "rollout_stages": [0.50, 1.0],  # Estágios customizados
+                "shadow_mode_enabled": False,
+                "canary_enabled": False,
+                "checkpoint_duration_minutes": 0,
+            },
         )
 
         # Assert
@@ -824,11 +800,7 @@ class TestModelPromotionEdgeCases:
         await asyncio.sleep(0.5)
         await promotion_manager_test.close()
 
-    async def test_cancel_promotion(
-        self,
-        promotion_manager_test,
-        clean_ml_collections
-    ):
+    async def test_cancel_promotion(self, promotion_manager_test, clean_ml_collections):
         """
         Testa cancelamento de promoção em andamento.
         """
@@ -839,14 +811,14 @@ class TestModelPromotionEdgeCases:
 
         # Inicia promoção com duração longa
         request = await promotion_manager_test.promote_model(
-            model_name='duration_predictor',
-            version='v2.0',
+            model_name="duration_predictor",
+            version="v2.0",
             config_overrides={
-                'shadow_mode_enabled': True,
-                'shadow_mode_duration_minutes': 60,  # 1 hora
-                'canary_enabled': False,
-                'gradual_rollout_enabled': False
-            }
+                "shadow_mode_enabled": True,
+                "shadow_mode_duration_minutes": 60,  # 1 hora
+                "canary_enabled": False,
+                "gradual_rollout_enabled": False,
+            },
         )
 
         # Act - cancela
@@ -858,7 +830,7 @@ class TestModelPromotionEdgeCases:
         # Verifica status após cancelamento
         status = promotion_manager_test.get_promotion_status(request.request_id)
         if status:
-            assert status['stage'] == 'failed' or status['result'] == 'cancelled'
+            assert status["stage"] == "failed" or status["result"] == "cancelled"
 
         await promotion_manager_test.close()
 
@@ -866,6 +838,7 @@ class TestModelPromotionEdgeCases:
 # =============================================================================
 # Classe 7: Testes de Métricas e Monitoramento
 # =============================================================================
+
 
 @pytest.mark.integration
 @pytest.mark.ml
@@ -875,9 +848,7 @@ class TestMetricsAndMonitoring:
     """Testes para coleta de métricas e monitoramento."""
 
     async def test_shadow_mode_records_comparison_metrics(
-        self,
-        mongodb_ml_client,
-        clean_ml_collections
+        self, mongodb_ml_client, clean_ml_collections
     ):
         """
         Testa que shadow mode registra métricas de comparação.
@@ -887,31 +858,33 @@ class TestMetricsAndMonitoring:
         comparisons = generate_shadow_comparisons(n_comparisons=100, model_name=model_name)
 
         # Act
-        await mongodb_ml_client.db['shadow_mode_comparisons'].insert_many(comparisons)
+        await mongodb_ml_client.db["shadow_mode_comparisons"].insert_many(comparisons)
 
         # Assert - verifica métricas agregadas
         pipeline = [
-            {'$match': {'model_name': model_name}},
-            {'$group': {
-                '_id': None,
-                'avg_diff_percent': {'$avg': '$diff_percent'},
-                'max_diff_percent': {'$max': '$diff_percent'},
-                'avg_latency_prod': {'$avg': '$latency_production_ms'},
-                'avg_latency_shadow': {'$avg': '$latency_shadow_ms'}
-            }}
+            {"$match": {"model_name": model_name}},
+            {
+                "$group": {
+                    "_id": None,
+                    "avg_diff_percent": {"$avg": "$diff_percent"},
+                    "max_diff_percent": {"$max": "$diff_percent"},
+                    "avg_latency_prod": {"$avg": "$latency_production_ms"},
+                    "avg_latency_shadow": {"$avg": "$latency_shadow_ms"},
+                }
+            },
         ]
-        metrics = await mongodb_ml_client.db['shadow_mode_comparisons'].aggregate(
-            pipeline
-        ).to_list(length=1)
+        metrics = (
+            await mongodb_ml_client.db["shadow_mode_comparisons"]
+            .aggregate(pipeline)
+            .to_list(length=1)
+        )
 
         assert len(metrics) == 1
-        assert 'avg_diff_percent' in metrics[0]
-        assert 'max_diff_percent' in metrics[0]
+        assert "avg_diff_percent" in metrics[0]
+        assert "max_diff_percent" in metrics[0]
 
     async def test_validation_metrics_stored_per_checkpoint(
-        self,
-        mongodb_ml_client,
-        clean_ml_collections
+        self, mongodb_ml_client, clean_ml_collections
     ):
         """
         Testa que métricas de validação são armazenadas por checkpoint.
@@ -921,18 +894,21 @@ class TestMetricsAndMonitoring:
         metrics = generate_validation_metrics(model_name=model_name, n_checkpoints=10)
 
         # Act
-        await mongodb_ml_client.db['validation_metrics'].insert_many(metrics)
+        await mongodb_ml_client.db["validation_metrics"].insert_many(metrics)
 
         # Assert
-        count = await mongodb_ml_client.db['validation_metrics'].count_documents(
-            {'model_name': model_name}
+        count = await mongodb_ml_client.db["validation_metrics"].count_documents(
+            {"model_name": model_name}
         )
         assert count == 10
 
         # Verifica que checkpoints têm timestamps ordenados
-        checkpoints = await mongodb_ml_client.db['validation_metrics'].find(
-            {'model_name': model_name}
-        ).sort('checkpoint_time', 1).to_list(length=None)
+        checkpoints = (
+            await mongodb_ml_client.db["validation_metrics"]
+            .find({"model_name": model_name})
+            .sort("checkpoint_time", 1)
+            .to_list(length=None)
+        )
 
         for i in range(1, len(checkpoints)):
-            assert checkpoints[i]['checkpoint_time'] >= checkpoints[i-1]['checkpoint_time']
+            assert checkpoints[i]["checkpoint_time"] >= checkpoints[i - 1]["checkpoint_time"]

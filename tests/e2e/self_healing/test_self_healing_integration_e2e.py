@@ -19,11 +19,10 @@ import time
 # Test 1: Ticket Reallocation Flow
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_ticket_reallocation_flow(
-    playbook_executor_with_clients,
-    execution_ticket_service_mock,
-    sample_incident_context
+    playbook_executor_with_clients, execution_ticket_service_mock, sample_incident_context
 ):
     """
     Test complete ticket reallocation flow.
@@ -42,13 +41,12 @@ async def test_ticket_reallocation_flow(
         ticket_id="ticket-456",
         status="running",
         assigned_worker="worker-001",
-        workflow_id="workflow-789"
+        workflow_id="workflow-789",
     )
 
     # Execute playbook
     result = await executor.execute_playbook(
-        playbook_name="ticket_timeout_recovery",
-        context=sample_incident_context
+        playbook_name="ticket_timeout_recovery", context=sample_incident_context
     )
 
     # Verify playbook executed successfully
@@ -76,10 +74,7 @@ async def test_ticket_reallocation_flow(
 
 
 @pytest.mark.asyncio
-async def test_workflow_restart_flow(
-    playbook_executor_with_clients,
-    orchestrator_grpc_mock
-):
+async def test_workflow_restart_flow(playbook_executor_with_clients, orchestrator_grpc_mock):
     """
     Test workflow restart flow via Orchestrator gRPC.
 
@@ -92,22 +87,12 @@ async def test_workflow_restart_flow(
     mock_orch = orchestrator_grpc_mock
 
     # Setup: Create paused workflow
-    mock_orch.add_workflow(
-        workflow_id="workflow-123",
-        state="PAUSED",
-        progress_percent=50.0
-    )
+    mock_orch.add_workflow(workflow_id="workflow-123", state="PAUSED", progress_percent=50.0)
 
     # Execute playbook
-    context = {
-        "incident_id": "inc-001",
-        "workflow_id": "workflow-123"
-    }
+    context = {"incident_id": "inc-001", "workflow_id": "workflow-123"}
 
-    result = await executor.execute_playbook(
-        playbook_name="workflow_restart",
-        context=context
-    )
+    result = await executor.execute_playbook(playbook_name="workflow_restart", context=context)
 
     # Verify playbook executed successfully
     assert result["success"] is True, f"Playbook failed: {result.get('error')}"
@@ -131,9 +116,7 @@ async def test_workflow_restart_flow(
 
 @pytest.mark.asyncio
 async def test_opa_validation_blocks_invalid_action(
-    playbook_executor_with_clients,
-    execution_ticket_service_mock,
-    opa_server_mock
+    playbook_executor_with_clients, execution_ticket_service_mock, opa_server_mock
 ):
     """
     Test OPA policy validation blocks recent reallocation.
@@ -157,11 +140,11 @@ async def test_opa_validation_blocks_invalid_action(
                         "policy": "playbook_validation",
                         "rule": "reallocate_ticket_rate_limited",
                         "msg": "Ticket was recently reallocated (within 5 minutes cooldown)",
-                        "severity": "high"
+                        "severity": "high",
                     }
-                ]
+                ],
             }
-        }
+        },
     )
 
     # Context with recent reallocation timestamp
@@ -169,21 +152,17 @@ async def test_opa_validation_blocks_invalid_action(
         "incident_id": "inc-002",
         "ticket_id": "ticket-789",
         "worker_id": "worker-002",
-        "last_reallocation_timestamp": int(time.time_ns()) - 60_000_000_000  # 1 minute ago
+        "last_reallocation_timestamp": int(time.time_ns()) - 60_000_000_000,  # 1 minute ago
     }
 
     result = await executor.execute_playbook(
-        playbook_name="ticket_timeout_recovery",
-        context=context
+        playbook_name="ticket_timeout_recovery", context=context
     )
 
     # Playbook should fail because critical action was denied
     # The reallocate_ticket action should be blocked
     actions = result.get("actions", [])
-    reallocate_action = next(
-        (a for a in actions if a.get("action") == "reallocate_ticket"),
-        None
-    )
+    reallocate_action = next((a for a in actions if a.get("action") == "reallocate_ticket"), None)
 
     assert reallocate_action is not None
     assert reallocate_action["success"] is False
@@ -193,8 +172,7 @@ async def test_opa_validation_blocks_invalid_action(
 
 @pytest.mark.asyncio
 async def test_multiple_ticket_reallocation(
-    playbook_executor_with_clients,
-    execution_ticket_service_mock
+    playbook_executor_with_clients, execution_ticket_service_mock
 ):
     """
     Test batch ticket reallocation for worker failure.
@@ -210,23 +188,14 @@ async def test_multiple_ticket_reallocation(
     # Setup: Create 5 tickets assigned to failing worker
     ticket_ids = [f"ticket-{i}" for i in range(1, 6)]
     for tid in ticket_ids:
-        mock_ets.add_ticket(
-            ticket_id=tid,
-            status="running",
-            assigned_worker="worker-001"
-        )
+        mock_ets.add_ticket(ticket_id=tid, status="running", assigned_worker="worker-001")
 
     # Execute worker failure playbook
-    context = {
-        "incident_id": "inc-003",
-        "affected_tickets": ticket_ids,
-        "worker_id": "worker-001"
-    }
+    context = {"incident_id": "inc-003", "affected_tickets": ticket_ids, "worker_id": "worker-001"}
 
     start_time = time.time()
     result = await executor.execute_playbook(
-        playbook_name="worker_failure_recovery",
-        context=context
+        playbook_name="worker_failure_recovery", context=context
     )
     duration = time.time() - start_time
 
@@ -254,9 +223,7 @@ async def test_multiple_ticket_reallocation(
 
 @pytest.mark.asyncio
 async def test_fail_safe_when_ticket_service_down(
-    playbook_executor_with_clients,
-    execution_ticket_service_mock,
-    sample_incident_context
+    playbook_executor_with_clients, execution_ticket_service_mock, sample_incident_context
 ):
     """
     Test fail-safe behavior when Execution Ticket Service is unavailable.
@@ -274,8 +241,7 @@ async def test_fail_safe_when_ticket_service_down(
 
     # Execute playbook
     result = await executor.execute_playbook(
-        playbook_name="ticket_timeout_recovery",
-        context=sample_incident_context
+        playbook_name="ticket_timeout_recovery", context=sample_incident_context
     )
 
     # With fail-safe, playbook should still complete
@@ -283,17 +249,11 @@ async def test_fail_safe_when_ticket_service_down(
     actions = result.get("actions", [])
 
     # check_worker_health should succeed (uses different client)
-    health_action = next(
-        (a for a in actions if a.get("action") == "check_worker_health"),
-        None
-    )
+    health_action = next((a for a in actions if a.get("action") == "check_worker_health"), None)
     assert health_action is not None
 
     # reallocate_ticket should fail due to service being down
-    reallocate_action = next(
-        (a for a in actions if a.get("action") == "reallocate_ticket"),
-        None
-    )
+    reallocate_action = next((a for a in actions if a.get("action") == "reallocate_ticket"), None)
     assert reallocate_action is not None
     # With fail-safe behavior, it returns success with warning
     # Check for error or warning in result
@@ -302,8 +262,7 @@ async def test_fail_safe_when_ticket_service_down(
 
 @pytest.mark.asyncio
 async def test_orchestrator_unavailable_fail_safe(
-    playbook_executor_with_clients,
-    orchestrator_grpc_mock
+    playbook_executor_with_clients, orchestrator_grpc_mock
 ):
     """
     Test fail-safe behavior when Orchestrator is unavailable.
@@ -319,22 +278,13 @@ async def test_orchestrator_unavailable_fail_safe(
     mock_orch.set_should_fail(True, "gRPC connection failed")
 
     # Execute playbook
-    context = {
-        "incident_id": "inc-004",
-        "workflow_id": "workflow-999"
-    }
+    context = {"incident_id": "inc-004", "workflow_id": "workflow-999"}
 
-    result = await executor.execute_playbook(
-        playbook_name="workflow_restart",
-        context=context
-    )
+    result = await executor.execute_playbook(playbook_name="workflow_restart", context=context)
 
     # Action should fail but playbook continues (fail-safe)
     actions = result.get("actions", [])
-    restart_action = next(
-        (a for a in actions if a.get("action") == "restart_workflow"),
-        None
-    )
+    restart_action = next((a for a in actions if a.get("action") == "restart_workflow"), None)
 
     assert restart_action is not None
     # Should have error from the exception
@@ -343,8 +293,7 @@ async def test_orchestrator_unavailable_fail_safe(
 
 @pytest.mark.asyncio
 async def test_workflow_restart_terminal_state_blocked(
-    playbook_executor_with_clients,
-    orchestrator_grpc_mock
+    playbook_executor_with_clients, orchestrator_grpc_mock
 ):
     """
     Test that workflow restart is blocked for terminal states.
@@ -358,27 +307,16 @@ async def test_workflow_restart_terminal_state_blocked(
 
     # Setup: Create completed workflow
     mock_orch.add_workflow(
-        workflow_id="workflow-completed",
-        state="COMPLETED",
-        progress_percent=100.0
+        workflow_id="workflow-completed", state="COMPLETED", progress_percent=100.0
     )
 
-    context = {
-        "incident_id": "inc-005",
-        "workflow_id": "workflow-completed"
-    }
+    context = {"incident_id": "inc-005", "workflow_id": "workflow-completed"}
 
-    result = await executor.execute_playbook(
-        playbook_name="workflow_restart",
-        context=context
-    )
+    result = await executor.execute_playbook(playbook_name="workflow_restart", context=context)
 
     # Action should fail due to terminal state
     actions = result.get("actions", [])
-    restart_action = next(
-        (a for a in actions if a.get("action") == "restart_workflow"),
-        None
-    )
+    restart_action = next((a for a in actions if a.get("action") == "restart_workflow"), None)
 
     assert restart_action is not None
     assert restart_action["success"] is False
@@ -387,8 +325,7 @@ async def test_workflow_restart_terminal_state_blocked(
 
 @pytest.mark.asyncio
 async def test_workflow_not_paused_no_action(
-    playbook_executor_with_clients,
-    orchestrator_grpc_mock
+    playbook_executor_with_clients, orchestrator_grpc_mock
 ):
     """
     Test that restart_workflow for RUNNING workflow takes no action.
@@ -401,28 +338,15 @@ async def test_workflow_not_paused_no_action(
     mock_orch = orchestrator_grpc_mock
 
     # Setup: Create running workflow
-    mock_orch.add_workflow(
-        workflow_id="workflow-running",
-        state="RUNNING",
-        progress_percent=75.0
-    )
+    mock_orch.add_workflow(workflow_id="workflow-running", state="RUNNING", progress_percent=75.0)
 
-    context = {
-        "incident_id": "inc-006",
-        "workflow_id": "workflow-running"
-    }
+    context = {"incident_id": "inc-006", "workflow_id": "workflow-running"}
 
-    result = await executor.execute_playbook(
-        playbook_name="workflow_restart",
-        context=context
-    )
+    result = await executor.execute_playbook(playbook_name="workflow_restart", context=context)
 
     # Action should succeed but note no action taken
     actions = result.get("actions", [])
-    restart_action = next(
-        (a for a in actions if a.get("action") == "restart_workflow"),
-        None
-    )
+    restart_action = next((a for a in actions if a.get("action") == "restart_workflow"), None)
 
     assert restart_action is not None
     assert restart_action["success"] is True
@@ -438,7 +362,7 @@ async def test_opa_fail_open_allows_action(
     playbook_executor_with_clients,
     execution_ticket_service_mock,
     opa_server_mock,
-    sample_incident_context
+    sample_incident_context,
 ):
     """
     Test OPA fail-open behavior when OPA is unavailable.
@@ -452,27 +376,19 @@ async def test_opa_fail_open_allows_action(
     mock_ets = execution_ticket_service_mock
 
     # Setup ticket
-    mock_ets.add_ticket(
-        ticket_id="ticket-456",
-        status="running",
-        assigned_worker="worker-001"
-    )
+    mock_ets.add_ticket(ticket_id="ticket-456", status="running", assigned_worker="worker-001")
 
     # Configure OPA to fail
     mock_opa.set_should_fail(True, "OPA connection refused")
 
     # Execute playbook - should proceed with fail-open
     result = await executor.execute_playbook(
-        playbook_name="ticket_timeout_recovery",
-        context=sample_incident_context
+        playbook_name="ticket_timeout_recovery", context=sample_incident_context
     )
 
     # With fail-open, action should proceed
     actions = result.get("actions", [])
-    reallocate_action = next(
-        (a for a in actions if a.get("action") == "reallocate_ticket"),
-        None
-    )
+    reallocate_action = next((a for a in actions if a.get("action") == "reallocate_ticket"), None)
 
     # Action should succeed despite OPA failure
     assert reallocate_action is not None
@@ -485,7 +401,7 @@ async def test_playbook_not_found():
     from services.self_healing_engine.src.services.playbook_executor import PlaybookExecutor
     from unittest.mock import MagicMock, patch
 
-    with patch('services.self_healing_engine.src.services.playbook_executor.config'):
+    with patch("services.self_healing_engine.src.services.playbook_executor.config"):
         executor = PlaybookExecutor(
             playbooks_dir="/nonexistent/path",
             k8s_in_cluster=False,
@@ -493,10 +409,7 @@ async def test_playbook_not_found():
         executor.core_v1 = MagicMock()
         executor.apps_v1 = MagicMock()
 
-        result = await executor.execute_playbook(
-            playbook_name="nonexistent_playbook",
-            context={}
-        )
+        result = await executor.execute_playbook(playbook_name="nonexistent_playbook", context={})
 
         assert result["success"] is False
         assert "not found" in result["error"].lower()

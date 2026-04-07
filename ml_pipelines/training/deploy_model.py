@@ -15,10 +15,14 @@ from datetime import datetime
 from pymongo import MongoClient
 
 # Configurações
-MONGO_URI = os.getenv('MONGO_URI', 'mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/?authSource=admin')
-DATABASE = 'neural_hive'
+MONGO_URI = os.getenv(
+    "MONGO_URI",
+    "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/?authSource=admin",
+)
+DATABASE = "neural_hive"
 MODEL_VERSION = "v6_nlp_20260316"
 MLFLOW_URI = "http://mlflow.mlflow.svc.cluster.local:5000"
+
 
 def load_model_from_mlflow():
     """Carrega o modelo treinado do MLflow"""
@@ -30,13 +34,12 @@ def load_model_from_mlflow():
 
         # Buscar o run mais recente do experimento
         from mlflow.tracking import MlflowClient
+
         client = MlflowClient(MLFLOW_URI)
 
         experiment = client.get_experiment_by_name("nhm_approval_models")
         runs = client.search_runs(
-            experiment_ids=[experiment.experiment_id],
-            order_by=["start_time DESC"],
-            max_results=1
+            experiment_ids=[experiment.experiment_id], order_by=["start_time DESC"], max_results=1
         )
 
         if not runs:
@@ -57,6 +60,7 @@ def load_model_from_mlflow():
         print(f"ERRO: Ao carregar modelo do MLflow: {e}")
         return None
 
+
 def export_model_for_deployment(model, output_path="/tmp/model_v6.pkl"):
     """Exporta modelo para deployment em formato pickle"""
     print(f"Exportando modelo para {output_path}...")
@@ -66,16 +70,37 @@ def export_model_for_deployment(model, output_path="/tmp/model_v6.pkl"):
         "version": MODEL_VERSION,
         "trained_at": datetime.now().isoformat(),
         "features": [
-            "specialist_confidence", "simple_risk_score", "text_length_chars", "text_length_words",
-            "domain_security", "domain_performance", "domain_database", "domain_devops", "domain_testing",
-            "action_create", "action_update", "action_delete", "action_read", "action_deploy",
-            "has_backup", "has_verification", "has_all",
-            "risk_high", "risk_medium", "risk_low",
-            "primary_domain_security", "primary_domain_performance", "primary_domain_database",
-            "primary_domain_devops", "primary_domain_testing",
-            "primary_action_create", "primary_action_update", "primary_action_delete",
-            "primary_action_read", "primary_action_deploy"
-        ]
+            "specialist_confidence",
+            "simple_risk_score",
+            "text_length_chars",
+            "text_length_words",
+            "domain_security",
+            "domain_performance",
+            "domain_database",
+            "domain_devops",
+            "domain_testing",
+            "action_create",
+            "action_update",
+            "action_delete",
+            "action_read",
+            "action_deploy",
+            "has_backup",
+            "has_verification",
+            "has_all",
+            "risk_high",
+            "risk_medium",
+            "risk_low",
+            "primary_domain_security",
+            "primary_domain_performance",
+            "primary_domain_database",
+            "primary_domain_devops",
+            "primary_domain_testing",
+            "primary_action_create",
+            "primary_action_update",
+            "primary_action_delete",
+            "primary_action_read",
+            "primary_action_deploy",
+        ],
     }
 
     with open(output_path, "wb") as f:
@@ -86,6 +111,7 @@ def export_model_for_deployment(model, output_path="/tmp/model_v6.pkl"):
 
     return output_path
 
+
 def create_model_metadata():
     """Cria metadados do modelo para registro"""
     metadata = {
@@ -95,19 +121,13 @@ def create_model_metadata():
         "training_date": datetime.now().isoformat(),
         "training_samples": 50,
         "features_count": 31,
-        "metrics": {
-            "f1_score": 1.0,
-            "precision": 1.0,
-            "recall": 1.0
-        },
-        "baseline_comparison": {
-            "baseline_f1": 0.51,
-            "improvement_percent": 96.0
-        },
-        "status": "ready_for_deployment"
+        "metrics": {"f1_score": 1.0, "precision": 1.0, "recall": 1.0},
+        "baseline_comparison": {"baseline_f1": 0.51, "improvement_percent": 96.0},
+        "status": "ready_for_deployment",
     }
 
     return metadata
+
 
 def save_deployment_config(output_path="/tmp/deployment_config.json"):
     """Salva configuração de deployment"""
@@ -119,6 +139,7 @@ def save_deployment_config(output_path="/tmp/deployment_config.json"):
     print(f"Configuração salva em: {output_path}")
     return config
 
+
 def validate_model_with_test_data(model):
     """Valida modelo com dados de teste"""
     print("\nValidando modelo com dados recentes...")
@@ -127,9 +148,9 @@ def validate_model_with_test_data(model):
     db = client[DATABASE]
 
     # Buscar alguns feedbacks para teste
-    test_feedbacks = list(db['specialist_feedback'].find({
-        'nlp_features': {'$exists': True}
-    }).limit(10))
+    test_feedbacks = list(
+        db["specialist_feedback"].find({"nlp_features": {"$exists": True}}).limit(10)
+    )
 
     if not test_feedbacks:
         print("AVISO: Nenhum feedback com NLP features encontrado para validação")
@@ -140,24 +161,25 @@ def validate_model_with_test_data(model):
     # Preparar features
     correct = 0
     for fb in test_feedbacks:
-        nlp = fb.get('nlp_features', {})
+        nlp = fb.get("nlp_features", {})
         features = [
-            nlp.get('specialist_confidence', 0.5),
-            nlp.get('simple_risk_score', 0.5),
-            nlp.get('domain_security', 0),
-            nlp.get('action_delete', 0),
-            nlp.get('has_all', 0)
+            nlp.get("specialist_confidence", 0.5),
+            nlp.get("simple_risk_score", 0.5),
+            nlp.get("domain_security", 0),
+            nlp.get("action_delete", 0),
+            nlp.get("has_all", 0),
         ]
 
         # Predizer (simplificado - apenas para validação)
         prediction = model.predict([features])[0]
-        expected = fb.get('final_decision', '')
+        expected = fb.get("final_decision", "")
 
         if prediction == expected:
             correct += 1
 
     accuracy = correct / len(test_feedbacks) if test_feedbacks else 0
     print(f"Acurácia de validação: {accuracy:.2%} ({correct}/{len(test_feedbacks)})")
+
 
 def main():
     print("=" * 60)
@@ -194,6 +216,7 @@ def main():
     print(f"Arquivos gerados:")
     print(f"  - Modelo: {model_path}")
     print(f"  - Config: /tmp/deployment_config.json")
+
 
 if __name__ == "__main__":
     main()

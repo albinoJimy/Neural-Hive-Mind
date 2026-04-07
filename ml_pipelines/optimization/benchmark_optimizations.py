@@ -21,7 +21,7 @@ from dataclasses import dataclass
 import sys
 import os
 
-sys.path.insert(0, '/home/jimy/NHM/Neural-Hive-Mind/libraries/python')
+sys.path.insert(0, "/home/jimy/NHM/Neural-Hive-Mind/libraries/python")
 
 import structlog
 
@@ -29,7 +29,7 @@ structlog.configure(
     processors=[
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.add_log_level,
-        structlog.dev.ConsoleRenderer()
+        structlog.dev.ConsoleRenderer(),
     ]
 )
 
@@ -39,6 +39,7 @@ logger = structlog.get_logger(__name__)
 @dataclass
 class BenchmarkResult:
     """Resultado de um cenário de benchmark."""
+
     scenario_name: str
     num_plans: int
     total_duration_seconds: float
@@ -58,6 +59,7 @@ P95_LATENCY_THRESHOLD_MS = 10000.0
 
 class P95ThresholdExceededError(Exception):
     """Erro lançado quando latência p95 excede o limite de 10 segundos."""
+
     pass
 
 
@@ -75,30 +77,28 @@ def generate_test_plans(num_plans: int, tasks_per_plan: int = 10) -> List[Dict[s
     plans = []
     for i in range(num_plans):
         plan = {
-            'plan_id': f'benchmark-{i:04d}',
-            'tasks': [
+            "plan_id": f"benchmark-{i:04d}",
+            "tasks": [
                 {
-                    'task_id': f'task-{i}-{j}',
-                    'task_type': ['analysis', 'transformation', 'validation'][j % 3],
-                    'description': f'Executar tarefa {j} do plano {i} com processamento de dados',
-                    'dependencies': [f'task-{i}-{j-1}'] if j > 0 else [],
-                    'estimated_duration_ms': 5000 + (j * 100)
+                    "task_id": f"task-{i}-{j}",
+                    "task_type": ["analysis", "transformation", "validation"][j % 3],
+                    "description": f"Executar tarefa {j} do plano {i} com processamento de dados",
+                    "dependencies": [f"task-{i}-{j-1}"] if j > 0 else [],
+                    "estimated_duration_ms": 5000 + (j * 100),
                 }
                 for j in range(tasks_per_plan)
             ],
-            'original_domain': 'workflow-analysis',
-            'original_priority': ['normal', 'high', 'critical'][i % 3],
-            'risk_score': 0.3 + (i % 5) * 0.1,
-            'complexity_score': 0.5 + (i % 4) * 0.1
+            "original_domain": "workflow-analysis",
+            "original_priority": ["normal", "high", "critical"][i % 3],
+            "risk_score": 0.3 + (i % 5) * 0.1,
+            "complexity_score": 0.5 + (i % 4) * 0.1,
         }
         plans.append(plan)
     return plans
 
 
 async def benchmark_feature_extraction(
-    plans: List[Dict[str, Any]],
-    enable_cache: bool = False,
-    parallel: bool = False
+    plans: List[Dict[str, Any]], enable_cache: bool = False, parallel: bool = False
 ) -> BenchmarkResult:
     """
     Benchmark de feature extraction.
@@ -115,10 +115,10 @@ async def benchmark_feature_extraction(
 
     extractor = FeatureExtractor(
         config={
-            'embeddings_model': 'paraphrase-multilingual-MiniLM-L12-v2',
-            'embedding_cache_size': 1000,
-            'embedding_batch_size': 32,
-            'embedding_cache_enabled': True
+            "embeddings_model": "paraphrase-multilingual-MiniLM-L12-v2",
+            "embedding_cache_size": 1000,
+            "embedding_batch_size": 32,
+            "embedding_cache_enabled": True,
         }
     )
 
@@ -129,7 +129,7 @@ async def benchmark_feature_extraction(
     start_total = time.time()
 
     for plan in plans:
-        plan_id = plan['plan_id']
+        plan_id = plan["plan_id"]
 
         if enable_cache and plan_id in cache_store:
             # Simular cache hit
@@ -158,13 +158,12 @@ async def benchmark_feature_extraction(
         throughput_plans_per_sec=len(plans) / total_duration,
         feature_cache_enabled=enable_cache,
         gpu_enabled=False,
-        batch_enabled=parallel
+        batch_enabled=parallel,
     )
 
 
 async def benchmark_batch_processing(
-    plans: List[Dict[str, Any]],
-    batch_size: int = 32
+    plans: List[Dict[str, Any]], batch_size: int = 32
 ) -> BenchmarkResult:
     """
     Benchmark de processamento em batch.
@@ -182,10 +181,10 @@ async def benchmark_batch_processing(
 
     extractor = FeatureExtractor(
         config={
-            'embeddings_model': 'paraphrase-multilingual-MiniLM-L12-v2',
-            'embedding_cache_size': 1000,
-            'embedding_batch_size': 32,
-            'embedding_cache_enabled': True
+            "embeddings_model": "paraphrase-multilingual-MiniLM-L12-v2",
+            "embedding_cache_size": 1000,
+            "embedding_batch_size": 32,
+            "embedding_cache_enabled": True,
         }
     )
 
@@ -196,19 +195,14 @@ async def benchmark_batch_processing(
 
     # Processar em batches
     for i in range(0, len(plans), batch_size):
-        batch = plans[i:i+batch_size]
+        batch = plans[i : i + batch_size]
 
         start = time.time()
 
         # Feature extraction paralela
         with ThreadPoolExecutor(max_workers=8) as executor:
             futures = [
-                loop.run_in_executor(
-                    executor,
-                    extractor.extract_features,
-                    plan,
-                    True
-                )
+                loop.run_in_executor(executor, extractor.extract_features, plan, True)
                 for plan in batch
             ]
             await asyncio.gather(*futures)
@@ -232,11 +226,13 @@ async def benchmark_batch_processing(
         throughput_plans_per_sec=len(plans) / total_duration,
         feature_cache_enabled=False,
         gpu_enabled=False,
-        batch_enabled=True
+        batch_enabled=True,
     )
 
 
-def validate_p95_threshold(results: List[BenchmarkResult], threshold_ms: float = P95_LATENCY_THRESHOLD_MS) -> bool:
+def validate_p95_threshold(
+    results: List[BenchmarkResult], threshold_ms: float = P95_LATENCY_THRESHOLD_MS
+) -> bool:
     """
     Valida se a latência p95 dos resultados está abaixo do limite.
 
@@ -252,18 +248,19 @@ def validate_p95_threshold(results: List[BenchmarkResult], threshold_ms: float =
     """
     # Verificar apenas cenários com otimizações habilitadas
     optimized_results = [
-        r for r in results
-        if r.feature_cache_enabled or r.batch_enabled or r.gpu_enabled
+        r for r in results if r.feature_cache_enabled or r.batch_enabled or r.gpu_enabled
     ]
 
     violations = []
     for result in optimized_results:
         if result.p95_latency_ms > threshold_ms:
-            violations.append({
-                'scenario': result.scenario_name,
-                'p95_ms': result.p95_latency_ms,
-                'threshold_ms': threshold_ms
-            })
+            violations.append(
+                {
+                    "scenario": result.scenario_name,
+                    "p95_ms": result.p95_latency_ms,
+                    "threshold_ms": threshold_ms,
+                }
+            )
 
     if violations:
         error_msg = f"ERRO: Latência p95 excede limite de {threshold_ms/1000:.1f}s:\n"
@@ -289,7 +286,9 @@ def print_results(results: List[BenchmarkResult]) -> bool:
     print("=" * 100)
 
     # Header
-    print(f"\n{'Scenario':<40} | {'Avg (ms)':<10} | {'p95 (ms)':<10} | {'p99 (ms)':<10} | {'Throughput':<12} | {'Speedup':<8}")
+    print(
+        f"\n{'Scenario':<40} | {'Avg (ms)':<10} | {'p95 (ms)':<10} | {'p99 (ms)':<10} | {'Throughput':<12} | {'Speedup':<8}"
+    )
     print("-" * 100)
 
     baseline_latency = results[0].avg_latency_ms if results else 1
@@ -329,7 +328,9 @@ def print_results(results: List[BenchmarkResult]) -> bool:
         return True
 
 
-async def run_benchmarks(num_plans: int = 50, tasks_per_plan: int = 10, enforce_threshold: bool = True) -> bool:
+async def run_benchmarks(
+    num_plans: int = 50, tasks_per_plan: int = 10, enforce_threshold: bool = True
+) -> bool:
     """
     Executa suite completa de benchmarks.
 
@@ -381,7 +382,8 @@ async def run_benchmarks(num_plans: int = 50, tasks_per_plan: int = 10, enforce_
     print("\n" + "=" * 80)
     print("OPTIMIZATION RECOMMENDATIONS")
     print("=" * 80)
-    print("""
+    print(
+        """
 Baseado nos resultados:
 
 1. FEATURE CACHING (Redis):
@@ -403,7 +405,8 @@ Baseado nos resultados:
    - Habilitar Feature Cache + Batch Processing para produção
    - GPU Acceleration se carga justificar custo
    - Meta: latência p95 < 10s (vs 49-66s baseline)
-""")
+"""
+    )
 
     # Retornar resultado da validação
     if enforce_threshold and not validation_passed:
@@ -415,7 +418,7 @@ Baseado nos resultados:
     return True
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Parâmetros de benchmark
     NUM_PLANS = 30  # Reduzido para execução rápida
     TASKS_PER_PLAN = 10
@@ -428,7 +431,7 @@ if __name__ == '__main__':
         TASKS_PER_PLAN = int(sys.argv[2])
     if len(sys.argv) > 3:
         # --no-enforce para desabilitar validação de threshold
-        ENFORCE_THRESHOLD = sys.argv[3] != '--no-enforce'
+        ENFORCE_THRESHOLD = sys.argv[3] != "--no-enforce"
 
     # Executar benchmark e sair com código de erro se threshold excedido
     success = asyncio.run(run_benchmarks(NUM_PLANS, TASKS_PER_PLAN, ENFORCE_THRESHOLD))

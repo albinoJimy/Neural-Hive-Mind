@@ -17,7 +17,9 @@ tracer = trace.get_tracer(__name__)
 class WorkflowTicketsNotReadyError(Exception):
     """Exception raised when workflow tickets are not yet ready."""
 
-    def __init__(self, workflow_id: str, message: str = "Workflow tickets are still being generated"):
+    def __init__(
+        self, workflow_id: str, message: str = "Workflow tickets are still being generated"
+    ):
         self.workflow_id = workflow_id
         self.message = message
         super().__init__(f"Workflow {workflow_id}: {message}")
@@ -25,6 +27,7 @@ class WorkflowTicketsNotReadyError(Exception):
 
 class WorkflowStartRequest(BaseModel):
     """Request to start a workflow."""
+
     cognitive_plan: Dict[str, Any]
     correlation_id: str
     priority: int = Field(default=5, ge=1, le=10)
@@ -33,6 +36,7 @@ class WorkflowStartRequest(BaseModel):
 
 class WorkflowStatus(BaseModel):
     """Workflow status response."""
+
     workflow_id: str
     status: str
     started_at: str
@@ -44,17 +48,14 @@ class WorkflowStatus(BaseModel):
 class OrchestratorClient:
     """Client for Orchestrator Dynamic service."""
 
-    DEFAULT_BASE_URL = 'http://orchestrator-dynamic.neural-hive.svc.cluster.local:8000'
+    DEFAULT_BASE_URL = "http://orchestrator-dynamic.neural-hive.svc.cluster.local:8000"
 
     def __init__(
         self,
         base_url: str = None,
         timeout: int = 30,
     ):
-        self.base_url = base_url or os.getenv(
-            'ORCHESTRATOR_BASE_URL',
-            self.DEFAULT_BASE_URL
-        )
+        self.base_url = base_url or os.getenv("ORCHESTRATOR_BASE_URL", self.DEFAULT_BASE_URL)
         self.client = httpx.AsyncClient(timeout=timeout)
         self.logger = logger.bind(service="orchestrator_client")
 
@@ -124,9 +125,7 @@ class OrchestratorClient:
         Returns:
             Workflow status
         """
-        response = await self.client.get(
-            f"{self.base_url}/api/v1/workflows/{workflow_id}/status"
-        )
+        response = await self.client.get(f"{self.base_url}/api/v1/workflows/{workflow_id}/status")
         response.raise_for_status()
 
         return WorkflowStatus(**response.json())

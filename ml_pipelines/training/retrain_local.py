@@ -18,11 +18,18 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "libraries" / "python"))
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report, precision_score, recall_score, f1_score, accuracy_score
+from sklearn.metrics import (
+    classification_report,
+    precision_score,
+    recall_score,
+    f1_score,
+    accuracy_score,
+)
 
 # Importar RealDataCollector
 try:
     from real_data_collector import RealDataCollector
+
     REAL_DATA_COLLECTOR_AVAILABLE = True
 except ImportError:
     REAL_DATA_COLLECTOR_AVAILABLE = False
@@ -34,10 +41,15 @@ except ImportError:
 # Use localhost se disponível (via port-forward), senão usa o URI do cluster
 if os.path.exists("/.dockerenv"):
     # Dentro de um container cluster
-    MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/?authSource=admin")
+    MONGODB_URI = os.getenv(
+        "MONGODB_URI",
+        "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/?authSource=admin",
+    )
 else:
     # Local com port-forward
-    MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://root:local_dev_password@localhost:27017/?authSource=admin")
+    MONGODB_URI = os.getenv(
+        "MONGODB_URI", "mongodb://root:local_dev_password@localhost:27017/?authSource=admin"
+    )
 
 MIN_SAMPLES = int(os.getenv("MIN_REAL_SAMPLES", "400"))
 REAL_DATA_DAYS = int(os.getenv("REAL_DATA_DAYS", "60"))
@@ -51,10 +63,7 @@ def load_real_data(specialist_type: str) -> pd.DataFrame:
     print(f"  Days: {REAL_DATA_DAYS}")
 
     async def collect():
-        collector = RealDataCollector(
-            mongodb_uri=MONGODB_URI,
-            mongodb_database="neural_hive"
-        )
+        collector = RealDataCollector(mongodb_uri=MONGODB_URI, mongodb_database="neural_hive")
 
         # Usar days=365 para pegar todas as opiniões que têm feedback
         # (Feedback foi coletado em 2026-02-08, mas opiniões têm created_at variados)
@@ -62,7 +71,7 @@ def load_real_data(specialist_type: str) -> pd.DataFrame:
             specialist_type=specialist_type,
             days=365,  # 1 ano para garantir que pegamos opiniões com feedback
             min_samples=MIN_SAMPLES,
-            min_feedback_rating=0.0
+            min_feedback_rating=0.0,
         )
 
         # Validar distribuição
@@ -79,14 +88,24 @@ def load_real_data(specialist_type: str) -> pd.DataFrame:
 
 def prepare_features_and_labels(df: pd.DataFrame) -> tuple:
     """Prepara features e labels para treinamento."""
-    exclude_cols = {'label', 'created_at', 'feedback_id', 'opinion_id',
-                    'submitted_at', 'submitted_by', 'trace_id', 'specialist_type',
-                    'feedback_notes', 'opinion_recommendation', 'human_recommendation'}
+    exclude_cols = {
+        "label",
+        "created_at",
+        "feedback_id",
+        "opinion_id",
+        "submitted_at",
+        "submitted_by",
+        "trace_id",
+        "specialist_type",
+        "feedback_notes",
+        "opinion_recommendation",
+        "human_recommendation",
+    }
 
     feature_cols = [col for col in df.columns if col not in exclude_cols]
 
     X = df[feature_cols].values
-    y = df['label'].values
+    y = df["label"].values
 
     print(f"  Features shape: {X.shape}")
     print(f"  Label distribution: {np.bincount(y.astype(int))}")
@@ -104,7 +123,7 @@ def train_and_evaluate(X_train, y_train, X_val, y_val, X_test, y_test, feature_n
         min_samples_split=5,
         min_samples_leaf=2,
         random_state=42,
-        n_jobs=-1
+        n_jobs=-1,
     )
 
     model.fit(X_train, y_train)
@@ -114,33 +133,40 @@ def train_and_evaluate(X_train, y_train, X_val, y_val, X_test, y_test, feature_n
     y_val_pred = model.predict(X_val)
     y_test_pred = model.predict(X_test)
 
-    train_precision = precision_score(y_train, y_train_pred, average='weighted', zero_division=0)
-    train_recall = recall_score(y_train, y_train_pred, average='weighted', zero_division=0)
-    train_f1 = f1_score(y_train, y_train_pred, average='weighted', zero_division=0)
+    train_precision = precision_score(y_train, y_train_pred, average="weighted", zero_division=0)
+    train_recall = recall_score(y_train, y_train_pred, average="weighted", zero_division=0)
+    train_f1 = f1_score(y_train, y_train_pred, average="weighted", zero_division=0)
 
-    val_precision = precision_score(y_val, y_val_pred, average='weighted', zero_division=0)
-    val_recall = recall_score(y_val, y_val_pred, average='weighted', zero_division=0)
-    val_f1 = f1_score(y_val, y_val_pred, average='weighted', zero_division=0)
+    val_precision = precision_score(y_val, y_val_pred, average="weighted", zero_division=0)
+    val_recall = recall_score(y_val, y_val_pred, average="weighted", zero_division=0)
+    val_f1 = f1_score(y_val, y_val_pred, average="weighted", zero_division=0)
 
-    test_precision = precision_score(y_test, y_test_pred, average='weighted', zero_division=0)
-    test_recall = recall_score(y_test, y_test_pred, average='weighted', zero_division=0)
-    test_f1 = f1_score(y_test, y_test_pred, average='weighted', zero_division=0)
+    test_precision = precision_score(y_test, y_test_pred, average="weighted", zero_division=0)
+    test_recall = recall_score(y_test, y_test_pred, average="weighted", zero_division=0)
+    test_f1 = f1_score(y_test, y_test_pred, average="weighted", zero_division=0)
     test_accuracy = accuracy_score(y_test, y_test_pred)
 
     metrics = {
-        'train': {'precision': train_precision, 'recall': train_recall, 'f1': train_f1},
-        'val': {'precision': val_precision, 'recall': val_recall, 'f1': val_f1},
-        'test': {'precision': test_precision, 'recall': test_recall, 'f1': test_f1, 'accuracy': test_accuracy}
+        "train": {"precision": train_precision, "recall": train_recall, "f1": train_f1},
+        "val": {"precision": val_precision, "recall": val_recall, "f1": val_f1},
+        "test": {
+            "precision": test_precision,
+            "recall": test_recall,
+            "f1": test_f1,
+            "accuracy": test_accuracy,
+        },
     }
 
     print()
     print("Metrics:")
     print(f"  Train - P: {train_precision:.4f}, R: {train_recall:.4f}, F1: {train_f1:.4f}")
     print(f"  Val   - P: {val_precision:.4f}, R: {val_recall:.4f}, F1: {val_f1:.4f}")
-    print(f"  Test  - P: {test_precision:.4f}, R: {test_recall:.4f}, F1: {test_f1:.4f}, Acc: {test_accuracy:.4f}")
+    print(
+        f"  Test  - P: {test_precision:.4f}, R: {test_recall:.4f}, F1: {test_f1:.4f}, Acc: {test_accuracy:.4f}"
+    )
 
     # Feature importance
-    if hasattr(model, 'feature_importances_'):
+    if hasattr(model, "feature_importances_"):
         importances = dict(zip(feature_names, model.feature_importances_))
         top_features = sorted(importances.items(), key=lambda x: x[1], reverse=True)[:10]
         print()
@@ -164,7 +190,7 @@ def main():
     print()
 
     # 2. Splits temporais
-    df = df.sort_values('created_at').reset_index(drop=True)
+    df = df.sort_values("created_at").reset_index(drop=True)
     n = len(df)
     train_end = int(n * 0.7)
     val_end = int(n * 0.85)
@@ -183,14 +209,16 @@ def main():
     print()
 
     # 4. Treinar modelo
-    model, metrics = train_and_evaluate(X_train, y_train, X_val, y_val, X_test, y_test, feature_names)
+    model, metrics = train_and_evaluate(
+        X_train, y_train, X_val, y_val, X_test, y_test, feature_names
+    )
 
     # 5. Salvar modelo
     output_dir = Path(f"/tmp/ml_models/{SPECIALIST_TYPE}")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     model_path = output_dir / f"{SPECIALIST_TYPE}_evaluator_real_data.pkl"
-    with open(model_path, 'wb') as f:
+    with open(model_path, "wb") as f:
         pickle.dump(model, f)
 
     print()
@@ -198,7 +226,7 @@ def main():
 
     # 6. Salvar métricas
     metrics_path = output_dir / f"{SPECIALIST_TYPE}_metrics.txt"
-    with open(metrics_path, 'w') as f:
+    with open(metrics_path, "w") as f:
         f.write(f"Model: {SPECIALIST_TYPE}-evaluator\n")
         f.write(f"Data: {datetime.now(timezone.utc).isoformat()}\n")
         f.write(f"Samples: {len(df)}\n")

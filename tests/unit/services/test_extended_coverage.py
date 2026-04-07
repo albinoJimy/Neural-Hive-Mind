@@ -42,6 +42,7 @@ class TestSTEExtended:
     def test_entity_extraction(self):
         """Deve extrair entidades."""
         import re
+
         text = "Transferir R$ 100 para João"
         amount_match = re.search(r"R\$\s*(\d+)", text)
         has_amount = amount_match is not None
@@ -61,7 +62,10 @@ class TestConsensusExtended:
 
     def test_vote_weighing(self):
         """Deve ponderar votos."""
-        votes = {"A": {"verdict": "approve", "weight": 0.6}, "B": {"verdict": "reject", "weight": 0.4}}
+        votes = {
+            "A": {"verdict": "approve", "weight": 0.6},
+            "B": {"verdict": "reject", "weight": 0.4},
+        }
         approve_weight = sum(v["weight"] for v in votes.values() if v["verdict"] == "approve")
         assert approve_weight == 0.6
 

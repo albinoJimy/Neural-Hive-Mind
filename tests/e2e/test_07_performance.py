@@ -13,11 +13,15 @@ async def test_intent_to_deploy_latency_slo(gateway_client, test_mongodb_collect
     latencies = []
     for i in range(3):
         start = time.time()
-        response = await gateway_client.post("/intentions", json={"text": f"Test intent {i}", "language": "pt-BR"})
+        response = await gateway_client.post(
+            "/intentions", json={"text": f"Test intent {i}", "language": "pt-BR"}
+        )
         assert response.status_code == 200
         intent_id = response.json()["intent_id"]
         while True:
-            workflow = await test_mongodb_collections["workflows"].find_one({"intent_id": intent_id})
+            workflow = await test_mongodb_collections["workflows"].find_one(
+                {"intent_id": intent_id}
+            )
             if workflow and workflow.get("status") == "COMPLETED":
                 break
             await asyncio.sleep(5)
@@ -50,7 +54,9 @@ async def test_orchestrator_throughput(orchestrator_client):
 @pytest.mark.asyncio
 async def test_ticket_allocation_latency(orchestrator_client):
     start = time.time()
-    response = await orchestrator_client.post("/api/v1/flow-c/allocate", json={"tasks": [{"id": "t1"}]})
+    response = await orchestrator_client.post(
+        "/api/v1/flow-c/allocate", json={"tasks": [{"id": "t1"}]}
+    )
     duration = time.time() - start
     assert response.status_code in {200, 202}
     assert duration < 5

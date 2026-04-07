@@ -13,7 +13,8 @@ from pathlib import Path
 
 import joblib
 import matplotlib
-matplotlib.use('Agg')
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -32,12 +33,14 @@ REPORT_FILE = Path(__file__).resolve().parent / "ANALYSIS_REPORT.md"
 SPECIALISTS = ["technical", "business", "architecture", "behavior", "evolution"]
 
 sns.set_style("whitegrid")
-plt.rcParams.update({
-    "figure.figsize": (12, 6),
-    "font.size": 11,
-    "axes.titlesize": 14,
-    "axes.labelsize": 12,
-})
+plt.rcParams.update(
+    {
+        "figure.figsize": (12, 6),
+        "font.size": 11,
+        "axes.titlesize": 14,
+        "axes.labelsize": 12,
+    }
+)
 
 CHARTS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -55,6 +58,7 @@ def subsection(title, content):
 # ═══════════════════════════════════════════════════════════════════════════════
 # 1. ML Training Data Analysis
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 def analyze_training_data():
     print("=" * 60)
@@ -87,7 +91,9 @@ def analyze_training_data():
             "Classes": df_base[label_col].nunique() if label_col in df_base.columns else "N/A",
         }
         all_stats.append(stats)
-        print(f"  [OK] {specialist}: {stats['Base Samples']} base + {stats['New Samples']} new samples")
+        print(
+            f"  [OK] {specialist}: {stats['Base Samples']} base + {stats['New Samples']} new samples"
+        )
 
     stats_df = pd.DataFrame(all_stats)
 
@@ -95,19 +101,40 @@ def analyze_training_data():
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
     colors = sns.color_palette("Set2", len(stats_df))
-    bars = axes[0].bar(stats_df["Specialist"], stats_df["Total Samples"], color=colors, edgecolor="black", linewidth=0.5)
+    bars = axes[0].bar(
+        stats_df["Specialist"],
+        stats_df["Total Samples"],
+        color=colors,
+        edgecolor="black",
+        linewidth=0.5,
+    )
     axes[0].set_title("Total Training Samples per Specialist")
     axes[0].set_ylabel("Number of Samples")
     axes[0].set_xlabel("Specialist")
     for bar, val in zip(bars, stats_df["Total Samples"]):
-        axes[0].text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 1,
-                     str(val), ha="center", va="bottom", fontweight="bold")
+        axes[0].text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_height() + 1,
+            str(val),
+            ha="center",
+            va="bottom",
+            fontweight="bold",
+        )
 
     # Chart 2: Base vs New samples stacked
     x = range(len(stats_df))
-    axes[1].bar(x, stats_df["Base Samples"], label="Base", color="#3498db", edgecolor="black", linewidth=0.5)
-    axes[1].bar(x, stats_df["New Samples"], bottom=stats_df["Base Samples"],
-                label="New (incremental)", color="#e74c3c", edgecolor="black", linewidth=0.5)
+    axes[1].bar(
+        x, stats_df["Base Samples"], label="Base", color="#3498db", edgecolor="black", linewidth=0.5
+    )
+    axes[1].bar(
+        x,
+        stats_df["New Samples"],
+        bottom=stats_df["Base Samples"],
+        label="New (incremental)",
+        color="#e74c3c",
+        edgecolor="black",
+        linewidth=0.5,
+    )
     axes[1].set_xticks(x)
     axes[1].set_xticklabels(stats_df["Specialist"])
     axes[1].set_title("Base vs New Training Samples")
@@ -127,8 +154,13 @@ def analyze_training_data():
         df = data["base"]
         if "label" in df.columns:
             class_counts = df["label"].value_counts().sort_index()
-            axes[idx].bar(range(len(class_counts)), class_counts.values,
-                          color=sns.color_palette("viridis", len(class_counts)), edgecolor="black", linewidth=0.5)
+            axes[idx].bar(
+                range(len(class_counts)),
+                class_counts.values,
+                color=sns.color_palette("viridis", len(class_counts)),
+                edgecolor="black",
+                linewidth=0.5,
+            )
             axes[idx].set_xticks(range(len(class_counts)))
             axes[idx].set_xticklabels([str(c) for c in class_counts.index], rotation=0)
             axes[idx].set_title(f"{specialist.capitalize()}")
@@ -147,9 +179,19 @@ def analyze_training_data():
             fig, ax = plt.subplots(figsize=(14, 11))
             corr = df[numeric_cols].corr()
             mask = np.triu(np.ones_like(corr, dtype=bool))
-            sns.heatmap(corr, mask=mask, annot=True, fmt=".2f", cmap="RdBu_r",
-                        center=0, vmin=-1, vmax=1, ax=ax,
-                        annot_kws={"size": 7}, linewidths=0.5)
+            sns.heatmap(
+                corr,
+                mask=mask,
+                annot=True,
+                fmt=".2f",
+                cmap="RdBu_r",
+                center=0,
+                vmin=-1,
+                vmax=1,
+                ax=ax,
+                annot_kws={"size": 7},
+                linewidths=0.5,
+            )
             ax.set_title("Feature Correlation Matrix (Technical Specialist)")
             plt.tight_layout()
             plt.savefig(CHARTS_DIR / "03_feature_correlation.png", dpi=150, bbox_inches="tight")
@@ -161,7 +203,9 @@ def analyze_training_data():
         numeric_cols = [c for c in df.select_dtypes(include=[np.number]).columns if c != "label"]
         if numeric_cols:
             fig, ax = plt.subplots(figsize=(16, 6))
-            df_norm = (df[numeric_cols] - df[numeric_cols].min()) / (df[numeric_cols].max() - df[numeric_cols].min() + 1e-8)
+            df_norm = (df[numeric_cols] - df[numeric_cols].min()) / (
+                df[numeric_cols].max() - df[numeric_cols].min() + 1e-8
+            )
             df_norm.boxplot(ax=ax, rot=45, grid=True)
             ax.set_title("Normalized Feature Distributions (Technical Specialist)")
             ax.set_ylabel("Normalized Value (0-1)")
@@ -198,6 +242,7 @@ def analyze_training_data():
 # ═══════════════════════════════════════════════════════════════════════════════
 # 2. Model Performance Analysis
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 def analyze_model_performance():
     print("\n" + "=" * 60)
@@ -246,10 +291,24 @@ def analyze_model_performance():
     colors_map = ["#3498db", "#2ecc71", "#e74c3c", "#9b59b6"]
 
     for i, (metric, color) in enumerate(zip(metrics_to_plot, colors_map)):
-        bars = ax.bar(x + i * width, perf_df[metric], width, label=metric, color=color, edgecolor="black", linewidth=0.5)
+        bars = ax.bar(
+            x + i * width,
+            perf_df[metric],
+            width,
+            label=metric,
+            color=color,
+            edgecolor="black",
+            linewidth=0.5,
+        )
         for bar in bars:
-            ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.01,
-                    f"{bar.get_height():.2f}", ha="center", va="bottom", fontsize=8)
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,
+                bar.get_height() + 0.01,
+                f"{bar.get_height():.2f}",
+                ha="center",
+                va="bottom",
+                fontsize=8,
+            )
 
     ax.set_xticks(x + width * 1.5)
     ax.set_xticklabels([s.capitalize() for s in perf_df["Specialist"]])
@@ -267,17 +326,29 @@ def analyze_model_performance():
     # Chart 7: Cross-Validation F1 with error bars
     fig, ax = plt.subplots(figsize=(10, 5))
     colors = ["#3498db" if v >= 0.60 else "#e74c3c" for v in perf_df["CV F1 Mean"]]
-    bars = ax.bar(perf_df["Specialist"], perf_df["CV F1 Mean"],
-                  yerr=perf_df["CV F1 Std"], capsize=8, color=colors,
-                  edgecolor="black", linewidth=0.5, error_kw={"linewidth": 2})
+    bars = ax.bar(
+        perf_df["Specialist"],
+        perf_df["CV F1 Mean"],
+        yerr=perf_df["CV F1 Std"],
+        capsize=8,
+        color=colors,
+        edgecolor="black",
+        linewidth=0.5,
+        error_kw={"linewidth": 2},
+    )
     ax.set_title("Cross-Validation F1 Score (Mean +/- Std)")
     ax.set_ylabel("F1 Score")
     ax.set_ylim(0, 1.0)
     ax.axhline(y=0.60, color="red", linestyle="--", alpha=0.5, label="Minimum CV Threshold (0.60)")
     ax.legend()
     for bar, mean, std in zip(bars, perf_df["CV F1 Mean"], perf_df["CV F1 Std"]):
-        ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + std + 0.02,
-                f"{mean:.3f}", ha="center", fontweight="bold")
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_height() + std + 0.02,
+            f"{mean:.3f}",
+            ha="center",
+            fontweight="bold",
+        )
     plt.tight_layout()
     plt.savefig(CHARTS_DIR / "06_cv_f1_scores.png", dpi=150, bbox_inches="tight")
     plt.close()
@@ -294,21 +365,34 @@ def analyze_model_performance():
         importances = [f["importance"] for f in feats]
 
         ax = axes[idx]
-        bars = ax.barh(range(len(names)), importances, color=sns.color_palette("viridis", len(names)))
+        bars = ax.barh(
+            range(len(names)), importances, color=sns.color_palette("viridis", len(names))
+        )
         ax.set_yticks(range(len(names)))
         ax.set_yticklabels(names, fontsize=9)
         ax.invert_yaxis()
         ax.set_xlabel("Importance")
         ax.set_title(f"{specialist.capitalize()}")
         for bar, val in zip(bars, importances):
-            ax.text(bar.get_width() + 0.002, bar.get_y() + bar.get_height() / 2,
-                    f"{val:.3f}", va="center", fontsize=8)
+            ax.text(
+                bar.get_width() + 0.002,
+                bar.get_y() + bar.get_height() / 2,
+                f"{val:.3f}",
+                va="center",
+                fontsize=8,
+            )
 
     # Use last subplot for legend/summary
     axes[-1].axis("off")
-    axes[-1].text(0.5, 0.5, "Top 10 Features\nper Specialist\n\nRandomForestClassifier\nn_estimators=100\nmax_depth=10",
-                  ha="center", va="center", fontsize=12,
-                  bbox=dict(boxstyle="round,pad=0.5", facecolor="lightyellow"))
+    axes[-1].text(
+        0.5,
+        0.5,
+        "Top 10 Features\nper Specialist\n\nRandomForestClassifier\nn_estimators=100\nmax_depth=10",
+        ha="center",
+        va="center",
+        fontsize=12,
+        bbox=dict(boxstyle="round,pad=0.5", facecolor="lightyellow"),
+    )
 
     fig.suptitle("Top 10 Feature Importances per Specialist", fontsize=16, y=1.01)
     plt.tight_layout()
@@ -326,8 +410,14 @@ def analyze_model_performance():
     for idx, row in perf_df.iterrows():
         values = [row[c] for c in categories]
         values += values[:1]
-        ax.plot(angles, values, "o-", linewidth=2, label=row["Specialist"].capitalize(),
-                color=radar_colors[idx])
+        ax.plot(
+            angles,
+            values,
+            "o-",
+            linewidth=2,
+            label=row["Specialist"].capitalize(),
+            color=radar_colors[idx],
+        )
         ax.fill(angles, values, alpha=0.1, color=radar_colors[idx])
 
     ax.set_xticks(angles[:-1])
@@ -340,8 +430,19 @@ def analyze_model_performance():
     plt.close()
 
     # Build report
-    table = perf_df[["Specialist", "Model", "Samples", "Accuracy", "Precision", "Recall",
-                      "F1 Score", "CV F1 Mean", "CV F1 Std"]].to_markdown(index=False)
+    table = perf_df[
+        [
+            "Specialist",
+            "Model",
+            "Samples",
+            "Accuracy",
+            "Precision",
+            "Recall",
+            "F1 Score",
+            "CV F1 Mean",
+            "CV F1 Std",
+        ]
+    ].to_markdown(index=False)
 
     best_f1 = perf_df.loc[perf_df["F1 Score"].idxmax()]
     worst_f1 = perf_df.loc[perf_df["F1 Score"].idxmin()]
@@ -382,6 +483,7 @@ def analyze_model_performance():
 # 3. Model Inference Analysis (load models and test)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 def analyze_model_inference(all_dfs):
     print("\n" + "=" * 60)
     print("3. Analyzing Model Inference & Confusion Matrices")
@@ -409,12 +511,15 @@ def analyze_model_inference(all_dfs):
 
         try:
             import warnings
+
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 model = joblib.load(model_file)
                 y_pred = model.predict(X)
         except Exception as e:
-            print(f"  [WARN] {specialist}: sklearn version mismatch, using metadata metrics instead ({e})")
+            print(
+                f"  [WARN] {specialist}: sklearn version mismatch, using metadata metrics instead ({e})"
+            )
             # Use metadata info to create a synthetic confusion chart
             ax = axes_cm[idx]
             meta_file = MODELS_DIR / f"specialist_{specialist}_metadata.json"
@@ -438,21 +543,33 @@ def analyze_model_inference(all_dfs):
                         assign = max(1, wrong // max(1, n - 1))
                         cm_approx[i, j] = assign
                         wrong -= assign
-            sns.heatmap(cm_approx, annot=True, fmt="d", cmap="Oranges", ax=ax,
-                        xticklabels=labels_list, yticklabels=labels_list,
-                        linewidths=0.5, linecolor="gray")
+            sns.heatmap(
+                cm_approx,
+                annot=True,
+                fmt="d",
+                cmap="Oranges",
+                ax=ax,
+                xticklabels=labels_list,
+                yticklabels=labels_list,
+                linewidths=0.5,
+                linecolor="gray",
+            )
             ax.set_xlabel("Predicted (approx)")
             ax.set_ylabel("Actual (approx)")
             ax.set_title(f"{specialist.capitalize()} (estimated)")
-            inference_results.append({
-                "Specialist": specialist,
-                "Total Samples": total,
-                "Correct": correct,
-                "Incorrect": total - correct,
-                "Train Accuracy": acc,
-                "Classes": n,
-            })
-            print(f"  [EST] {specialist}: ~{correct}/{total} correct (~{acc*100:.1f}%, from metadata)")
+            inference_results.append(
+                {
+                    "Specialist": specialist,
+                    "Total Samples": total,
+                    "Correct": correct,
+                    "Incorrect": total - correct,
+                    "Train Accuracy": acc,
+                    "Classes": n,
+                }
+            )
+            print(
+                f"  [EST] {specialist}: ~{correct}/{total} correct (~{acc*100:.1f}%, from metadata)"
+            )
             continue
 
         labels = sorted(y.unique())
@@ -460,9 +577,17 @@ def analyze_model_inference(all_dfs):
 
         # Plot confusion matrix
         ax = axes_cm[idx]
-        sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", ax=ax,
-                    xticklabels=labels, yticklabels=labels,
-                    linewidths=0.5, linecolor="gray")
+        sns.heatmap(
+            cm,
+            annot=True,
+            fmt="d",
+            cmap="Blues",
+            ax=ax,
+            xticklabels=labels,
+            yticklabels=labels,
+            linewidths=0.5,
+            linecolor="gray",
+        )
         ax.set_xlabel("Predicted")
         ax.set_ylabel("Actual")
         ax.set_title(f"{specialist.capitalize()}")
@@ -472,15 +597,19 @@ def analyze_model_inference(all_dfs):
 
         total_correct = np.trace(cm)
         total = cm.sum()
-        inference_results.append({
-            "Specialist": specialist,
-            "Total Samples": total,
-            "Correct": total_correct,
-            "Incorrect": total - total_correct,
-            "Train Accuracy": total_correct / total if total > 0 else 0,
-            "Classes": len(labels),
-        })
-        print(f"  [OK] {specialist}: {total_correct}/{total} correct ({total_correct/total*100:.1f}%)")
+        inference_results.append(
+            {
+                "Specialist": specialist,
+                "Total Samples": total,
+                "Correct": total_correct,
+                "Incorrect": total - total_correct,
+                "Train Accuracy": total_correct / total if total > 0 else 0,
+                "Classes": len(labels),
+            }
+        )
+        print(
+            f"  [OK] {specialist}: {total_correct}/{total} correct ({total_correct/total*100:.1f}%)"
+        )
 
     axes_cm[-1].axis("off")
     fig_cm.suptitle("Confusion Matrices - All Specialists (on Training Data)", fontsize=16)
@@ -507,6 +636,7 @@ def analyze_model_inference(all_dfs):
 # 4. E2E Test Results Analysis
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 def analyze_e2e_results():
     print("\n" + "=" * 60)
     print("4. Analyzing E2E Test Results")
@@ -528,7 +658,9 @@ def analyze_e2e_results():
     e2e_df["confidence"] = e2e_df["analysis"].apply(lambda x: x.get("confidence", 0))
     e2e_df["domain"] = e2e_df["analysis"].apply(lambda x: x.get("domain", "unknown"))
     e2e_df["status"] = e2e_df["analysis"].apply(lambda x: x.get("status", "unknown"))
-    e2e_df["requires_validation"] = e2e_df["analysis"].apply(lambda x: x.get("requires_validation", False))
+    e2e_df["requires_validation"] = e2e_df["analysis"].apply(
+        lambda x: x.get("requires_validation", False)
+    )
 
     # Stats
     total_tests = len(e2e_df)
@@ -545,9 +677,15 @@ def analyze_e2e_results():
     # Chart 10: Latency distribution
     fig, axes = plt.subplots(1, 3, figsize=(18, 5))
 
-    axes[0].hist(e2e_df["latency_ms"], bins=30, color="#3498db", edgecolor="black", linewidth=0.5, alpha=0.8)
-    axes[0].axvline(avg_latency, color="red", linestyle="--", linewidth=2, label=f"Mean: {avg_latency:.1f}ms")
-    axes[0].axvline(p95_latency, color="orange", linestyle="--", linewidth=2, label=f"P95: {p95_latency:.1f}ms")
+    axes[0].hist(
+        e2e_df["latency_ms"], bins=30, color="#3498db", edgecolor="black", linewidth=0.5, alpha=0.8
+    )
+    axes[0].axvline(
+        avg_latency, color="red", linestyle="--", linewidth=2, label=f"Mean: {avg_latency:.1f}ms"
+    )
+    axes[0].axvline(
+        p95_latency, color="orange", linestyle="--", linewidth=2, label=f"P95: {p95_latency:.1f}ms"
+    )
     axes[0].set_title("Latency Distribution (All Tests)")
     axes[0].set_xlabel("Latency (ms)")
     axes[0].set_ylabel("Frequency")
@@ -557,16 +695,24 @@ def analyze_e2e_results():
     scenario_latency = e2e_df.groupby("scenario")["latency_ms"].agg(["mean", "std", "min", "max"])
     scenario_latency = scenario_latency.sort_values("mean", ascending=True)
     colors = sns.color_palette("Set2", len(scenario_latency))
-    _bars = axes[1].barh(range(len(scenario_latency)), scenario_latency["mean"],
-                        xerr=scenario_latency["std"], capsize=4,
-                        color=colors, edgecolor="black", linewidth=0.5)
+    _bars = axes[1].barh(
+        range(len(scenario_latency)),
+        scenario_latency["mean"],
+        xerr=scenario_latency["std"],
+        capsize=4,
+        color=colors,
+        edgecolor="black",
+        linewidth=0.5,
+    )
     axes[1].set_yticks(range(len(scenario_latency)))
     axes[1].set_yticklabels(scenario_latency.index, fontsize=9)
     axes[1].set_xlabel("Latency (ms)")
     axes[1].set_title("Mean Latency per Scenario (+/- Std)")
 
     # Chart 12: Confidence distribution
-    axes[2].hist(e2e_df["confidence"], bins=20, color="#2ecc71", edgecolor="black", linewidth=0.5, alpha=0.8)
+    axes[2].hist(
+        e2e_df["confidence"], bins=20, color="#2ecc71", edgecolor="black", linewidth=0.5, alpha=0.8
+    )
     axes[2].axvline(0.75, color="red", linestyle="--", linewidth=2, label="Threshold: 0.75")
     axes[2].set_title("Confidence Score Distribution")
     axes[2].set_xlabel("Confidence")
@@ -581,20 +727,35 @@ def analyze_e2e_results():
     fig, axes = plt.subplots(1, 3, figsize=(16, 5))
 
     status_counts = e2e_df["status"].value_counts()
-    axes[0].pie(status_counts, labels=status_counts.index, autopct="%1.1f%%",
-                colors=sns.color_palette("Set2", len(status_counts)), startangle=90)
+    axes[0].pie(
+        status_counts,
+        labels=status_counts.index,
+        autopct="%1.1f%%",
+        colors=sns.color_palette("Set2", len(status_counts)),
+        startangle=90,
+    )
     axes[0].set_title("Response Status Distribution")
 
     domain_counts = e2e_df["domain"].value_counts()
-    axes[1].bar(domain_counts.index, domain_counts.values,
-                color=sns.color_palette("Set3", len(domain_counts)), edgecolor="black", linewidth=0.5)
+    axes[1].bar(
+        domain_counts.index,
+        domain_counts.values,
+        color=sns.color_palette("Set3", len(domain_counts)),
+        edgecolor="black",
+        linewidth=0.5,
+    )
     axes[1].set_title("Domain Classification Distribution")
     axes[1].set_ylabel("Count")
     axes[1].tick_params(axis="x", rotation=30)
 
     validation_counts = e2e_df["requires_validation"].value_counts()
-    axes[2].pie(validation_counts, labels=["No Validation", "Requires Validation"],
-                autopct="%1.1f%%", colors=["#2ecc71", "#e74c3c"], startangle=90)
+    axes[2].pie(
+        validation_counts,
+        labels=["No Validation", "Requires Validation"],
+        autopct="%1.1f%%",
+        colors=["#2ecc71", "#e74c3c"],
+        startangle=90,
+    )
     axes[2].set_title("Validation Requirement")
 
     plt.tight_layout()
@@ -605,7 +766,9 @@ def analyze_e2e_results():
     fig, ax = plt.subplots(figsize=(12, 5))
     for scenario in scenarios:
         s_data = e2e_df[e2e_df["scenario"] == scenario]
-        ax.plot(s_data["iteration"], s_data["latency_ms"], "o-", label=scenario, alpha=0.7, markersize=4)
+        ax.plot(
+            s_data["iteration"], s_data["latency_ms"], "o-", label=scenario, alpha=0.7, markersize=4
+        )
     ax.set_xlabel("Iteration")
     ax.set_ylabel("Latency (ms)")
     ax.set_title("Latency Trend Across Iterations")
@@ -660,6 +823,7 @@ def analyze_e2e_results():
 # 5. Codebase Metrics
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 def analyze_codebase():
     print("\n" + "=" * 60)
     print("5. Analyzing Codebase Metrics")
@@ -675,7 +839,9 @@ def analyze_codebase():
 
     for root, dirs, files in os.walk(BASE_DIR):
         # Skip hidden dirs and __pycache__
-        dirs[:] = [d for d in dirs if not d.startswith(".") and d != "__pycache__" and d != "node_modules"]
+        dirs[:] = [
+            d for d in dirs if not d.startswith(".") and d != "__pycache__" and d != "node_modules"
+        ]
         for f in files:
             ext = Path(f).suffix.lower()
             if ext:
@@ -716,30 +882,44 @@ def analyze_codebase():
     ext_names = [e[0] for e in top_extensions]
     ext_vals = [e[1] for e in top_extensions]
     colors = sns.color_palette("Set3", len(ext_names))
-    bars = axes[0].barh(range(len(ext_names)), ext_vals, color=colors, edgecolor="black", linewidth=0.5)
+    bars = axes[0].barh(
+        range(len(ext_names)), ext_vals, color=colors, edgecolor="black", linewidth=0.5
+    )
     axes[0].set_yticks(range(len(ext_names)))
     axes[0].set_yticklabels(ext_names)
     axes[0].invert_yaxis()
     axes[0].set_xlabel("File Count")
     axes[0].set_title("Top 15 File Types in Repository")
     for bar, val in zip(bars, ext_vals):
-        axes[0].text(bar.get_width() + 2, bar.get_y() + bar.get_height() / 2,
-                     str(val), va="center", fontsize=9)
+        axes[0].text(
+            bar.get_width() + 2,
+            bar.get_y() + bar.get_height() / 2,
+            str(val),
+            va="center",
+            fontsize=9,
+        )
 
     # Chart 16: Lines of code per service (top 15)
     top_services = sorted(service_sizes.items(), key=lambda x: x[1], reverse=True)[:15]
     svc_names = [s[0] for s in top_services]
     svc_vals = [s[1] for s in top_services]
     colors = sns.color_palette("viridis", len(svc_names))
-    bars = axes[1].barh(range(len(svc_names)), svc_vals, color=colors, edgecolor="black", linewidth=0.5)
+    bars = axes[1].barh(
+        range(len(svc_names)), svc_vals, color=colors, edgecolor="black", linewidth=0.5
+    )
     axes[1].set_yticks(range(len(svc_names)))
     axes[1].set_yticklabels(svc_names, fontsize=9)
     axes[1].invert_yaxis()
     axes[1].set_xlabel("Lines of Python Code")
     axes[1].set_title("Top 15 Services by Code Volume")
     for bar, val in zip(bars, svc_vals):
-        axes[1].text(bar.get_width() + 20, bar.get_y() + bar.get_height() / 2,
-                     f"{val:,}", va="center", fontsize=8)
+        axes[1].text(
+            bar.get_width() + 20,
+            bar.get_y() + bar.get_height() / 2,
+            f"{val:,}",
+            va="center",
+            fontsize=8,
+        )
 
     plt.tight_layout()
     plt.savefig(CHARTS_DIR / "13_codebase_metrics.png", dpi=150, bbox_inches="tight")
@@ -749,17 +929,26 @@ def analyze_codebase():
     if lib_sizes:
         fig, ax = plt.subplots(figsize=(12, 5))
         sorted_libs = sorted(lib_sizes.items(), key=lambda x: x[1], reverse=True)
-        lib_names = [lib[0].replace("neural_hive_", "").replace("_", " ").title() for lib in sorted_libs]
+        lib_names = [
+            lib[0].replace("neural_hive_", "").replace("_", " ").title() for lib in sorted_libs
+        ]
         lib_vals = [lib[1] for lib in sorted_libs]
         colors = sns.color_palette("Set2", len(lib_names))
-        bars = ax.bar(range(len(lib_names)), lib_vals, color=colors, edgecolor="black", linewidth=0.5)
+        bars = ax.bar(
+            range(len(lib_names)), lib_vals, color=colors, edgecolor="black", linewidth=0.5
+        )
         ax.set_xticks(range(len(lib_names)))
         ax.set_xticklabels(lib_names, rotation=45, ha="right", fontsize=9)
         ax.set_ylabel("Lines of Python Code")
         ax.set_title("Shared Libraries - Code Volume")
         for bar, val in zip(bars, lib_vals):
-            ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 20,
-                    f"{val:,}", ha="center", fontsize=8)
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,
+                bar.get_height() + 20,
+                f"{val:,}",
+                ha="center",
+                fontsize=8,
+            )
         plt.tight_layout()
         plt.savefig(CHARTS_DIR / "14_library_sizes.png", dpi=150, bbox_inches="tight")
         plt.close()
@@ -801,6 +990,7 @@ def analyze_codebase():
 # 6. Recommendations
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 def generate_recommendations(perf_df):
     print("\n" + "=" * 60)
     print("6. Generating Recommendations")
@@ -817,22 +1007,64 @@ def generate_recommendations(perf_df):
         samples = row["Samples"]
 
         if f1 < 0.50:
-            recs.append(("CRITICAL", specialist, f"F1 Score is {f1:.3f} - model needs immediate retraining with more diverse data"))
+            recs.append(
+                (
+                    "CRITICAL",
+                    specialist,
+                    f"F1 Score is {f1:.3f} - model needs immediate retraining with more diverse data",
+                )
+            )
         elif f1 < 0.65:
-            recs.append(("HIGH", specialist, f"F1 Score is {f1:.3f} - consider hyperparameter tuning or feature engineering"))
+            recs.append(
+                (
+                    "HIGH",
+                    specialist,
+                    f"F1 Score is {f1:.3f} - consider hyperparameter tuning or feature engineering",
+                )
+            )
 
         if samples < 60:
-            recs.append(("HIGH", specialist, f"Only {samples} training samples - collect more labeled data to improve generalization"))
+            recs.append(
+                (
+                    "HIGH",
+                    specialist,
+                    f"Only {samples} training samples - collect more labeled data to improve generalization",
+                )
+            )
 
         if cv_std > 0.10:
-            recs.append(("MEDIUM", specialist, f"High CV variance (std={cv_std:.3f}) - model is unstable, consider regularization"))
+            recs.append(
+                (
+                    "MEDIUM",
+                    specialist,
+                    f"High CV variance (std={cv_std:.3f}) - model is unstable, consider regularization",
+                )
+            )
 
         if f1 - cv_f1 > 0.10:
-            recs.append(("MEDIUM", specialist, f"Possible overfitting: test F1={f1:.3f} vs CV F1={cv_f1:.3f} (gap={f1-cv_f1:.3f})"))
+            recs.append(
+                (
+                    "MEDIUM",
+                    specialist,
+                    f"Possible overfitting: test F1={f1:.3f} vs CV F1={cv_f1:.3f} (gap={f1-cv_f1:.3f})",
+                )
+            )
 
     # General recommendations
-    recs.append(("INFO", "All", "Consider upgrading from RandomForest to XGBoost or LightGBM for potential F1 improvement"))
-    recs.append(("INFO", "All", "Implement stratified sampling for class-imbalanced specialists (behavior, evolution)"))
+    recs.append(
+        (
+            "INFO",
+            "All",
+            "Consider upgrading from RandomForest to XGBoost or LightGBM for potential F1 improvement",
+        )
+    )
+    recs.append(
+        (
+            "INFO",
+            "All",
+            "Implement stratified sampling for class-imbalanced specialists (behavior, evolution)",
+        )
+    )
     recs.append(("INFO", "All", "Add SHAP analysis for better model explainability"))
 
     rec_lines = []
@@ -860,6 +1092,7 @@ def generate_recommendations(perf_df):
 # ═══════════════════════════════════════════════════════════════════════════════
 # Main
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 def main():
     start_time = datetime.now()

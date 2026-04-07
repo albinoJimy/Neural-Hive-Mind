@@ -10,15 +10,16 @@ import subprocess
 from datetime import datetime
 from kafka import KafkaProducer
 
+
 def publish_test_message():
     """Publica mensagem de teste no tópico planos-cognitivos."""
 
     producer = KafkaProducer(
-        bootstrap_servers=['localhost:30092'],
-        value_serializer=lambda v: json.dumps(v).encode('utf-8'),
-        key_serializer=lambda k: k.encode('utf-8') if k else None,
-        acks='all',
-        retries=3
+        bootstrap_servers=["localhost:30092"],
+        value_serializer=lambda v: json.dumps(v).encode("utf-8"),
+        key_serializer=lambda k: k.encode("utf-8") if k else None,
+        acks="all",
+        retries=3,
     )
 
     message = {
@@ -37,7 +38,7 @@ def publish_test_message():
                 "estimated_duration_ms": 5000,
                 "required_capabilities": ["analytics"],
                 "parameters": {"metric": "revenue"},
-                "metadata": {"priority": "high"}
+                "metadata": {"priority": "high"},
             }
         ],
         "execution_order": ["task-1"],
@@ -54,20 +55,13 @@ def publish_test_message():
         "original_domain": "business",
         "original_priority": "high",
         "original_security_level": "standard",
-        "metadata": {
-            "test": "metadata-fix",
-            "timestamp": datetime.now().isoformat()
-        },
-        "schema_version": 1
+        "metadata": {"test": "metadata-fix", "timestamp": datetime.now().isoformat()},
+        "schema_version": 1,
     }
 
     print(f"[{datetime.now().isoformat()}] Publicando mensagem test-metadata-fix-001...")
 
-    future = producer.send(
-        topic='planos-cognitivos',
-        key='test-metadata-fix-001',
-        value=message
-    )
+    future = producer.send(topic="planos-cognitivos", key="test-metadata-fix-001", value=message)
 
     result = future.get(timeout=10)
     print(f"[{datetime.now().isoformat()}] Mensagem publicada: offset={result.offset}")
@@ -77,6 +71,7 @@ def publish_test_message():
 
     return message
 
+
 def monitor_specialist_logs(duration=30):
     """Monitora logs do specialist-business por N segundos."""
 
@@ -84,18 +79,18 @@ def monitor_specialist_logs(duration=30):
     print("=" * 80)
 
     cmd = [
-        "kubectl", "logs",
-        "-f", "-l", "app.kubernetes.io/name=specialist-business",
-        "-n", "specialist-business",
-        "--tail=20"
+        "kubectl",
+        "logs",
+        "-f",
+        "-l",
+        "app.kubernetes.io/name=specialist-business",
+        "-n",
+        "specialist-business",
+        "--tail=20",
     ]
 
     process = subprocess.Popen(
-        cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        bufsize=1
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1
     )
 
     start_time = time.time()
@@ -108,7 +103,16 @@ def monitor_specialist_logs(duration=30):
 
             # Destacar linhas relevantes
             line = line.rstrip()
-            if any(keyword in line.lower() for keyword in ['test-metadata-fix', 'error', 'exception', 'metadata', 'evaluated plan']):
+            if any(
+                keyword in line.lower()
+                for keyword in [
+                    "test-metadata-fix",
+                    "error",
+                    "exception",
+                    "metadata",
+                    "evaluated plan",
+                ]
+            ):
                 print(f">>> {line}")
             else:
                 print(line)
@@ -121,30 +125,30 @@ def monitor_specialist_logs(duration=30):
 
     print("=" * 80)
 
+
 def check_consensus_engine_logs():
     """Verifica logs do consensus-engine."""
 
     print(f"\n[{datetime.now().isoformat()}] Verificando logs do consensus-engine...")
     print("=" * 80)
 
-    cmd = [
-        "kubectl", "logs",
-        "-l", "app=consensus-engine",
-        "-n", "consensus-engine",
-        "--tail=30"
-    ]
+    cmd = ["kubectl", "logs", "-l", "app=consensus-engine", "-n", "consensus-engine", "--tail=30"]
 
     result = subprocess.run(cmd, capture_output=True, text=True)
 
-    for line in result.stdout.split('\n'):
-        if any(keyword in line.lower() for keyword in ['test-metadata-fix', 'specialist-business', 'error', 'success']):
+    for line in result.stdout.split("\n"):
+        if any(
+            keyword in line.lower()
+            for keyword in ["test-metadata-fix", "specialist-business", "error", "success"]
+        ):
             print(f">>> {line}")
         elif line.strip():
             print(line)
 
     print("=" * 80)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     print("=" * 80)
     print("TESTE: specialist-business metadata fix")
     print("=" * 80)

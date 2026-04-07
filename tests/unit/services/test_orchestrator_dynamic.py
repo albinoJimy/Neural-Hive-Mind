@@ -16,6 +16,7 @@ import json
 # Test: Workflow Management
 # =============================================================================
 
+
 class TestWorkflowManagement:
     """Testes de gerenciamento de workflows."""
 
@@ -27,7 +28,7 @@ class TestWorkflowManagement:
             "type": "cognitive_plan_execution",
             "input": {"intent": "test"},
             "status": "pending",
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         assert workflow["status"] == "pending"
@@ -36,10 +37,7 @@ class TestWorkflowManagement:
     @pytest.mark.asyncio
     async def test_start_workflow_execution(self):
         """Deve iniciar execução do workflow."""
-        workflow = {
-            "workflow_id": str(uuid4()),
-            "status": "pending"
-        }
+        workflow = {"workflow_id": str(uuid4()), "status": "pending"}
 
         workflow["status"] = "running"
         workflow["started_at"] = datetime.now(timezone.utc).isoformat()
@@ -50,10 +48,7 @@ class TestWorkflowManagement:
     @pytest.mark.asyncio
     async def test_complete_workflow(self):
         """Deve completar workflow com resultado."""
-        workflow = {
-            "workflow_id": str(uuid4()),
-            "status": "running"
-        }
+        workflow = {"workflow_id": str(uuid4()), "status": "running"}
 
         result = {"success": True, "data": "processed"}
 
@@ -67,10 +62,7 @@ class TestWorkflowManagement:
     @pytest.mark.asyncio
     async def test_fail_workflow(self):
         """Deve marcar workflow como falha."""
-        workflow = {
-            "workflow_id": str(uuid4()),
-            "status": "running"
-        }
+        workflow = {"workflow_id": str(uuid4()), "status": "running"}
 
         error = {"message": "Service unavailable", "code": "ERR_001"}
 
@@ -86,6 +78,7 @@ class TestWorkflowManagement:
 # Test: Activity Execution
 # =============================================================================
 
+
 class TestActivityExecution:
     """Testes de execução de atividades."""
 
@@ -96,7 +89,7 @@ class TestActivityExecution:
             "activity_id": str(uuid4()),
             "type": "query_database",
             "input": {"collection": "users", "filter": {"active": True}},
-            "status": "scheduled"
+            "status": "scheduled",
         }
 
         assert activity["status"] == "scheduled"
@@ -104,11 +97,7 @@ class TestActivityExecution:
     @pytest.mark.asyncio
     async def test_execute_activity(self):
         """Deve executar atividade."""
-        activity = {
-            "activity_id": str(uuid4()),
-            "status": "scheduled",
-            "input": {"value": 10}
-        }
+        activity = {"activity_id": str(uuid4()), "status": "scheduled", "input": {"value": 10}}
 
         activity["status"] = "running"
         # Simular processamento
@@ -126,7 +115,7 @@ class TestActivityExecution:
             "activity_id": str(uuid4()),
             "status": "failed",
             "attempts": 1,
-            "max_retries": 3
+            "max_retries": 3,
         }
 
         if activity["attempts"] < activity["max_retries"]:
@@ -143,7 +132,7 @@ class TestActivityExecution:
             "activity_id": str(uuid4()),
             "timeout_seconds": 30,
             "started_at": (datetime.now(timezone.utc) - timedelta(seconds=40)).isoformat(),
-            "status": "running"
+            "status": "running",
         }
 
         started = datetime.fromisoformat(activity["started_at"])
@@ -160,6 +149,7 @@ class TestActivityExecution:
 # Test: Saga Pattern
 # =============================================================================
 
+
 class TestSagaPattern:
     """Testes do padrão Saga."""
 
@@ -171,8 +161,8 @@ class TestSagaPattern:
             "steps": [
                 {"name": "step1", "action": "create_order", "compensate": "cancel_order"},
                 {"name": "step2", "action": "reserve_stock", "compensate": "release_stock"},
-                {"name": "step3", "action": "process_payment", "compensate": "refund_payment"}
-            ]
+                {"name": "step3", "action": "process_payment", "compensate": "refund_payment"},
+            ],
         }
 
         assert len(saga["steps"]) == 3
@@ -181,11 +171,7 @@ class TestSagaPattern:
     @pytest.mark.asyncio
     async def test_execute_saga_forward(self):
         """Deve executar saga forward (execução normal)."""
-        saga = {
-            "current_step": 0,
-            "steps": ["step1", "step2", "step3"],
-            "completed_steps": []
-        }
+        saga = {"current_step": 0, "steps": ["step1", "step2", "step3"], "completed_steps": []}
 
         for step in saga["steps"]:
             saga["completed_steps"].append(step)
@@ -201,9 +187,9 @@ class TestSagaPattern:
             "steps": [
                 {"name": "step1", "executed": True, "compensated": False},
                 {"name": "step2", "executed": True, "compensated": False},
-                {"name": "step3", "executed": False, "compensated": False}
+                {"name": "step3", "executed": False, "compensated": False},
             ],
-            "failed_at": "step3"
+            "failed_at": "step3",
         }
 
         # Compensar passos executados em ordem reversa
@@ -224,7 +210,7 @@ class TestSagaPattern:
             "current_step": "step2",
             "completed_steps": ["step1"],
             "failed_steps": [],
-            "compensated_steps": []
+            "compensated_steps": [],
         }
 
         assert saga["status"] == "in_progress"
@@ -234,6 +220,7 @@ class TestSagaPattern:
 # =============================================================================
 # Test: Worker Coordination
 # =============================================================================
+
 
 class TestWorkerCoordination:
     """Testes de coordenação de workers."""
@@ -245,7 +232,7 @@ class TestWorkerCoordination:
             "task_id": str(uuid4()),
             "type": "query",
             "status": "assigned",
-            "worker_id": "worker-1"
+            "worker_id": "worker-1",
         }
 
         assert task["status"] == "assigned"
@@ -257,7 +244,7 @@ class TestWorkerCoordination:
         workers = {
             "worker-1": {"status": "idle", "current_task": None},
             "worker-2": {"status": "busy", "current_task": "task-123"},
-            "worker-3": {"status": "offline", "current_task": None}
+            "worker-3": {"status": "offline", "current_task": None},
         }
 
         idle_workers = [w for w, s in workers.items() if s["status"] == "idle"]
@@ -271,7 +258,7 @@ class TestWorkerCoordination:
         workers = {
             "worker-1": {"task_count": 2},
             "worker-2": {"task_count": 5},
-            "worker-3": {"task_count": 3}
+            "worker-3": {"task_count": 3},
         }
 
         # Encontrar worker com menos tarefas
@@ -283,9 +270,7 @@ class TestWorkerCoordination:
     @pytest.mark.asyncio
     async def test_handle_worker_failure(self):
         """Deve tratar falha de worker."""
-        worker_tasks = {
-            "worker-1": ["task-1", "task-2", "task-3"]
-        }
+        worker_tasks = {"worker-1": ["task-1", "task-2", "task-3"]}
 
         # Worker falha, redistribuir tarefas
         failed_worker = "worker-1"
@@ -308,22 +293,20 @@ class TestWorkerCoordination:
 # Test: Temporal Integration
 # =============================================================================
 
+
 class TestTemporalIntegration:
     """Testes de integração com Temporal."""
 
     @pytest.mark.asyncio
     async def test_start_temporal_workflow(self):
         """Deve iniciar workflow Temporal."""
-        workflow_input = {
-            "intent": "test_intent",
-            "user_id": "user-123"
-        }
+        workflow_input = {"intent": "test_intent", "user_id": "user-123"}
 
         temporal_workflow = {
             "id": str(uuid4()),
             "workflow_type": "CognitivePlanWorkflow",
             "input": workflow_input,
-            "status": "running"
+            "status": "running",
         }
 
         assert temporal_workflow["status"] == "running"
@@ -331,15 +314,12 @@ class TestTemporalIntegration:
     @pytest.mark.asyncio
     async def test_send_signal_to_workflow(self):
         """Deve enviar sinal para workflow."""
-        signal = {
-            "name": "approval_update",
-            "input": {"approved": True, "approver": "admin"}
-        }
+        signal = {"name": "approval_update", "input": {"approved": True, "approver": "admin"}}
 
         workflow_state = {
             "workflow_id": str(uuid4()),
             "signals_received": [],
-            "status": "waiting_for_approval"
+            "status": "waiting_for_approval",
         }
 
         # Processar sinal
@@ -357,13 +337,13 @@ class TestTemporalIntegration:
             "workflow_id": str(uuid4()),
             "current_step": "processing",
             "completed_steps": ["validation", "enrichment"],
-            "status": "running"
+            "status": "running",
         }
 
         query_response = {
             "workflow_id": workflow_state["workflow_id"],
             "status": workflow_state["status"],
-            "progress": f"{len(workflow_state['completed_steps'])} steps completed"
+            "progress": f"{len(workflow_state['completed_steps'])} steps completed",
         }
 
         assert query_response["status"] == "running"
@@ -372,6 +352,7 @@ class TestTemporalIntegration:
 # =============================================================================
 # Test: Event Handling
 # =============================================================================
+
 
 class TestEventHandling:
     """Testes de tratamento de eventos."""
@@ -383,7 +364,7 @@ class TestEventHandling:
             "event_type": "ActivityCompleted",
             "activity_id": str(uuid4()),
             "result": {"data": "value"},
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         handled = False
@@ -399,7 +380,7 @@ class TestEventHandling:
             "workflow_id": str(uuid4()),
             "event_type": "StepCompleted",
             "step_name": "query_execution",
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         assert event_emitted["event_type"] == "StepCompleted"
@@ -409,13 +390,12 @@ class TestEventHandling:
         """Deve inscrever em eventos."""
         subscriptions = {
             "subscriber-1": ["ActivityCompleted", "WorkflowFailed"],
-            "subscriber-2": ["WorkflowCompleted"]
+            "subscriber-2": ["WorkflowCompleted"],
         }
 
         event_type = "ActivityCompleted"
         interested_subscribers = [
-            sub for sub, events in subscriptions.items()
-            if event_type in events
+            sub for sub, events in subscriptions.items() if event_type in events
         ]
 
         assert len(interested_subscribers) == 1
@@ -426,6 +406,7 @@ class TestEventHandling:
 # Test: SLA Monitoring
 # =============================================================================
 
+
 class TestSLAMonitoring:
     """Testes de monitoramento de SLA."""
 
@@ -435,7 +416,7 @@ class TestSLAMonitoring:
         workflow = {
             "workflow_id": str(uuid4()),
             "started_at": (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat(),
-            "status": "running"
+            "status": "running",
         }
 
         started = datetime.fromisoformat(workflow["started_at"])
@@ -459,7 +440,7 @@ class TestSLAMonitoring:
         workflow = {
             "workflow_id": str(uuid4()),
             "sla_threshold_seconds": 300,
-            "duration_seconds": 400
+            "duration_seconds": 400,
         }
 
         is_breach = workflow["duration_seconds"] > workflow["sla_threshold_seconds"]
@@ -468,7 +449,8 @@ class TestSLAMonitoring:
             alert = {
                 "type": "sla_breach",
                 "workflow_id": workflow["workflow_id"],
-                "overshoot_seconds": workflow["duration_seconds"] - workflow["sla_threshold_seconds"]
+                "overshoot_seconds": workflow["duration_seconds"]
+                - workflow["sla_threshold_seconds"],
             }
 
         assert alert["type"] == "sla_breach"
@@ -478,6 +460,7 @@ class TestSLAMonitoring:
 # =============================================================================
 # Test: Concurrency Control
 # =============================================================================
+
 
 class TestConcurrencyControl:
     """Testes de controle de concorrência."""
@@ -511,7 +494,7 @@ class TestConcurrencyControl:
         queue = [
             {"workflow_id": "wf-1", "priority": "high"},
             {"workflow_id": "wf-2", "priority": "medium"},
-            {"workflow_id": "wf-3", "priority": "high"}
+            {"workflow_id": "wf-3", "priority": "high"},
         ]
 
         # Ordenar por prioridade
@@ -528,6 +511,7 @@ class TestConcurrencyControl:
 # Test: State Persistence
 # =============================================================================
 
+
 class TestStatePersistence:
     """Testes de persistência de estado."""
 
@@ -539,7 +523,7 @@ class TestStatePersistence:
             "status": "running",
             "current_step": "query_execution",
             "completed_steps": ["validation"],
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         # Simular salvamento
@@ -553,7 +537,7 @@ class TestStatePersistence:
         stored_state = {
             "workflow_id": "wf-123",
             "status": "running",
-            "current_step": "query_execution"
+            "current_step": "query_execution",
         }
 
         loaded_state = stored_state.copy()

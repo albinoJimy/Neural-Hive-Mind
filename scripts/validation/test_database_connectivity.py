@@ -25,18 +25,19 @@ from datetime import datetime
 
 # Color codes for terminal output
 class Colors:
-    RED = '\033[0;31m'
-    GREEN = '\033[0;32m'
-    YELLOW = '\033[1;33m'
-    BLUE = '\033[0;34m'
-    CYAN = '\033[0;36m'
-    NC = '\033[0m'
-    BOLD = '\033[1m'
+    RED = "\033[0;31m"
+    GREEN = "\033[0;32m"
+    YELLOW = "\033[1;33m"
+    BLUE = "\033[0;34m"
+    CYAN = "\033[0;36m"
+    NC = "\033[0m"
+    BOLD = "\033[1m"
 
 
 @dataclass
 class ValidationResult:
     """Result of a database validation check"""
+
     service: str
     database_type: str
     connected: bool
@@ -81,43 +82,43 @@ MONGODB_SERVICES = {
     "orchestrator-dynamic": {
         "uri_env": "MONGODB_URI",
         "database": "orchestration_ledger",
-        "collections": ["workflows", "decisions", "ml_feedback"]
+        "collections": ["workflows", "decisions", "ml_feedback"],
     },
     "queen-agent": {
         "uri_env": "MONGODB_URI",
         "database": "strategic_decisions",
-        "collections": ["decisions", "conflicts", "approvals"]
+        "collections": ["decisions", "conflicts", "approvals"],
     },
     "analyst-agents": {
         "uri_env": "MONGODB_URI",
         "database": "analyst_insights",
-        "collections": ["insights", "analysis_reports"]
+        "collections": ["insights", "analysis_reports"],
     },
     "code-forge": {
         "uri_env": "MONGODB_URI",
         "database": "code_forge_db",
-        "collections": ["pipelines", "artifacts", "validations"]
+        "collections": ["pipelines", "artifacts", "validations"],
     },
     "guard-agents": {
         "uri_env": "MONGODB_URI",
         "database": "guard_audit",
-        "collections": ["audit_logs", "security_events"]
+        "collections": ["audit_logs", "security_events"],
     },
     "optimizer-agents": {
         "uri_env": "MONGODB_URI",
         "database": "optimizer_db",
-        "collections": ["forecasts", "optimizations"]
+        "collections": ["forecasts", "optimizations"],
     },
     "mcp-tool-catalog": {
         "uri_env": "MONGODB_URI",
         "database": "mcp_catalog",
-        "collections": ["tools", "tool_usage"]
+        "collections": ["tools", "tool_usage"],
     },
     "execution-ticket-service": {
         "uri_env": "MONGODB_URI",
         "database": "execution_tickets",
-        "collections": ["tickets", "ticket_lifecycle"]
-    }
+        "collections": ["tickets", "ticket_lifecycle"],
+    },
 }
 
 POSTGRESQL_SERVICES = {
@@ -126,63 +127,43 @@ POSTGRESQL_SERVICES = {
         "default_port": 5432,
         "default_database": "tickets",
         "default_user": "tickets_user",
-        "tables": ["execution_tickets", "ticket_lifecycle", "ticket_results"]
+        "tables": ["execution_tickets", "ticket_lifecycle", "ticket_results"],
     },
     "sla-management-system": {
         "uri_env": "POSTGRESQL_URI",
         "default_port": 5432,
         "default_database": "sla_management",
         "default_user": "sla_user",
-        "tables": ["sla_budgets", "sla_violations", "sla_metrics"]
+        "tables": ["sla_budgets", "sla_violations", "sla_metrics"],
     },
     "code-forge": {
         "uri_env": "POSTGRESQL_URI",
         "default_port": 5432,
         "default_database": "code_forge",
         "default_user": "code_forge_user",
-        "tables": ["pipeline_runs", "validation_results"]
-    }
+        "tables": ["pipeline_runs", "validation_results"],
+    },
 }
 
 REDIS_SERVICES = {
-    "queen-agent": {
-        "uri_env": "REDIS_URI",
-        "default_port": 6379,
-        "purpose": "pheromone_cache"
-    },
+    "queen-agent": {"uri_env": "REDIS_URI", "default_port": 6379, "purpose": "pheromone_cache"},
     "orchestrator-dynamic": {
         "uri_env": "REDIS_URI",
         "default_port": 6379,
-        "purpose": "workflow_cache"
+        "purpose": "workflow_cache",
     },
-    "optimizer-agents": {
-        "uri_env": "REDIS_URI",
-        "default_port": 6379,
-        "purpose": "forecast_cache"
-    },
-    "sla-management-system": {
-        "uri_env": "REDIS_URI",
-        "default_port": 6379,
-        "purpose": "sla_cache"
-    },
-    "service-registry": {
-        "uri_env": "REDIS_URI",
-        "default_port": 6379,
-        "purpose": "service_cache"
-    }
+    "optimizer-agents": {"uri_env": "REDIS_URI", "default_port": 6379, "purpose": "forecast_cache"},
+    "sla-management-system": {"uri_env": "REDIS_URI", "default_port": 6379, "purpose": "sla_cache"},
+    "service-registry": {"uri_env": "REDIS_URI", "default_port": 6379, "purpose": "service_cache"},
 }
 
 NEO4J_SERVICES = {
-    "queen-agent": {
-        "uri_env": "NEO4J_URI",
-        "default_user": "neo4j",
-        "purpose": "intent_graph"
-    },
+    "queen-agent": {"uri_env": "NEO4J_URI", "default_user": "neo4j", "purpose": "intent_graph"},
     "analyst-agents": {
         "uri_env": "NEO4J_URI",
         "default_user": "neo4j",
-        "purpose": "analysis_graph"
-    }
+        "purpose": "analysis_graph",
+    },
 }
 
 
@@ -202,7 +183,7 @@ class MongoDBValidator:
                 database_type="mongodb",
                 connected=False,
                 latency_ms=0,
-                error="motor library not installed"
+                error="motor library not installed",
             )
 
         uri = os.getenv(config["uri_env"], get_mongodb_uri())
@@ -214,7 +195,7 @@ class MongoDBValidator:
             client = AsyncIOMotorClient(uri, serverSelectionTimeoutMS=5000)
 
             # Ping to verify connection
-            await client.admin.command('ping')
+            await client.admin.command("ping")
 
             latency_ms = (time.time() - start_time) * 1000
 
@@ -242,8 +223,8 @@ class MongoDBValidator:
                 details={
                     "database": database_name,
                     "existing_collections": existing_collections,
-                    "accessible_collections": accessible_collections
-                }
+                    "accessible_collections": accessible_collections,
+                },
             )
 
         except Exception as e:
@@ -253,18 +234,17 @@ class MongoDBValidator:
                 database_type="mongodb",
                 connected=False,
                 latency_ms=round(latency_ms, 2),
-                error=str(e)
+                error=str(e),
             )
 
-    async def validate_all(self, services: Optional[Dict[str, Any]] = None) -> List[ValidationResult]:
+    async def validate_all(
+        self, services: Optional[Dict[str, Any]] = None
+    ) -> List[ValidationResult]:
         """Validate MongoDB connections for specified services"""
         target_services = services if services is not None else MONGODB_SERVICES
         if not target_services:
             return []
-        tasks = [
-            self.validate(service, config)
-            for service, config in target_services.items()
-        ]
+        tasks = [self.validate(service, config) for service, config in target_services.items()]
         self.results = await asyncio.gather(*tasks)
         return self.results
 
@@ -285,7 +265,7 @@ class PostgreSQLValidator:
                 database_type="postgresql",
                 connected=False,
                 latency_ms=0,
-                error="asyncpg library not installed"
+                error="asyncpg library not installed",
             )
 
         host = os.getenv("POSTGRESQL_HOST", get_postgresql_host())
@@ -297,12 +277,7 @@ class PostgreSQLValidator:
         start_time = time.time()
         try:
             conn = await asyncpg.connect(
-                host=host,
-                port=port,
-                database=database,
-                user=user,
-                password=password,
-                timeout=5
+                host=host, port=port, database=database, user=user, password=password, timeout=5
             )
 
             # Ping to verify connection
@@ -317,7 +292,7 @@ class PostgreSQLValidator:
                 try:
                     result = await conn.fetchval(
                         f"SELECT COUNT(*) FROM information_schema.tables WHERE table_name = $1",
-                        table
+                        table,
                     )
                     if result > 0:
                         accessible_tables.append(table)
@@ -334,8 +309,8 @@ class PostgreSQLValidator:
                 details={
                     "host": host,
                     "database": database,
-                    "accessible_tables": accessible_tables
-                }
+                    "accessible_tables": accessible_tables,
+                },
             )
 
         except Exception as e:
@@ -345,18 +320,17 @@ class PostgreSQLValidator:
                 database_type="postgresql",
                 connected=False,
                 latency_ms=round(latency_ms, 2),
-                error=str(e)
+                error=str(e),
             )
 
-    async def validate_all(self, services: Optional[Dict[str, Any]] = None) -> List[ValidationResult]:
+    async def validate_all(
+        self, services: Optional[Dict[str, Any]] = None
+    ) -> List[ValidationResult]:
         """Validate PostgreSQL connections for specified services"""
         target_services = services if services is not None else POSTGRESQL_SERVICES
         if not target_services:
             return []
-        tasks = [
-            self.validate(service, config)
-            for service, config in target_services.items()
-        ]
+        tasks = [self.validate(service, config) for service, config in target_services.items()]
         self.results = await asyncio.gather(*tasks)
         return self.results
 
@@ -377,7 +351,7 @@ class RedisValidator:
                 database_type="redis",
                 connected=False,
                 latency_ms=0,
-                error="redis library not installed"
+                error="redis library not installed",
             )
 
         host = os.getenv("REDIS_HOST", get_redis_host())
@@ -386,12 +360,7 @@ class RedisValidator:
 
         start_time = time.time()
         try:
-            redis_client = aioredis.Redis(
-                host=host,
-                port=port,
-                password=password,
-                socket_timeout=5
-            )
+            redis_client = aioredis.Redis(host=host, port=port, password=password, socket_timeout=5)
 
             # Ping to verify connection
             await redis_client.ping()
@@ -424,8 +393,8 @@ class RedisValidator:
                     "port": port,
                     "cluster_mode": cluster_mode,
                     "purpose": config.get("purpose", "unknown"),
-                    "test_passed": test_value == b"test_value"
-                }
+                    "test_passed": test_value == b"test_value",
+                },
             )
 
         except Exception as e:
@@ -435,18 +404,17 @@ class RedisValidator:
                 database_type="redis",
                 connected=False,
                 latency_ms=round(latency_ms, 2),
-                error=str(e)
+                error=str(e),
             )
 
-    async def validate_all(self, services: Optional[Dict[str, Any]] = None) -> List[ValidationResult]:
+    async def validate_all(
+        self, services: Optional[Dict[str, Any]] = None
+    ) -> List[ValidationResult]:
         """Validate Redis connections for specified services"""
         target_services = services if services is not None else REDIS_SERVICES
         if not target_services:
             return []
-        tasks = [
-            self.validate(service, config)
-            for service, config in target_services.items()
-        ]
+        tasks = [self.validate(service, config) for service, config in target_services.items()]
         self.results = await asyncio.gather(*tasks)
         return self.results
 
@@ -467,7 +435,7 @@ class Neo4jValidator:
                 database_type="neo4j",
                 connected=False,
                 latency_ms=0,
-                error="neo4j library not installed"
+                error="neo4j library not installed",
             )
 
         uri = os.getenv(config["uri_env"], get_neo4j_uri())
@@ -505,8 +473,8 @@ class Neo4jValidator:
                     "uri": uri,
                     "purpose": config.get("purpose", "unknown"),
                     "nodes_count": nodes_count,
-                    "index_count": index_count
-                }
+                    "index_count": index_count,
+                },
             )
 
         except Exception as e:
@@ -516,18 +484,17 @@ class Neo4jValidator:
                 database_type="neo4j",
                 connected=False,
                 latency_ms=round(latency_ms, 2),
-                error=str(e)
+                error=str(e),
             )
 
-    async def validate_all(self, services: Optional[Dict[str, Any]] = None) -> List[ValidationResult]:
+    async def validate_all(
+        self, services: Optional[Dict[str, Any]] = None
+    ) -> List[ValidationResult]:
         """Validate Neo4j connections for specified services"""
         target_services = services if services is not None else NEO4J_SERVICES
         if not target_services:
             return []
-        tasks = [
-            self.validate(service, config)
-            for service, config in target_services.items()
-        ]
+        tasks = [self.validate(service, config) for service, config in target_services.items()]
         self.results = await asyncio.gather(*tasks)
         return self.results
 
@@ -537,7 +504,11 @@ def print_result(result: ValidationResult, quiet: bool = False):
     if quiet:
         return
 
-    status = f"{Colors.GREEN}CONNECTED{Colors.NC}" if result.connected else f"{Colors.RED}FAILED{Colors.NC}"
+    status = (
+        f"{Colors.GREEN}CONNECTED{Colors.NC}"
+        if result.connected
+        else f"{Colors.RED}FAILED{Colors.NC}"
+    )
     print(f"  [{status}] {result.service} ({result.database_type})")
     print(f"    Latency: {result.latency_ms}ms")
 
@@ -580,7 +551,7 @@ def filter_services_by_name(
     mongodb: Dict[str, Any],
     postgresql: Dict[str, Any],
     redis: Dict[str, Any],
-    neo4j: Dict[str, Any]
+    neo4j: Dict[str, Any],
 ) -> tuple:
     """
     Filter service mappings to include only the specified service.
@@ -596,7 +567,9 @@ def filter_services_by_name(
         Tuple of filtered dictionaries (mongodb, postgresql, redis, neo4j)
     """
     filtered_mongodb = {service_name: mongodb[service_name]} if service_name in mongodb else {}
-    filtered_postgresql = {service_name: postgresql[service_name]} if service_name in postgresql else {}
+    filtered_postgresql = (
+        {service_name: postgresql[service_name]} if service_name in postgresql else {}
+    )
     filtered_redis = {service_name: redis[service_name]} if service_name in redis else {}
     filtered_neo4j = {service_name: neo4j[service_name]} if service_name in neo4j else {}
 
@@ -605,8 +578,12 @@ def filter_services_by_name(
 
 async def main():
     """Main entry point"""
-    parser = argparse.ArgumentParser(description="Validate database connectivity for Phase 2 services")
-    parser.add_argument("--quiet", action="store_true", help="Suppress output, only return exit code")
+    parser = argparse.ArgumentParser(
+        description="Validate database connectivity for Phase 2 services"
+    )
+    parser.add_argument(
+        "--quiet", action="store_true", help="Suppress output, only return exit code"
+    )
     parser.add_argument("--json", action="store_true", help="Output results as JSON")
     parser.add_argument("--service", type=str, help="Validate only specific service")
     args = parser.parse_args()
@@ -615,20 +592,27 @@ async def main():
 
     # Filter services if --service is provided
     if args.service:
-        mongodb_services, postgresql_services, redis_services, neo4j_services = filter_services_by_name(
-            args.service,
-            MONGODB_SERVICES,
-            POSTGRESQL_SERVICES,
-            REDIS_SERVICES,
-            NEO4J_SERVICES
+        (
+            mongodb_services,
+            postgresql_services,
+            redis_services,
+            neo4j_services,
+        ) = filter_services_by_name(
+            args.service, MONGODB_SERVICES, POSTGRESQL_SERVICES, REDIS_SERVICES, NEO4J_SERVICES
         )
         # Check if service exists in any mapping
         if not any([mongodb_services, postgresql_services, redis_services, neo4j_services]):
             if not args.quiet:
-                print(f"{Colors.YELLOW}Warning: Service '{args.service}' not found in any database mapping{Colors.NC}")
+                print(
+                    f"{Colors.YELLOW}Warning: Service '{args.service}' not found in any database mapping{Colors.NC}"
+                )
                 print(f"Available services:")
-                all_services = set(MONGODB_SERVICES.keys()) | set(POSTGRESQL_SERVICES.keys()) | \
-                              set(REDIS_SERVICES.keys()) | set(NEO4J_SERVICES.keys())
+                all_services = (
+                    set(MONGODB_SERVICES.keys())
+                    | set(POSTGRESQL_SERVICES.keys())
+                    | set(REDIS_SERVICES.keys())
+                    | set(NEO4J_SERVICES.keys())
+                )
                 for svc in sorted(all_services):
                     print(f"  - {svc}")
             sys.exit(1)
@@ -708,8 +692,8 @@ async def main():
             "summary": {
                 "total": len(all_results),
                 "connected": sum(1 for r in all_results if r.connected),
-                "failed": sum(1 for r in all_results if not r.connected)
-            }
+                "failed": sum(1 for r in all_results if not r.connected),
+            },
         }
         print(json.dumps(report, indent=2))
 

@@ -19,6 +19,7 @@ try:
         CustomObjectsApi,
     )
     from kubernetes.client.rest import ApiException
+
     KUBERNETES_AVAILABLE = True
 except ImportError:
     KUBERNETES_AVAILABLE = False
@@ -29,6 +30,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class HPAStatus:
     """Status do HorizontalPodAutoscaler."""
+
     name: str
     namespace: str
     current_replicas: int
@@ -46,6 +48,7 @@ class HPAStatus:
 @dataclass
 class PodMetrics:
     """Metricas de um pod."""
+
     name: str
     namespace: str
     cpu_usage_millicores: int
@@ -56,6 +59,7 @@ class PodMetrics:
 @dataclass
 class ScalingEvent:
     """Evento de scaling observado."""
+
     timestamp: datetime
     event_type: str  # 'scale_up', 'scale_down', 'steady'
     from_replicas: int
@@ -66,6 +70,7 @@ class ScalingEvent:
 @dataclass
 class PodEvent:
     """Evento de pod (eviction, OOM, etc)."""
+
     timestamp: datetime
     pod_name: str
     event_type: str
@@ -78,7 +83,7 @@ class KubernetesClient:
 
     def __init__(
         self,
-        namespace: str = 'neural-hive-orchestration',
+        namespace: str = "neural-hive-orchestration",
         in_cluster: bool = True,
     ):
         """
@@ -96,7 +101,7 @@ class KubernetesClient:
         self._custom_api: Optional[CustomObjectsApi] = None
 
         if not KUBERNETES_AVAILABLE:
-            logger.warning('kubernetes package not available')
+            logger.warning("kubernetes package not available")
             return
 
         try:
@@ -110,9 +115,9 @@ class KubernetesClient:
             self._autoscaling_api = AutoscalingV2Api()
             self._custom_api = CustomObjectsApi()
             self._initialized = True
-            logger.info(f'Kubernetes client initialized for namespace {namespace}')
+            logger.info(f"Kubernetes client initialized for namespace {namespace}")
         except Exception as e:
-            logger.warning(f'Failed to initialize Kubernetes client: {e}')
+            logger.warning(f"Failed to initialize Kubernetes client: {e}")
 
     async def close(self) -> None:
         """Fecha o cliente (no-op para kubernetes client)."""
@@ -124,7 +129,7 @@ class KubernetesClient:
 
     async def get_hpa_status(
         self,
-        name: str = 'orchestrator-dynamic',
+        name: str = "orchestrator-dynamic",
         namespace: Optional[str] = None,
     ) -> Optional[HPAStatus]:
         """
@@ -161,12 +166,12 @@ class KubernetesClient:
             # Extrair metricas atuais
             if hpa.status.current_metrics:
                 for metric in hpa.status.current_metrics:
-                    if metric.type == 'Resource' and metric.resource:
-                        if metric.resource.name == 'cpu':
+                    if metric.type == "Resource" and metric.resource:
+                        if metric.resource.name == "cpu":
                             status.current_cpu_utilization = (
                                 metric.resource.current.average_utilization
                             )
-                        elif metric.resource.name == 'memory':
+                        elif metric.resource.name == "memory":
                             status.current_memory_utilization = (
                                 metric.resource.current.average_utilization
                             )
@@ -174,12 +179,12 @@ class KubernetesClient:
             # Extrair targets
             if hpa.spec.metrics:
                 for metric in hpa.spec.metrics:
-                    if metric.type == 'Resource' and metric.resource:
-                        if metric.resource.name == 'cpu' and metric.resource.target:
+                    if metric.type == "Resource" and metric.resource:
+                        if metric.resource.name == "cpu" and metric.resource.target:
                             status.target_cpu_utilization = (
                                 metric.resource.target.average_utilization
                             )
-                        elif metric.resource.name == 'memory' and metric.resource.target:
+                        elif metric.resource.name == "memory" and metric.resource.target:
                             status.target_memory_utilization = (
                                 metric.resource.target.average_utilization
                             )
@@ -187,13 +192,17 @@ class KubernetesClient:
             # Extrair conditions
             if hpa.status.conditions:
                 for cond in hpa.status.conditions:
-                    status.conditions.append({
-                        'type': cond.type,
-                        'status': cond.status,
-                        'reason': cond.reason,
-                        'message': cond.message,
-                        'last_transition_time': cond.last_transition_time.isoformat() if cond.last_transition_time else None,
-                    })
+                    status.conditions.append(
+                        {
+                            "type": cond.type,
+                            "status": cond.status,
+                            "reason": cond.reason,
+                            "message": cond.message,
+                            "last_transition_time": cond.last_transition_time.isoformat()
+                            if cond.last_transition_time
+                            else None,
+                        }
+                    )
 
             # Last scale time
             if hpa.status.last_scale_time:
@@ -203,17 +212,17 @@ class KubernetesClient:
 
         except ApiException as e:
             if e.status == 404:
-                logger.warning(f'HPA {name} not found in namespace {ns}')
+                logger.warning(f"HPA {name} not found in namespace {ns}")
             else:
-                logger.warning(f'Failed to get HPA status: {e}')
+                logger.warning(f"Failed to get HPA status: {e}")
             return None
         except Exception as e:
-            logger.warning(f'Error getting HPA status: {e}')
+            logger.warning(f"Error getting HPA status: {e}")
             return None
 
     async def get_pod_count(
         self,
-        label_selector: str = 'app.kubernetes.io/name=orchestrator-dynamic',
+        label_selector: str = "app.kubernetes.io/name=orchestrator-dynamic",
         namespace: Optional[str] = None,
     ) -> int:
         """
@@ -238,20 +247,17 @@ class KubernetesClient:
                 label_selector=label_selector,
             )
 
-            running_count = sum(
-                1 for pod in pods.items
-                if pod.status.phase == 'Running'
-            )
+            running_count = sum(1 for pod in pods.items if pod.status.phase == "Running")
 
             return running_count
 
         except Exception as e:
-            logger.warning(f'Failed to count pods: {e}')
+            logger.warning(f"Failed to count pods: {e}")
             return 0
 
     async def get_pod_metrics(
         self,
-        label_selector: str = 'app.kubernetes.io/name=orchestrator-dynamic',
+        label_selector: str = "app.kubernetes.io/name=orchestrator-dynamic",
         namespace: Optional[str] = None,
     ) -> List[PodMetrics]:
         """
@@ -274,64 +280,66 @@ class KubernetesClient:
             # Usar API de metricas
             metrics = await asyncio.to_thread(
                 self._custom_api.list_namespaced_custom_object,
-                group='metrics.k8s.io',
-                version='v1beta1',
+                group="metrics.k8s.io",
+                version="v1beta1",
                 namespace=ns,
-                plural='pods',
+                plural="pods",
                 label_selector=label_selector,
             )
 
-            for item in metrics.get('items', []):
-                name = item.get('metadata', {}).get('name', '')
-                containers = item.get('containers', [])
+            for item in metrics.get("items", []):
+                name = item.get("metadata", {}).get("name", "")
+                containers = item.get("containers", [])
 
                 total_cpu = 0
                 total_memory = 0
 
                 for container in containers:
-                    usage = container.get('usage', {})
+                    usage = container.get("usage", {})
 
                     # Parse CPU (pode ser "100m" ou "1")
-                    cpu_str = usage.get('cpu', '0')
-                    if cpu_str.endswith('n'):
+                    cpu_str = usage.get("cpu", "0")
+                    if cpu_str.endswith("n"):
                         total_cpu += int(cpu_str[:-1]) // 1000000
-                    elif cpu_str.endswith('m'):
+                    elif cpu_str.endswith("m"):
                         total_cpu += int(cpu_str[:-1])
                     else:
                         total_cpu += int(float(cpu_str) * 1000)
 
                     # Parse Memory (pode ser "100Mi", "1Gi", etc)
-                    mem_str = usage.get('memory', '0')
-                    if mem_str.endswith('Ki'):
+                    mem_str = usage.get("memory", "0")
+                    if mem_str.endswith("Ki"):
                         total_memory += int(mem_str[:-2]) * 1024
-                    elif mem_str.endswith('Mi'):
+                    elif mem_str.endswith("Mi"):
                         total_memory += int(mem_str[:-2]) * 1024 * 1024
-                    elif mem_str.endswith('Gi'):
+                    elif mem_str.endswith("Gi"):
                         total_memory += int(mem_str[:-2]) * 1024 * 1024 * 1024
                     else:
                         total_memory += int(mem_str)
 
-                metrics_list.append(PodMetrics(
-                    name=name,
-                    namespace=ns,
-                    cpu_usage_millicores=total_cpu,
-                    memory_usage_bytes=total_memory,
-                    timestamp=datetime.now(timezone.utc),
-                ))
+                metrics_list.append(
+                    PodMetrics(
+                        name=name,
+                        namespace=ns,
+                        cpu_usage_millicores=total_cpu,
+                        memory_usage_bytes=total_memory,
+                        timestamp=datetime.now(timezone.utc),
+                    )
+                )
 
         except ApiException as e:
             if e.status == 404:
-                logger.debug('Metrics API not available')
+                logger.debug("Metrics API not available")
             else:
-                logger.warning(f'Failed to get pod metrics: {e}')
+                logger.warning(f"Failed to get pod metrics: {e}")
         except Exception as e:
-            logger.warning(f'Error getting pod metrics: {e}')
+            logger.warning(f"Error getting pod metrics: {e}")
 
         return metrics_list
 
     async def get_pod_events(
         self,
-        label_selector: str = 'app.kubernetes.io/name=orchestrator-dynamic',
+        label_selector: str = "app.kubernetes.io/name=orchestrator-dynamic",
         namespace: Optional[str] = None,
         event_types: Optional[List[str]] = None,
     ) -> List[PodEvent]:
@@ -354,14 +362,14 @@ class KubernetesClient:
 
         # Tipos de eventos relevantes para performance
         relevant_reasons = event_types or [
-            'Evicted',
-            'OOMKilled',
-            'OOMKilling',
-            'Killing',
-            'Preempted',
-            'FailedScheduling',
-            'BackOff',
-            'Unhealthy',
+            "Evicted",
+            "OOMKilled",
+            "OOMKilling",
+            "Killing",
+            "Preempted",
+            "FailedScheduling",
+            "BackOff",
+            "Unhealthy",
         ]
 
         try:
@@ -383,29 +391,31 @@ class KubernetesClient:
             for event in events.items:
                 # Filtrar eventos relacionados aos pods
                 involved = event.involved_object
-                if involved.kind != 'Pod' or involved.name not in pod_names:
+                if involved.kind != "Pod" or involved.name not in pod_names:
                     continue
 
                 # Filtrar por tipo de evento
                 if event.reason not in relevant_reasons:
                     continue
 
-                events_list.append(PodEvent(
-                    timestamp=event.last_timestamp or datetime.now(timezone.utc),
-                    pod_name=involved.name,
-                    event_type=event.type,
-                    reason=event.reason,
-                    message=event.message or '',
-                ))
+                events_list.append(
+                    PodEvent(
+                        timestamp=event.last_timestamp or datetime.now(timezone.utc),
+                        pod_name=involved.name,
+                        event_type=event.type,
+                        reason=event.reason,
+                        message=event.message or "",
+                    )
+                )
 
         except Exception as e:
-            logger.warning(f'Failed to get pod events: {e}')
+            logger.warning(f"Failed to get pod events: {e}")
 
         return events_list
 
     async def watch_hpa_scaling(
         self,
-        name: str = 'orchestrator-dynamic',
+        name: str = "orchestrator-dynamic",
         namespace: Optional[str] = None,
         duration_seconds: int = 300,
         poll_interval: float = 5.0,
@@ -433,26 +443,26 @@ class KubernetesClient:
                 current = status.current_replicas
 
                 if last_replicas is not None and current != last_replicas:
-                    event_type = 'scale_up' if current > last_replicas else 'scale_down'
+                    event_type = "scale_up" if current > last_replicas else "scale_down"
                     reason = None
 
                     # Tentar identificar razao
                     for cond in status.conditions:
-                        if cond.get('type') == 'AbleToScale':
-                            reason = cond.get('reason')
+                        if cond.get("type") == "AbleToScale":
+                            reason = cond.get("reason")
                             break
 
-                    events.append(ScalingEvent(
-                        timestamp=datetime.now(timezone.utc),
-                        event_type=event_type,
-                        from_replicas=last_replicas,
-                        to_replicas=current,
-                        reason=reason,
-                    ))
-
-                    logger.info(
-                        f'Scaling event: {event_type} from {last_replicas} to {current}'
+                    events.append(
+                        ScalingEvent(
+                            timestamp=datetime.now(timezone.utc),
+                            event_type=event_type,
+                            from_replicas=last_replicas,
+                            to_replicas=current,
+                            reason=reason,
+                        )
                     )
+
+                    logger.info(f"Scaling event: {event_type} from {last_replicas} to {current}")
 
                 last_replicas = current
 
@@ -463,7 +473,7 @@ class KubernetesClient:
     async def wait_for_scale(
         self,
         target_replicas: int,
-        name: str = 'orchestrator-dynamic',
+        name: str = "orchestrator-dynamic",
         namespace: Optional[str] = None,
         timeout_seconds: int = 300,
     ) -> bool:
@@ -486,21 +496,19 @@ class KubernetesClient:
 
             if status and status.current_replicas >= target_replicas:
                 logger.info(
-                    f'HPA reached {status.current_replicas} replicas '
-                    f'(target: {target_replicas})'
+                    f"HPA reached {status.current_replicas} replicas "
+                    f"(target: {target_replicas})"
                 )
                 return True
 
             await asyncio.sleep(5.0)
 
-        logger.warning(
-            f'Timeout waiting for HPA to scale to {target_replicas} replicas'
-        )
+        logger.warning(f"Timeout waiting for HPA to scale to {target_replicas} replicas")
         return False
 
     async def check_for_evictions(
         self,
-        label_selector: str = 'app.kubernetes.io/name=orchestrator-dynamic',
+        label_selector: str = "app.kubernetes.io/name=orchestrator-dynamic",
         namespace: Optional[str] = None,
     ) -> List[PodEvent]:
         """
@@ -516,12 +524,12 @@ class KubernetesClient:
         return await self.get_pod_events(
             label_selector=label_selector,
             namespace=namespace,
-            event_types=['Evicted', 'OOMKilled', 'OOMKilling'],
+            event_types=["Evicted", "OOMKilled", "OOMKilling"],
         )
 
     async def get_resource_summary(
         self,
-        label_selector: str = 'app.kubernetes.io/name=orchestrator-dynamic',
+        label_selector: str = "app.kubernetes.io/name=orchestrator-dynamic",
         namespace: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
@@ -537,20 +545,20 @@ class KubernetesClient:
         ns = namespace or self.namespace
 
         summary = {
-            'pod_count': 0,
-            'total_cpu_millicores': 0,
-            'total_memory_bytes': 0,
-            'avg_cpu_millicores': 0,
-            'avg_memory_bytes': 0,
+            "pod_count": 0,
+            "total_cpu_millicores": 0,
+            "total_memory_bytes": 0,
+            "avg_cpu_millicores": 0,
+            "avg_memory_bytes": 0,
         }
 
         metrics = await self.get_pod_metrics(label_selector, ns)
 
         if metrics:
-            summary['pod_count'] = len(metrics)
-            summary['total_cpu_millicores'] = sum(m.cpu_usage_millicores for m in metrics)
-            summary['total_memory_bytes'] = sum(m.memory_usage_bytes for m in metrics)
-            summary['avg_cpu_millicores'] = summary['total_cpu_millicores'] / len(metrics)
-            summary['avg_memory_bytes'] = summary['total_memory_bytes'] / len(metrics)
+            summary["pod_count"] = len(metrics)
+            summary["total_cpu_millicores"] = sum(m.cpu_usage_millicores for m in metrics)
+            summary["total_memory_bytes"] = sum(m.memory_usage_bytes for m in metrics)
+            summary["avg_cpu_millicores"] = summary["total_cpu_millicores"] / len(metrics)
+            summary["avg_memory_bytes"] = summary["total_memory_bytes"] / len(metrics)
 
         return summary

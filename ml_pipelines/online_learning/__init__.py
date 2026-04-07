@@ -19,13 +19,13 @@ from .online_monitor import OnlinePerformanceMonitor
 from .deployment_orchestrator import OnlineDeploymentOrchestrator
 
 __all__ = [
-    'OnlineLearningConfig',
-    'IncrementalLearner',
-    'ShadowValidator',
-    'ModelEnsemble',
-    'RollbackManager',
-    'OnlinePerformanceMonitor',
-    'OnlineDeploymentOrchestrator',
+    "OnlineLearningConfig",
+    "IncrementalLearner",
+    "ShadowValidator",
+    "ModelEnsemble",
+    "RollbackManager",
+    "OnlinePerformanceMonitor",
+    "OnlineDeploymentOrchestrator",
 ]
 
-__version__ = '1.0.0'
+__version__ = "1.0.0"

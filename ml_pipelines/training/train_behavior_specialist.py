@@ -37,7 +37,9 @@ sys.path.insert(0, str(REPO_ROOT / "libraries" / "python"))
 logger = structlog.get_logger()
 
 
-def generate_behavior_dataset(n_samples: int = 1000, random_seed: int = 42) -> Tuple[pd.DataFrame, pd.Series]:
+def generate_behavior_dataset(
+    n_samples: int = 1000, random_seed: int = 42
+) -> Tuple[pd.DataFrame, pd.Series]:
     """
     Gera dataset sintético para especialista behavior.
 
@@ -50,28 +52,30 @@ def generate_behavior_dataset(n_samples: int = 1000, random_seed: int = 42) -> T
     """
     np.random.seed(random_seed)
 
-    X = pd.DataFrame({
-        "usability_score": np.random.uniform(0, 1, n_samples),
-        "accessibility_score": np.random.uniform(0, 1, n_samples),
-        "ux_score": np.random.uniform(0, 1, n_samples),
-        "response_time_score": np.random.uniform(0, 1, n_samples),
-        "interaction_cost": np.random.uniform(0, 1, n_samples),
-        "user_satisfaction": np.random.uniform(0, 1, n_samples),
-    })
+    X = pd.DataFrame(
+        {
+            "usability_score": np.random.uniform(0, 1, n_samples),
+            "accessibility_score": np.random.uniform(0, 1, n_samples),
+            "ux_score": np.random.uniform(0, 1, n_samples),
+            "response_time_score": np.random.uniform(0, 1, n_samples),
+            "interaction_cost": np.random.uniform(0, 1, n_samples),
+            "user_satisfaction": np.random.uniform(0, 1, n_samples),
+        }
+    )
 
     # Regra: approve se usability + ux > 1.3 E accessibility > 0.5
     # interaction_cost é invertido: baixo custo = melhor
     y = (
-        ((X["usability_score"] + X["ux_score"]) > 1.3) &
-        (X["accessibility_score"] > 0.5) &
-        ((1 - X["interaction_cost"]) > 0.4)  # Custo de interação não muito alto
+        ((X["usability_score"] + X["ux_score"]) > 1.3)
+        & (X["accessibility_score"] > 0.5)
+        & ((1 - X["interaction_cost"]) > 0.4)  # Custo de interação não muito alto
     ).astype(int)
 
     logger.info(
         "behavior_dataset_generated",
         n_samples=n_samples,
         approve_ratio=y.mean(),
-        reject_ratio=1 - y.mean()
+        reject_ratio=1 - y.mean(),
     )
 
     return X, y
@@ -82,7 +86,7 @@ def train_behavior_model(
     test_size: float = 0.2,
     n_estimators: int = 100,
     max_depth: int = 5,
-    random_seed: int = 42
+    random_seed: int = 42,
 ) -> GradientBoostingClassifier:
     """
     Treina modelo GradientBoosting para behavior specialist.
@@ -110,14 +114,12 @@ def train_behavior_model(
         train_size=len(X_train),
         test_size=len(X_test),
         train_distribution=y_train.mean(),
-        test_distribution=y_test.mean()
+        test_distribution=y_test.mean(),
     )
 
     # Criar e treinar modelo
     model = GradientBoostingClassifier(
-        n_estimators=n_estimators,
-        max_depth=max_depth,
-        random_state=random_seed
+        n_estimators=n_estimators, max_depth=max_depth, random_state=random_seed
     )
 
     model.fit(X_train, y_train)
@@ -131,7 +133,7 @@ def train_behavior_model(
         "model_trained",
         accuracy=accuracy,
         f1_score=f1,
-        feature_importances=dict(zip(X.columns, model.feature_importances_.tolist()))
+        feature_importances=dict(zip(X.columns, model.feature_importances_.tolist())),
     )
 
     print("\n=== Behavior Specialist - Classification Report ===")
@@ -145,55 +147,28 @@ def train_behavior_model(
 
 def main():
     """Função principal para execução via CLI."""
-    parser = argparse.ArgumentParser(
-        description="Treinar modelo ML para Behavior Specialist"
-    )
+    parser = argparse.ArgumentParser(description="Treinar modelo ML para Behavior Specialist")
     parser.add_argument(
-        "--n-samples",
-        type=int,
-        default=1000,
-        help="Numero de amostras do dataset sintético"
+        "--n-samples", type=int, default=1000, help="Numero de amostras do dataset sintético"
     )
+    parser.add_argument("--test-size", type=float, default=0.2, help="Proporção para teste (0-1)")
     parser.add_argument(
-        "--test-size",
-        type=float,
-        default=0.2,
-        help="Proporção para teste (0-1)"
+        "--n-estimators", type=int, default=100, help="Numero de estimadores do GradientBoosting"
     )
-    parser.add_argument(
-        "--n-estimators",
-        type=int,
-        default=100,
-        help="Numero de estimadores do GradientBoosting"
-    )
-    parser.add_argument(
-        "--max-depth",
-        type=int,
-        default=5,
-        help="Profundidade máxima das árvores"
-    )
-    parser.add_argument(
-        "--random-seed",
-        type=int,
-        default=42,
-        help="Semente aleatória"
-    )
-    parser.add_argument(
-        "--mlflow-enabled",
-        action="store_true",
-        help="Habilitar logging no MLflow"
-    )
+    parser.add_argument("--max-depth", type=int, default=5, help="Profundidade máxima das árvores")
+    parser.add_argument("--random-seed", type=int, default=42, help="Semente aleatória")
+    parser.add_argument("--mlflow-enabled", action="store_true", help="Habilitar logging no MLflow")
     parser.add_argument(
         "--experiment-name",
         type=str,
         default="behavior_specialist",
-        help="Nome do experimento MLflow"
+        help="Nome do experimento MLflow",
     )
     parser.add_argument(
         "--model-name",
         type=str,
         default="BehaviorSpecialistModel",
-        help="Nome do modelo registrado no MLflow"
+        help="Nome do modelo registrado no MLflow",
     )
 
     args = parser.parse_args()
@@ -205,9 +180,7 @@ def main():
         mlflow.set_experiment(args.experiment_name)
 
         logger.info(
-            "mlflow_configured",
-            tracking_uri=mlflow_tracking_uri,
-            experiment=args.experiment_name
+            "mlflow_configured", tracking_uri=mlflow_tracking_uri, experiment=args.experiment_name
         )
 
     # Iniciar run MLflow
@@ -218,18 +191,20 @@ def main():
             test_size=args.test_size,
             n_estimators=args.n_estimators,
             max_depth=args.max_depth,
-            random_seed=args.random_seed
+            random_seed=args.random_seed,
         )
 
         # Log parâmetros e métricas no MLflow
         if args.mlflow_enabled:
-            mlflow.log_params({
-                "n_samples": args.n_samples,
-                "test_size": args.test_size,
-                "n_estimators": args.n_estimators,
-                "max_depth": args.max_depth,
-                "random_seed": args.random_seed
-            })
+            mlflow.log_params(
+                {
+                    "n_samples": args.n_samples,
+                    "test_size": args.test_size,
+                    "n_estimators": args.n_estimators,
+                    "max_depth": args.max_depth,
+                    "random_seed": args.random_seed,
+                }
+            )
 
             # Re-calcular métricas para logging
             X, y = generate_behavior_dataset(args.n_samples, args.random_seed)
@@ -238,30 +213,33 @@ def main():
             )
             y_pred = model.predict(X_test)
 
-            mlflow.log_metrics({
-                "accuracy": accuracy_score(y_test, y_pred),
-                "f1_score": f1_score(y_test, y_pred)
-            })
+            mlflow.log_metrics(
+                {"accuracy": accuracy_score(y_test, y_pred), "f1_score": f1_score(y_test, y_pred)}
+            )
 
             # Log feature importances
             for feature, importance in zip(
-                ["usability_score", "accessibility_score", "ux_score",
-                 "response_time_score", "interaction_cost", "user_satisfaction"],
-                model.feature_importances_
+                [
+                    "usability_score",
+                    "accessibility_score",
+                    "ux_score",
+                    "response_time_score",
+                    "interaction_cost",
+                    "user_satisfaction",
+                ],
+                model.feature_importances_,
             ):
                 mlflow.log_metric(f"feature_importance_{feature}", importance)
 
             # Log e registrar modelo
             mlflow.sklearn.log_model(
-                model,
-                "behavior_specialist_model",
-                registered_model_name=args.model_name
+                model, "behavior_specialist_model", registered_model_name=args.model_name
             )
 
             logger.info(
                 "model_registered_in_mlflow",
                 model_name=args.model_name,
-                run_id=mlflow.active_run().info.run_id
+                run_id=mlflow.active_run().info.run_id,
             )
 
     print("\n=== Treino Behavior Specialist concluído ===")

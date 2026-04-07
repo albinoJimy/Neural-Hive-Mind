@@ -22,24 +22,22 @@ from confluent_kafka.admin import AdminClient
 
 
 def analyze_partition_distribution(
-    bootstrap_servers: str,
-    topic: str,
-    time_window_seconds: int = 3600
+    bootstrap_servers: str, topic: str, time_window_seconds: int = 3600
 ):
     """Analisa distribuição de mensagens por partition."""
 
     # Configurar consumer
     consumer_config = {
-        'bootstrap.servers': bootstrap_servers,
-        'group.id': f'partition-analyzer-{datetime.now().timestamp()}',
-        'auto.offset.reset': 'earliest',
-        'enable.auto.commit': False
+        "bootstrap.servers": bootstrap_servers,
+        "group.id": f"partition-analyzer-{datetime.now().timestamp()}",
+        "auto.offset.reset": "earliest",
+        "enable.auto.commit": False,
     }
 
     consumer = Consumer(consumer_config)
 
     # Obter metadata do tópico
-    admin_client = AdminClient({'bootstrap.servers': bootstrap_servers})
+    admin_client = AdminClient({"bootstrap.servers": bootstrap_servers})
     metadata = admin_client.list_topics(topic=topic)
 
     if topic not in metadata.topics:
@@ -61,6 +59,7 @@ def analyze_partition_distribution(
 
     # Subscrever todas as partitions
     from confluent_kafka import TopicPartition
+
     partitions = [TopicPartition(topic, p) for p in range(num_partitions)]
     consumer.assign(partitions)
 
@@ -102,7 +101,7 @@ def analyze_partition_distribution(
             partition_bytes[partition] += len(msg.value()) if msg.value() else 0
 
             if msg.key():
-                partition_keys[partition].add(msg.key().decode('utf-8'))
+                partition_keys[partition].add(msg.key().decode("utf-8"))
 
             messages_processed += 1
 
@@ -123,7 +122,9 @@ def analyze_partition_distribution(
 
     # Exibir distribuição
     print("📈 Distribuição por Partition:")
-    print(f"{'Partition':<10} {'Mensagens':<12} {'%':<8} {'Bytes':<12} {'Keys Únicas':<15} {'Status'}")
+    print(
+        f"{'Partition':<10} {'Mensagens':<12} {'%':<8} {'Bytes':<12} {'Keys Únicas':<15} {'Status'}"
+    )
     print("-" * 80)
 
     hot_partitions = []
@@ -135,13 +136,17 @@ def analyze_partition_distribution(
         unique_keys = len(partition_keys[partition])
 
         # Detectar hot partition (> 2x média)
-        is_hot = count > (avg_messages_per_partition * 2) if avg_messages_per_partition > 0 else False
+        is_hot = (
+            count > (avg_messages_per_partition * 2) if avg_messages_per_partition > 0 else False
+        )
         status = "🔥 HOT" if is_hot else "✅ OK"
 
         if is_hot:
             hot_partitions.append(partition)
 
-        print(f"{partition:<10} {count:<12} {percentage:<7.2f}% {bytes_size:<12} {unique_keys:<15} {status}")
+        print(
+            f"{partition:<10} {count:<12} {percentage:<7.2f}% {bytes_size:<12} {unique_keys:<15} {status}"
+        )
 
     print("-" * 80)
     print(f"{'TOTAL':<10} {total_messages:<12} {'100.00%':<8} {total_bytes:<12}")
@@ -151,8 +156,12 @@ def analyze_partition_distribution(
     print("📊 Estatísticas:")
     print(f"   Média por partition: {avg_messages_per_partition:.2f} mensagens")
     if total_messages > 0:
-        print(f"   Desvio padrão: {_calculate_stddev(list(partition_counts.values()), avg_messages_per_partition):.2f}")
-        print(f"   Coeficiente de variação: {_calculate_cv(list(partition_counts.values()), avg_messages_per_partition):.2%}")
+        print(
+            f"   Desvio padrão: {_calculate_stddev(list(partition_counts.values()), avg_messages_per_partition):.2f}"
+        )
+        print(
+            f"   Coeficiente de variação: {_calculate_cv(list(partition_counts.values()), avg_messages_per_partition):.2%}"
+        )
     print()
 
     # Recomendações
@@ -171,16 +180,17 @@ def analyze_partition_distribution(
         print("✅ Distribuição balanceada - nenhuma hot partition detectada")
 
     return {
-        'total_messages': total_messages,
-        'num_partitions': num_partitions,
-        'partition_counts': dict(partition_counts),
-        'hot_partitions': hot_partitions
+        "total_messages": total_messages,
+        "num_partitions": num_partitions,
+        "partition_counts": dict(partition_counts),
+        "hot_partitions": hot_partitions,
     }
 
 
 def _calculate_stddev(values, mean):
     """Calcula desvio padrão."""
     import math
+
     if not values:
         return 0.0
     variance = sum((x - mean) ** 2 for x in values) / len(values)
@@ -195,16 +205,18 @@ def _calculate_cv(values, mean):
     return stddev / mean
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Analisar distribuição de partitions Kafka')
-    parser.add_argument('--topic', required=True, help='Nome do tópico')
-    parser.add_argument('--bootstrap-servers', required=True, help='Kafka bootstrap servers')
-    parser.add_argument('--time-window', type=int, default=3600, help='Janela de tempo em segundos (default: 3600)')
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Analisar distribuição de partitions Kafka")
+    parser.add_argument("--topic", required=True, help="Nome do tópico")
+    parser.add_argument("--bootstrap-servers", required=True, help="Kafka bootstrap servers")
+    parser.add_argument(
+        "--time-window", type=int, default=3600, help="Janela de tempo em segundos (default: 3600)"
+    )
 
     args = parser.parse_args()
 
     analyze_partition_distribution(
         bootstrap_servers=args.bootstrap_servers,
         topic=args.topic,
-        time_window_seconds=args.time_window
+        time_window_seconds=args.time_window,
     )

@@ -23,9 +23,11 @@ import cgi
 
 # ============ Models ============
 
+
 @dataclass
 class ScanResult:
     """Resultado de scan de diretório."""
+
     path: str
     total_files: int = 0
     total_dirs: int = 0
@@ -123,18 +125,24 @@ class CodeScanner:
         """Escaneia diretório recursivamente."""
         exclude_list = [d.strip() for d in exclude_dirs.split(",") if d.strip()]
         exclude_set = set(exclude_list) | {
-            ".git", ".svn", ".hg", "node_modules", "__pycache__",
-            ".pytest_cache", ".venv", "venv", "dist", "build", "target"
+            ".git",
+            ".svn",
+            ".hg",
+            "node_modules",
+            "__pycache__",
+            ".pytest_cache",
+            ".venv",
+            "venv",
+            "dist",
+            "build",
+            "target",
         }
 
         result = ScanResult(path=path)
         root_path = Path(self.base_path) / path
 
         if not root_path.exists():
-            return {
-                "error": f"Path not found: {path}",
-                "path": path
-            }
+            return {"error": f"Path not found: {path}", "path": path}
 
         def scan_dir(current_path: Path, depth: int) -> None:
             if depth > max_depth:
@@ -166,7 +174,7 @@ class CodeScanner:
             "total_dirs": result.total_dirs,
             "languages": result.languages,
             "frameworks": result.frameworks,
-            "dependencies": self._detect_dependencies(root_path)
+            "dependencies": self._detect_dependencies(root_path),
         }
 
     def _detect_frameworks(self, root_path: Path) -> list[str]:
@@ -188,9 +196,11 @@ class CodeScanner:
         if req_file.exists():
             try:
                 with open(req_file) as f:
-                    deps = [line.strip().split("==")[0].strip()
-                           for line in f
-                           if line.strip() and not line.startswith("#")]
+                    deps = [
+                        line.strip().split("==")[0].strip()
+                        for line in f
+                        if line.strip() and not line.startswith("#")
+                    ]
                 dependencies["python"] = deps[:10]  # Primeiras 10
             except Exception:
                 pass
@@ -200,6 +210,7 @@ class CodeScanner:
         if pkg_file.exists():
             try:
                 import json
+
                 with open(pkg_file) as f:
                     data = json.load(f)
                     deps = list(data.get("dependencies", {}).keys())
@@ -226,11 +237,7 @@ class CodeScanner:
                     if f.is_file()
                 ]
             else:
-                files = [
-                    str(f.name)
-                    for f in search_path.glob(pattern)
-                    if f.is_file()
-                ]
+                files = [str(f.name) for f in search_path.glob(pattern) if f.is_file()]
         except Exception as e:
             return {"error": str(e), "files": []}
 
@@ -242,6 +249,7 @@ class CodeScanner:
 
 
 # ============ HTTP Server ============
+
 
 class ScoutHTTPRequestHandler(BaseHTTPRequestHandler):
     """Handler HTTP para Scout MCP Server."""
@@ -262,24 +270,34 @@ class ScoutHTTPRequestHandler(BaseHTTPRequestHandler):
         # Health check
         if path_parts[0] == "health" or path_parts[0] == "":
             self._set_json_headers()
-            self.wfile.write(json.dumps({
-                "status": "healthy",
-                "server": "Scout MCP HTTP Server",
-                "version": "1.0.0"
-            }).encode())
+            self.wfile.write(
+                json.dumps(
+                    {"status": "healthy", "server": "Scout MCP HTTP Server", "version": "1.0.0"}
+                ).encode()
+            )
             return
 
         # /tools - Lista ferramentas disponíveis
         if path_parts[0] == "tools":
             self._set_json_headers()
-            self.wfile.write(json.dumps({
-                "tools": [
-                    {"name": "scan_directory", "description": "Scan directory recursively"},
-                    {"name": "find_files", "description": "Find files by pattern"},
-                    {"name": "detect_dependencies", "description": "Detect project dependencies"},
-                    {"name": "analyze_project_structure", "description": "Analyze project structure"}
-                ]
-            }).encode())
+            self.wfile.write(
+                json.dumps(
+                    {
+                        "tools": [
+                            {"name": "scan_directory", "description": "Scan directory recursively"},
+                            {"name": "find_files", "description": "Find files by pattern"},
+                            {
+                                "name": "detect_dependencies",
+                                "description": "Detect project dependencies",
+                            },
+                            {
+                                "name": "analyze_project_structure",
+                                "description": "Analyze project structure",
+                            },
+                        ]
+                    }
+                ).encode()
+            )
             return
 
         # /scan - Escanear diretório
@@ -311,9 +329,7 @@ class ScoutHTTPRequestHandler(BaseHTTPRequestHandler):
                 base_path = os.getenv("SCOUT_BASE_PATH", "/repo")
                 self.scanner = CodeScanner(base_path=base_path)
 
-            result = self.scanner.find_files(
-                path=path, pattern=pattern, recursive=recursive
-            )
+            result = self.scanner.find_files(path=path, pattern=pattern, recursive=recursive)
             self._set_json_headers()
             self.wfile.write(json.dumps(result).encode())
             return
@@ -381,18 +397,16 @@ class ScoutHTTPRequestHandler(BaseHTTPRequestHandler):
                 result = self.scanner.scan_directory(
                     path=params.get("path", "."),
                     max_depth=params.get("max_depth", 5),
-                    exclude_dirs=params.get("exclude_dirs", "")
+                    exclude_dirs=params.get("exclude_dirs", ""),
                 )
             elif tool == "find_files":
                 result = self.scanner.find_files(
                     path=params.get("path", "."),
                     pattern=params.get("pattern", "*"),
-                    recursive=params.get("recursive", True)
+                    recursive=params.get("recursive", True),
                 )
             elif tool == "analyze_project_structure":
-                result = self.scanner.analyze_project_structure(
-                    path=params.get("path", ".")
-                )
+                result = self.scanner.analyze_project_structure(path=params.get("path", "."))
             elif tool == "detect_dependencies":
                 root_path = Path(self.scanner.base_path) / params.get("path", ".")
                 deps = self.scanner._detect_dependencies(root_path)

@@ -15,6 +15,7 @@ from decimal import Decimal
 # Test: Input Validation
 # =============================================================================
 
+
 class TestInputValidation:
     """Testes de validação de input."""
 
@@ -73,6 +74,7 @@ class TestInputValidation:
 # Test: Data Transformation
 # =============================================================================
 
+
 class TestDataTransformation:
     """Testes de transformação de dados."""
 
@@ -127,6 +129,7 @@ class TestDataTransformation:
 # Test: Schema Validation
 # =============================================================================
 
+
 class TestSchemaValidation:
     """Testes de validação de schema."""
 
@@ -134,11 +137,8 @@ class TestSchemaValidation:
         """Deve validar schema."""
         schema = {
             "type": "object",
-            "properties": {
-                "name": {"type": "string"},
-                "age": {"type": "integer"}
-            },
-            "required": ["name"]
+            "properties": {"name": {"type": "string"}, "age": {"type": "integer"}},
+            "required": ["name"],
         }
 
         data = {"name": "João", "age": 30}
@@ -149,26 +149,17 @@ class TestSchemaValidation:
 
     def test_validate_types(self):
         """Deve validar tipos."""
-        schema = {
-            "name": str,
-            "amount": float,
-            "active": bool
-        }
+        schema = {"name": str, "amount": float, "active": bool}
 
         data = {"name": "Test", "amount": 100.0, "active": True}
 
-        types_match = all(
-            isinstance(data[k], v) for k, v in schema.items()
-        )
+        types_match = all(isinstance(data[k], v) for k, v in schema.items())
 
         assert types_match is True
 
     def test_validate_range(self):
         """Deve validar range."""
-        schema = {
-            "amount": {"min": 1, "max": 10000},
-            "age": {"min": 18, "max": 100}
-        }
+        schema = {"amount": {"min": 1, "max": 10000}, "age": {"min": 18, "max": 100}}
 
         data = {"amount": 500, "age": 25}
 
@@ -182,9 +173,7 @@ class TestSchemaValidation:
         """Deve validar padrão."""
         import re
 
-        schema = {
-            "postal_code": {"pattern": r"^\d{5}-\d{3}$"}
-        }
+        schema = {"postal_code": {"pattern": r"^\d{5}-\d{3}$"}}
 
         data = {"postal_code": "12345-678"}
 
@@ -194,9 +183,7 @@ class TestSchemaValidation:
 
     def test_validate_enum(self):
         """Deve validar enum."""
-        schema = {
-            "status": {"enum": ["pending", "approved", "rejected"]}
-        }
+        schema = {"status": {"enum": ["pending", "approved", "rejected"]}}
 
         data = {"status": "approved"}
 
@@ -209,6 +196,7 @@ class TestSchemaValidation:
 # Test: Sanitization
 # =============================================================================
 
+
 class TestSanitization:
     """Testes de sanitização."""
 
@@ -217,8 +205,11 @@ class TestSanitization:
         html = "<script>alert('xss')</script>Text"
 
         import re
+
         # Remover tags script e style
-        sanitized = re.sub(r"<(script|style)[^>]*>.*?</\1>", "", html, flags=re.IGNORECASE | re.DOTALL)
+        sanitized = re.sub(
+            r"<(script|style)[^>]*>.*?</\1>", "", html, flags=re.IGNORECASE | re.DOTALL
+        )
         # Remover outras tags
         sanitized = re.sub(r"<[^>]+>", "", sanitized)
 
@@ -244,6 +235,7 @@ class TestSanitization:
 
         # Remover caracteres inválidos
         import re
+
         sanitized = re.sub(r"[^\w\s.-]", "", filename)
 
         assert sanitized == "my file .txt"
@@ -252,11 +244,11 @@ class TestSanitization:
         """Deve escapar caracteres JSON."""
         import json
 
-        data = {"text": "Texto com \"aspas\""}
+        data = {"text": 'Texto com "aspas"'}
 
         escaped = json.dumps(data)
 
-        assert "Texto com \\\"aspas\\\"" in escaped
+        assert 'Texto com \\"aspas\\"' in escaped
 
     def test_trim_whitespace(self):
         """Deve remover espaços em branco."""
@@ -270,6 +262,7 @@ class TestSanitization:
 # =============================================================================
 # Test: Data Type Conversion
 # =============================================================================
+
 
 class TestDataTypeConversion:
     """Testes de conversão de tipos de dados."""
@@ -323,16 +316,13 @@ class TestDataTypeConversion:
 # Test: Error Messages
 # =============================================================================
 
+
 class TestErrorMessages:
     """Testes de mensagens de erro."""
 
     def test_format_error_message(self):
         """Deve formatar mensagem de erro."""
-        error = {
-            "code": "INVALID_INPUT",
-            "field": "email",
-            "message": "Email is required"
-        }
+        error = {"code": "INVALID_INPUT", "field": "email", "message": "Email is required"}
 
         formatted = f"{error['code']}: {error['message']}"
 
@@ -340,10 +330,7 @@ class TestErrorMessages:
 
     def test_localize_error(self):
         """Deve localizar mensagem de erro."""
-        errors = {
-            "en": "Email is required",
-            "pt": "Email é obrigatório"
-        }
+        errors = {"en": "Email is required", "pt": "Email é obrigatório"}
 
         locale = "pt"
         message = errors.get(locale, errors["en"])
@@ -355,11 +342,7 @@ class TestErrorMessages:
         error = {
             "code": "VALIDATION_ERROR",
             "message": "Validation failed",
-            "details": {
-                "field": "age",
-                "value": "15",
-                "constraint": "min: 18"
-            }
+            "details": {"field": "age", "value": "15", "constraint": "min: 18"},
         }
 
         assert "details" in error
@@ -372,8 +355,8 @@ class TestErrorMessages:
             "suggestions": [
                 "Use at least 8 characters",
                 "Include uppercase letters",
-                "Include numbers and symbols"
-            ]
+                "Include numbers and symbols",
+            ],
         }
 
         assert len(error["suggestions"]) == 3
@@ -386,7 +369,7 @@ class TestErrorMessages:
             error = {
                 "type": type(e).__name__,
                 "message": str(e),
-                "stack_trace": "line1\nline2\nline3"
+                "stack_trace": "line1\nline2\nline3",
             }
 
         assert error["type"] == "ValueError"
@@ -396,15 +379,13 @@ class TestErrorMessages:
 # Test: Response Formatting
 # =============================================================================
 
+
 class TestResponseFormatting:
     """Testes de formatação de resposta."""
 
     def test_format_success_response(self):
         """Deve formatar resposta de sucesso."""
-        response = {
-            "success": True,
-            "data": {"result": "processed"}
-        }
+        response = {"success": True, "data": {"result": "processed"}}
 
         assert response["success"] is True
 
@@ -412,10 +393,7 @@ class TestResponseFormatting:
         """Deve formatar resposta de erro."""
         response = {
             "success": False,
-            "error": {
-                "code": "ERROR_CODE",
-                "message": "Something went wrong"
-            }
+            "error": {"code": "ERROR_CODE", "message": "Something went wrong"},
         }
 
         assert response["success"] is False
@@ -424,12 +402,7 @@ class TestResponseFormatting:
         """Deve formatar resposta paginada."""
         response = {
             "data": [{"id": i} for i in range(10)],
-            "pagination": {
-                "page": 1,
-                "per_page": 10,
-                "total": 100,
-                "pages": 10
-            }
+            "pagination": {"page": 1, "per_page": 10, "total": 100, "pages": 10},
         }
 
         assert len(response["data"]) == 10
@@ -441,11 +414,7 @@ class TestResponseFormatting:
 
         filtered = [item for item in all_items if item["type"] == "A"]
 
-        response = {
-            "data": filtered,
-            "filter": {"type": "A"},
-            "total_filtered": len(filtered)
-        }
+        response = {"data": filtered, "filter": {"type": "A"}, "total_filtered": len(filtered)}
 
         assert response["total_filtered"] == 2
 
@@ -455,9 +424,6 @@ class TestResponseFormatting:
 
         sorted_items = sorted(items, key=lambda x: x["id"])
 
-        response = {
-            "data": sorted_items,
-            "sort": {"field": "id", "order": "asc"}
-        }
+        response = {"data": sorted_items, "sort": {"field": "id", "order": "asc"}}
 
         assert response["data"][0]["id"] == 1

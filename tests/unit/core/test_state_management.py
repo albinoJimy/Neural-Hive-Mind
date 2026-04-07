@@ -14,6 +14,7 @@ from uuid import uuid4
 # Test: State Management
 # =============================================================================
 
+
 class TestStateManagement:
     """Testes de gerenciamento de estado."""
 
@@ -24,7 +25,7 @@ class TestStateManagement:
             "entity_type": "transaction",
             "status": "pending",
             "data": {},
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         assert state["status"] == "pending"
@@ -43,7 +44,7 @@ class TestStateManagement:
         transitions = {
             "pending": ["approved", "rejected"],
             "approved": ["completed"],
-            "rejected": ["cancelled"]
+            "rejected": ["cancelled"],
         }
 
         current = "pending"
@@ -57,22 +58,26 @@ class TestStateManagement:
         """Deve manter histórico de estado."""
         history = []
 
-        history.append({
-            "from_state": "pending",
-            "to_state": "approved",
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        })
+        history.append(
+            {
+                "from_state": "pending",
+                "to_state": "approved",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        )
 
         assert len(history) == 1
 
     def test_state_validation(self):
         """Deve validar estado."""
-        state = {
-            "entity_id": str(uuid4()),
-            "status": "approved"
-        }
+        state = {"entity_id": str(uuid4()), "status": "approved"}
 
-        is_valid = bool(state["entity_id"]) and state["status"] in ["pending", "approved", "rejected", "completed"]
+        is_valid = bool(state["entity_id"]) and state["status"] in [
+            "pending",
+            "approved",
+            "rejected",
+            "completed",
+        ]
 
         assert is_valid is True
 
@@ -80,6 +85,7 @@ class TestStateManagement:
 # =============================================================================
 # Test: Cache Management
 # =============================================================================
+
 
 class TestCacheManagement:
     """Testes de gerenciamento de cache."""
@@ -94,7 +100,7 @@ class TestCacheManagement:
 
         cache[key] = {
             "value": value,
-            "expires_at": datetime.now(timezone.utc) + timedelta(seconds=ttl)
+            "expires_at": datetime.now(timezone.utc) + timedelta(seconds=ttl),
         }
 
         assert cache[key]["value"] == 1500.00
@@ -104,7 +110,7 @@ class TestCacheManagement:
         cache = {
             "user:123:balance": {
                 "value": 1500.00,
-                "expires_at": datetime.now(timezone.utc) + timedelta(seconds=300)
+                "expires_at": datetime.now(timezone.utc) + timedelta(seconds=300),
             }
         }
 
@@ -119,7 +125,7 @@ class TestCacheManagement:
         cache = {
             "key": {
                 "value": "data",
-                "expires_at": datetime.now(timezone.utc) - timedelta(seconds=10)
+                "expires_at": datetime.now(timezone.utc) - timedelta(seconds=10),
             }
         }
 
@@ -150,6 +156,7 @@ class TestCacheManagement:
 # Test: Session Management
 # =============================================================================
 
+
 class TestSessionManagement:
     """Testes de gerenciamento de sessão."""
 
@@ -160,7 +167,7 @@ class TestSessionManagement:
             "user_id": str(uuid4()),
             "created_at": datetime.now(timezone.utc).isoformat(),
             "last_activity": datetime.now(timezone.utc).isoformat(),
-            "data": {}
+            "data": {},
         }
 
         assert session["session_id"] is not None
@@ -178,7 +185,9 @@ class TestSessionManagement:
         last_activity = datetime.now(timezone.utc) - timedelta(minutes=35)
         timeout_minutes = 30
 
-        timed_out = (datetime.now(timezone.utc) - last_activity).total_seconds() > timeout_minutes * 60
+        timed_out = (
+            datetime.now(timezone.utc) - last_activity
+        ).total_seconds() > timeout_minutes * 60
 
         assert timed_out is True
 
@@ -204,6 +213,7 @@ class TestSessionManagement:
 # =============================================================================
 # Test: Lock Management
 # =============================================================================
+
 
 class TestLockManagement:
     """Testes de gerenciamento de locks."""
@@ -242,7 +252,7 @@ class TestLockManagement:
         lock = {
             "resource": "transaction:123",
             "locked_at": datetime.now(timezone.utc) - timedelta(seconds=70),
-            "ttl": 60
+            "ttl": 60,
         }
 
         expired = (datetime.now(timezone.utc) - lock["locked_at"]).total_seconds() > lock["ttl"]
@@ -254,7 +264,7 @@ class TestLockManagement:
         lock = {
             "resource": "transaction:123",
             "owner": "service-1",
-            "locked_at": datetime.now(timezone.utc).isoformat()
+            "locked_at": datetime.now(timezone.utc).isoformat(),
         }
 
         is_owner = lock["owner"] == "service-1"
@@ -265,6 +275,7 @@ class TestLockManagement:
 # =============================================================================
 # Test: Queue Management
 # =============================================================================
+
 
 class TestQueueManagement:
     """Testes de gerenciamento de filas."""
@@ -300,7 +311,7 @@ class TestQueueManagement:
         queue = [
             {"id": "1", "priority": "low"},
             {"id": "2", "priority": "high"},
-            {"id": "3", "priority": "medium"}
+            {"id": "3", "priority": "medium"},
         ]
 
         priority_order = {"high": 0, "medium": 1, "low": 2}
@@ -324,6 +335,7 @@ class TestQueueManagement:
 # Test: Event Bus
 # =============================================================================
 
+
 class TestEventBus:
     """Testes de barramento de eventos."""
 
@@ -333,7 +345,7 @@ class TestEventBus:
             "event_id": str(uuid4()),
             "type": "TransactionCreated",
             "data": {"amount": 100},
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         published = True
@@ -344,7 +356,7 @@ class TestEventBus:
         """Deve inscrever em evento."""
         subscriptions = {
             "TransactionCreated": ["handler1", "handler2"],
-            "ApprovalRequired": ["handler3"]
+            "ApprovalRequired": ["handler3"],
         }
 
         event_type = "TransactionCreated"
@@ -354,9 +366,7 @@ class TestEventBus:
 
     def test_unsubscribe_from_event(self):
         """Deve desinscrever de evento."""
-        subscriptions = {
-            "TransactionCreated": ["handler1", "handler2"]
-        }
+        subscriptions = {"TransactionCreated": ["handler1", "handler2"]}
 
         subscriptions["TransactionCreated"].remove("handler1")
 
@@ -367,7 +377,7 @@ class TestEventBus:
         events = [
             {"type": "TransactionCreated", "amount": 100},
             {"type": "ApprovalRequired", "amount": 50},
-            {"type": "TransactionCreated", "amount": 200}
+            {"type": "TransactionCreated", "amount": 200},
         ]
 
         filtered = [e for e in events if e["type"] == "TransactionCreated"]
@@ -379,7 +389,7 @@ class TestEventBus:
         events = [
             {"id": "1", "timestamp": "T10:00"},
             {"id": "2", "timestamp": "T10:05"},
-            {"id": "3", "timestamp": "T10:10"}
+            {"id": "3", "timestamp": "T10:10"},
         ]
 
         # Repassar a partir do evento 2
@@ -393,17 +403,13 @@ class TestEventBus:
 # Test: Configuration Management
 # =============================================================================
 
+
 class TestConfigurationManagement:
     """Testes de gerenciamento de configuração."""
 
     def test_load_config(self):
         """Deve carregar configuração."""
-        config = {
-            "service_name": "gateway",
-            "port": 8000,
-            "debug": False,
-            "log_level": "INFO"
-        }
+        config = {"service_name": "gateway", "port": 8000, "debug": False, "log_level": "INFO"}
 
         assert config["port"] == 8000
 
@@ -421,7 +427,8 @@ class TestConfigurationManagement:
         config = {"port": 8000, "host": "localhost"}
 
         is_valid = (
-            isinstance(config["port"], int) and 1 <= config["port"] <= 65535
+            isinstance(config["port"], int)
+            and 1 <= config["port"] <= 65535
             and isinstance(config["host"], str)
         )
 
@@ -443,7 +450,7 @@ class TestConfigurationManagement:
 
         configs = {
             "development": {"debug": True, "log_level": "DEBUG"},
-            "production": {"debug": False, "log_level": "INFO"}
+            "production": {"debug": False, "log_level": "INFO"},
         }
 
         config = configs.get(env, {})

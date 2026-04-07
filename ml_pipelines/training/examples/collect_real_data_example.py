@@ -28,7 +28,7 @@ from pathlib import Path
 # Adicionar paths para imports
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-sys.path.insert(0, str(Path(__file__).resolve().parents[3] / 'libraries' / 'python'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "libraries" / "python"))
 
 import structlog
 
@@ -36,7 +36,7 @@ from real_data_collector import (
     RealDataCollector,
     InsufficientDataError,
     DataQualityError,
-    FeatureExtractionError
+    FeatureExtractionError,
 )
 
 # Configurar logging estruturado
@@ -50,7 +50,7 @@ structlog.configure(
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
         structlog.processors.UnicodeDecoder(),
-        structlog.dev.ConsoleRenderer()
+        structlog.dev.ConsoleRenderer(),
     ],
     wrapper_class=structlog.stdlib.BoundLogger,
     context_class=dict,
@@ -63,60 +63,46 @@ logger = structlog.get_logger(__name__)
 
 async def main():
     parser = argparse.ArgumentParser(
-        description='Coleta dados reais do ledger cognitivo para treinamento ML'
+        description="Coleta dados reais do ledger cognitivo para treinamento ML"
     )
     parser.add_argument(
-        '--specialist-type',
+        "--specialist-type",
         type=str,
-        default='technical',
-        help='Tipo do especialista (technical, business, evolution, etc)'
+        default="technical",
+        help="Tipo do especialista (technical, business, evolution, etc)",
     )
     parser.add_argument(
-        '--days',
-        type=int,
-        default=90,
-        help='Janela de tempo em dias para buscar opiniões'
+        "--days", type=int, default=90, help="Janela de tempo em dias para buscar opiniões"
     )
     parser.add_argument(
-        '--min-samples',
-        type=int,
-        default=1000,
-        help='Mínimo de amostras necessárias'
+        "--min-samples", type=int, default=1000, help="Mínimo de amostras necessárias"
     )
     parser.add_argument(
-        '--min-rating',
-        type=float,
-        default=0.0,
-        help='Rating mínimo de feedback para incluir'
+        "--min-rating", type=float, default=0.0, help="Rating mínimo de feedback para incluir"
     )
     parser.add_argument(
-        '--output-dir',
-        type=str,
-        default='data/real',
-        help='Diretório para salvar arquivos Parquet'
+        "--output-dir", type=str, default="data/real", help="Diretório para salvar arquivos Parquet"
     )
     parser.add_argument(
-        '--mongodb-uri',
+        "--mongodb-uri",
         type=str,
         default=None,
-        help='URI MongoDB (default: env MONGODB_URI ou localhost)'
+        help="URI MongoDB (default: env MONGODB_URI ou localhost)",
     )
     parser.add_argument(
-        '--stats-only',
-        action='store_true',
-        help='Apenas mostrar estatísticas, sem coletar dados'
+        "--stats-only", action="store_true", help="Apenas mostrar estatísticas, sem coletar dados"
     )
     parser.add_argument(
-        '--opinions-collection',
+        "--opinions-collection",
         type=str,
         default=None,
-        help='Nome da collection de opiniões (default: env OPINIONS_COLLECTION ou specialist_opinions)'
+        help="Nome da collection de opiniões (default: env OPINIONS_COLLECTION ou specialist_opinions)",
     )
     parser.add_argument(
-        '--feedback-collection',
+        "--feedback-collection",
         type=str,
         default=None,
-        help='Nome da collection de feedback (default: env FEEDBACK_COLLECTION ou feedback)'
+        help="Nome da collection de feedback (default: env FEEDBACK_COLLECTION ou feedback)",
     )
 
     args = parser.parse_args()
@@ -125,15 +111,15 @@ async def main():
         "Iniciando coleta de dados reais",
         specialist_type=args.specialist_type,
         days=args.days,
-        min_samples=args.min_samples
+        min_samples=args.min_samples,
     )
 
     # Inicializar collector
     collector = RealDataCollector(
         mongodb_uri=args.mongodb_uri,
-        mongodb_database='neural_hive',
+        mongodb_database="neural_hive",
         opinions_collection_name=args.opinions_collection,
-        feedback_collection_name=args.feedback_collection
+        feedback_collection_name=args.feedback_collection,
     )
 
     try:
@@ -143,8 +129,7 @@ async def main():
         print("=" * 60)
 
         stats = await collector.get_collection_statistics(
-            specialist_type=args.specialist_type,
-            days=args.days
+            specialist_type=args.specialist_type, days=args.days
         )
 
         print(f"Especialista: {stats['specialist_type']}")
@@ -152,18 +137,20 @@ async def main():
         print(f"Total de opiniões: {stats['total_opinions']}")
         print(f"Opiniões com feedback: {stats['opinions_with_feedback']}")
         print(f"Taxa de cobertura: {stats['coverage_rate']}%")
-        print(f"Suficiente para treinamento: {'Sim' if stats['sufficient_for_training'] else 'Não'}")
+        print(
+            f"Suficiente para treinamento: {'Sim' if stats['sufficient_for_training'] else 'Não'}"
+        )
 
-        if stats['rating_distribution']:
+        if stats["rating_distribution"]:
             print("\nDistribuição de ratings:")
-            for rating, count in sorted(stats['rating_distribution'].items()):
+            for rating, count in sorted(stats["rating_distribution"].items()):
                 print(f"  Rating {rating}: {count} feedbacks")
 
         if args.stats_only:
             print("\n[--stats-only] Apenas estatísticas solicitadas, encerrando.")
             return
 
-        if not stats['sufficient_for_training']:
+        if not stats["sufficient_for_training"]:
             print("\n⚠️  AVISO: Dados podem ser insuficientes para treinamento!")
             print(f"   Necessário: {args.min_samples} amostras")
             print(f"   Disponível: ~{stats['opinions_with_feedback']} (estimativa)")
@@ -178,7 +165,7 @@ async def main():
                 specialist_type=args.specialist_type,
                 days=args.days,
                 min_samples=args.min_samples,
-                min_feedback_rating=args.min_rating
+                min_feedback_rating=args.min_rating,
             )
 
             print(f"✓ Dados coletados: {len(df)} amostras")
@@ -209,17 +196,17 @@ async def main():
 
         print("\nDistribuição de labels:")
         # Nota: approve_with_conditions não é aceito pelo schema de feedback atual
-        label_names = {0: 'reject', 1: 'approve', 2: 'review_required'}
-        for label, count in sorted(dist_report['distribution'].items()):
-            pct = dist_report['percentages'].get(label, 0)
-            name = label_names.get(label, f'unknown_{label}')
+        label_names = {0: "reject", 1: "approve", 2: "review_required"}
+        for label, count in sorted(dist_report["distribution"].items()):
+            pct = dist_report["percentages"].get(label, 0)
+            name = label_names.get(label, f"unknown_{label}")
             print(f"  {name}: {count} ({pct:.1f}%)")
 
         print(f"\nBalanceado: {'Sim' if dist_report['is_balanced'] else 'Não'}")
 
-        if dist_report['warnings']:
+        if dist_report["warnings"]:
             print("\n⚠️  Avisos:")
-            for warning in dist_report['warnings']:
+            for warning in dist_report["warnings"]:
                 print(f"  - {warning}")
 
         # 4. Validar qualidade dos dados
@@ -234,12 +221,12 @@ async def main():
         print(f"Features sparse (sempre zero): {quality_report['sparse_features_count']}")
         print(f"Taxa de sparsity: {quality_report['sparsity_rate']:.1f}%")
 
-        if quality_report['warnings']:
+        if quality_report["warnings"]:
             print("\n⚠️  Avisos de qualidade:")
-            for warning in quality_report['warnings']:
+            for warning in quality_report["warnings"]:
                 print(f"  - {warning}")
 
-        if not quality_report['passed']:
+        if not quality_report["passed"]:
             print("\n❌ Qualidade abaixo do threshold!")
             print("   Considere revisar o processo de coleta de feedback.")
 
@@ -274,7 +261,11 @@ async def main():
         test_path = output_dir / f"{prefix}_test.parquet"
 
         # Remover coluna created_at antes de salvar (não é feature)
-        feature_cols = [col for col in train_df.columns if col not in ['opinion_id', 'plan_id', 'specialist_type', 'created_at', 'human_rating']]
+        feature_cols = [
+            col
+            for col in train_df.columns
+            if col not in ["opinion_id", "plan_id", "specialist_type", "created_at", "human_rating"]
+        ]
 
         train_df[feature_cols].to_parquet(train_path, index=False)
         val_df[feature_cols].to_parquet(val_path, index=False)

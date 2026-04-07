@@ -13,7 +13,9 @@ from datetime import datetime, timedelta
 @pytest.mark.asyncio
 async def test_memory_layer_health_check():
     """Testa health check da API."""
-    async with AsyncClient(base_url="http://memory-layer-api.neural-hive.svc.cluster.local:8000", timeout=30.0) as client:
+    async with AsyncClient(
+        base_url="http://memory-layer-api.neural-hive.svc.cluster.local:8000", timeout=30.0
+    ) as client:
         response = await client.get("/health")
 
         assert response.status_code == 200
@@ -26,7 +28,9 @@ async def test_memory_layer_health_check():
 @pytest.mark.asyncio
 async def test_memory_layer_readiness_check():
     """Testa readiness check da API."""
-    async with AsyncClient(base_url="http://memory-layer-api.neural-hive.svc.cluster.local:8000", timeout=30.0) as client:
+    async with AsyncClient(
+        base_url="http://memory-layer-api.neural-hive.svc.cluster.local:8000", timeout=30.0
+    ) as client:
         response = await client.get("/ready")
 
         assert response.status_code == 200
@@ -38,15 +42,14 @@ async def test_memory_layer_readiness_check():
 @pytest.mark.asyncio
 async def test_memory_query_basic():
     """Testa consulta básica de memória."""
-    async with AsyncClient(base_url="http://memory-layer-api.neural-hive.svc.cluster.local:8000", timeout=30.0) as client:
+    async with AsyncClient(
+        base_url="http://memory-layer-api.neural-hive.svc.cluster.local:8000", timeout=30.0
+    ) as client:
         query_request = {
             "query_type": "semantic",
             "query": "test query",
-            "filters": {
-                "agent_id": "test_agent",
-                "time_range_hours": 24
-            },
-            "limit": 10
+            "filters": {"agent_id": "test_agent", "time_range_hours": 24},
+            "limit": 10,
         }
 
         response = await client.post("/api/v1/memory/query", json=query_request)
@@ -59,7 +62,9 @@ async def test_memory_query_basic():
 @pytest.mark.asyncio
 async def test_memory_lineage_endpoint():
     """Testa consulta de linhagem de memória."""
-    async with AsyncClient(base_url="http://memory-layer-api.neural-hive.svc.cluster.local:8000", timeout=30.0) as client:
+    async with AsyncClient(
+        base_url="http://memory-layer-api.neural-hive.svc.cluster.local:8000", timeout=30.0
+    ) as client:
         # Usar um entity_id de teste
         response = await client.get("/api/v1/memory/lineage/test_entity_001")
 
@@ -71,7 +76,9 @@ async def test_memory_lineage_endpoint():
 @pytest.mark.asyncio
 async def test_memory_quality_stats():
     """Testa consulta de estatísticas de qualidade de dados."""
-    async with AsyncClient(base_url="http://memory-layer-api.neural-hive.svc.cluster.local:8000", timeout=30.0) as client:
+    async with AsyncClient(
+        base_url="http://memory-layer-api.neural-hive.svc.cluster.local:8000", timeout=30.0
+    ) as client:
         response = await client.get("/api/v1/memory/quality/stats")
 
         assert response.status_code == 200
@@ -83,7 +90,9 @@ async def test_memory_quality_stats():
 @pytest.mark.asyncio
 async def test_memory_catalog_assets():
     """Testa catálogo de ativos de memória."""
-    async with AsyncClient(base_url="http://memory-layer-api.neural-hive.svc.cluster.local:8000", timeout=30.0) as client:
+    async with AsyncClient(
+        base_url="http://memory-layer-api.neural-hive.svc.cluster.local:8000", timeout=30.0
+    ) as client:
         response = await client.get("/api/v1/memory/catalog/assets")
 
         assert response.status_code == 200
@@ -95,11 +104,10 @@ async def test_memory_catalog_assets():
 @pytest.mark.asyncio
 async def test_memory_invalidate():
     """Testa invalidação de cache de memória."""
-    async with AsyncClient(base_url="http://memory-layer-api.neural-hive.svc.cluster.local:8000", timeout=30.0) as client:
-        invalidate_request = {
-            "keys": ["test_key_001"],
-            "pattern": None
-        }
+    async with AsyncClient(
+        base_url="http://memory-layer-api.neural-hive.svc.cluster.local:8000", timeout=30.0
+    ) as client:
+        invalidate_request = {"keys": ["test_key_001"], "pattern": None}
 
         response = await client.post("/api/v1/memory/invalidate", json=invalidate_request)
 
@@ -112,7 +120,9 @@ async def test_memory_invalidate():
 @pytest.mark.asyncio
 async def test_memory_metrics_endpoint():
     """Testa endpoint de métricas Prometheus."""
-    async with AsyncClient(base_url="http://memory-layer-api.neural-hive.svc.cluster.local:8000", timeout=30.0) as client:
+    async with AsyncClient(
+        base_url="http://memory-layer-api.neural-hive.svc.cluster.local:8000", timeout=30.0
+    ) as client:
         response = await client.get("/metrics")
 
         assert response.status_code == 200

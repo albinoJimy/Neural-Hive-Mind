@@ -67,13 +67,11 @@ class MLflowDeployer:
         "traffic_percentage": 10.0,
         "min_samples": 1000,
         "duration_hours": 72,
-        "success_threshold": 0.02
+        "success_threshold": 0.02,
     }
 
     def __init__(
-        self,
-        mlflow_tracking_uri: str = None,
-        experiment_name: str = "specialist_training"
+        self, mlflow_tracking_uri: str = None, experiment_name: str = "specialist_training"
     ):
         """
         Inicializa MLflow deployer.
@@ -83,8 +81,7 @@ class MLflowDeployer:
             experiment_name: Nome do experimento MLflow
         """
         self.mlflow_tracking_uri = mlflow_tracking_uri or os.getenv(
-            'MLFLOW_TRACKING_URI',
-            'http://mlflow.mlflow.svc.cluster.local:5000'
+            "MLFLOW_TRACKING_URI", "http://mlflow.mlflow.svc.cluster.local:5000"
         )
         self.experiment_name = experiment_name
 
@@ -95,7 +92,7 @@ class MLflowDeployer:
         logger.info(
             "mlflow_deployer_initialized",
             tracking_uri=self.mlflow_tracking_uri,
-            experiment_name=experiment_name
+            experiment_name=experiment_name,
         )
 
     def register_model(
@@ -105,7 +102,7 @@ class MLflowDeployer:
         run_id: str,
         model_metrics: Dict[str, float] = None,
         model_params: Dict[str, Any] = None,
-        tags: Dict[str, str] = None
+        tags: Dict[str, str] = None,
     ) -> str:
         """
         Registra modelo treinado no MLflow Model Registry.
@@ -122,10 +119,7 @@ class MLflowDeployer:
             model_version: Versão do modelo registrado
         """
         logger.info(
-            "registering_model",
-            model_type=model_type,
-            model_path=model_path,
-            run_id=run_id
+            "registering_model", model_type=model_type, model_path=model_path, run_id=run_id
         )
 
         # Criar nome do modelo registrado
@@ -133,6 +127,7 @@ class MLflowDeployer:
 
         # Carregar modelo para obter informações
         import joblib
+
         model = joblib.load(model_path)
 
         # Criar modelo URI no MLflow
@@ -141,15 +136,12 @@ class MLflowDeployer:
         # Logar modelo no run (se já não estiver logado)
         with mlflow.start_run(run_id=run_id):
             mlflow.sklearn.log_model(
-                sk_model=model,
-                artifact_path="model",
-                registered_model_name=registered_model_name
+                sk_model=model, artifact_path="model", registered_model_name=registered_model_name
             )
 
         # Obter versão do modelo
         model_version = self.client.get_latest_versions(
-            name=registered_model_name,
-            stages=["None"]
+            name=registered_model_name, stages=["None"]
         )[0].version
 
         # Adicionar tags e métricas
@@ -158,14 +150,11 @@ class MLflowDeployer:
                 name=registered_model_name,
                 version=model_version,
                 key="registered_at",
-                value=datetime.now(timezone.utc).isoformat()
+                value=datetime.now(timezone.utc).isoformat(),
             )
             for key, value in tags.items():
                 self.client.set_model_version_tag(
-                    name=registered_model_name,
-                    version=model_version,
-                    key=key,
-                    value=value
+                    name=registered_model_name, version=model_version, key=key, value=value
                 )
 
         # Adicionar métricas ao run
@@ -184,16 +173,13 @@ class MLflowDeployer:
             "model_registered",
             model_type=model_type,
             model_version=model_version,
-            registered_model_name=registered_model_name
+            registered_model_name=registered_model_name,
         )
 
         return model_version
 
     def promote_model(
-        self,
-        model_type: str,
-        model_version: str,
-        target_stage: str = "Production"
+        self, model_type: str, model_version: str, target_stage: str = "Production"
     ) -> bool:
         """
         Promove modelo para stage específico.
@@ -212,7 +198,7 @@ class MLflowDeployer:
             "promoting_model",
             model_type=model_type,
             model_version=model_version,
-            target_stage=target_stage
+            target_stage=target_stage,
         )
 
         try:
@@ -225,7 +211,7 @@ class MLflowDeployer:
                 name=registered_model_name,
                 version=model_version,
                 stage=target_stage,
-                archive_existing_versions=False
+                archive_existing_versions=False,
             )
 
             # Adicionar timestamp de promoção
@@ -233,14 +219,14 @@ class MLflowDeployer:
                 name=registered_model_name,
                 version=model_version,
                 key=f"promoted_to_{target_stage.lower()}",
-                value=datetime.now(timezone.utc).isoformat()
+                value=datetime.now(timezone.utc).isoformat(),
             )
 
             logger.info(
                 "model_promoted",
                 model_type=model_type,
                 model_version=model_version,
-                target_stage=target_stage
+                target_stage=target_stage,
             )
 
             return True
@@ -250,7 +236,7 @@ class MLflowDeployer:
                 "model_promotion_failed",
                 model_type=model_type,
                 model_version=model_version,
-                error=str(e)
+                error=str(e),
             )
             return False
 
@@ -260,20 +246,17 @@ class MLflowDeployer:
 
         try:
             current_versions = self.client.get_latest_versions(
-                name=registered_model_name,
-                stages=["Production"]
+                name=registered_model_name, stages=["Production"]
             )
 
             for version_info in current_versions:
                 self.client.transition_model_version_stage(
-                    name=registered_model_name,
-                    version=version_info.version,
-                    stage="Archived"
+                    name=registered_model_name, version=version_info.version, stage="Archived"
                 )
                 logger.info(
                     "archived_previous_production",
                     model_type=model_type,
-                    archived_version=version_info.version
+                    archived_version=version_info.version,
                 )
 
         except Exception as e:
@@ -295,7 +278,8 @@ class MLflowDeployer:
             model_names = [f"{self.MODEL_REGISTRY_NAME}_{model_type}"]
         else:
             model_names = [
-                name for name in self.client.search_registered_models()
+                name
+                for name in self.client.search_registered_models()
                 if name.name.startswith(self.MODEL_REGISTRY_NAME)
             ]
 
@@ -306,22 +290,20 @@ class MLflowDeployer:
             versions = self.client.get_latest_versions(name=name)
 
             for version_info in versions:
-                models.append({
-                    'specialist_type': specialist_type,
-                    'model_name': name,
-                    'version': version_info.version,
-                    'stage': version_info.current_stage,
-                    'status': version_info.status,
-                    'creation_timestamp': version_info.creation_timestamp
-                })
+                models.append(
+                    {
+                        "specialist_type": specialist_type,
+                        "model_name": name,
+                        "version": version_info.version,
+                        "stage": version_info.current_stage,
+                        "status": version_info.status,
+                        "creation_timestamp": version_info.creation_timestamp,
+                    }
+                )
 
         return models
 
-    def rollback_model(
-        self,
-        model_type: str,
-        target_version: str
-    ) -> bool:
+    def rollback_model(self, model_type: str, target_version: str) -> bool:
         """
         Rollback para versão anterior.
 
@@ -334,11 +316,7 @@ class MLflowDeployer:
         """
         registered_model_name = f"{self.MODEL_REGISTRY_NAME}_{model_type}"
 
-        logger.info(
-            "rolling_back_model",
-            model_type=model_type,
-            target_version=target_version
-        )
+        logger.info("rolling_back_model", model_type=model_type, target_version=target_version)
 
         try:
             # Arquivar Production atual
@@ -346,9 +324,7 @@ class MLflowDeployer:
 
             # Promover versão alvo para Production
             self.client.transition_model_version_stage(
-                name=registered_model_name,
-                version=target_version,
-                stage="Production"
+                name=registered_model_name, version=target_version, stage="Production"
             )
 
             # Adicionar tag de rollback
@@ -356,13 +332,11 @@ class MLflowDeployer:
                 name=registered_model_name,
                 version=target_version,
                 key="rollback",
-                value=datetime.now(timezone.utc).isoformat()
+                value=datetime.now(timezone.utc).isoformat(),
             )
 
             logger.info(
-                "model_rollback_completed",
-                model_type=model_type,
-                target_version=target_version
+                "model_rollback_completed", model_type=model_type, target_version=target_version
             )
 
             return True
@@ -372,7 +346,7 @@ class MLflowDeployer:
                 "model_rollback_failed",
                 model_type=model_type,
                 target_version=target_version,
-                error=str(e)
+                error=str(e),
             )
             return False
 
@@ -390,8 +364,7 @@ class MLflowDeployer:
 
         try:
             versions = self.client.get_latest_versions(
-                name=registered_model_name,
-                stages=["Production"]
+                name=registered_model_name, stages=["Production"]
             )
 
             if versions:
@@ -402,12 +375,7 @@ class MLflowDeployer:
         except Exception:
             return None
 
-    def create_model_alias(
-        self,
-        model_type: str,
-        alias: str,
-        model_version: str
-    ) -> bool:
+    def create_model_alias(self, model_type: str, alias: str, model_version: str) -> bool:
         """
         Cria alias para versão de modelo (para A/B testing).
 
@@ -427,14 +395,14 @@ class MLflowDeployer:
                 name=registered_model_name,
                 version=model_version,
                 key=f"alias_{alias}",
-                value=datetime.now(timezone.utc).isoformat()
+                value=datetime.now(timezone.utc).isoformat(),
             )
 
             logger.info(
                 "model_alias_created",
                 model_type=model_type,
                 alias=alias,
-                model_version=model_version
+                model_version=model_version,
             )
 
             return True
@@ -461,8 +429,7 @@ class MLflowDeployer:
 
             for version_info in versions:
                 tags = self.client.get_model_version(
-                    name=registered_model_name,
-                    version=version_info.version
+                    name=registered_model_name, version=version_info.version
                 ).tags
 
                 if tags and f"alias_{alias}" in tags:
@@ -476,47 +443,68 @@ class MLflowDeployer:
 
 def main():
     """Função principal para CLI."""
-    parser = argparse.ArgumentParser(
-        description="MLflow Deployment Helper"
-    )
+    parser = argparse.ArgumentParser(description="MLflow Deployment Helper")
 
     # Subcommands
-    subparsers = parser.add_subparsers(dest='action', required=True)
+    subparsers = parser.add_subparsers(dest="action", required=True)
 
     # Register
-    register_parser = subparsers.add_parser('register', help='Registrar modelo')
-    register_parser.add_argument('--model-path', type=str, required=True)
-    register_parser.add_argument('--model-type', type=str, required=True,
-                                 choices=['business', 'technical', 'behavior', 'evolution', 'architecture'])
-    register_parser.add_argument('--run-id', type=str, required=True)
-    register_parser.add_argument('--metrics', type=str, help='JSON com métricas')
-    register_parser.add_argument('--params', type=str, help='JSON com parâmetros')
+    register_parser = subparsers.add_parser("register", help="Registrar modelo")
+    register_parser.add_argument("--model-path", type=str, required=True)
+    register_parser.add_argument(
+        "--model-type",
+        type=str,
+        required=True,
+        choices=["business", "technical", "behavior", "evolution", "architecture"],
+    )
+    register_parser.add_argument("--run-id", type=str, required=True)
+    register_parser.add_argument("--metrics", type=str, help="JSON com métricas")
+    register_parser.add_argument("--params", type=str, help="JSON com parâmetros")
 
     # Promote
-    promote_parser = subparsers.add_parser('promote', help='Promover modelo')
-    promote_parser.add_argument('--model-type', type=str, required=True,
-                                choices=['business', 'technical', 'behavior', 'evolution', 'architecture'])
-    promote_parser.add_argument('--model-version', type=str, required=True)
-    promote_parser.add_argument('--target-stage', type=str, default='Production',
-                                choices=['Staging', 'Production', 'Archived'])
+    promote_parser = subparsers.add_parser("promote", help="Promover modelo")
+    promote_parser.add_argument(
+        "--model-type",
+        type=str,
+        required=True,
+        choices=["business", "technical", "behavior", "evolution", "architecture"],
+    )
+    promote_parser.add_argument("--model-version", type=str, required=True)
+    promote_parser.add_argument(
+        "--target-stage",
+        type=str,
+        default="Production",
+        choices=["Staging", "Production", "Archived"],
+    )
 
     # List
-    list_parser = subparsers.add_parser('list', help='Listar modelos')
-    list_parser.add_argument('--model-type', type=str,
-                             choices=['business', 'technical', 'behavior', 'evolution', 'architecture'])
+    list_parser = subparsers.add_parser("list", help="Listar modelos")
+    list_parser.add_argument(
+        "--model-type",
+        type=str,
+        choices=["business", "technical", "behavior", "evolution", "architecture"],
+    )
 
     # Rollback
-    rollback_parser = subparsers.add_parser('rollback', help='Rollback de modelo')
-    rollback_parser.add_argument('--model-type', type=str, required=True,
-                                 choices=['business', 'technical', 'behavior', 'evolution', 'architecture'])
-    rollback_parser.add_argument('--target-version', type=str, required=True)
+    rollback_parser = subparsers.add_parser("rollback", help="Rollback de modelo")
+    rollback_parser.add_argument(
+        "--model-type",
+        type=str,
+        required=True,
+        choices=["business", "technical", "behavior", "evolution", "architecture"],
+    )
+    rollback_parser.add_argument("--target-version", type=str, required=True)
 
     # Alias
-    alias_parser = subparsers.add_parser('alias', help='Criar alias de modelo')
-    alias_parser.add_argument('--model-type', type=str, required=True,
-                              choices=['business', 'technical', 'behavior', 'evolution', 'architecture'])
-    alias_parser.add_argument('--alias', type=str, required=True)
-    alias_parser.add_argument('--model-version', type=str, required=True)
+    alias_parser = subparsers.add_parser("alias", help="Criar alias de modelo")
+    alias_parser.add_argument(
+        "--model-type",
+        type=str,
+        required=True,
+        choices=["business", "technical", "behavior", "evolution", "architecture"],
+    )
+    alias_parser.add_argument("--alias", type=str, required=True)
+    alias_parser.add_argument("--model-version", type=str, required=True)
 
     args = parser.parse_args()
 
@@ -524,7 +512,7 @@ def main():
     deployer = MLflowDeployer()
 
     # Executar ação
-    if args.action == 'register':
+    if args.action == "register":
         metrics = json.loads(args.metrics) if args.metrics else None
         params = json.loads(args.params) if args.params else None
 
@@ -533,34 +521,37 @@ def main():
             model_type=args.model_type,
             run_id=args.run_id,
             model_metrics=metrics,
-            model_params=params
+            model_params=params,
         )
         print(f"Modelo registrado: versão {version}")
 
-    elif args.action == 'promote':
+    elif args.action == "promote":
         success = deployer.promote_model(
             model_type=args.model_type,
             model_version=args.model_version,
-            target_stage=args.target_stage
+            target_stage=args.target_stage,
         )
         if success:
-            print(f"Modelo {args.model_type} v{args.model_version} promovido para {args.target_stage}")
+            print(
+                f"Modelo {args.model_type} v{args.model_version} promovido para {args.target_stage}"
+            )
         else:
             print("Falha na promoção")
             sys.exit(1)
 
-    elif args.action == 'list':
+    elif args.action == "list":
         models = deployer.list_models(args.model_type)
         print("\nModelos Registrados:")
         print("-" * 80)
         for model in models:
-            print(f"{model['specialist_type']:15} v{model['version']:5} {model['stage']:12} {model['status']}")
+            print(
+                f"{model['specialist_type']:15} v{model['version']:5} {model['stage']:12} {model['status']}"
+            )
         print("-" * 80)
 
-    elif args.action == 'rollback':
+    elif args.action == "rollback":
         success = deployer.rollback_model(
-            model_type=args.model_type,
-            target_version=args.target_version
+            model_type=args.model_type, target_version=args.target_version
         )
         if success:
             print(f"Rollback para versão {args.target_version} concluído")
@@ -568,11 +559,9 @@ def main():
             print("Falha no rollback")
             sys.exit(1)
 
-    elif args.action == 'alias':
+    elif args.action == "alias":
         success = deployer.create_model_alias(
-            model_type=args.model_type,
-            alias=args.alias,
-            model_version=args.model_version
+            model_type=args.model_type, alias=args.alias, model_version=args.model_version
         )
         if success:
             print(f"Alias '{args.alias}' criado para versão {args.model_version}")
@@ -581,5 +570,5 @@ def main():
             sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

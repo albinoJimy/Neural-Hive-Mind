@@ -16,6 +16,7 @@ import json
 # Test: Drift Detection
 # =============================================================================
 
+
 class TestDriftDetection:
     """Testes de detecção de drift."""
 
@@ -81,7 +82,7 @@ class TestDriftDetection:
             "feature": "transaction_amount",
             "drift_score": 2.5,
             "threshold": 2.0,
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         assert drift_info["drift_score"] > drift_info["threshold"]
@@ -92,12 +93,14 @@ def log(x):
     if x <= 0:
         return 0
     import math
+
     return math.log(x)
 
 
 # =============================================================================
 # Test: Model Retraining
 # =============================================================================
+
 
 class TestModelRetraining:
     """Testes de retreinamento de modelo."""
@@ -146,7 +149,7 @@ class TestModelRetraining:
         schedule = {
             "model_id": str(uuid4()),
             "scheduled_at": (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat(),
-            "priority": "high"
+            "priority": "high",
         }
 
         assert schedule["priority"] == "high"
@@ -156,6 +159,7 @@ class TestModelRetraining:
 # Test: Feature Engineering
 # =============================================================================
 
+
 class TestFeatureEngineering:
     """Testes de engenharia de features."""
 
@@ -164,7 +168,7 @@ class TestFeatureEngineering:
         feature = {
             "name": "transaction_amount",
             "type": "numeric",
-            "description": "Valor da transação"
+            "description": "Valor da transação",
         }
 
         assert feature["name"] == "transaction_amount"
@@ -212,6 +216,7 @@ class TestFeatureEngineering:
 # =============================================================================
 # Test: Model Evaluation
 # =============================================================================
+
 
 class TestModelEvaluation:
     """Testes de avaliação de modelo."""
@@ -273,6 +278,7 @@ class TestModelEvaluation:
 # Test: Model Registry
 # =============================================================================
 
+
 class TestModelRegistry:
     """Testes de registro de modelo."""
 
@@ -283,7 +289,7 @@ class TestModelRegistry:
             "name": "approval_model",
             "version": "1.0.0",
             "accuracy": 0.85,
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         assert model["version"] == "1.0.0"
@@ -293,7 +299,7 @@ class TestModelRegistry:
         models = [
             {"version": "1.0.0", "created_at": "2026-03-01"},
             {"version": "1.1.0", "created_at": "2026-03-15"},
-            {"version": "1.2.0", "created_at": "2026-03-29"}
+            {"version": "1.2.0", "created_at": "2026-03-29"},
         ]
 
         latest = max(models, key=lambda x: x["created_at"])
@@ -306,8 +312,8 @@ class TestModelRegistry:
         model_v2 = {"accuracy": 0.85, "f1_score": 0.83}
 
         v2_better = (
-            model_v2["accuracy"] > model_v1["accuracy"] and
-            model_v2["f1_score"] > model_v1["f1_score"]
+            model_v2["accuracy"] > model_v1["accuracy"]
+            and model_v2["f1_score"] > model_v1["f1_score"]
         )
 
         assert v2_better is True
@@ -318,22 +324,15 @@ class TestModelRegistry:
             "model_id": str(uuid4()),
             "training_samples": 10000,
             "features": ["amount", "user_risk", "time_of_day"],
-            "hyperparameters": {
-                "learning_rate": 0.001,
-                "epochs": 100
-            },
-            "training_time_seconds": 300
+            "hyperparameters": {"learning_rate": 0.001, "epochs": 100},
+            "training_time_seconds": 300,
         }
 
         assert metadata["training_samples"] == 10000
 
     def test_model_deprecation(self):
         """Deve marcar modelo como depreciado."""
-        model = {
-            "model_id": str(uuid4()),
-            "status": "active",
-            "deprecated_at": None
-        }
+        model = {"model_id": str(uuid4()), "status": "active", "deprecated_at": None}
 
         model["status"] = "deprecated"
         model["deprecated_at"] = datetime.now(timezone.utc).isoformat()
@@ -344,6 +343,7 @@ class TestModelRegistry:
 # =============================================================================
 # Test: ML Pipeline
 # =============================================================================
+
 
 class TestMLPipeline:
     """Testes de pipeline ML."""
@@ -357,7 +357,7 @@ class TestMLPipeline:
                 "feature_engineering",
                 "model_training",
                 "evaluation",
-                "deployment"
+                "deployment",
             ]
         }
 
@@ -380,17 +380,14 @@ class TestMLPipeline:
             "pipeline_id": str(uuid4()),
             "completed_stages": ["stage1", "stage2"],
             "current_stage": "stage3",
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         assert len(checkpoint["completed_stages"]) == 2
 
     def test_resume_from_checkpoint(self):
         """Deve retomar de checkpoint."""
-        checkpoint = {
-            "completed_stages": ["stage1", "stage2"],
-            "current_stage": "stage3"
-        }
+        checkpoint = {"completed_stages": ["stage1", "stage2"], "current_stage": "stage3"}
 
         next_stage = checkpoint["current_stage"]
 
@@ -416,6 +413,7 @@ class TestMLPipeline:
 # Test: Model Serving
 # =============================================================================
 
+
 class TestModelServing:
     """Testes de serving de modelo."""
 
@@ -424,7 +422,7 @@ class TestModelServing:
         model_info = {
             "model_id": str(uuid4()),
             "path": "/models/approval_model_v1.pkl",
-            "loaded_at": datetime.now(timezone.utc).isoformat()
+            "loaded_at": datetime.now(timezone.utc).isoformat(),
         }
 
         assert model_info["loaded_at"] is not None
@@ -441,11 +439,7 @@ class TestModelServing:
 
     def test_batch_predict(self):
         """Deve fazer predição em lote."""
-        features_batch = [
-            [0.5, 0.3, 0.8],
-            [0.2, 0.7, 0.1],
-            [0.9, 0.1, 0.5]
-        ]
+        features_batch = [[0.5, 0.3, 0.8], [0.2, 0.7, 0.1], [0.9, 0.1, 0.5]]
 
         # Simula predições
         predictions = [1, 0, 1]
@@ -458,7 +452,9 @@ class TestModelServing:
         capacity_per_instance = 50
 
         # Arredondar para cima
-        instances_needed = (requests_per_second + capacity_per_instance - 1) // capacity_per_instance
+        instances_needed = (
+            requests_per_second + capacity_per_instance - 1
+        ) // capacity_per_instance
 
         assert instances_needed == 2
 
@@ -468,6 +464,7 @@ class TestModelServing:
 
         # Simula inferência
         import time
+
         time.sleep(0.01)
 
         end_time = datetime.now(timezone.utc)
@@ -479,6 +476,7 @@ class TestModelServing:
 # =============================================================================
 # Test: A/B Testing
 # =============================================================================
+
 
 class TestABTesting:
     """Testes de A/B testing."""
@@ -538,6 +536,7 @@ class TestABTesting:
 # Test: Feature Store
 # =============================================================================
 
+
 class TestFeatureStore:
     """Testes de feature store."""
 
@@ -547,7 +546,7 @@ class TestFeatureStore:
             "entity_id": str(uuid4()),
             "feature_name": "user_risk_score",
             "value": 0.75,
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         assert feature["feature_name"] == "user_risk_score"
@@ -582,10 +581,6 @@ class TestFeatureStore:
 
     def test_feature_versioning(self):
         """Deve versionar feature."""
-        feature = {
-            "name": "user_risk_score",
-            "version": 2,
-            "definition": "ML-based risk score"
-        }
+        feature = {"name": "user_risk_score", "version": 2, "definition": "ML-based risk score"}
 
         assert feature["version"] == 2

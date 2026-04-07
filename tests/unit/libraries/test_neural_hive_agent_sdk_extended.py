@@ -17,6 +17,7 @@ from unittest.mock import Mock, AsyncMock, MagicMock, patch
 # Test: AgentType Enum
 # =============================================================================
 
+
 class TestAgentType:
     """Testes do Enum AgentType."""
 
@@ -70,6 +71,7 @@ class TestAgentType:
 # Test: AgentTelemetry
 # =============================================================================
 
+
 class TestAgentTelemetry:
     """Testes de telemetria do agente."""
 
@@ -80,7 +82,7 @@ class TestAgentTelemetry:
             "avg_duration_ms": 0,
             "total_executions": 0,
             "failed_executions": 0,
-            "last_execution_at": int(datetime.now(timezone.utc).timestamp())
+            "last_execution_at": int(datetime.now(timezone.utc).timestamp()),
         }
 
         assert telemetry["success_rate"] == 0.0
@@ -94,7 +96,7 @@ class TestAgentTelemetry:
             "avg_duration_ms": 150,
             "total_executions": 1000,
             "failed_executions": 50,
-            "last_execution_at": int(datetime.now(timezone.utc).timestamp())
+            "last_execution_at": int(datetime.now(timezone.utc).timestamp()),
         }
 
         assert telemetry["success_rate"] == 0.95
@@ -106,7 +108,7 @@ class TestAgentTelemetry:
             "success_rate": 0.8,
             "avg_duration_ms": 100,
             "total_executions": 500,
-            "failed_executions": 25
+            "failed_executions": 25,
         }
 
         proto = dict(telemetry)
@@ -136,6 +138,7 @@ class TestAgentTelemetry:
 # Test: AgentConfig
 # =============================================================================
 
+
 class TestAgentConfig:
     """Testes de configuração do agente."""
 
@@ -144,7 +147,7 @@ class TestAgentConfig:
         config = {
             "service_name": "agent",
             "agent_type": "WORKER",
-            "registry_url": "localhost:50051"
+            "registry_url": "localhost:50051",
         }
 
         assert "service_name" in config
@@ -155,17 +158,14 @@ class TestAgentConfig:
         config = {
             "service_name": "test_worker",
             "agent_type": "WORKER",
-            "registry_url": "localhost:50051"
+            "registry_url": "localhost:50051",
         }
 
         assert config["service_name"] == "test_worker"
 
     def test_config_validation(self):
         """Deve validar configuração."""
-        config = {
-            "service_name": "test_worker",
-            "agent_type": "WORKER"
-        }
+        config = {"service_name": "test_worker", "agent_type": "WORKER"}
 
         is_valid = bool(config["service_name"]) and config["agent_type"] is not None
 
@@ -175,6 +175,7 @@ class TestAgentConfig:
 # =============================================================================
 # Test: AgentClient Registration
 # =============================================================================
+
 
 class TestAgentClientRegistration:
     """Testes de registro do agente."""
@@ -189,7 +190,7 @@ class TestAgentClientRegistration:
             "agent_id": agent_id,
             "service_name": service_name,
             "agent_type": agent_type,
-            "registered_at": datetime.now(timezone.utc).isoformat()
+            "registered_at": datetime.now(timezone.utc).isoformat(),
         }
 
         assert register_request["agent_id"] == agent_id
@@ -201,7 +202,7 @@ class TestAgentClientRegistration:
             "success": True,
             "agent_id": str(uuid4()),
             "heartbeat_interval": 30,
-            "message": "Registered successfully"
+            "message": "Registered successfully",
         }
 
         assert response["success"] is True
@@ -213,17 +214,14 @@ class TestAgentClientRegistration:
 
         deregister_request = {
             "agent_id": agent_id,
-            "deregistered_at": datetime.now(timezone.utc).isoformat()
+            "deregistered_at": datetime.now(timezone.utc).isoformat(),
         }
 
         assert deregister_request["agent_id"] == agent_id
 
     def test_deregister_response(self):
         """Deve processar resposta de desregistro."""
-        response = {
-            "success": True,
-            "message": "Deregistered successfully"
-        }
+        response = {"success": True, "message": "Deregistered successfully"}
 
         assert response["success"] is True
 
@@ -231,6 +229,7 @@ class TestAgentClientRegistration:
 # =============================================================================
 # Test: AgentClient Heartbeat
 # =============================================================================
+
 
 class TestAgentClientHeartbeat:
     """Testes de heartbeat do agente."""
@@ -242,7 +241,7 @@ class TestAgentClientHeartbeat:
         heartbeat_request = {
             "agent_id": agent_id,
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "status": "healthy"
+            "status": "healthy",
         }
 
         assert heartbeat_request["agent_id"] == agent_id
@@ -250,10 +249,7 @@ class TestAgentClientHeartbeat:
 
     def test_heartbeat_response(self):
         """Deve processar resposta de heartbeat."""
-        response = {
-            "success": True,
-            "next_heartbeat_in": 30
-        }
+        response = {"success": True, "next_heartbeat_in": 30}
 
         assert response["success"] is True
         assert response["next_heartbeat_in"] == 30
@@ -296,6 +292,7 @@ class TestAgentClientHeartbeat:
 # Test: AgentClient Status
 # =============================================================================
 
+
 class TestAgentClientStatus:
     """Testes de status do agente."""
 
@@ -303,9 +300,7 @@ class TestAgentClientStatus:
         """Deve criar requisição de status."""
         agent_id = str(uuid4())
 
-        status_request = {
-            "agent_id": agent_id
-        }
+        status_request = {"agent_id": agent_id}
 
         assert status_request["agent_id"] == agent_id
 
@@ -315,7 +310,7 @@ class TestAgentClientStatus:
             "agent_id": str(uuid4()),
             "status": "running",
             "registered_at": datetime.now(timezone.utc).isoformat(),
-            "last_heartbeat": datetime.now(timezone.utc).isoformat()
+            "last_heartbeat": datetime.now(timezone.utc).isoformat(),
         }
 
         assert response["status"] == "running"
@@ -336,7 +331,7 @@ class TestAgentClientStatus:
             "running": ["stopping", "error"],
             "stopping": ["stopped", "error"],
             "stopped": ["starting"],
-            "error": ["starting"]
+            "error": ["starting"],
         }
 
         current = "starting"
@@ -350,6 +345,7 @@ class TestAgentClientStatus:
 # =============================================================================
 # Test: AgentClient Connection
 # =============================================================================
+
 
 class TestAgentClientConnection:
     """Testes de conexão do cliente."""
@@ -403,6 +399,7 @@ class TestAgentClientConnection:
 # Test: AgentClient Error Handling
 # =============================================================================
 
+
 class TestAgentClientErrorHandling:
     """Testes de tratamento de erros."""
 
@@ -444,7 +441,7 @@ class TestAgentClientErrorHandling:
         base_delay = 1.0
         error_count = 3
 
-        delay = base_delay * (2 ** error_count)
+        delay = base_delay * (2**error_count)
 
         assert delay == 8.0
 
@@ -452,6 +449,7 @@ class TestAgentClientErrorHandling:
 # =============================================================================
 # Test: AgentClient Lifecycle
 # =============================================================================
+
 
 class TestAgentClientLifecycle:
     """Testes de ciclo de vida do agente."""
@@ -464,7 +462,7 @@ class TestAgentClientLifecycle:
         agent = {
             "agent_id": agent_id,
             "state": state,
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         assert agent["state"] == "initialized"
@@ -499,6 +497,7 @@ class TestAgentClientLifecycle:
 # Test: AgentClient Discovery
 # =============================================================================
 
+
 class TestAgentClientDiscovery:
     """Testes de descoberta de agentes."""
 
@@ -507,13 +506,10 @@ class TestAgentClientDiscovery:
         registry = {
             "agent_1": {"type": "WORKER", "status": "running"},
             "agent_2": {"type": "SCOUT", "status": "running"},
-            "agent_3": {"type": "GUARD", "status": "stopped"}
+            "agent_3": {"type": "GUARD", "status": "stopped"},
         }
 
-        running_agents = {
-            k: v for k, v in registry.items()
-            if v["status"] == "running"
-        }
+        running_agents = {k: v for k, v in registry.items() if v["status"] == "running"}
 
         assert len(running_agents) == 2
 
@@ -522,7 +518,7 @@ class TestAgentClientDiscovery:
         agents = [
             {"id": "a1", "type": "WORKER"},
             {"id": "a2", "type": "SCOUT"},
-            {"id": "a3", "type": "WORKER"}
+            {"id": "a3", "type": "WORKER"},
         ]
 
         workers = [a for a in agents if a["type"] == "WORKER"]
@@ -534,7 +530,7 @@ class TestAgentClientDiscovery:
         agents = [
             {"id": "a1", "capabilities": ["query", "transform"]},
             {"id": "a2", "capabilities": ["validate"]},
-            {"id": "a3", "capabilities": ["query", "validate"]}
+            {"id": "a3", "capabilities": ["query", "validate"]},
         ]
 
         can_query = [a for a in agents if "query" in a["capabilities"]]
@@ -543,11 +539,7 @@ class TestAgentClientDiscovery:
 
     def test_select_least_loaded(self):
         """Deve selecionar agente menos carregado."""
-        agents = [
-            {"id": "a1", "load": 0.8},
-            {"id": "a2", "load": 0.3},
-            {"id": "a3", "load": 0.5}
-        ]
+        agents = [{"id": "a1", "load": 0.8}, {"id": "a2", "load": 0.3}, {"id": "a3", "load": 0.5}]
 
         least_loaded = min(agents, key=lambda x: x["load"])
 
@@ -558,6 +550,7 @@ class TestAgentClientDiscovery:
 # =============================================================================
 # Test: AgentClient Metrics
 # =============================================================================
+
 
 class TestAgentClientMetrics:
     """Testes de métricas do cliente."""

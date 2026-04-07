@@ -70,7 +70,7 @@ def _build_generator(**kwargs) -> EmbeddingsGenerator:
 def test_embeddings_cache_hit_and_miss():
     generator = _build_generator(cache_size=2, batch_size=4)
 
-    tasks = [{'description': 'Test task'}]
+    tasks = [{"description": "Test task"}]
     first_embeddings = generator.generate_task_embeddings(tasks)
     stats_after_miss = generator.get_cache_stats()
 
@@ -78,46 +78,46 @@ def test_embeddings_cache_hit_and_miss():
     stats_after_hit = generator.get_cache_stats()
 
     assert np.allclose(first_embeddings, second_embeddings)
-    assert stats_after_hit['total_hits'] > stats_after_miss['total_hits']
-    assert stats_after_hit['total_misses'] >= stats_after_miss['total_misses']
+    assert stats_after_hit["total_hits"] > stats_after_miss["total_hits"]
+    assert stats_after_hit["total_misses"] >= stats_after_miss["total_misses"]
 
 
 def test_embeddings_cache_normalizes_descriptions():
     generator = _build_generator(cache_size=2, batch_size=2)
 
-    tasks = [{'description': '  Normalize Me  '}]
+    tasks = [{"description": "  Normalize Me  "}]
     generator.generate_task_embeddings(tasks)
     stats_after_first = generator.get_cache_stats()
 
-    tasks_normalized = [{'description': 'normalize me'}]
+    tasks_normalized = [{"description": "normalize me"}]
     embeddings_second = generator.generate_task_embeddings(tasks_normalized)
     stats_after_second = generator.get_cache_stats()
 
     assert embeddings_second.shape == (1, generator.embedding_dim)
-    assert stats_after_second['total_hits'] > stats_after_first['total_hits']
+    assert stats_after_second["total_hits"] > stats_after_first["total_hits"]
 
 
 def test_cache_eviction_respects_max_size():
     generator = _build_generator(cache_size=1, batch_size=2)
 
-    generator.generate_task_embeddings([{'description': 'first'}])
-    generator.generate_task_embeddings([{'description': 'second'}])
+    generator.generate_task_embeddings([{"description": "first"}])
+    generator.generate_task_embeddings([{"description": "second"}])
 
     assert len(generator._embedding_cache) == 1
-    assert list(generator._embedding_cache.keys())[0] == generator._hash_description('second')
+    assert list(generator._embedding_cache.keys())[0] == generator._hash_description("second")
 
 
 def test_metrics_are_incremented_on_hits_and_misses():
     metrics = DummyMetrics()
     generator = _build_generator(cache_size=2, batch_size=2, metrics=metrics)
 
-    generator.generate_task_embeddings([{'description': 'metrics'}])
-    generator.generate_task_embeddings([{'description': 'metrics'}])
+    generator.generate_task_embeddings([{"description": "metrics"}])
+    generator.generate_task_embeddings([{"description": "metrics"}])
 
     assert metrics.hits >= 1
     assert metrics.misses >= 1
     assert metrics.cache_sizes[-1] <= 2
-    assert any(status == 'miss' for status, _ in metrics.durations)
+    assert any(status == "miss" for status, _ in metrics.durations)
 
 
 def test_feature_extractor_skips_embeddings_when_disabled():
@@ -129,27 +129,29 @@ def test_feature_extractor_skips_embeddings_when_disabled():
         EmbeddingsGenerator._load_model = original_load
 
     extractor.embeddings_generator.model = FakeModel()
-    extractor.embeddings_generator.embedding_dim = extractor.embeddings_generator.model.get_sentence_embedding_dimension()
+    extractor.embeddings_generator.embedding_dim = (
+        extractor.embeddings_generator.model.get_sentence_embedding_dimension()
+    )
 
     plan = {
-        'plan_id': 'skip-embeddings',
-        'tasks': [{'task_id': 'task-1', 'description': 'skip me', 'dependencies': []}],
-        'original_domain': 'test',
-        'original_priority': 'normal'
+        "plan_id": "skip-embeddings",
+        "tasks": [{"task_id": "task-1", "description": "skip me", "dependencies": []}],
+        "original_domain": "test",
+        "original_priority": "normal",
     }
 
     features = extractor.extract_features(plan, include_embeddings=False)
 
-    assert features['embedding_features'] == {}
-    assert 'mean_norm' not in features['aggregated_features']
+    assert features["embedding_features"] == {}
+    assert "mean_norm" not in features["aggregated_features"]
 
 
 def test_generate_embeddings_batch_handles_multiple_plans():
     generator = _build_generator(cache_size=4, batch_size=3)
 
     plans = [
-        {'tasks': [{'description': 'plan one task one'}, {'description': 'plan one task two'}]},
-        {'tasks': [{'description': 'plan two task one'}]},
+        {"tasks": [{"description": "plan one task one"}, {"description": "plan one task two"}]},
+        {"tasks": [{"description": "plan two task one"}]},
     ]
 
     batched = generator.generate_embeddings_batch(plans)
@@ -167,9 +169,9 @@ def test_empty_tasks_returns_zero_embeddings_and_stats():
 
     stats = generator.extract_statistical_features(empty_embeddings)
     assert stats == {
-        'mean_norm': 0.0,
-        'std_norm': 0.0,
-        'max_norm': 0.0,
-        'min_norm': 0.0,
-        'avg_diversity': 0.0
+        "mean_norm": 0.0,
+        "std_norm": 0.0,
+        "max_norm": 0.0,
+        "min_norm": 0.0,
+        "avg_diversity": 0.0,
     }

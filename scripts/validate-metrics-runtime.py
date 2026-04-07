@@ -17,6 +17,7 @@ from urllib.parse import urljoin
 @dataclass
 class MetricValidation:
     """Configuração de validação para uma métrica"""
+
     name: str
     expected_labels: List[str]
     min_samples: int = 1
@@ -154,7 +155,8 @@ class MetricsValidator:
 
         # Verificar targets específicos do Neural Hive-Mind
         neural_hive_targets = [
-            t for t in targets
+            t
+            for t in targets
             if any(label.get("neural_hive_component") for label in t.get("labels", {}).items())
         ]
 
@@ -183,35 +185,35 @@ def get_neural_hive_metric_validations() -> List[MetricValidation]:
             expected_labels=["neural_hive_component", "neural_hive_layer", "status"],
             min_samples=1,
             description="Total de requisições processadas no sistema",
-            critical=True
+            critical=True,
         ),
         MetricValidation(
             name="neural_hive_captura_duration_seconds",
             expected_labels=["neural_hive_component", "neural_hive_layer"],
             min_samples=1,
             description="Duração do processo de captura de intenções",
-            critical=True
+            critical=True,
         ),
         MetricValidation(
             name="up",
             expected_labels=["job", "instance"],
             min_samples=3,
             description="Status de saúde dos serviços",
-            critical=False
+            critical=False,
         ),
         MetricValidation(
             name="prometheus_tsdb_samples_appended_total",
             expected_labels=["job", "instance"],
             min_samples=1,
             description="Total de samples adicionados ao Prometheus",
-            critical=False
+            critical=False,
         ),
         MetricValidation(
             name="process_resident_memory_bytes",
             expected_labels=["job", "instance"],
             min_samples=1,
             description="Uso de memória dos processos",
-            critical=False
+            critical=False,
         ),
     ]
 
@@ -221,18 +223,13 @@ def main():
     parser.add_argument(
         "--prometheus-url",
         default="http://localhost:9090",
-        help="URL do servidor Prometheus (default: http://localhost:9090)"
+        help="URL do servidor Prometheus (default: http://localhost:9090)",
     )
     parser.add_argument(
-        "--timeout",
-        type=int,
-        default=30,
-        help="Timeout para requisições em segundos (default: 30)"
+        "--timeout", type=int, default=30, help="Timeout para requisições em segundos (default: 30)"
     )
     parser.add_argument(
-        "--skip-critical",
-        action="store_true",
-        help="Continuar mesmo se métricas críticas falharem"
+        "--skip-critical", action="store_true", help="Continuar mesmo se métricas críticas falharem"
     )
 
     args = parser.parse_args()

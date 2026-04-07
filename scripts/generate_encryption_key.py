@@ -23,27 +23,27 @@ def generate_key(output_path: str = None, print_key: bool = False, force: bool =
     """
     # Gerar chave
     key = Fernet.generate_key()
-    key_str = key.decode('utf-8')
+    key_str = key.decode("utf-8")
 
     # Exibir no stdout se solicitado
     if print_key:
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("CHAVE DE CRIPTOGRAFIA FERNET GERADA")
-        print("="*60)
+        print("=" * 60)
         print(f"\n{key_str}\n")
         print("Para usar como variável de ambiente:")
         print(f"export ENCRYPTION_KEY='{key_str}'")
         print("\nOu em arquivo .env:")
         print(f"ENCRYPTION_KEY={key_str}")
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("⚠️  IMPORTANTE: Guarde esta chave com segurança!")
         print("   Perder a chave = perder acesso aos dados criptografados")
-        print("="*60 + "\n")
+        print("=" * 60 + "\n")
         return
 
     # Determinar caminho de saída
     if not output_path:
-        output_path = './encryption.key'
+        output_path = "./encryption.key"
 
     # Verificar se arquivo já existe
     if os.path.exists(output_path) and not force:
@@ -60,7 +60,7 @@ def generate_key(output_path: str = None, print_key: bool = False, force: bool =
 
     # Salvar chave
     try:
-        with open(output_path, 'wb') as f:
+        with open(output_path, "wb") as f:
             f.write(key)
 
         # Definir permissões 0600 (apenas owner pode ler/escrever)
@@ -89,7 +89,7 @@ def generate_key(output_path: str = None, print_key: bool = False, force: bool =
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Gera chave de criptografia Fernet para Neural Hive Compliance Layer',
+        description="Gera chave de criptografia Fernet para Neural Hive Compliance Layer",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Exemplos:
@@ -111,26 +111,20 @@ Segurança:
   - NUNCA commite a chave no Git
   - Faça backup da chave em local seguro
   - Perder a chave = perder acesso aos dados criptografados
-        """
+        """,
     )
 
     parser.add_argument(
-        '--output-path',
-        type=str,
-        help='Caminho para salvar chave (default: ./encryption.key)'
+        "--output-path", type=str, help="Caminho para salvar chave (default: ./encryption.key)"
     )
 
     parser.add_argument(
-        '--print-key',
-        action='store_true',
-        help='Exibir chave no stdout (para variável de ambiente)'
+        "--print-key",
+        action="store_true",
+        help="Exibir chave no stdout (para variável de ambiente)",
     )
 
-    parser.add_argument(
-        '--force',
-        action='store_true',
-        help='Sobrescrever arquivo existente'
-    )
+    parser.add_argument("--force", action="store_true", help="Sobrescrever arquivo existente")
 
     args = parser.parse_args()
 
@@ -140,12 +134,8 @@ Segurança:
         sys.exit(1)
 
     # Gerar chave
-    generate_key(
-        output_path=args.output_path,
-        print_key=args.print_key,
-        force=args.force
-    )
+    generate_key(output_path=args.output_path, print_key=args.print_key, force=args.force)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

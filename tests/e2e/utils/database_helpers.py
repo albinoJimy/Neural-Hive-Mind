@@ -19,12 +19,8 @@ logger = logging.getLogger(__name__)
 DEFAULT_MONGODB_URI = "mongodb://mongodb-cluster.mongodb-cluster.svc.cluster.local:27017"
 DEFAULT_MONGODB_DATABASE = "neural_hive"
 
-DEFAULT_POSTGRESQL_TICKETS_URI = (
-    "postgresql://postgres:password@postgresql-tickets.neural-hive-orchestration.svc.cluster.local:5432/execution_tickets"
-)
-DEFAULT_POSTGRESQL_TEMPORAL_URI = (
-    "postgresql://postgres:password@postgresql-temporal.neural-hive-temporal.svc.cluster.local:5432/temporal"
-)
+DEFAULT_POSTGRESQL_TICKETS_URI = "postgresql://postgres:password@postgresql-tickets.neural-hive-orchestration.svc.cluster.local:5432/execution_tickets"
+DEFAULT_POSTGRESQL_TEMPORAL_URI = "postgresql://postgres:password@postgresql-temporal.neural-hive-temporal.svc.cluster.local:5432/temporal"
 
 
 @dataclass
@@ -153,9 +149,7 @@ class MongoDBTestHelper:
         Returns:
             Validation result
         """
-        stats = self.get_collection_stats(
-            "orchestration_ledger", {"plan_id": plan_id}
-        )
+        stats = self.get_collection_stats("orchestration_ledger", {"plan_id": plan_id})
 
         # Get the actual document to check fields
         doc = stats.sample_document
@@ -186,9 +180,7 @@ class MongoDBTestHelper:
         Returns:
             Validation result
         """
-        stats = self.get_collection_stats(
-            "execution_tickets_ledger", {"plan_id": plan_id}
-        )
+        stats = self.get_collection_stats("execution_tickets_ledger", {"plan_id": plan_id})
 
         return {
             "valid": stats.has_data,
@@ -208,9 +200,7 @@ class MongoDBTestHelper:
         Returns:
             Validation result with artifact stages
         """
-        documents = self.find_documents(
-            "code_forge_artifacts", {"plan_id": plan_id}
-        )
+        documents = self.find_documents("code_forge_artifacts", {"plan_id": plan_id})
 
         # Check for 6 stages completion
         stages_completed = set()
@@ -281,9 +271,7 @@ class PostgreSQLTestHelper:
             raise RuntimeError("PostgreSQL not connected. Call connect() first.")
         return self._conn
 
-    def execute_query(
-        self, query: str, params: tuple = ()
-    ) -> List[Dict[str, Any]]:
+    def execute_query(self, query: str, params: tuple = ()) -> List[Dict[str, Any]]:
         """
         Execute a query and return results.
 
@@ -332,10 +320,12 @@ class PostgreSQLTicketsHelper(PostgreSQLTestHelper):
             TicketPersistenceStats
         """
         # Total count
-        total = self.execute_scalar(
-            "SELECT COUNT(*) FROM execution_tickets WHERE plan_id = %s",
-            (plan_id,)
-        ) or 0
+        total = (
+            self.execute_scalar(
+                "SELECT COUNT(*) FROM execution_tickets WHERE plan_id = %s", (plan_id,)
+            )
+            or 0
+        )
 
         # Count by status
         status_query = """
@@ -404,11 +394,7 @@ class PostgreSQLTicketsHelper(PostgreSQLTestHelper):
         has_tickets = stats.total_tickets > 0
 
         # Check that some tickets progressed past pending
-        has_progress = (
-            stats.claimed > 0 or
-            stats.executing > 0 or
-            stats.completed > 0
-        )
+        has_progress = stats.claimed > 0 or stats.executing > 0 or stats.completed > 0
 
         return {
             "valid": has_tickets and stats.lifecycle_valid,
@@ -442,10 +428,12 @@ class PostgreSQLTemporalHelper(PostgreSQLTestHelper):
         """
         # Note: Temporal's schema may vary; this is a simplified check
         try:
-            count = self.execute_scalar(
-                "SELECT COUNT(*) FROM executions WHERE workflow_id = %s",
-                (workflow_id,)
-            ) or 0
+            count = (
+                self.execute_scalar(
+                    "SELECT COUNT(*) FROM executions WHERE workflow_id = %s", (workflow_id,)
+                )
+                or 0
+            )
 
             return {
                 "valid": count > 0,
@@ -513,9 +501,7 @@ async def validate_mongodb_persistence(
         results["collections"]["strategic_decisions"] = strategic_result
 
         # Calculate total records
-        total_records = sum(
-            c.get("document_count", 0) for c in results["collections"].values()
-        )
+        total_records = sum(c.get("document_count", 0) for c in results["collections"].values())
         results["total_records"] = total_records
 
         return results

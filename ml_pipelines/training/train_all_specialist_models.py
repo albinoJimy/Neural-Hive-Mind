@@ -29,31 +29,31 @@ SPECIALIST_CONFIGS: List[Dict[str, str]] = [
         "name": "Business",
         "script": "train_business_specialist.py",
         "model_name": "BusinessSpecialistModel",
-        "experiment": "business_specialist"
+        "experiment": "business_specialist",
     },
     {
         "name": "Technical",
         "script": "train_technical_specialist.py",
         "model_name": "TechnicalSpecialistModel",
-        "experiment": "technical_specialist"
+        "experiment": "technical_specialist",
     },
     {
         "name": "Architecture",
         "script": "train_architecture_specialist.py",
         "model_name": "ArchitectureSpecialistModel",
-        "experiment": "architecture_specialist"
+        "experiment": "architecture_specialist",
     },
     {
         "name": "Behavior",
         "script": "train_behavior_specialist.py",
         "model_name": "BehaviorSpecialistModel",
-        "experiment": "behavior_specialist"
+        "experiment": "behavior_specialist",
     },
     {
         "name": "Evolution",
         "script": "train_evolution_specialist.py",
         "model_name": "EvolutionSpecialistModel",
-        "experiment": "evolution_specialist"
+        "experiment": "evolution_specialist",
     },
 ]
 
@@ -63,7 +63,7 @@ def train_specialist(
     mlflow_enabled: bool = True,
     n_samples: int = 1000,
     n_estimators: int = 100,
-    max_depth: int = 5
+    max_depth: int = 5,
 ) -> bool:
     """
     Executa script de treino de um especialista.
@@ -87,9 +87,12 @@ def train_specialist(
     cmd = [
         sys.executable,
         str(script_path),
-        "--n-samples", str(n_samples),
-        "--n-estimators", str(n_estimators),
-        "--max-depth", str(max_depth)
+        "--n-samples",
+        str(n_samples),
+        "--n-estimators",
+        str(n_estimators),
+        "--max-depth",
+        str(max_depth),
     ]
 
     if mlflow_enabled:
@@ -103,14 +106,14 @@ def train_specialist(
             cwd=str(TRAINING_DIR),
             capture_output=True,
             text=True,
-            timeout=300  # 5 minutos max por especialista
+            timeout=300,  # 5 minutos max por especialista
         )
 
         if result.returncode == 0:
             logger.info(
                 "specialist_training_succeeded",
                 script=script_name,
-                output=result.stdout[-500:]  # Ultimas 500 chars
+                output=result.stdout[-500:],  # Ultimas 500 chars
             )
             return True
         else:
@@ -118,7 +121,7 @@ def train_specialist(
                 "specialist_training_failed",
                 script=script_name,
                 returncode=result.returncode,
-                stderr=result.stderr
+                stderr=result.stderr,
             )
             return False
 
@@ -132,40 +135,23 @@ def train_specialist(
 
 def main():
     """Função principal."""
-    parser = argparse.ArgumentParser(
-        description="Treinar todos os modelos ML de especialistas"
-    )
+    parser = argparse.ArgumentParser(description="Treinar todos os modelos ML de especialistas")
     parser.add_argument(
         "--specialists",
         type=str,
         nargs="*",
         choices=["business", "technical", "architecture", "behavior", "evolution", "all"],
         default=["all"],
-        help="Especialistas para treinar (default: all)"
+        help="Especialistas para treinar (default: all)",
+    )
+    parser.add_argument("--mlflow-enabled", action="store_true", help="Habilitar logging no MLflow")
+    parser.add_argument(
+        "--n-samples", type=int, default=1000, help="Numero de amostras do dataset sintético"
     )
     parser.add_argument(
-        "--mlflow-enabled",
-        action="store_true",
-        help="Habilitar logging no MLflow"
+        "--n-estimators", type=int, default=100, help="Numero de estimadores do GradientBoosting"
     )
-    parser.add_argument(
-        "--n-samples",
-        type=int,
-        default=1000,
-        help="Numero de amostras do dataset sintético"
-    )
-    parser.add_argument(
-        "--n-estimators",
-        type=int,
-        default=100,
-        help="Numero de estimadores do GradientBoosting"
-    )
-    parser.add_argument(
-        "--max-depth",
-        type=int,
-        default=5,
-        help="Profundidade máxima das árvores"
-    )
+    parser.add_argument("--max-depth", type=int, default=5, help="Profundidade máxima das árvores")
 
     args = parser.parse_args()
 
@@ -193,11 +179,7 @@ def main():
     for config in to_train:
         print(f"\n--- Treinando {config['name']} Specialist ---")
         success = train_specialist(
-            config["script"],
-            args.mlflow_enabled,
-            args.n_samples,
-            args.n_estimators,
-            args.max_depth
+            config["script"], args.mlflow_enabled, args.n_samples, args.n_estimators, args.max_depth
         )
         results[config["name"]] = success
 

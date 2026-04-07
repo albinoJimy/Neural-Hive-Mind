@@ -21,7 +21,13 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 # Importações do projeto - com fallback para mocks
 import sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'services', 'orchestrator-dynamic', 'src'))
+
+sys.path.insert(
+    0,
+    os.path.join(
+        os.path.dirname(__file__), "..", "..", "..", "services", "orchestrator-dynamic", "src"
+    ),
+)
 
 try:
     from ml.shadow_mode import ShadowModeRunner
@@ -34,7 +40,7 @@ try:
         PromotionConfig,
         PromotionRequest,
         PromotionStage,
-        PromotionResult
+        PromotionResult,
     )
 except ImportError:
     ModelPromotionManager = None
@@ -53,6 +59,7 @@ except ImportError:
 @dataclass
 class ShadowConfig:
     """Configuração de shadow mode para testes."""
+
     model_name: str
     shadow_model_version: str
     production_model_version: str
@@ -65,6 +72,7 @@ class ShadowConfig:
 # =============================================================================
 # Configurações de ambiente para testes
 # =============================================================================
+
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -91,8 +99,10 @@ def mongodb_test_db_name() -> str:
 # Fixtures de MongoDB (with mongomock fallback)
 # =============================================================================
 
+
 class MongoDBTestClient:
     """Cliente MongoDB para testes."""
+
     def __init__(self, client, db):
         self.client = client
         self.db = db
@@ -134,7 +144,7 @@ class AsyncMockCursor:
 
     def __init__(self, cursor):
         self._cursor = cursor
-        self._items = list(cursor) if hasattr(cursor, '__iter__') else []
+        self._items = list(cursor) if hasattr(cursor, "__iter__") else []
 
     def sort(self, *args, **kwargs):
         # Para mongomock, sort retorna o mesmo cursor
@@ -173,7 +183,7 @@ def _check_mongodb_available(uri: str, timeout: float = 2.0) -> bool:
         from pymongo import MongoClient
 
         client = MongoClient(uri, serverSelectionTimeoutMS=int(timeout * 1000))
-        client.admin.command('ping')
+        client.admin.command("ping")
         client.close()
         return True
     except Exception:
@@ -184,15 +194,16 @@ def _create_mongomock_client(db_name: str):
     """Cria cliente mongomock para testes sem MongoDB real."""
     try:
         import mongomock
+
         client = mongomock.MongoClient()
         db = client[db_name]
 
         # Cria índices (mongomock suporta)
-        db['model_predictions'].create_index([('model_name', 1), ('timestamp', -1)])
-        db['shadow_mode_comparisons'].create_index([('model_name', 1), ('created_at', -1)])
-        db['model_audit_log'].create_index([('model_name', 1), ('event_type', 1)])
-        db['validation_metrics'].create_index([('model_name', 1), ('metric_name', 1)])
-        db['ml_promotions'].create_index([('model_name', 1), ('request_id', 1)])
+        db["model_predictions"].create_index([("model_name", 1), ("timestamp", -1)])
+        db["shadow_mode_comparisons"].create_index([("model_name", 1), ("created_at", -1)])
+        db["model_audit_log"].create_index([("model_name", 1), ("event_type", 1)])
+        db["validation_metrics"].create_index([("model_name", 1), ("metric_name", 1)])
+        db["ml_promotions"].create_index([("model_name", 1), ("request_id", 1)])
 
         return client, db
     except ImportError:
@@ -214,11 +225,13 @@ def mongodb_ml_client(mongodb_uri: str, mongodb_test_db_name: str, event_loop):
 
         # Cria índices para as coleções de forma síncrona
         async def setup_indexes():
-            await db['model_predictions'].create_index([('model_name', 1), ('timestamp', -1)])
-            await db['shadow_mode_comparisons'].create_index([('model_name', 1), ('created_at', -1)])
-            await db['model_audit_log'].create_index([('model_name', 1), ('event_type', 1)])
-            await db['validation_metrics'].create_index([('model_name', 1), ('metric_name', 1)])
-            await db['ml_promotions'].create_index([('model_name', 1), ('request_id', 1)])
+            await db["model_predictions"].create_index([("model_name", 1), ("timestamp", -1)])
+            await db["shadow_mode_comparisons"].create_index(
+                [("model_name", 1), ("created_at", -1)]
+            )
+            await db["model_audit_log"].create_index([("model_name", 1), ("event_type", 1)])
+            await db["validation_metrics"].create_index([("model_name", 1), ("metric_name", 1)])
+            await db["ml_promotions"].create_index([("model_name", 1), ("request_id", 1)])
 
         event_loop.run_until_complete(setup_indexes())
 
@@ -253,10 +266,10 @@ def mongodb_ml_client(mongodb_uri: str, mongodb_test_db_name: str, event_loop):
 def clean_ml_collections(mongodb_ml_client, event_loop):
     """Limpa coleções ML antes de cada teste."""
     collections = [
-        'model_predictions',
-        'shadow_mode_comparisons',
-        'model_audit_log',
-        'validation_metrics'
+        "model_predictions",
+        "shadow_mode_comparisons",
+        "model_audit_log",
+        "validation_metrics",
     ]
 
     async def clean():
@@ -275,6 +288,7 @@ def clean_ml_collections(mongodb_ml_client, event_loop):
 # Fixtures de MLflow
 # =============================================================================
 
+
 @pytest.fixture(scope="session")
 def mlflow_test_tracking_uri():
     """
@@ -287,6 +301,7 @@ def mlflow_test_tracking_uri():
 
     # Cleanup
     import shutil
+
     shutil.rmtree(temp_dir, ignore_errors=True)
 
 
@@ -324,6 +339,7 @@ def mlflow_test_client(mlflow_test_tracking_uri: str):
 # Fixtures de Modelos ML
 # =============================================================================
 
+
 @pytest.fixture
 def mock_duration_predictor():
     """
@@ -333,8 +349,12 @@ def mock_duration_predictor():
 
     np.random.seed(42)
     X_train = np.random.rand(1000, 3)
-    y_train = (X_train[:, 0] * 5000 + X_train[:, 1] * 2000 +
-               X_train[:, 2] * 3000 + np.random.randn(1000) * 500)
+    y_train = (
+        X_train[:, 0] * 5000
+        + X_train[:, 1] * 2000
+        + X_train[:, 2] * 3000
+        + np.random.randn(1000) * 500
+    )
 
     model = RandomForestRegressor(n_estimators=10, random_state=42)
     model.fit(X_train, y_train)
@@ -351,8 +371,12 @@ def mock_duration_predictor_v2():
 
     np.random.seed(43)
     X_train = np.random.rand(1000, 3)
-    y_train = (X_train[:, 0] * 5000 + X_train[:, 1] * 2000 +
-               X_train[:, 2] * 3000 + np.random.randn(1000) * 500)
+    y_train = (
+        X_train[:, 0] * 5000
+        + X_train[:, 1] * 2000
+        + X_train[:, 2] * 3000
+        + np.random.randn(1000) * 500
+    )
 
     model = RandomForestRegressor(n_estimators=10, random_state=43)
     model.fit(X_train, y_train)
@@ -386,13 +410,15 @@ def test_features_dataset():
     np.random.seed(42)
     n_samples = 1000
 
-    df = pd.DataFrame({
-        'task_type_encoded': np.random.randint(0, 5, n_samples),
-        'payload_size': np.random.randint(100, 10000, n_samples),
-        'complexity_score': np.random.rand(n_samples),
-        'priority': np.random.randint(1, 10, n_samples),
-        'estimated_duration_ms': np.random.randint(1000, 60000, n_samples)
-    })
+    df = pd.DataFrame(
+        {
+            "task_type_encoded": np.random.randint(0, 5, n_samples),
+            "payload_size": np.random.randint(100, 10000, n_samples),
+            "complexity_score": np.random.rand(n_samples),
+            "priority": np.random.randint(1, 10, n_samples),
+            "estimated_duration_ms": np.random.randint(1000, 60000, n_samples),
+        }
+    )
 
     return df
 
@@ -410,6 +436,7 @@ except ImportError:
 @dataclass
 class TestConfig:
     """Configuração de teste para componentes ML."""
+
     # Shadow Mode
     ml_shadow_mode_enabled: bool = True
     ml_shadow_mode_duration_minutes: float = 0.01  # 0.6 segundos para testes
@@ -432,7 +459,7 @@ class TestConfig:
     ml_checkpoint_error_rate_threshold: float = 0.001
     # Validation
     ml_validation_use_mongodb: bool = True
-    ml_validation_mongodb_collection: str = 'model_predictions'
+    ml_validation_mongodb_collection: str = "model_predictions"
     ml_validation_windows: list = None
     ml_validation_latency_enabled: bool = True
     ml_validation_alert_cooldown_minutes: int = 1
@@ -441,7 +468,7 @@ class TestConfig:
         if self.ml_rollout_stages is None:
             self.ml_rollout_stages = [0.25, 0.50, 0.75, 1.0]
         if self.ml_validation_windows is None:
-            self.ml_validation_windows = ['1h', '24h']
+            self.ml_validation_windows = ["1h", "24h"]
 
 
 @pytest.fixture
@@ -451,7 +478,12 @@ def test_config() -> TestConfig:
 
 
 @pytest.fixture
-def model_registry_test(mlflow_test_client, mlflow_test_tracking_uri, mock_duration_predictor, mock_duration_predictor_v2):
+def model_registry_test(
+    mlflow_test_client,
+    mlflow_test_tracking_uri,
+    mock_duration_predictor,
+    mock_duration_predictor_v2,
+):
     """
     ModelRegistry real configurado para testes com MLflow de teste.
     """
@@ -497,21 +529,21 @@ def model_registry_test(mlflow_test_client, mlflow_test_tracking_uri, mock_durat
             self.client = client
             self.tracking_uri = tracking_uri
             self._models = models  # Cache de modelos
-            self._current_versions = {'duration_predictor': 'v1.0'}
+            self._current_versions = {"duration_predictor": "v1.0"}
             self._metadata = {
-                'duration_predictor': {
-                    'v1.0': {'metrics': {'mae_percentage': 10.0, 'precision': 0.80}},
-                    'v2.0': {'metrics': {'mae_percentage': 9.0, 'precision': 0.82}}
+                "duration_predictor": {
+                    "v1.0": {"metrics": {"mae_percentage": 10.0, "precision": 0.80}},
+                    "v2.0": {"metrics": {"mae_percentage": 9.0, "precision": 0.82}},
                 }
             }
 
         async def get_current_version(self, model_name: str) -> str:
-            return self._current_versions.get(model_name, 'v1.0')
+            return self._current_versions.get(model_name, "v1.0")
 
         async def load_model(self, model_name: str, version: str = None, stage: str = None):
-            if version == 'v2.0' or (stage is None and version is None):
-                return self._models.get('v2.0', self._models.get('v1.0'))
-            return self._models.get('v1.0')
+            if version == "v2.0" or (stage is None and version is None):
+                return self._models.get("v2.0", self._models.get("v1.0"))
+            return self._models.get("v1.0")
 
         async def get_model(self, model_name: str, version: str = None):
             return await self.load_model(model_name, version)
@@ -519,37 +551,41 @@ def model_registry_test(mlflow_test_client, mlflow_test_tracking_uri, mock_durat
         async def get_model_metadata(self, model_name: str, version: str = None) -> Dict[str, Any]:
             model_meta = self._metadata.get(model_name, {})
             if version:
-                return model_meta.get(version, {'metrics': {}})
+                return model_meta.get(version, {"metrics": {}})
             # Retorna metadata da versão atual
-            current = self._current_versions.get(model_name, 'v1.0')
-            return model_meta.get(current, {'metrics': {}})
+            current = self._current_versions.get(model_name, "v1.0")
+            return model_meta.get(current, {"metrics": {}})
 
         async def promote_model(self, model_name: str, version: str, stage: str) -> Dict[str, Any]:
             self._current_versions[model_name] = version
-            return {'success': True, 'version': version, 'stage': stage}
+            return {"success": True, "version": version, "stage": stage}
 
-        async def enrich_model_metadata(self, model_name: str, version: str, metadata: Dict[str, Any]):
+        async def enrich_model_metadata(
+            self, model_name: str, version: str, metadata: Dict[str, Any]
+        ):
             if model_name not in self._metadata:
                 self._metadata[model_name] = {}
             if version not in self._metadata[model_name]:
-                self._metadata[model_name][version] = {'metrics': {}}
+                self._metadata[model_name][version] = {"metrics": {}}
             self._metadata[model_name][version].update(metadata)
 
         async def rollback_model(self, model_name: str, reason: str) -> Dict[str, Any]:
-            self._current_versions[model_name] = 'v1.0'
-            return {'success': True, 'restored_version': 'v1.0', 'reason': reason}
+            self._current_versions[model_name] = "v1.0"
+            return {"success": True, "restored_version": "v1.0", "reason": reason}
 
-        async def register_model(self, model_name: str, model, version: str, metrics: Dict[str, Any] = None):
+        async def register_model(
+            self, model_name: str, model, version: str, metrics: Dict[str, Any] = None
+        ):
             self._models[version] = model
             if model_name not in self._metadata:
                 self._metadata[model_name] = {}
-            self._metadata[model_name][version] = {'metrics': metrics or {}}
-            return {'success': True, 'version': version}
+            self._metadata[model_name][version] = {"metrics": metrics or {}}
+            return {"success": True, "version": version}
 
     registry = TestModelRegistry(
         client=mlflow_test_client,
         tracking_uri=mlflow_test_tracking_uri,
-        models={'v1.0': mock_duration_predictor, 'v2.0': mock_duration_predictor_v2}
+        models={"v1.0": mock_duration_predictor, "v2.0": mock_duration_predictor_v2},
     )
 
     return registry
@@ -568,14 +604,21 @@ def continuous_validator_test(mongodb_ml_client, clean_ml_collections, test_conf
         mongodb_client=mongodb_ml_client,
         clickhouse_client=None,
         metrics=None,
-        alert_handlers=[]
+        alert_handlers=[],
     )
 
     return validator
 
 
 @pytest.fixture
-def shadow_runner_test(mongodb_ml_client, clean_ml_collections, test_config, mock_duration_predictor, mock_duration_predictor_v2, model_registry_test):
+def shadow_runner_test(
+    mongodb_ml_client,
+    clean_ml_collections,
+    test_config,
+    mock_duration_predictor,
+    mock_duration_predictor_v2,
+    model_registry_test,
+):
     """
     ShadowModeRunner real configurado para testes rápidos.
     """
@@ -590,7 +633,7 @@ def shadow_runner_test(mongodb_ml_client, clean_ml_collections, test_config, moc
         mongodb_client=mongodb_ml_client,
         metrics=None,
         model_name="duration_predictor",
-        shadow_version="v2.0"
+        shadow_version="v2.0",
     )
 
     return runner
@@ -602,7 +645,7 @@ def promotion_manager_test(
     continuous_validator_test,
     mongodb_ml_client,
     clean_ml_collections,
-    test_config
+    test_config,
 ):
     """
     ModelPromotionManager real configurado para testes de integração.
@@ -616,7 +659,7 @@ def promotion_manager_test(
         model_validator=None,
         continuous_validator=continuous_validator_test,
         mongodb_client=mongodb_ml_client,
-        metrics=None
+        metrics=None,
     )
 
     return manager
@@ -625,6 +668,7 @@ def promotion_manager_test(
 # =============================================================================
 # Fixtures de Dados de Teste
 # =============================================================================
+
 
 @pytest.fixture
 def seed_baseline_metrics(mongodb_ml_client, clean_ml_collections, event_loop) -> Dict[str, Any]:
@@ -640,27 +684,29 @@ def seed_baseline_metrics(mongodb_ml_client, clean_ml_collections, event_loop) -
         actual = np.random.randint(1000, 60000)
         predicted = actual + np.random.randn() * actual * 0.1
 
-        predictions.append({
-            'model_name': 'duration_predictor',
-            'model_version': 'v1.0',
-            'actual_value': actual,
-            'predicted_value': predicted,
-            'error_percent': abs(actual - predicted) / actual * 100,
-            'timestamp': base_time + datetime.timedelta(minutes=i),
-            'task_type': f'type_{i % 5}'
-        })
+        predictions.append(
+            {
+                "model_name": "duration_predictor",
+                "model_version": "v1.0",
+                "actual_value": actual,
+                "predicted_value": predicted,
+                "error_percent": abs(actual - predicted) / actual * 100,
+                "timestamp": base_time + datetime.timedelta(minutes=i),
+                "task_type": f"type_{i % 5}",
+            }
+        )
 
     async def insert():
-        await mongodb_ml_client.db['model_predictions'].insert_many(predictions)
+        await mongodb_ml_client.db["model_predictions"].insert_many(predictions)
 
     event_loop.run_until_complete(insert())
 
-    errors = [p['error_percent'] for p in predictions]
+    errors = [p["error_percent"] for p in predictions]
     baseline = {
-        'mae_percentage': np.mean(errors),
-        'precision': 0.80,
-        'error_rate': 0.002,
-        'prediction_count': len(predictions)
+        "mae_percentage": np.mean(errors),
+        "precision": 0.80,
+        "error_rate": 0.002,
+        "prediction_count": len(predictions),
     }
 
     return baseline
@@ -686,26 +732,28 @@ def seed_shadow_comparisons(mongodb_ml_client, clean_ml_collections, event_loop)
         if agreed:
             agreements += 1
 
-        comparisons.append({
-            'model_name': 'duration_predictor',
-            'production_version': 'v1.0',
-            'shadow_version': 'v2.0',
-            'production_prediction': prod_pred,
-            'shadow_prediction': shadow_pred,
-            'diff_percent': diff_percent,
-            'agreed': agreed,
-            'created_at': base_time + datetime.timedelta(seconds=i * 10)
-        })
+        comparisons.append(
+            {
+                "model_name": "duration_predictor",
+                "production_version": "v1.0",
+                "shadow_version": "v2.0",
+                "production_prediction": prod_pred,
+                "shadow_prediction": shadow_pred,
+                "diff_percent": diff_percent,
+                "agreed": agreed,
+                "created_at": base_time + datetime.timedelta(seconds=i * 10),
+            }
+        )
 
     async def insert():
-        await mongodb_ml_client.db['shadow_mode_comparisons'].insert_many(comparisons)
+        await mongodb_ml_client.db["shadow_mode_comparisons"].insert_many(comparisons)
 
     event_loop.run_until_complete(insert())
 
     return {
-        'total_comparisons': len(comparisons),
-        'agreement_count': agreements,
-        'agreement_rate': agreements / len(comparisons)
+        "total_comparisons": len(comparisons),
+        "agreement_count": agreements,
+        "agreement_rate": agreements / len(comparisons),
     }
 
 
@@ -713,8 +761,9 @@ def seed_shadow_comparisons(mongodb_ml_client, clean_ml_collections, event_loop)
 # Fixtures de Promoção (Real Instances)
 # =============================================================================
 
+
 @pytest.fixture
-def promotion_config_fast() -> 'PromotionConfig':
+def promotion_config_fast() -> "PromotionConfig":
     """
     PromotionConfig real com timeouts rápidos para testes.
     """
@@ -737,12 +786,12 @@ def promotion_config_fast() -> 'PromotionConfig':
         rollout_stages=[0.25, 0.50, 0.75, 1.0],
         checkpoint_duration_minutes=0,  # Imediato para testes
         checkpoint_mae_threshold_pct=20.0,
-        checkpoint_error_rate_threshold=0.001
+        checkpoint_error_rate_threshold=0.001,
     )
 
 
 @pytest.fixture
-def promotion_request_sample(promotion_config_fast) -> 'PromotionRequest':
+def promotion_request_sample(promotion_config_fast) -> "PromotionRequest":
     """
     PromotionRequest real de exemplo.
     """
@@ -755,12 +804,12 @@ def promotion_request_sample(promotion_config_fast) -> 'PromotionRequest':
         source_version="v2.0",
         target_stage="Production",
         initiated_by="test_user",
-        config=promotion_config_fast
+        config=promotion_config_fast,
     )
 
 
 @pytest.fixture
-def promotion_config_no_shadow() -> 'PromotionConfig':
+def promotion_config_no_shadow() -> "PromotionConfig":
     """
     PromotionConfig com shadow mode desabilitado.
     """
@@ -774,12 +823,12 @@ def promotion_config_no_shadow() -> 'PromotionConfig':
         canary_duration_minutes=0,
         gradual_rollout_enabled=True,
         rollout_stages=[0.25, 0.50, 0.75, 1.0],
-        checkpoint_duration_minutes=0
+        checkpoint_duration_minutes=0,
     )
 
 
 @pytest.fixture
-def promotion_config_direct() -> 'PromotionConfig':
+def promotion_config_direct() -> "PromotionConfig":
     """
     PromotionConfig para promoção direta (sem shadow/canary/rollout).
     """
@@ -787,9 +836,7 @@ def promotion_config_direct() -> 'PromotionConfig':
         pytest.skip("PromotionConfig não disponível")
 
     return PromotionConfig(
-        shadow_mode_enabled=False,
-        canary_enabled=False,
-        gradual_rollout_enabled=False
+        shadow_mode_enabled=False, canary_enabled=False, gradual_rollout_enabled=False
     )
 
 
@@ -797,17 +844,10 @@ def promotion_config_direct() -> 'PromotionConfig':
 # Markers de Pytest
 # =============================================================================
 
+
 def pytest_configure(config):
     """Registra markers personalizados."""
-    config.addinivalue_line(
-        "markers", "ml: marca testes específicos de ML"
-    )
-    config.addinivalue_line(
-        "markers", "ml_integration: marca testes de integração ML"
-    )
-    config.addinivalue_line(
-        "markers", "ml_promotion: marca testes do pipeline de promoção"
-    )
-    config.addinivalue_line(
-        "markers", "slow_ml: marca testes ML lentos (>30 segundos)"
-    )
+    config.addinivalue_line("markers", "ml: marca testes específicos de ML")
+    config.addinivalue_line("markers", "ml_integration: marca testes de integração ML")
+    config.addinivalue_line("markers", "ml_promotion: marca testes do pipeline de promoção")
+    config.addinivalue_line("markers", "slow_ml: marca testes ML lentos (>30 segundos)")

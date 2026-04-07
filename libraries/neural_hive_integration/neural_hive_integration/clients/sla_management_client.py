@@ -17,6 +17,7 @@ tracer = trace.get_tracer(__name__)
 
 class SLODefinition(BaseModel):
     """SLO definition."""
+
     service_name: str
     slo_type: str  # latency, availability, throughput
     target: float
@@ -26,6 +27,7 @@ class SLODefinition(BaseModel):
 
 class ErrorBudgetStatus(BaseModel):
     """Error budget status."""
+
     service_name: str
     remaining_budget: float
     burn_rate: float
@@ -94,9 +96,7 @@ class SLAManagementClient:
         if cached:
             return SLODefinition(**cached)
 
-        response = await self.client.get(
-            f"{self.base_url}/api/v1/slo/{service_name}"
-        )
+        response = await self.client.get(f"{self.base_url}/api/v1/slo/{service_name}")
         response.raise_for_status()
 
         data = response.json()
@@ -116,9 +116,7 @@ class SLAManagementClient:
         Returns:
             Error budget status
         """
-        response = await self.client.get(
-            f"{self.base_url}/api/v1/error-budget/{service_name}"
-        )
+        response = await self.client.get(f"{self.base_url}/api/v1/error-budget/{service_name}")
         response.raise_for_status()
 
         status = ErrorBudgetStatus(**response.json())
@@ -164,9 +162,7 @@ class SLAManagementClient:
         Returns:
             True if freeze is active
         """
-        response = await self.client.get(
-            f"{self.base_url}/api/v1/freeze-policy"
-        )
+        response = await self.client.get(f"{self.base_url}/api/v1/freeze-policy")
         response.raise_for_status()
 
         return response.json()["freeze_active"]

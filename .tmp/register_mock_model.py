@@ -10,7 +10,7 @@ import os
 
 # Configurar MLflow
 MLFLOW_TRACKING_URI = os.getenv(
-    'MLFLOW_TRACKING_URI', 'http://mlflow.mlflow.svc.cluster.local:5000'
+    "MLFLOW_TRACKING_URI", "http://mlflow.mlflow.svc.cluster.local:5000"
 )
 mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 
@@ -48,11 +48,7 @@ with mlflow.start_run(experiment_id=experiment_id, run_name="mock-model-registra
     mlflow.log_metric("accuracy", 0.95)  # Mock metric
 
     # Log model
-    log_model(
-        sk_model=model,
-        artifact_path="model",
-        registered_model_name=MODEL_NAME
-    )
+    log_model(sk_model=model, artifact_path="model", registered_model_name=MODEL_NAME)
 
     run_id = mlflow.active_run().info.run_id
     print(f"✅ Modelo registrado (run_id: {run_id})")
@@ -65,9 +61,7 @@ versions = client.search_model_versions(f"name='{MODEL_NAME}'")
 if versions:
     latest_version = max(versions, key=lambda v: int(v.version))
     client.transition_model_version_stage(
-        name=MODEL_NAME,
-        version=latest_version.version,
-        stage="Staging"
+        name=MODEL_NAME, version=latest_version.version, stage="Staging"
     )
     print(f"✅ Modelo {MODEL_NAME} v{latest_version.version} promovido para Staging")
 else:

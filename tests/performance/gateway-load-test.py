@@ -18,8 +18,7 @@ import numpy as np
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -27,6 +26,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class LoadTestConfig:
     """Configurações do teste de carga"""
+
     gateway_url: str
     auth_token: str
     text_endpoint: str = "/intentions"
@@ -46,6 +46,7 @@ class LoadTestConfig:
 @dataclass
 class RequestResult:
     """Resultado de uma requisição individual"""
+
     endpoint: str
     method: str
     status_code: int
@@ -58,6 +59,7 @@ class RequestResult:
 @dataclass
 class LoadTestResults:
     """Resultados consolidados do teste de carga"""
+
     config: LoadTestConfig
     total_requests: int
     successful_requests: int
@@ -92,22 +94,18 @@ class GatewayLoadTester:
             limit=self.config.concurrent_requests * 2,
             limit_per_host=self.config.concurrent_requests,
             keepalive_timeout=30,
-            enable_cleanup_closed=True
+            enable_cleanup_closed=True,
         )
 
         timeout = aiohttp.ClientTimeout(total=self.config.request_timeout)
 
         headers = {
-            'Authorization': f'Bearer {self.config.auth_token}',
-            'Content-Type': 'application/json',
-            'User-Agent': 'Gateway-Load-Test/1.0'
+            "Authorization": f"Bearer {self.config.auth_token}",
+            "Content-Type": "application/json",
+            "User-Agent": "Gateway-Load-Test/1.0",
         }
 
-        self.session = aiohttp.ClientSession(
-            connector=connector,
-            timeout=timeout,
-            headers=headers
-        )
+        self.session = aiohttp.ClientSession(connector=connector, timeout=timeout, headers=headers)
 
     async def cleanup_session(self):
         """Fechar sessão HTTP"""
@@ -121,7 +119,7 @@ class GatewayLoadTester:
         payload = {
             "text": f"Implementar funcionalidade de autenticação OAuth2 para o sistema de gerenciamento de usuários - Request {request_id}",
             "language": "pt-BR",
-            "correlation_id": f"load-test-{request_id}-{int(time.time())}"
+            "correlation_id": f"load-test-{request_id}-{int(time.time())}",
         }
 
         try:
@@ -137,8 +135,10 @@ class GatewayLoadTester:
                     status_code=response.status,
                     response_time_ms=response_time,
                     success=response.status == 200,
-                    response_size_bytes=len(content.encode('utf-8')),
-                    error_message=None if response.status == 200 else f"HTTP {response.status}: {content[:200]}"
+                    response_size_bytes=len(content.encode("utf-8")),
+                    error_message=None
+                    if response.status == 200
+                    else f"HTTP {response.status}: {content[:200]}",
                 )
 
         except asyncio.TimeoutError:
@@ -149,7 +149,7 @@ class GatewayLoadTester:
                 status_code=0,
                 response_time_ms=response_time,
                 success=False,
-                error_message="Request timeout"
+                error_message="Request timeout",
             )
         except Exception as e:
             response_time = (time.time() - start_time) * 1000
@@ -159,7 +159,7 @@ class GatewayLoadTester:
                 status_code=0,
                 response_time_ms=response_time,
                 success=False,
-                error_message=str(e)
+                error_message=str(e),
             )
 
     async def send_voice_request(self, request_id: int) -> RequestResult:
@@ -167,20 +167,28 @@ class GatewayLoadTester:
         start_time = time.time()
 
         # Simular dados de áudio (WAV header + dados)
-        fake_audio_data = b'RIFF\x24\x08\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00D\xac\x00\x00\x88X\x01\x00\x02\x00\x10\x00data\x00\x08\x00\x00' + b'\x00\x01' * 1000
+        fake_audio_data = (
+            b"RIFF\x24\x08\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00D\xac\x00\x00\x88X\x01\x00\x02\x00\x10\x00data\x00\x08\x00\x00"
+            + b"\x00\x01" * 1000
+        )
 
         try:
             url = f"{self.config.gateway_url}{self.config.voice_endpoint}"
 
             # Multipart form data
             data = aiohttp.FormData()
-            data.add_field('language', 'pt-BR')
-            data.add_field('correlation_id', f'voice-load-test-{request_id}-{int(time.time())}')
-            data.add_field('audio_file', fake_audio_data, filename=f'test_audio_{request_id}.wav', content_type='audio/wav')
+            data.add_field("language", "pt-BR")
+            data.add_field("correlation_id", f"voice-load-test-{request_id}-{int(time.time())}")
+            data.add_field(
+                "audio_file",
+                fake_audio_data,
+                filename=f"test_audio_{request_id}.wav",
+                content_type="audio/wav",
+            )
 
             # Remover Content-Type header para multipart
             headers = dict(self.session._default_headers)
-            headers.pop('Content-Type', None)
+            headers.pop("Content-Type", None)
 
             async with self.session.post(url, data=data, headers=headers) as response:
                 response_time = (time.time() - start_time) * 1000
@@ -192,8 +200,10 @@ class GatewayLoadTester:
                     status_code=response.status,
                     response_time_ms=response_time,
                     success=response.status == 200,
-                    response_size_bytes=len(content.encode('utf-8')),
-                    error_message=None if response.status == 200 else f"HTTP {response.status}: {content[:200]}"
+                    response_size_bytes=len(content.encode("utf-8")),
+                    error_message=None
+                    if response.status == 200
+                    else f"HTTP {response.status}: {content[:200]}",
                 )
 
         except asyncio.TimeoutError:
@@ -204,7 +214,7 @@ class GatewayLoadTester:
                 status_code=0,
                 response_time_ms=response_time,
                 success=False,
-                error_message="Request timeout"
+                error_message="Request timeout",
             )
         except Exception as e:
             response_time = (time.time() - start_time) * 1000
@@ -214,7 +224,7 @@ class GatewayLoadTester:
                 status_code=0,
                 response_time_ms=response_time,
                 success=False,
-                error_message=str(e)
+                error_message=str(e),
             )
 
     async def send_health_request(self) -> RequestResult:
@@ -234,8 +244,10 @@ class GatewayLoadTester:
                     status_code=response.status,
                     response_time_ms=response_time,
                     success=response.status == 200,
-                    response_size_bytes=len(content.encode('utf-8')),
-                    error_message=None if response.status == 200 else f"HTTP {response.status}: {content[:200]}"
+                    response_size_bytes=len(content.encode("utf-8")),
+                    error_message=None
+                    if response.status == 200
+                    else f"HTTP {response.status}: {content[:200]}",
                 )
 
         except Exception as e:
@@ -246,7 +258,7 @@ class GatewayLoadTester:
                 status_code=0,
                 response_time_ms=response_time,
                 success=False,
-                error_message=str(e)
+                error_message=str(e),
             )
 
     async def run_single_request(self, request_id: int, endpoint_type: str) -> RequestResult:
@@ -260,7 +272,9 @@ class GatewayLoadTester:
         else:
             raise ValueError(f"Unknown endpoint type: {endpoint_type}")
 
-    async def run_concurrent_batch(self, batch_size: int, endpoint_type: str, start_id: int) -> List[RequestResult]:
+    async def run_concurrent_batch(
+        self, batch_size: int, endpoint_type: str, start_id: int
+    ) -> List[RequestResult]:
         """Executar lote de requisições concorrentes"""
         semaphore = asyncio.Semaphore(self.config.concurrent_requests)
 
@@ -279,14 +293,16 @@ class GatewayLoadTester:
             else:
                 logger.error(f"Request failed with exception: {result}")
                 # Criar result de erro
-                valid_results.append(RequestResult(
-                    endpoint=f"/{endpoint_type}",
-                    method="POST",
-                    status_code=0,
-                    response_time_ms=0,
-                    success=False,
-                    error_message=str(result)
-                ))
+                valid_results.append(
+                    RequestResult(
+                        endpoint=f"/{endpoint_type}",
+                        method="POST",
+                        status_code=0,
+                        response_time_ms=0,
+                        success=False,
+                        error_message=str(result),
+                    )
+                )
 
         return valid_results
 
@@ -305,8 +321,7 @@ class GatewayLoadTester:
 
             # Calcular quantas requests para este segundo
             batch_size = min(
-                int(requests_per_second),
-                self.config.total_requests - len(all_results)
+                int(requests_per_second), self.config.total_requests - len(all_results)
             )
 
             if batch_size <= 0:
@@ -344,8 +359,10 @@ class GatewayLoadTester:
             if elapsed < 1.0:
                 await asyncio.sleep(1.0 - elapsed)
 
-            logger.info(f"Completed second {second + 1}/{self.config.ramp_up_seconds}, "
-                       f"total requests: {len(all_results)}")
+            logger.info(
+                f"Completed second {second + 1}/{self.config.ramp_up_seconds}, "
+                f"total requests: {len(all_results)}"
+            )
 
         total_time = time.time() - start_time
         logger.info(f"Ramp-up test completed in {total_time:.2f} seconds")
@@ -390,13 +407,13 @@ class GatewayLoadTester:
         rate_limited = [r for r in results if r.status_code == 429]
 
         return {
-            'rate_limit_hit': rate_limit_hit,
-            'requests_before_limit': len(successful),
-            'total_requests': len(results),
-            'expected_limit': self.config.expected_rate_limit,
-            'rate_limited_count': len(rate_limited),
-            'within_expected_range': abs(len(successful) - self.config.expected_rate_limit) <= 10,
-            'success': rate_limit_hit and len(successful) >= self.config.expected_rate_limit * 0.9
+            "rate_limit_hit": rate_limit_hit,
+            "requests_before_limit": len(successful),
+            "total_requests": len(results),
+            "expected_limit": self.config.expected_rate_limit,
+            "rate_limited_count": len(rate_limited),
+            "within_expected_range": abs(len(successful) - self.config.expected_rate_limit) <= 10,
+            "success": rate_limit_hit and len(successful) >= self.config.expected_rate_limit * 0.9,
         }
 
     def calculate_statistics(self, results: List[RequestResult]) -> LoadTestResults:
@@ -412,7 +429,7 @@ class GatewayLoadTester:
                 latency_stats={},
                 status_code_distribution={},
                 error_distribution={},
-                success_rate=0
+                success_rate=0,
             )
 
         # Métricas básicas
@@ -440,27 +457,29 @@ class GatewayLoadTester:
                 response_times = [r.response_time_ms for r in endpoint_results]
 
                 latency_stats[endpoint] = {
-                    'count': len(response_times),
-                    'mean': statistics.mean(response_times),
-                    'median': statistics.median(response_times),
-                    'p50': np.percentile(response_times, 50),
-                    'p95': np.percentile(response_times, 95),
-                    'p99': np.percentile(response_times, 99),
-                    'min': min(response_times),
-                    'max': max(response_times),
-                    'stddev': statistics.stdev(response_times) if len(response_times) > 1 else 0
+                    "count": len(response_times),
+                    "mean": statistics.mean(response_times),
+                    "median": statistics.median(response_times),
+                    "p50": np.percentile(response_times, 50),
+                    "p95": np.percentile(response_times, 95),
+                    "p99": np.percentile(response_times, 99),
+                    "min": min(response_times),
+                    "max": max(response_times),
+                    "stddev": statistics.stdev(response_times) if len(response_times) > 1 else 0,
                 }
 
         # Distribuição de status codes
         status_code_distribution = {}
         for result in results:
-            status_code_distribution[result.status_code] = status_code_distribution.get(result.status_code, 0) + 1
+            status_code_distribution[result.status_code] = (
+                status_code_distribution.get(result.status_code, 0) + 1
+            )
 
         # Distribuição de erros
         error_distribution = {}
         for result in results:
             if not result.success and result.error_message:
-                error_type = result.error_message.split(':')[0]  # Pegar primeiro parte do erro
+                error_type = result.error_message.split(":")[0]  # Pegar primeiro parte do erro
                 error_distribution[error_type] = error_distribution.get(error_type, 0) + 1
 
         return LoadTestResults(
@@ -473,7 +492,7 @@ class GatewayLoadTester:
             latency_stats=latency_stats,
             status_code_distribution=status_code_distribution,
             error_distribution=error_distribution,
-            success_rate=success_rate
+            success_rate=success_rate,
         )
 
     async def run_test(self) -> LoadTestResults:
@@ -504,9 +523,9 @@ class GatewayLoadTester:
 
 def print_results(results: LoadTestResults):
     """Imprimir resultados formatados"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("           GATEWAY LOAD TEST RESULTS")
-    print("="*60)
+    print("=" * 60)
 
     print(f"Target URL: {results.config.gateway_url}")
     print(f"Test Duration: {results.test_duration_seconds:.2f}s")
@@ -533,15 +552,19 @@ def print_results(results: LoadTestResults):
 
     if results.error_distribution:
         print("\n--- ERROR DISTRIBUTION ---")
-        for error_type, count in sorted(results.error_distribution.items(), key=lambda x: x[1], reverse=True):
-            percentage = (count / results.failed_requests) * 100 if results.failed_requests > 0 else 0
+        for error_type, count in sorted(
+            results.error_distribution.items(), key=lambda x: x[1], reverse=True
+        ):
+            percentage = (
+                (count / results.failed_requests) * 100 if results.failed_requests > 0 else 0
+            )
             print(f"  {error_type}: {count} ({percentage:.1f}%)")
 
     # Avaliação de performance
     print("\n--- PERFORMANCE ASSESSMENT ---")
     overall_p95 = 0
     if results.latency_stats:
-        overall_p95 = statistics.mean([stats['p95'] for stats in results.latency_stats.values()])
+        overall_p95 = statistics.mean([stats["p95"] for stats in results.latency_stats.values()])
 
     if results.success_rate >= 0.99 and overall_p95 <= 1000:
         print("🟢 EXCELLENT: High success rate and low latency")
@@ -552,23 +575,32 @@ def print_results(results: LoadTestResults):
     else:
         print("🔴 CRITICAL: Significant performance problems")
 
-    print("="*60)
+    print("=" * 60)
 
 
 async def main():
-    parser = argparse.ArgumentParser(description='Gateway Load Test')
-    parser.add_argument('--url', required=True, help='Gateway URL (e.g., http://localhost:8000)')
-    parser.add_argument('--token', required=True, help='Authentication token')
-    parser.add_argument('--requests', type=int, default=1000, help='Total number of requests')
-    parser.add_argument('--concurrent', type=int, default=50, help='Concurrent requests')
-    parser.add_argument('--ramp-up', type=int, default=60, help='Ramp-up duration in seconds')
-    parser.add_argument('--timeout', type=int, default=30, help='Request timeout in seconds')
-    parser.add_argument('--output', help='Output file for JSON results')
-    parser.add_argument('--verbose', '-v', action='store_true', help='Verbose logging')
+    parser = argparse.ArgumentParser(description="Gateway Load Test")
+    parser.add_argument("--url", required=True, help="Gateway URL (e.g., http://localhost:8000)")
+    parser.add_argument("--token", required=True, help="Authentication token")
+    parser.add_argument("--requests", type=int, default=1000, help="Total number of requests")
+    parser.add_argument("--concurrent", type=int, default=50, help="Concurrent requests")
+    parser.add_argument("--ramp-up", type=int, default=60, help="Ramp-up duration in seconds")
+    parser.add_argument("--timeout", type=int, default=30, help="Request timeout in seconds")
+    parser.add_argument("--output", help="Output file for JSON results")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Verbose logging")
     # Rate limiting test arguments
-    parser.add_argument('--test-rate-limit', action='store_true', help='Test rate limiting behavior')
-    parser.add_argument('--rate-limit-user', default='test_user', help='User ID for rate limit testing')
-    parser.add_argument('--expected-rate-limit', type=int, default=1000, help='Expected rate limit (requests/minute)')
+    parser.add_argument(
+        "--test-rate-limit", action="store_true", help="Test rate limiting behavior"
+    )
+    parser.add_argument(
+        "--rate-limit-user", default="test_user", help="User ID for rate limit testing"
+    )
+    parser.add_argument(
+        "--expected-rate-limit",
+        type=int,
+        default=1000,
+        help="Expected rate limit (requests/minute)",
+    )
 
     args = parser.parse_args()
 
@@ -576,7 +608,7 @@ async def main():
         logging.getLogger().setLevel(logging.DEBUG)
 
     config = LoadTestConfig(
-        gateway_url=args.url.rstrip('/'),
+        gateway_url=args.url.rstrip("/"),
         auth_token=args.token,
         total_requests=args.requests,
         concurrent_requests=args.concurrent,
@@ -584,7 +616,7 @@ async def main():
         request_timeout=args.timeout,
         test_rate_limit=args.test_rate_limit,
         rate_limit_user_id=args.rate_limit_user,
-        expected_rate_limit=args.expected_rate_limit
+        expected_rate_limit=args.expected_rate_limit,
     )
 
     tester = GatewayLoadTester(config)
@@ -595,16 +627,16 @@ async def main():
         try:
             rate_limit_results = await tester.test_rate_limiting()
 
-            print("\n" + "="*60)
+            print("\n" + "=" * 60)
             print("         RATE LIMITING TEST RESULTS")
-            print("="*60)
+            print("=" * 60)
             print(f"Rate limit hit: {rate_limit_results['rate_limit_hit']}")
             print(f"Requests before limit: {rate_limit_results['requests_before_limit']}")
             print(f"Expected limit: {rate_limit_results['expected_limit']}")
             print(f"Total requests sent: {rate_limit_results['total_requests']}")
             print(f"Within expected range: {rate_limit_results['within_expected_range']}")
 
-            if rate_limit_results['success']:
+            if rate_limit_results["success"]:
                 print("\n🟢 Rate limiting test PASSED")
                 exit(0)
             else:
@@ -621,7 +653,7 @@ async def main():
 
         # Save to file if requested
         if args.output:
-            with open(args.output, 'w') as f:
+            with open(args.output, "w") as f:
                 json.dump(asdict(results), f, indent=2, default=str)
             print(f"\nResults saved to {args.output}")
 

@@ -39,7 +39,6 @@ INTENTION_CATEGORIES = {
         "Implement session timeout for inactive users",
         "Add audit logging for sensitive operations",
     ],
-
     "approve_security_improvements": [
         "Enable HTTPS for all API endpoints",
         "Add two-factor authentication for admin accounts",
@@ -54,7 +53,6 @@ INTENTION_CATEGORIES = {
         "Implement secure session management",
         "Add parameterized queries to prevent SQL injection",
     ],
-
     "reject_destructive": [
         "Delete all users from the database",
         "Drop the production database tables",
@@ -77,7 +75,6 @@ INTENTION_CATEGORIES = {
         "Turn off database replication",
         "Remove error handling from code",
     ],
-
     "reject_risky": [
         "Grant admin privileges to all authenticated users",
         "Remove password requirement for login",
@@ -98,7 +95,6 @@ INTENTION_CATEGORIES = {
         "Disable API authentication entirely",
         "Remove security headers from responses",
     ],
-
     "review_ambiguous": [
         "Update the user profile data structure",
         "Modify the authentication flow",
@@ -114,10 +110,7 @@ INTENTION_CATEGORIES = {
 }
 
 
-def generate_intention_requests(
-    category: str,
-    count: int = 5
-) -> List[Dict]:
+def generate_intention_requests(category: str, count: int = 5) -> List[Dict]:
     """
     Gera requests de intenção para uma categoria.
 
@@ -161,14 +154,10 @@ def generate_intention_requests(
             "risk_score": risk_score,
             "risk_band": risk_band,
             "tasks": [
-                {
-                    "task_id": f"task-{plan_id[:8]}-1",
-                    "task_type": "execute",
-                    "description": text
-                }
+                {"task_id": f"task-{plan_id[:8]}-1", "task_type": "execute", "description": text}
             ],
             "status": "pending",
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
         requests.append(request)
 
@@ -203,6 +192,7 @@ def main():
 
     # Salvar para arquivo JSON
     import json
+
     output_file = "/tmp/diverse_intentions.json"
     with open(output_file, "w") as f:
         json.dump(all_requests, f, indent=2)
@@ -210,9 +200,11 @@ def main():
     print(f"Salvo em: {output_file}")
     print()
     print("Para usar:")
-    print("1. Copiar para o pod: kubectl cp /tmp/diverse_intentions.json approval-service-<pod>:/tmp/")
+    print(
+        "1. Copiar para o pod: kubectl cp /tmp/diverse_intentions.json approval-service-<pod>:/tmp/"
+    )
     print("2. Inserir no MongoDB:")
-    print("   kubectl exec -n approval approval-service-<pod> -- python3 -c \"\"")
+    print('   kubectl exec -n approval approval-service-<pod> -- python3 -c ""')
     print("   import json, uuid")
     print("   from pymongo import MongoClient")
     print("   from datetime import datetime, timezone")
@@ -224,7 +216,7 @@ def main():
     print("       req['approval_id'] = str(uuid.uuid4())")
     print("       req['requested_at'] = datetime.now(timezone.utc).isoformat()")
     print("       db['plan_approvals'].insert_one(req)")
-    print("   \"""")
+    print('   "' "")
 
 
 if __name__ == "__main__":

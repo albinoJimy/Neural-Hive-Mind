@@ -34,35 +34,26 @@ def parse_args():
         description="Migrar ledger para adicionar tenant_id a documentos existentes"
     )
     parser.add_argument(
-        "--mongodb-uri",
-        required=True,
-        help="URI do MongoDB (ex: mongodb://localhost:27017)"
+        "--mongodb-uri", required=True, help="URI do MongoDB (ex: mongodb://localhost:27017)"
     )
     parser.add_argument(
-        "--database",
-        default="neural_hive",
-        help="Nome do database (default: neural_hive)"
+        "--database", default="neural_hive", help="Nome do database (default: neural_hive)"
     )
     parser.add_argument(
         "--collection",
         default="cognitive_ledger",
-        help="Nome da collection (default: cognitive_ledger)"
+        help="Nome da collection (default: cognitive_ledger)",
     )
     parser.add_argument(
         "--default-tenant-id",
         default="default",
-        help="Tenant ID padrão para documentos existentes (default: default)"
+        help="Tenant ID padrão para documentos existentes (default: default)",
     )
     parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Simular migração sem modificar dados"
+        "--dry-run", action="store_true", help="Simular migração sem modificar dados"
     )
     parser.add_argument(
-        "--batch-size",
-        type=int,
-        default=1000,
-        help="Tamanho do batch para updates (default: 1000)"
+        "--batch-size", type=int, default=1000, help="Tamanho do batch para updates (default: 1000)"
     )
     return parser.parse_args()
 
@@ -86,20 +77,12 @@ def connect_mongodb(uri: str, database: str, collection: str):
         db = client[database]
         coll = db[collection]
 
-        logger.info(
-            "Conectado ao MongoDB",
-            database=database,
-            collection=collection
-        )
+        logger.info("Conectado ao MongoDB", database=database, collection=collection)
 
         return coll
 
     except Exception as e:
-        logger.error(
-            "Falha ao conectar ao MongoDB",
-            uri=uri,
-            error=str(e)
-        )
+        logger.error("Falha ao conectar ao MongoDB", uri=uri, error=str(e))
         sys.exit(1)
 
 
@@ -114,26 +97,17 @@ def count_documents_without_tenant_id(collection) -> int:
         Número de documentos sem tenant_id
     """
     try:
-        count = collection.count_documents({'tenant_id': {'$exists': False}})
-        logger.info(
-            "Documentos sem tenant_id encontrados",
-            count=count
-        )
+        count = collection.count_documents({"tenant_id": {"$exists": False}})
+        logger.info("Documentos sem tenant_id encontrados", count=count)
         return count
 
     except Exception as e:
-        logger.error(
-            "Erro ao contar documentos",
-            error=str(e)
-        )
+        logger.error("Erro ao contar documentos", error=str(e))
         sys.exit(1)
 
 
 def migrate_documents(
-    collection,
-    default_tenant_id: str,
-    batch_size: int,
-    dry_run: bool
+    collection, default_tenant_id: str, batch_size: int, dry_run: bool
 ) -> Dict[str, Any]:
     """
     Migra documentos adicionando tenant_id.
@@ -152,7 +126,7 @@ def migrate_documents(
 
     try:
         # Query para documentos sem tenant_id
-        query = {'tenant_id': {'$exists': False}}
+        query = {"tenant_id": {"$exists": False}}
 
         # Contar total
         total_docs = collection.count_documents(query)
@@ -160,33 +134,30 @@ def migrate_documents(
         if total_docs == 0:
             logger.info("Nenhum documento para migrar")
             return {
-                'total_documents': 0,
-                'documents_updated': 0,
-                'duration_seconds': 0.0,
-                'dry_run': dry_run
+                "total_documents": 0,
+                "documents_updated": 0,
+                "duration_seconds": 0.0,
+                "dry_run": dry_run,
             }
 
         logger.info(
             "Iniciando migração",
             total_documents=total_docs,
             default_tenant_id=default_tenant_id,
-            dry_run=dry_run
+            dry_run=dry_run,
         )
 
         if dry_run:
-            logger.info(
-                "DRY RUN - Nenhum documento será modificado",
-                would_update=total_docs
-            )
+            logger.info("DRY RUN - Nenhum documento será modificado", would_update=total_docs)
             return {
-                'total_documents': total_docs,
-                'documents_updated': 0,
-                'duration_seconds': 0.0,
-                'dry_run': True
+                "total_documents": total_docs,
+                "documents_updated": 0,
+                "duration_seconds": 0.0,
+                "dry_run": True,
             }
 
         # Atualizar documentos em batch
-        update = {'$set': {'tenant_id': default_tenant_id}}
+        update = {"$set": {"tenant_id": default_tenant_id}}
         result = collection.update_many(query, update)
 
         total_updated = result.modified_count
@@ -196,21 +167,18 @@ def migrate_documents(
         logger.info(
             "Migração concluída",
             documents_updated=total_updated,
-            duration_seconds=round(duration, 2)
+            duration_seconds=round(duration, 2),
         )
 
         return {
-            'total_documents': total_docs,
-            'documents_updated': total_updated,
-            'duration_seconds': round(duration, 2),
-            'dry_run': False
+            "total_documents": total_docs,
+            "documents_updated": total_updated,
+            "duration_seconds": round(duration, 2),
+            "dry_run": False,
         }
 
     except Exception as e:
-        logger.error(
-            "Erro durante migração",
-            error=str(e)
-        )
+        logger.error("Erro durante migração", error=str(e))
         sys.exit(1)
 
 
@@ -224,76 +192,58 @@ def create_multi_tenancy_indexes(collection, dry_run: bool):
     """
     indexes = [
         {
-            'name': 'idx_tenant_opinion_id',
-            'keys': [('tenant_id', ASCENDING), ('opinion_id', ASCENDING)],
-            'unique': True
+            "name": "idx_tenant_opinion_id",
+            "keys": [("tenant_id", ASCENDING), ("opinion_id", ASCENDING)],
+            "unique": True,
         },
         {
-            'name': 'idx_tenant_plan_id',
-            'keys': [('tenant_id', ASCENDING), ('plan_id', ASCENDING)],
-            'unique': False
+            "name": "idx_tenant_plan_id",
+            "keys": [("tenant_id", ASCENDING), ("plan_id", ASCENDING)],
+            "unique": False,
         },
         {
-            'name': 'idx_tenant_specialist_evaluated_at',
-            'keys': [
-                ('tenant_id', ASCENDING),
-                ('specialist_type', ASCENDING),
-                ('evaluated_at', -1)
+            "name": "idx_tenant_specialist_evaluated_at",
+            "keys": [
+                ("tenant_id", ASCENDING),
+                ("specialist_type", ASCENDING),
+                ("evaluated_at", -1),
             ],
-            'unique': False
-        }
+            "unique": False,
+        },
     ]
 
-    logger.info(
-        "Criando índices para multi-tenancy",
-        index_count=len(indexes),
-        dry_run=dry_run
-    )
+    logger.info("Criando índices para multi-tenancy", index_count=len(indexes), dry_run=dry_run)
 
     if dry_run:
         logger.info("DRY RUN - Índices que seriam criados:")
         for idx in indexes:
-            logger.info(
-                "  - Índice",
-                name=idx['name'],
-                keys=idx['keys'],
-                unique=idx['unique']
-            )
+            logger.info("  - Índice", name=idx["name"], keys=idx["keys"], unique=idx["unique"])
         return
 
     try:
         for idx in indexes:
             # Verificar se índice já existe
             existing_indexes = collection.list_indexes()
-            index_names = [i['name'] for i in existing_indexes]
+            index_names = [i["name"] for i in existing_indexes]
 
-            if idx['name'] in index_names:
-                logger.info(
-                    "Índice já existe - pulando",
-                    name=idx['name']
-                )
+            if idx["name"] in index_names:
+                logger.info("Índice já existe - pulando", name=idx["name"])
                 continue
 
             # Criar índice
             collection.create_index(
-                idx['keys'],
-                name=idx['name'],
-                unique=idx['unique'],
-                background=True  # Não bloquear operações
+                idx["keys"],
+                name=idx["name"],
+                unique=idx["unique"],
+                background=True,  # Não bloquear operações
             )
 
-            logger.info(
-                "Índice criado",
-                name=idx['name']
-            )
+            logger.info("Índice criado", name=idx["name"])
 
         logger.info("Índices criados com sucesso")
 
     except Exception as e:
-        logger.error(
-            "Erro ao criar índices",
-            error=str(e)
-        )
+        logger.error("Erro ao criar índices", error=str(e))
         # Não falhar - índices podem ser criados manualmente
 
 
@@ -309,10 +259,10 @@ def validate_migration(collection, default_tenant_id: str):
 
     try:
         # Contar documentos sem tenant_id (deve ser 0)
-        without_tenant = collection.count_documents({'tenant_id': {'$exists': False}})
+        without_tenant = collection.count_documents({"tenant_id": {"$exists": False}})
 
         # Contar documentos com tenant_id padrão
-        with_default_tenant = collection.count_documents({'tenant_id': default_tenant_id})
+        with_default_tenant = collection.count_documents({"tenant_id": default_tenant_id})
 
         # Contar total de documentos
         total = collection.count_documents({})
@@ -321,24 +271,18 @@ def validate_migration(collection, default_tenant_id: str):
             "Validação de migração",
             total_documents=total,
             without_tenant_id=without_tenant,
-            with_default_tenant_id=with_default_tenant
+            with_default_tenant_id=with_default_tenant,
         )
 
         if without_tenant > 0:
-            logger.warning(
-                "Alguns documentos ainda não têm tenant_id",
-                count=without_tenant
-            )
+            logger.warning("Alguns documentos ainda não têm tenant_id", count=without_tenant)
             return False
 
         logger.info("✅ Migração validada com sucesso!")
         return True
 
     except Exception as e:
-        logger.error(
-            "Erro ao validar migração",
-            error=str(e)
-        )
+        logger.error("Erro ao validar migração", error=str(e))
         return False
 
 
@@ -373,12 +317,7 @@ def main():
         print()
 
     print("🔄 Migrando documentos...")
-    stats = migrate_documents(
-        collection,
-        args.default_tenant_id,
-        args.batch_size,
-        args.dry_run
-    )
+    stats = migrate_documents(collection, args.default_tenant_id, args.batch_size, args.dry_run)
     print(f"   ✅ Migrados: {stats['documents_updated']:,} documentos")
     print(f"   ⏱️  Duração: {stats['duration_seconds']:.2f}s")
     print()

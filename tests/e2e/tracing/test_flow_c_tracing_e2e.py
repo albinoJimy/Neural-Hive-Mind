@@ -31,13 +31,9 @@ from typing import Optional
 
 
 # Configuração - URLs podem ser sobrescritas via variáveis de ambiente
-GATEWAY_URL = os.getenv(
-    'GATEWAY_URL',
-    'http://gateway-intencoes.neural-hive.svc.cluster.local'
-)
+GATEWAY_URL = os.getenv("GATEWAY_URL", "http://gateway-intencoes.neural-hive.svc.cluster.local")
 JAEGER_QUERY_URL = os.getenv(
-    'JAEGER_QUERY_URL',
-    'http://jaeger-query.observability.svc.cluster.local:16686'
+    "JAEGER_QUERY_URL", "http://jaeger-query.observability.svc.cluster.local:16686"
 )
 
 
@@ -69,16 +65,12 @@ async def test_flow_c_trace_propagation():
         "priority": "high",
         "metadata": {
             "test_type": "e2e_tracing",
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        }
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        },
     }
 
     async with httpx.AsyncClient() as client:
-        response = await client.post(
-            f"{GATEWAY_URL}/intentions",
-            json=intent_payload,
-            timeout=30.0
-        )
+        response = await client.post(f"{GATEWAY_URL}/intentions", json=intent_payload, timeout=30.0)
 
         assert response.status_code == 200
         result = response.json()
@@ -104,7 +96,7 @@ async def test_flow_c_trace_propagation():
         "gateway-intencoes",
         "semantic-translation-engine",
         "consensus-engine",
-        "orchestrator-dynamic"
+        "orchestrator-dynamic",
     ]
 
     found_services = {span["process"]["serviceName"] for span in spans}
@@ -115,13 +107,13 @@ async def test_flow_c_trace_propagation():
 
     # Validar spans específicos do Fluxo C
     expected_operations = [
-        "flow_c.execute",           # FlowCOrchestrator
-        "C1.validate_decision",     # Validação
-        "C2.generate_tickets",      # Geração de tickets
-        "C3.discover_workers",      # Descoberta de workers
-        "C4.assign_tickets",        # Atribuição
-        "C5.monitor_execution",     # Monitoramento
-        "C6.publish_telemetry"      # Telemetria
+        "flow_c.execute",  # FlowCOrchestrator
+        "C1.validate_decision",  # Validação
+        "C2.generate_tickets",  # Geração de tickets
+        "C3.discover_workers",  # Descoberta de workers
+        "C4.assign_tickets",  # Atribuição
+        "C5.monitor_execution",  # Monitoramento
+        "C6.publish_telemetry",  # Telemetria
     ]
 
     found_operations = {span["operationName"] for span in spans}
@@ -146,7 +138,7 @@ async def test_flow_c_trace_propagation():
         print(f"✅ Span validado: {span['operationName']}")
 
     # 5. Validar continuidade de trace_id (todos os spans devem ter o mesmo trace_id)
-    trace_ids_in_spans = {span.get('traceID') for span in spans}
+    trace_ids_in_spans = {span.get("traceID") for span in spans}
     assert len(trace_ids_in_spans) == 1, (
         f"Fragmentação de trace detectada: {len(trace_ids_in_spans)} trace_ids diferentes. "
         f"Esperado: 1 trace_id único. Encontrados: {trace_ids_in_spans}"
@@ -154,35 +146,36 @@ async def test_flow_c_trace_propagation():
     print(f"✅ Continuidade de trace_id validada: {trace_ids_in_spans.pop()}")
 
     # 6. Validar parent-child relationships para spans do Fluxo C
-    flow_c_root = next((s for s in spans if 'flow_c.execute' in s['operationName']), None)
+    flow_c_root = next((s for s in spans if "flow_c.execute" in s["operationName"]), None)
     if flow_c_root:
-        for operation in ['C1.validate_decision', 'C2.generate_tickets', 'C3.discover_workers']:
-            child_span = next((s for s in spans if operation in s['operationName']), None)
+        for operation in ["C1.validate_decision", "C2.generate_tickets", "C3.discover_workers"]:
+            child_span = next((s for s in spans if operation in s["operationName"]), None)
             if child_span:
-                references = child_span.get('references', [])
-                parent_ref = next((r for r in references if r.get('refType') == 'CHILD_OF'), None)
+                references = child_span.get("references", [])
+                parent_ref = next((r for r in references if r.get("refType") == "CHILD_OF"), None)
                 if parent_ref:
-                    parent_span_id = parent_ref.get('spanID')
-                    if parent_span_id == flow_c_root['spanID']:
+                    parent_span_id = parent_ref.get("spanID")
+                    if parent_span_id == flow_c_root["spanID"]:
                         print(f"✅ Hierarquia validada: {operation} → flow_c.execute")
 
     # 7. Validar ausência de erros
-    error_spans = [s for s in spans if any(
-        tag.get('key') == 'error' and tag.get('value') is True
-        for tag in s.get('tags', [])
-    )]
-    assert len(error_spans) == 0, (
-        f"Spans com erro detectados: {[s['operationName'] for s in error_spans]}"
-    )
+    error_spans = [
+        s
+        for s in spans
+        if any(tag.get("key") == "error" and tag.get("value") is True for tag in s.get("tags", []))
+    ]
+    assert (
+        len(error_spans) == 0
+    ), f"Spans com erro detectados: {[s['operationName'] for s in error_spans]}"
     print(f"✅ Nenhum span com erro detectado")
 
     # 8. Validar latências razoáveis (< 60s para cada span)
     for span in spans:
-        duration_us = span.get('duration', 0)
+        duration_us = span.get("duration", 0)
         duration_s = duration_us / 1_000_000
-        assert duration_s < 60, (
-            f"Span {span['operationName']} com latência excessiva: {duration_s:.2f}s"
-        )
+        assert (
+            duration_s < 60
+        ), f"Span {span['operationName']} com latência excessiva: {duration_s:.2f}s"
     print(f"✅ Latências validadas (todas < 60s)")
 
     print(f"\n🎉 Teste E2E de tracing concluído com sucesso!")
@@ -202,14 +195,10 @@ async def _find_trace_by_intent_id(intent_id: str) -> Optional[str]:
         params = {
             "service": "gateway-intencoes",
             "lookback": lookback,
-            "tags": f'{{"neural.hive.intent.id":"{intent_id}"}}'
+            "tags": f'{{"neural.hive.intent.id":"{intent_id}"}}',
         }
 
-        response = await client.get(
-            f"{JAEGER_QUERY_URL}/api/traces",
-            params=params,
-            timeout=10.0
-        )
+        response = await client.get(f"{JAEGER_QUERY_URL}/api/traces", params=params, timeout=10.0)
 
         if response.status_code != 200:
             return None
@@ -227,10 +216,7 @@ async def _find_trace_by_intent_id(intent_id: str) -> Optional[str]:
 async def _get_trace_spans(trace_id: str) -> list:
     """Obtém todos os spans de um trace."""
     async with httpx.AsyncClient() as client:
-        response = await client.get(
-            f"{JAEGER_QUERY_URL}/api/traces/{trace_id}",
-            timeout=10.0
-        )
+        response = await client.get(f"{JAEGER_QUERY_URL}/api/traces/{trace_id}", timeout=10.0)
 
         if response.status_code != 200:
             return []

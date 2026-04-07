@@ -9,7 +9,19 @@ CODE_FORGE_SRC = ROOT / "services" / "code-forge" / "src"
 if str(CODE_FORGE_SRC) not in sys.path:
     sys.path.append(str(CODE_FORGE_SRC))
 
-from src.models.execution_ticket import ExecutionTicket, Priority, QoS, RiskBand, SLA, TaskType, TicketStatus, DeliveryMode, Consistency, Durability, SecurityLevel  # noqa: E402
+from src.models.execution_ticket import (
+    ExecutionTicket,
+    Priority,
+    QoS,
+    RiskBand,
+    SLA,
+    TaskType,
+    TicketStatus,
+    DeliveryMode,
+    Consistency,
+    Durability,
+    SecurityLevel,
+)  # noqa: E402
 from src.services.pipeline_engine import PipelineEngine  # noqa: E402
 
 
@@ -48,8 +60,16 @@ def _build_ticket():
         priority=Priority.NORMAL,
         risk_band=RiskBand.MEDIUM,
         parameters={"artifact_id": "a-1"},
-        sla=SLA(deadline=datetime.now(timezone.utc) + timedelta(minutes=5), timeout_ms=1000, max_retries=1),
-        qos=QoS(delivery_mode=DeliveryMode.AT_LEAST_ONCE, consistency=Consistency.EVENTUAL, durability=Durability.PERSISTENT),
+        sla=SLA(
+            deadline=datetime.now(timezone.utc) + timedelta(minutes=5),
+            timeout_ms=1000,
+            max_retries=1,
+        ),
+        qos=QoS(
+            delivery_mode=DeliveryMode.AT_LEAST_ONCE,
+            consistency=Consistency.EVENTUAL,
+            durability=Durability.PERSISTENT,
+        ),
         security_level=SecurityLevel.INTERNAL,
         created_at=datetime.now(timezone.utc),
     )

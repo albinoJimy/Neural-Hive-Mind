@@ -15,6 +15,7 @@ from enum import Enum
 # Test: Workflow State Machine
 # =============================================================================
 
+
 class WorkflowState(Enum):
     PENDING = "pending"
     RUNNING = "running"
@@ -29,10 +30,7 @@ class TestWorkflowStateMachine:
 
     def test_initial_state(self):
         """Deve iniciar com estado pending."""
-        workflow = {
-            "workflow_id": str(uuid4()),
-            "state": WorkflowState.PENDING
-        }
+        workflow = {"workflow_id": str(uuid4()), "state": WorkflowState.PENDING}
 
         assert workflow["state"] == WorkflowState.PENDING
 
@@ -86,21 +84,15 @@ class TestWorkflowStateMachine:
 # Test: Workflow Steps
 # =============================================================================
 
+
 class TestWorkflowSteps:
     """Testes de passos do workflow."""
 
     def test_add_step(self):
         """Deve adicionar passo ao workflow."""
-        workflow = {
-            "workflow_id": str(uuid4()),
-            "steps": []
-        }
+        workflow = {"workflow_id": str(uuid4()), "steps": []}
 
-        step = {
-            "step_id": str(uuid4()),
-            "name": "validate_input",
-            "order": 1
-        }
+        step = {"step_id": str(uuid4()), "name": "validate_input", "order": 1}
 
         workflow["steps"].append(step)
 
@@ -111,7 +103,7 @@ class TestWorkflowSteps:
         steps = [
             {"order": 1, "name": "validate"},
             {"order": 2, "name": "process"},
-            {"order": 3, "name": "notify"}
+            {"order": 3, "name": "notify"},
         ]
 
         sorted_steps = sorted(steps, key=lambda x: x["order"])
@@ -125,12 +117,11 @@ class TestWorkflowSteps:
         steps = {
             "step1": {"status": "completed", "depends_on": []},
             "step2": {"status": "pending", "depends_on": ["step1"]},
-            "step3": {"status": "pending", "depends_on": ["step2"]}
+            "step3": {"status": "pending", "depends_on": ["step2"]},
         }
 
         can_execute_step2 = all(
-            steps[dep]["status"] == "completed"
-            for dep in steps["step2"]["depends_on"]
+            steps[dep]["status"] == "completed" for dep in steps["step2"]["depends_on"]
         )
 
         assert can_execute_step2 is True
@@ -140,7 +131,7 @@ class TestWorkflowSteps:
         parallel_steps = [
             {"name": "task_a", "parallel_group": "group1"},
             {"name": "task_b", "parallel_group": "group1"},
-            {"name": "task_c", "parallel_group": "group1"}
+            {"name": "task_c", "parallel_group": "group1"},
         ]
 
         group_members = [s for s in parallel_steps if s["parallel_group"] == "group1"]
@@ -152,7 +143,7 @@ class TestWorkflowSteps:
         step = {
             "name": "long_task",
             "started_at": datetime.now(timezone.utc) - timedelta(seconds=70),
-            "timeout_seconds": 60
+            "timeout_seconds": 60,
         }
 
         elapsed = (datetime.now(timezone.utc) - step["started_at"]).total_seconds()
@@ -165,6 +156,7 @@ class TestWorkflowSteps:
 # Test: Workflow Context
 # =============================================================================
 
+
 class TestWorkflowContext:
     """Testes de contexto do workflow."""
 
@@ -172,11 +164,7 @@ class TestWorkflowContext:
         """Deve inicializar contexto."""
         workflow = {
             "workflow_id": str(uuid4()),
-            "context": {
-                "user_id": "user-123",
-                "locale": "pt-BR",
-                "input_data": {}
-            }
+            "context": {"user_id": "user-123", "locale": "pt-BR", "input_data": {}},
         }
 
         assert "user_id" in workflow["context"]
@@ -216,6 +204,7 @@ class TestWorkflowContext:
 # Test: Workflow Events
 # =============================================================================
 
+
 class TestWorkflowEvents:
     """Testes de eventos do workflow."""
 
@@ -227,7 +216,7 @@ class TestWorkflowEvents:
             "event_id": str(uuid4()),
             "type": "step_completed",
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "data": {"step": "validate"}
+            "data": {"step": "validate"},
         }
 
         events.append(event)
@@ -240,12 +229,11 @@ class TestWorkflowEvents:
         events = [
             {"type": "created", "timestamp": "T10:00:00"},
             {"type": "started", "timestamp": "T10:00:01"},
-            {"type": "completed", "timestamp": "T10:00:05"}
+            {"type": "completed", "timestamp": "T10:00:05"},
         ]
 
         is_sequential = all(
-            events[i]["timestamp"] <= events[i+1]["timestamp"]
-            for i in range(len(events) - 1)
+            events[i]["timestamp"] <= events[i + 1]["timestamp"] for i in range(len(events) - 1)
         )
 
         assert is_sequential is True
@@ -254,7 +242,7 @@ class TestWorkflowEvents:
         """Deve inscrever em evento."""
         subscriptions = {
             "step_completed": ["handler1", "handler2"],
-            "workflow_failed": ["handler3"]
+            "workflow_failed": ["handler3"],
         }
 
         subscribers = subscriptions["step_completed"]
@@ -266,16 +254,13 @@ class TestWorkflowEvents:
 # Test: Workflow Persistence
 # =============================================================================
 
+
 class TestWorkflowPersistence:
     """Testes de persistência do workflow."""
 
     def test_save_workflow_state(self):
         """Deve salvar estado do workflow."""
-        workflow = {
-            "workflow_id": str(uuid4()),
-            "state": WorkflowState.RUNNING,
-            "context": {}
-        }
+        workflow = {"workflow_id": str(uuid4()), "state": WorkflowState.RUNNING, "context": {}}
 
         # Simular salvamento
         saved = True
@@ -287,10 +272,7 @@ class TestWorkflowPersistence:
         workflow_id = str(uuid4())
 
         # Simular carregamento
-        loaded_workflow = {
-            "workflow_id": workflow_id,
-            "state": WorkflowState.PAUSED
-        }
+        loaded_workflow = {"workflow_id": workflow_id, "state": WorkflowState.PAUSED}
 
         assert loaded_workflow["workflow_id"] == workflow_id
 
@@ -302,7 +284,7 @@ class TestWorkflowPersistence:
             "state": WorkflowState.RUNNING,
             "completed_steps": ["step1", "step2"],
             "current_step": "step3",
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         assert "completed_steps" in checkpoint
@@ -313,7 +295,7 @@ class TestWorkflowPersistence:
         checkpoint = {
             "state": WorkflowState.RUNNING,
             "completed_steps": ["step1", "step2"],
-            "current_step": "step3"
+            "current_step": "step3",
         }
 
         # Restaurar
@@ -328,16 +310,13 @@ class TestWorkflowPersistence:
 # Test: Workflow Error Recovery
 # =============================================================================
 
+
 class TestWorkflowErrorRecovery:
     """Testes de recuperação de erro."""
 
     def test_retry_failed_step(self):
         """Deve retentar passo falho."""
-        step = {
-            "name": "api_call",
-            "attempts": 0,
-            "max_attempts": 3
-        }
+        step = {"name": "api_call", "attempts": 0, "max_attempts": 3}
 
         step["attempts"] += 1
         can_retry = step["attempts"] < step["max_attempts"]
@@ -347,10 +326,7 @@ class TestWorkflowErrorRecovery:
 
     def test_skip_on_failure(self):
         """Deve pular passo em falha."""
-        step = {
-            "name": "optional_step",
-            "continue_on_failure": True
-        }
+        step = {"name": "optional_step", "continue_on_failure": True}
 
         if step["continue_on_failure"]:
             next_step = "next_step"
@@ -384,6 +360,7 @@ class TestWorkflowErrorRecovery:
 # Test: Workflow Scheduling
 # =============================================================================
 
+
 class TestWorkflowScheduling:
     """Testes de agendamento do workflow."""
 
@@ -392,7 +369,7 @@ class TestWorkflowScheduling:
         schedule = {
             "workflow_id": str(uuid4()),
             "scheduled_at": datetime.now(timezone.utc).isoformat(),
-            "delay_seconds": 0
+            "delay_seconds": 0,
         }
 
         is_immediate = schedule["delay_seconds"] == 0
@@ -414,17 +391,14 @@ class TestWorkflowScheduling:
         schedule = {
             "workflow_id": str(uuid4()),
             "recurrence": "daily",
-            "next_run": datetime.now(timezone.utc) + timedelta(days=1)
+            "next_run": datetime.now(timezone.utc) + timedelta(days=1),
         }
 
         assert schedule["recurrence"] == "daily"
 
     def test_cancel_scheduled(self):
         """Deve cancelar agendamento."""
-        schedule = {
-            "workflow_id": str(uuid4()),
-            "status": "scheduled"
-        }
+        schedule = {"workflow_id": str(uuid4()), "status": "scheduled"}
 
         schedule["status"] = "cancelled"
         schedule["cancelled_at"] = datetime.now(timezone.utc).isoformat()
@@ -435,6 +409,7 @@ class TestWorkflowScheduling:
 # =============================================================================
 # Test: Workflow Metrics
 # =============================================================================
+
 
 class TestWorkflowMetrics:
     """Testes de métricas do workflow."""
@@ -453,7 +428,7 @@ class TestWorkflowMetrics:
         steps = [
             {"name": "step1", "status": "completed"},
             {"name": "step2", "status": "completed"},
-            {"name": "step3", "status": "skipped"}
+            {"name": "step3", "status": "skipped"},
         ]
 
         completed = sum(1 for s in steps if s["status"] == "completed")
@@ -466,7 +441,7 @@ class TestWorkflowMetrics:
             {"status": "completed"},
             {"status": "completed"},
             {"status": "failed"},
-            {"status": "completed"}
+            {"status": "completed"},
         ]
 
         success_rate = sum(1 for w in workflows if w["status"] == "completed") / len(workflows)
@@ -475,11 +450,7 @@ class TestWorkflowMetrics:
 
     def test_track_bottlenecks(self):
         """Deve rastrear gargalos."""
-        step_durations = {
-            "validate": 0.5,
-            "process": 5.0,
-            "notify": 0.3
-        }
+        step_durations = {"validate": 0.5, "process": 5.0, "notify": 0.3}
 
         slowest_step = max(step_durations.items(), key=lambda x: x[1])
 
@@ -491,6 +462,7 @@ class TestWorkflowMetrics:
 # Test: Workflow Validation
 # =============================================================================
 
+
 class TestWorkflowValidation:
     """Testes de validação do workflow."""
 
@@ -499,9 +471,7 @@ class TestWorkflowValidation:
         workflow = {
             "workflow_id": str(uuid4()),
             "name": "approval_workflow",
-            "steps": [
-                {"name": "step1", "handler": "handler1"}
-            ]
+            "steps": [{"name": "step1", "handler": "handler1"}],
         }
 
         has_id = "workflow_id" in workflow
@@ -526,7 +496,7 @@ class TestWorkflowValidation:
         steps = {
             "step1": {"depends_on": ["step3"]},
             "step2": {"depends_on": ["step1"]},
-            "step3": {"depends_on": ["step2"]}
+            "step3": {"depends_on": ["step2"]},
         }
 
         # Detectar circularidade simplificado
@@ -543,9 +513,6 @@ class TestWorkflowValidation:
             # amount faltando
         }
 
-        has_all_inputs = all(
-            inp in step["available_inputs"]
-            for inp in step["required_inputs"]
-        )
+        has_all_inputs = all(inp in step["available_inputs"] for inp in step["required_inputs"])
 
         assert has_all_inputs is False

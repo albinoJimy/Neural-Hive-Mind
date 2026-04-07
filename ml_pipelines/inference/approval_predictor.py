@@ -49,8 +49,7 @@ class ApprovalPredictor:
         """Carrega o modelo do arquivo pickle."""
         if not self.model_path.exists():
             raise FileNotFoundError(
-                f"Modelo não encontrado em {self.model_path}. "
-                "Execute o treinamento primeiro."
+                f"Modelo não encontrado em {self.model_path}. " "Execute o treinamento primeiro."
             )
 
         with open(self.model_path, "rb") as f:
@@ -72,11 +71,11 @@ class ApprovalPredictor:
 
         # Domínios
         domain_keywords = {
-            "security": r'\b(security|ssl|tls|authentication|authorization|password|login)\b',
-            "performance": r'\b(performance|optimize|index|cache|speed|latency|query)\b',
-            "database": r'\b(database|db|sql|mongo|query|table|schema|migration)\b',
-            "devops": r'\b(deploy|container|docker|kubernetes|ci/cd|pipeline|build)\b',
-            "testing": r'\b(test|testing|unit|integration|e2e|coverage)\b',
+            "security": r"\b(security|ssl|tls|authentication|authorization|password|login)\b",
+            "performance": r"\b(performance|optimize|index|cache|speed|latency|query)\b",
+            "database": r"\b(database|db|sql|mongo|query|table|schema|migration)\b",
+            "devops": r"\b(deploy|container|docker|kubernetes|ci/cd|pipeline|build)\b",
+            "testing": r"\b(test|testing|unit|integration|e2e|coverage)\b",
         }
 
         domains = {}
@@ -85,11 +84,11 @@ class ApprovalPredictor:
 
         # Ações
         action_keywords = {
-            "create": r'\b(create|add|insert|new|make)\b',
-            "update": r'\b(update|modify|change|edit|alter)\b',
-            "delete": r'\b(delete|drop|remove|destroy|clean)\b',
-            "read": r'\b(get|fetch|select|read|query|find)\b',
-            "deploy": r'\b(deploy|release|publish|ship)\b',
+            "create": r"\b(create|add|insert|new|make)\b",
+            "update": r"\b(update|modify|change|edit|alter)\b",
+            "delete": r"\b(delete|drop|remove|destroy|clean)\b",
+            "read": r"\b(get|fetch|select|read|query|find)\b",
+            "deploy": r"\b(deploy|release|publish|ship)\b",
         }
 
         actions = {}
@@ -98,22 +97,32 @@ class ApprovalPredictor:
 
         # Palavras-chave de risco
         features = {
-            "has_backup": 1.0 if re.search(r'\bbackup|save|preserve|restore\b', text, re.I) else 0.0,
-            "has_verification": 1.0 if re.search(r'\bverify|validation|check|confirm|test\b', text, re.I) else 0.0,
-            "has_all": 1.0 if re.search(r'\ball\b.*\b(users|records|data|tables)\b', text, re.I) else 0.0,
-
+            "has_backup": 1.0
+            if re.search(r"\bbackup|save|preserve|restore\b", text, re.I)
+            else 0.0,
+            "has_verification": 1.0
+            if re.search(r"\bverify|validation|check|confirm|test\b", text, re.I)
+            else 0.0,
+            "has_all": 1.0
+            if re.search(r"\ball\b.*\b(users|records|data|tables)\b", text, re.I)
+            else 0.0,
             # Métricas de texto
             "text_length_chars": len(text),
             "text_length_words": len(text.split()),
-
             # Risco
-            "risk_high": 1.0 if re.search(r'\b(delete|drop|destroy|remove|disable)\b', text, re.I) else 0.0,
-            "risk_medium": 1.0 if re.search(r'\b(update|change|modify|alter)\b', text, re.I) else 0.0,
-            "risk_low": 1.0 if re.search(r'\b(create|add|verify|check|test|backup)\b', text, re.I) else 0.0,
+            "risk_high": 1.0
+            if re.search(r"\b(delete|drop|destroy|remove|disable)\b", text, re.I)
+            else 0.0,
+            "risk_medium": 1.0
+            if re.search(r"\b(update|change|modify|alter)\b", text, re.I)
+            else 0.0,
+            "risk_low": 1.0
+            if re.search(r"\b(create|add|verify|check|test|backup)\b", text, re.I)
+            else 0.0,
         }
 
         # Score de risco simples
-        dangerous_keywords = ['delete', 'drop', 'destroy', 'remove', 'disable', 'without', 'all']
+        dangerous_keywords = ["delete", "drop", "destroy", "remove", "disable", "without", "all"]
         dangerous_count = sum(1 for kw in dangerous_keywords if kw in text.lower())
         features["simple_risk_score"] = min(1.0, dangerous_count * 0.3)
 
@@ -132,11 +141,7 @@ class ApprovalPredictor:
         # Combinar todas as features
         return {**domains, **actions, **features}
 
-    def predict_from_text(
-        self,
-        text: str,
-        specialist_confidence: float = 0.5
-    ) -> Dict[str, Any]:
+    def predict_from_text(self, text: str, specialist_confidence: float = 0.5) -> Dict[str, Any]:
         """
         Faz predição a partir do texto da intenção.
 
@@ -158,20 +163,36 @@ class ApprovalPredictor:
 
         # Preparar features na ordem correta
         feature_order = [
-            'specialist_confidence', 'domain_security', 'domain_performance',
-            'domain_database', 'domain_devops', 'domain_testing',
-            'action_create', 'action_update', 'action_delete',
-            'action_read', 'action_deploy',
-            'has_backup', 'has_verification', 'has_all',
-            'text_length_chars', 'text_length_words',
-            'risk_high', 'risk_medium', 'risk_low',
-            'simple_risk_score',
-            'primary_domain_security', 'primary_domain_performance',
-            'primary_domain_database', 'primary_domain_devops',
-            'primary_domain_testing',
-            'primary_action_create', 'primary_action_update',
-            'primary_action_delete', 'primary_action_read',
-            'primary_action_deploy'
+            "specialist_confidence",
+            "domain_security",
+            "domain_performance",
+            "domain_database",
+            "domain_devops",
+            "domain_testing",
+            "action_create",
+            "action_update",
+            "action_delete",
+            "action_read",
+            "action_deploy",
+            "has_backup",
+            "has_verification",
+            "has_all",
+            "text_length_chars",
+            "text_length_words",
+            "risk_high",
+            "risk_medium",
+            "risk_low",
+            "simple_risk_score",
+            "primary_domain_security",
+            "primary_domain_performance",
+            "primary_domain_database",
+            "primary_domain_devops",
+            "primary_domain_testing",
+            "primary_action_create",
+            "primary_action_update",
+            "primary_action_delete",
+            "primary_action_read",
+            "primary_action_deploy",
         ]
 
         features = [[nlp_features.get(f, 0.0) for f in feature_order]]
@@ -182,7 +203,7 @@ class ApprovalPredictor:
 
         # Obter probabilidades se disponível
         probabilities = {}
-        if hasattr(self.model, 'predict_proba'):
+        if hasattr(self.model, "predict_proba"):
             probs = self.model.predict_proba(features)[0]
             for cls, prob in zip(self.model.classes_, probs):
                 probabilities[cls] = float(prob)
@@ -194,13 +215,11 @@ class ApprovalPredictor:
             "decision": decision,
             "confidence": confidence,
             "probabilities": probabilities,
-            "model_version": self.model_data.get("version", "unknown")
+            "model_version": self.model_data.get("version", "unknown"),
         }
 
     def predict_from_nlp_features(
-        self,
-        nlp_features: Dict[str, float],
-        specialist_confidence: float = 0.5
+        self, nlp_features: Dict[str, float], specialist_confidence: float = 0.5
     ) -> Dict[str, Any]:
         """
         Faz predição a partir de features NLP já extraídas.
@@ -216,20 +235,36 @@ class ApprovalPredictor:
             raise RuntimeError("Modelo não carregado")
 
         feature_order = [
-            'specialist_confidence', 'domain_security', 'domain_performance',
-            'domain_database', 'domain_devops', 'domain_testing',
-            'action_create', 'action_update', 'action_delete',
-            'action_read', 'action_deploy',
-            'has_backup', 'has_verification', 'has_all',
-            'text_length_chars', 'text_length_words',
-            'risk_high', 'risk_medium', 'risk_low',
-            'simple_risk_score',
-            'primary_domain_security', 'primary_domain_performance',
-            'primary_domain_database', 'primary_domain_devops',
-            'primary_domain_testing',
-            'primary_action_create', 'primary_action_update',
-            'primary_action_delete', 'primary_action_read',
-            'primary_action_deploy'
+            "specialist_confidence",
+            "domain_security",
+            "domain_performance",
+            "domain_database",
+            "domain_devops",
+            "domain_testing",
+            "action_create",
+            "action_update",
+            "action_delete",
+            "action_read",
+            "action_deploy",
+            "has_backup",
+            "has_verification",
+            "has_all",
+            "text_length_chars",
+            "text_length_words",
+            "risk_high",
+            "risk_medium",
+            "risk_low",
+            "simple_risk_score",
+            "primary_domain_security",
+            "primary_domain_performance",
+            "primary_domain_database",
+            "primary_domain_devops",
+            "primary_domain_testing",
+            "primary_action_create",
+            "primary_action_update",
+            "primary_action_delete",
+            "primary_action_read",
+            "primary_action_deploy",
         ]
 
         features = [[nlp_features.get(f, 0.0) for f in feature_order]]
@@ -238,7 +273,7 @@ class ApprovalPredictor:
         decision = self.model.predict(features)[0]
 
         probabilities = {}
-        if hasattr(self.model, 'predict_proba'):
+        if hasattr(self.model, "predict_proba"):
             probs = self.model.predict_proba(features)[0]
             for cls, prob in zip(self.model.classes_, probs):
                 probabilities[cls] = float(prob)
@@ -250,7 +285,7 @@ class ApprovalPredictor:
             "decision": decision,
             "confidence": confidence,
             "probabilities": probabilities,
-            "model_version": self.model_data.get("version", "unknown")
+            "model_version": self.model_data.get("version", "unknown"),
         }
 
     def get_model_info(self) -> Dict[str, Any]:
@@ -263,7 +298,7 @@ class ApprovalPredictor:
             "trained_at": self.model_data.get("trained_at"),
             "features": self.model_data.get("features", []),
             "metrics": self.model_data.get("metrics", {}),
-            "training_samples": self.model_data.get("training_samples")
+            "training_samples": self.model_data.get("training_samples"),
         }
 
 

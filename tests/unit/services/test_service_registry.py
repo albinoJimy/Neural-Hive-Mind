@@ -13,6 +13,7 @@ from uuid import uuid4
 # Test: Service Registration
 # =============================================================================
 
+
 class TestServiceRegistration:
     """Testes de registro de serviço."""
 
@@ -23,7 +24,7 @@ class TestServiceRegistration:
             "name": "consensus-engine",
             "version": "1.0.0",
             "endpoint": "http://consensus-engine:8002",
-            "registered_at": datetime.now(timezone.utc).isoformat()
+            "registered_at": datetime.now(timezone.utc).isoformat(),
         }
 
         registry = {}
@@ -36,13 +37,10 @@ class TestServiceRegistration:
         instances = [
             {"instance_id": "inst-1", "address": "10.0.1.1:8000"},
             {"instance_id": "inst-2", "address": "10.0.1.2:8000"},
-            {"instance_id": "inst-3", "address": "10.0.1.3:8000"}
+            {"instance_id": "inst-3", "address": "10.0.1.3:8000"},
         ]
 
-        service = {
-            "name": "api-gateway",
-            "instances": instances
-        }
+        service = {"name": "api-gateway", "instances": instances}
 
         assert len(service["instances"]) == 3
 
@@ -50,7 +48,7 @@ class TestServiceRegistration:
         """Deve remover registro do serviço."""
         registry = {
             "service-1": {"name": "gateway", "status": "active"},
-            "service-2": {"name": "consensus", "status": "active"}
+            "service-2": {"name": "consensus", "status": "active"},
         }
 
         service_to_remove = "service-1"
@@ -65,6 +63,7 @@ class TestServiceRegistration:
 # Test: Service Discovery
 # =============================================================================
 
+
 class TestServiceDiscovery:
     """Testes de descoberta de serviço."""
 
@@ -72,14 +71,11 @@ class TestServiceDiscovery:
         """Deve descobrir serviço por nome."""
         registry = {
             "service-1": {"name": "gateway", "endpoint": "http://gateway:8000"},
-            "service-2": {"name": "consensus", "endpoint": "http://consensus:8002"}
+            "service-2": {"name": "consensus", "endpoint": "http://consensus:8002"},
         }
 
         service_name = "gateway"
-        found = [
-            s for s in registry.values()
-            if s["name"] == service_name
-        ]
+        found = [s for s in registry.values() if s["name"] == service_name]
 
         assert len(found) == 1
         assert found[0]["endpoint"] == "http://gateway:8000"
@@ -89,14 +85,11 @@ class TestServiceDiscovery:
         registry = {
             "service-1": {"name": "gateway", "tags": ["http", "api"]},
             "service-2": {"name": "consensus", "tags": ["internal", "ml"]},
-            "service-3": {"name": "approval", "tags": ["http", "api"]}
+            "service-3": {"name": "approval", "tags": ["http", "api"]},
         }
 
         tag = "api"
-        services_with_tag = [
-            s for s in registry.values()
-            if tag in s["tags"]
-        ]
+        services_with_tag = [s for s in registry.values() if tag in s["tags"]]
 
         assert len(services_with_tag) == 2
 
@@ -107,14 +100,11 @@ class TestServiceDiscovery:
             "instances": [
                 {"id": "inst-1", "healthy": True},
                 {"id": "inst-2", "healthy": True},
-                {"id": "inst-3", "healthy": False}
-            ]
+                {"id": "inst-3", "healthy": False},
+            ],
         }
 
-        healthy_instances = [
-            i for i in service["instances"]
-            if i["healthy"]
-        ]
+        healthy_instances = [i for i in service["instances"] if i["healthy"]]
 
         assert len(healthy_instances) == 2
 
@@ -122,6 +112,7 @@ class TestServiceDiscovery:
 # =============================================================================
 # Test: Health Checking
 # =============================================================================
+
 
 class TestHealthChecking:
     """Testes de health checking."""
@@ -132,7 +123,7 @@ class TestHealthChecking:
             "service_id": "service-1",
             "health_check_url": "http://service-1:8000/health",
             "last_check": datetime.now(timezone.utc),
-            "status": "healthy"
+            "status": "healthy",
         }
 
         # Simular verificação
@@ -143,11 +134,7 @@ class TestHealthChecking:
 
     def test_mark_service_unhealthy(self):
         """Deve marcar serviço como não saudável."""
-        service = {
-            "service_id": "service-1",
-            "status": "healthy",
-            "failed_checks": 0
-        }
+        service = {"service_id": "service-1", "status": "healthy", "failed_checks": 0}
 
         # Simular falha de health check
         service["failed_checks"] += 1
@@ -161,10 +148,7 @@ class TestHealthChecking:
 
     def test_recover_unhealthy_service(self):
         """Deve recuperar serviço não saudável."""
-        service = {
-            "service_id": "service-1",
-            "status": "unhealthy"
-        }
+        service = {"service_id": "service-1", "status": "unhealthy"}
 
         # Simular recuperação
         service["status"] = "healthy"
@@ -176,6 +160,7 @@ class TestHealthChecking:
 # =============================================================================
 # Test: Load Balancing
 # =============================================================================
+
 
 class TestLoadBalancing:
     """Testes de balanceamento de carga."""
@@ -196,7 +181,7 @@ class TestLoadBalancing:
         instances = [
             {"id": "inst-1", "weight": 3},
             {"id": "inst-2", "weight": 1},
-            {"id": "inst-3", "weight": 2}
+            {"id": "inst-3", "weight": 2},
         ]
 
         # Inst-1 tem maior peso
@@ -209,7 +194,7 @@ class TestLoadBalancing:
         instances = [
             {"id": "inst-1", "connections": 5},
             {"id": "inst-2", "connections": 2},
-            {"id": "inst-3", "connections": 8}
+            {"id": "inst-3", "connections": 8},
         ]
 
         selected = min(instances, key=lambda x: x["connections"])
@@ -221,6 +206,7 @@ class TestLoadBalancing:
 # Test: Service Configuration
 # =============================================================================
 
+
 class TestServiceConfiguration:
     """Testes de configuração de serviço."""
 
@@ -230,7 +216,7 @@ class TestServiceConfiguration:
             "service_name": "gateway",
             "timeout": 30,
             "retry_policy": "exponential_backoff",
-            "circuit_breaker": True
+            "circuit_breaker": True,
         }
 
         assert config["timeout"] == 30
@@ -238,10 +224,7 @@ class TestServiceConfiguration:
 
     def test_update_service_config(self):
         """Deve atualizar configuração do serviço."""
-        config = {
-            "timeout": 30,
-            "max_retries": 3
-        }
+        config = {"timeout": 30, "max_retries": 3}
 
         config["timeout"] = 60
         config["max_retries"] = 5
@@ -256,8 +239,8 @@ class TestServiceConfiguration:
             "metadata": {
                 "version": "1.0.0",
                 "owner": "team-platform",
-                "repository": "github.com/org/gateway"
-            }
+                "repository": "github.com/org/gateway",
+            },
         }
 
         assert service["metadata"]["version"] == "1.0.0"
@@ -268,15 +251,13 @@ class TestServiceConfiguration:
 # Test: Service Dependencies
 # =============================================================================
 
+
 class TestServiceDependencies:
     """Testes de dependências de serviço."""
 
     def test_register_dependency(self):
         """Deve registrar dependência."""
-        service = {
-            "name": "orchestrator",
-            "dependencies": ["consensus", "approval", "worker"]
-        }
+        service = {"name": "orchestrator", "dependencies": ["consensus", "approval", "worker"]}
 
         assert "consensus" in service["dependencies"]
         assert len(service["dependencies"]) == 3
@@ -286,12 +267,10 @@ class TestServiceDependencies:
         dependencies = {
             "consensus": {"status": "available"},
             "approval": {"status": "available"},
-            "worker": {"status": "unavailable"}
+            "worker": {"status": "unavailable"},
         }
 
-        all_available = all(
-            d["status"] == "available" for d in dependencies.values()
-        )
+        all_available = all(d["status"] == "available" for d in dependencies.values())
 
         assert all_available is False
 
@@ -300,7 +279,7 @@ class TestServiceDependencies:
         dependency_graph = {
             "orchestrator": ["consensus", "approval"],
             "consensus": ["business", "technical"],
-            "approval": ["ml-service"]
+            "approval": ["ml-service"],
         }
 
         # Obter cadeia para orchestrator
@@ -324,6 +303,7 @@ class TestServiceDependencies:
 # Test: Service Events
 # =============================================================================
 
+
 class TestServiceEvents:
     """Testes de eventos de serviço."""
 
@@ -333,7 +313,7 @@ class TestServiceEvents:
             "event_type": "ServiceRegistered",
             "service_id": str(uuid4()),
             "service_name": "new-service",
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         assert event["event_type"] == "ServiceRegistered"
@@ -343,7 +323,7 @@ class TestServiceEvents:
         event = {
             "event_type": "ServiceDeregistered",
             "service_id": "service-1",
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         assert event["event_type"] == "ServiceDeregistered"
@@ -355,7 +335,7 @@ class TestServiceEvents:
             "service_id": "service-1",
             "old_status": "healthy",
             "new_status": "unhealthy",
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         assert event["old_status"] == "healthy"
@@ -366,6 +346,7 @@ class TestServiceEvents:
 # Test: Service Registry Persistence
 # =============================================================================
 
+
 class TestServiceRegistryPersistence:
     """Testes de persistência do registry."""
 
@@ -373,13 +354,10 @@ class TestServiceRegistryPersistence:
         """Deve salvar snapshot do registry."""
         registry = {
             "service-1": {"name": "gateway", "status": "active"},
-            "service-2": {"name": "consensus", "status": "active"}
+            "service-2": {"name": "consensus", "status": "active"},
         }
 
-        snapshot = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "services": registry
-        }
+        snapshot = {"timestamp": datetime.now(timezone.utc).isoformat(), "services": registry}
 
         assert "timestamp" in snapshot
         assert len(snapshot["services"]) == 2
@@ -388,9 +366,7 @@ class TestServiceRegistryPersistence:
         """Deve carregar snapshot do registry."""
         snapshot = {
             "timestamp": "2026-03-29T10:00:00",
-            "services": {
-                "service-1": {"name": "gateway"}
-            }
+            "services": {"service-1": {"name": "gateway"}},
         }
 
         loaded = snapshot["services"]
@@ -399,14 +375,11 @@ class TestServiceRegistryPersistence:
 
     def test_incremental_registry_update(self):
         """Deve atualizar registry incrementalmente."""
-        current_state = {
-            "service-1": {"version": 1},
-            "service-2": {"version": 1}
-        }
+        current_state = {"service-1": {"version": 1}, "service-2": {"version": 1}}
 
         updates = {
             "service-1": {"version": 2},  # Atualização
-            "service-3": {"version": 1}  # Novo serviço
+            "service-3": {"version": 1},  # Novo serviço
         }
 
         # Aplicar updates
@@ -424,16 +397,13 @@ class TestServiceRegistryPersistence:
 # Test: Service Registry API
 # =============================================================================
 
+
 class TestServiceRegistryAPI:
     """Testes de API do registry."""
 
     def test_register_service_endpoint(self):
         """Deve registrar endpoint do serviço."""
-        endpoint = {
-            "path": "/api/v1/analyze",
-            "method": "POST",
-            "service_id": "service-1"
-        }
+        endpoint = {"path": "/api/v1/analyze", "method": "POST", "service_id": "service-1"}
 
         routes = {}
         routes[f"{endpoint['method']}:{endpoint['path']}"] = endpoint
@@ -446,7 +416,7 @@ class TestServiceRegistryAPI:
         registry = {
             "service-1": {"name": "gateway"},
             "service-2": {"name": "consensus"},
-            "service-3": {"name": "approval"}
+            "service-3": {"name": "approval"},
         }
 
         services_list = list(registry.values())
@@ -456,11 +426,7 @@ class TestServiceRegistryAPI:
     def test_get_service_info(self):
         """Deve obter info do serviço."""
         registry = {
-            "service-1": {
-                "name": "gateway",
-                "version": "1.0.0",
-                "endpoint": "http://gateway:8000"
-            }
+            "service-1": {"name": "gateway", "version": "1.0.0", "endpoint": "http://gateway:8000"}
         }
 
         service_info = registry.get("service-1")

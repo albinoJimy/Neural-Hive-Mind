@@ -27,6 +27,7 @@ def orchestrator_url():
 # Testes de Treinamento Pipeline
 # =============================================================================
 
+
 @pytest.mark.asyncio
 @pytest.mark.e2e
 @pytest.mark.slow
@@ -56,7 +57,9 @@ async def test_anomaly_model_persistence_e2e(mlflow_url, orchestrator_url):
         pytest.skip("MLflow não disponível para teste E2E")
 
     # Etapa 2: Executar treinamento
-    training_script = Path("/jimy/Neural-Hive-Mind/ml_pipelines/training/train_predictive_models.py")
+    training_script = Path(
+        "/jimy/Neural-Hive-Mind/ml_pipelines/training/train_predictive_models.py"
+    )
 
     if not training_script.exists():
         pytest.skip("Script de treinamento não encontrado")
@@ -66,12 +69,14 @@ async def test_anomaly_model_persistence_e2e(mlflow_url, orchestrator_url):
         [
             "python",
             str(training_script),
-            "--model-algorithm", "autoencoder",
-            "--model-type", "anomaly"
+            "--model-algorithm",
+            "autoencoder",
+            "--model-type",
+            "anomaly",
         ],
         capture_output=True,
         text=True,
-        timeout=300  # 5 minutos
+        timeout=300,  # 5 minutos
     )
 
     # Validar que treinamento completou sem erros
@@ -84,43 +89,42 @@ async def test_anomaly_model_persistence_e2e(mlflow_url, orchestrator_url):
             f"{mlflow_url}/api/2.0/mlflow/runs/search",
             params={
                 "experiment_ids": ["1"],  # Ajustar conforme experiment ID real
-                "max_results": 1
-            }
+                "max_results": 1,
+            },
         )
 
         if response.status_code == 200:
             data = response.json()
-            runs = data.get('runs', [])
+            runs = data.get("runs", [])
 
             if len(runs) > 0:
                 run = runs[0]
-                run_id = run.get('info', {}).get('run_id')
+                run_id = run.get("info", {}).get("run_id")
 
                 # Buscar artifacts do run
                 artifacts_response = await client.get(
-                    f"{mlflow_url}/api/2.0/mlflow/artifacts/list",
-                    params={"run_id": run_id}
+                    f"{mlflow_url}/api/2.0/mlflow/artifacts/list", params={"run_id": run_id}
                 )
 
                 if artifacts_response.status_code == 200:
                     artifacts_data = artifacts_response.json()
-                    artifact_paths = [a.get('path') for a in artifacts_data.get('files', [])]
+                    artifact_paths = [a.get("path") for a in artifacts_data.get("files", [])]
 
                     # Validar que artifacts esperados existem
                     # Pode incluir: model/, artifacts/scaler.joblib, artifacts/threshold.npy
                     assert len(artifact_paths) > 0
 
                     # Validar métricas do run
-                    metrics = run.get('data', {}).get('metrics', {})
-                    params = run.get('data', {}).get('params', {})
+                    metrics = run.get("data", {}).get("metrics", {})
+                    params = run.get("data", {}).get("params", {})
 
                     # Validar que F1 score > 0.65 (se disponível)
-                    if 'f1_score' in metrics:
-                        assert metrics['f1_score'] > 0.65
+                    if "f1_score" in metrics:
+                        assert metrics["f1_score"] > 0.65
 
                     # Validar contamination parameter
-                    if 'contamination' in params:
-                        assert float(params['contamination']) == 0.05
+                    if "contamination" in params:
+                        assert float(params["contamination"]) == 0.05
 
     # Etapa 4: Validar que orchestrator pode recarregar modelo
     async with httpx.AsyncClient(timeout=30.0) as client:
@@ -131,21 +135,21 @@ async def test_anomaly_model_persistence_e2e(mlflow_url, orchestrator_url):
             health_data = health_response.json()
 
             # Validar que anomaly detector está loaded
-            if 'predictors' in health_data and 'anomaly_detector' in health_data['predictors']:
-                detector_info = health_data['predictors']['anomaly_detector']
-                assert detector_info.get('loaded', False) is True
+            if "predictors" in health_data and "anomaly_detector" in health_data["predictors"]:
+                detector_info = health_data["predictors"]["anomaly_detector"]
+                assert detector_info.get("loaded", False) is True
 
     # Etapa 5: Submeter ticket anômalo e validar detecção
     # (Simulação - ajustar conforme API real)
     anomalous_ticket = {
-        'ticket_id': f'e2e-anomaly-{int(time.time())}',
-        'risk_weight': 40,
-        'capabilities': [f'cap{i}' for i in range(20)],
-        'qos': {'priority': 0.5, 'consistency': 'AT_LEAST_ONCE', 'durability': 'DURABLE'},
-        'parameters': {'key': 'value'},
-        'estimated_duration_ms': 5000,
-        'sla_timeout_ms': 50000,
-        'retry_count': 0
+        "ticket_id": f"e2e-anomaly-{int(time.time())}",
+        "risk_weight": 40,
+        "capabilities": [f"cap{i}" for i in range(20)],
+        "qos": {"priority": 0.5, "consistency": "AT_LEAST_ONCE", "durability": "DURABLE"},
+        "parameters": {"key": "value"},
+        "estimated_duration_ms": 5000,
+        "sla_timeout_ms": 50000,
+        "retry_count": 0,
     }
 
     # Etapa 6: Validar métricas Prometheus
@@ -156,7 +160,7 @@ async def test_anomaly_model_persistence_e2e(mlflow_url, orchestrator_url):
             metrics_text = metrics_response.text
 
             # Validar que métricas de anomalia existem
-            expected_metrics = ['anomaly_detected_total', 'anomaly_detection_latency']
+            expected_metrics = ["anomaly_detected_total", "anomaly_detection_latency"]
             metrics_found = [m for m in expected_metrics if m in metrics_text]
 
             # Pelo menos uma métrica de anomalia deve estar presente
@@ -190,23 +194,19 @@ async def test_full_training_pipeline_all_models(mlflow_url):
         pytest.skip("MLflow não disponível para teste E2E")
 
     # Etapa 2: Executar treinamento completo
-    training_script = Path("/jimy/Neural-Hive-Mind/ml_pipelines/training/train_predictive_models.py")
+    training_script = Path(
+        "/jimy/Neural-Hive-Mind/ml_pipelines/training/train_predictive_models.py"
+    )
 
     if not training_script.exists():
         pytest.skip("Script de treinamento não encontrado")
 
     # Executar treinamento para todos os modelos
     result = subprocess.run(
-        [
-            "python",
-            str(training_script),
-            "--all",
-            "--tuning", "true",
-            "--promote", "true"
-        ],
+        ["python", str(training_script), "--all", "--tuning", "true", "--promote", "true"],
         capture_output=True,
         text=True,
-        timeout=600  # 10 minutos
+        timeout=600,  # 10 minutos
     )
 
     # Validar que treinamento completou
@@ -220,19 +220,17 @@ async def test_full_training_pipeline_all_models(mlflow_url):
 
         if response.status_code == 200:
             data = response.json()
-            models = data.get('registered_models', [])
+            models = data.get("registered_models", [])
 
             # Validar que modelos esperados existem
-            expected_model_names = [
-                'scheduling-predictor',
-                'load-predictor',
-                'anomaly-detector'
-            ]
+            expected_model_names = ["scheduling-predictor", "load-predictor", "anomaly-detector"]
 
-            model_names_found = [m.get('name', '') for m in models]
+            model_names_found = [m.get("name", "") for m in models]
 
             # Pelo menos um modelo deve ter sido registrado
-            models_found = [name for name in expected_model_names if any(name in m for m in model_names_found)]
+            models_found = [
+                name for name in expected_model_names if any(name in m for m in model_names_found)
+            ]
             assert len(models_found) >= 0  # Relaxed - pode não ter modelos se treinamento falhou
 
     # Etapa 4: Validar métricas de treinamento
@@ -244,40 +242,37 @@ async def test_full_training_pipeline_all_models(mlflow_url):
     # Buscar runs recentes e validar métricas
     async with httpx.AsyncClient(timeout=10.0) as client:
         response = await client.get(
-            f"{mlflow_url}/api/2.0/mlflow/runs/search",
-            params={
-                "max_results": 10
-            }
+            f"{mlflow_url}/api/2.0/mlflow/runs/search", params={"max_results": 10}
         )
 
         if response.status_code == 200:
             data = response.json()
-            runs = data.get('runs', [])
+            runs = data.get("runs", [])
 
             for run in runs:
-                metrics = run.get('data', {}).get('metrics', {})
+                metrics = run.get("data", {}).get("metrics", {})
 
                 # Validar scheduling predictor
-                if 'mae' in metrics and 'r2_score' in metrics:
+                if "mae" in metrics and "r2_score" in metrics:
                     # MAE < 10000ms (10s)
-                    if metrics.get('mae', float('inf')) < 10000:
-                        assert metrics['mae'] < 10000
+                    if metrics.get("mae", float("inf")) < 10000:
+                        assert metrics["mae"] < 10000
 
                     # R² > 0.85
-                    if metrics.get('r2_score', 0) > 0:
-                        assert metrics['r2_score'] > 0.7  # Relaxed para E2E
+                    if metrics.get("r2_score", 0) > 0:
+                        assert metrics["r2_score"] > 0.7  # Relaxed para E2E
 
                 # Validar load predictor
-                if 'mape' in metrics:
+                if "mape" in metrics:
                     # MAPE < 20%
-                    if metrics.get('mape', float('inf')) < 25:
-                        assert metrics['mape'] < 25  # Relaxed para E2E
+                    if metrics.get("mape", float("inf")) < 25:
+                        assert metrics["mape"] < 25  # Relaxed para E2E
 
                 # Validar anomaly detector
-                if 'f1_score' in metrics:
+                if "f1_score" in metrics:
                     # F1 > 0.65
-                    if metrics.get('f1_score', 0) > 0:
-                        assert metrics['f1_score'] > 0.6  # Relaxed para E2E
+                    if metrics.get("f1_score", 0) > 0:
+                        assert metrics["f1_score"] > 0.6  # Relaxed para E2E
 
 
 @pytest.mark.asyncio
@@ -305,9 +300,9 @@ async def test_model_reload_after_restart(orchestrator_url):
 
         # Guardar estado inicial dos preditores
         initial_state = {}
-        if 'predictors' in data1:
-            for predictor_name, predictor_info in data1['predictors'].items():
-                initial_state[predictor_name] = predictor_info.get('loaded', False)
+        if "predictors" in data1:
+            for predictor_name, predictor_info in data1["predictors"].items():
+                initial_state[predictor_name] = predictor_info.get("loaded", False)
 
         # Etapa 2: Fazer predições (via predictions/stats)
         stats_response1 = await client.get(f"{orchestrator_url}/api/v1/ml/predictions/stats")
@@ -325,10 +320,10 @@ async def test_model_reload_after_restart(orchestrator_url):
             data2 = response2.json()
 
             # Validar que preditores continuam loaded
-            if 'predictors' in data2:
+            if "predictors" in data2:
                 for predictor_name, was_loaded in initial_state.items():
-                    if predictor_name in data2['predictors']:
-                        current_loaded = data2['predictors'][predictor_name].get('loaded', False)
+                    if predictor_name in data2["predictors"]:
+                        current_loaded = data2["predictors"][predictor_name].get("loaded", False)
 
                         # Se estava loaded antes, deve continuar loaded
                         if was_loaded:
@@ -344,28 +339,30 @@ async def test_training_with_insufficient_data():
     Requisito: min 1000 samples para treinamento
     """
 
-    training_script = Path("/jimy/Neural-Hive-Mind/ml_pipelines/training/train_predictive_models.py")
+    training_script = Path(
+        "/jimy/Neural-Hive-Mind/ml_pipelines/training/train_predictive_models.py"
+    )
 
     if not training_script.exists():
         pytest.skip("Script de treinamento não encontrado")
 
     # Executar treinamento (pode falhar se não houver dados suficientes)
     result = subprocess.run(
-        [
-            "python",
-            str(training_script),
-            "--model-type", "scheduling"
-        ],
+        ["python", str(training_script), "--model-type", "scheduling"],
         capture_output=True,
         text=True,
-        timeout=180
+        timeout=180,
     )
 
     # Validar que script avisa sobre dados insuficientes ou usa synthetic
     # Pode ter returncode 1 se não há dados suficientes
     if result.returncode != 0:
         # Verificar se erro é sobre dados insuficientes
-        assert 'insuficiente' in result.stderr.lower() or 'minimum' in result.stderr.lower() or 'synthetic' in result.stderr.lower()
+        assert (
+            "insuficiente" in result.stderr.lower()
+            or "minimum" in result.stderr.lower()
+            or "synthetic" in result.stderr.lower()
+        )
 
 
 import asyncio

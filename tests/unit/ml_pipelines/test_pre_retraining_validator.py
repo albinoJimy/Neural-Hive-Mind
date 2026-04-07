@@ -20,7 +20,9 @@ from typing import Dict, Any, List
 import pytest
 
 # Adicionar paths para imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'ml_pipelines', 'training'))
+sys.path.insert(
+    0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "ml_pipelines", "training")
+)
 
 
 class MockCollection:
@@ -69,7 +71,7 @@ class MockMongoClient:
     def __init__(self, collections: Dict[str, MockCollection] = None):
         self._collections = collections or {}
         self.admin = MagicMock()
-        self.admin.command = MagicMock(return_value={'ok': 1})
+        self.admin.command = MagicMock(return_value={"ok": 1})
 
     def __getitem__(self, name):
         return MockDatabase(self._collections)
@@ -91,19 +93,19 @@ class MockDatabase:
 class TestPreRetrainingValidatorSampleCount:
     """Testes para verificação de contagem de amostras."""
 
-    @patch('pre_retraining_validator.MongoClient')
+    @patch("pre_retraining_validator.MongoClient")
     def test_check_sample_count_success(self, mock_mongo_class):
         """Testa sucesso quando há amostras suficientes."""
         from pre_retraining_validator import PreRetrainingValidator
 
         # Configurar mock para retornar contagem suficiente
         mock_client = MagicMock()
-        mock_client.admin.command.return_value = {'ok': 1}
+        mock_client.admin.command.return_value = {"ok": 1}
         mock_db = MagicMock()
         mock_collection = MagicMock()
 
         # Aggregation retorna contagem
-        mock_collection.aggregate.return_value = [{'total': 1500}]
+        mock_collection.aggregate.return_value = [{"total": 1500}]
         mock_collection.count_documents.return_value = 2000
 
         mock_db.__getitem__.return_value = mock_collection
@@ -111,36 +113,32 @@ class TestPreRetrainingValidatorSampleCount:
         mock_mongo_class.return_value = mock_client
 
         validator = PreRetrainingValidator(
-            mongodb_uri='mongodb://test:27017',
-            mongodb_database='test_db'
+            mongodb_uri="mongodb://test:27017", mongodb_database="test_db"
         )
 
         result = validator._check_sample_count(
-            specialist_type='technical',
-            days=90,
-            min_samples=1000,
-            min_feedback_rating=0.0
+            specialist_type="technical", days=90, min_samples=1000, min_feedback_rating=0.0
         )
 
-        assert result['passed'] is True
-        assert result['current'] == 1500
-        assert result['required'] == 1000
-        assert result['coverage_rate'] == 75.0
+        assert result["passed"] is True
+        assert result["current"] == 1500
+        assert result["required"] == 1000
+        assert result["coverage_rate"] == 75.0
 
         validator.close()
 
-    @patch('pre_retraining_validator.MongoClient')
+    @patch("pre_retraining_validator.MongoClient")
     def test_check_sample_count_insufficient(self, mock_mongo_class):
         """Testa falha quando há amostras insuficientes."""
         from pre_retraining_validator import PreRetrainingValidator
 
         mock_client = MagicMock()
-        mock_client.admin.command.return_value = {'ok': 1}
+        mock_client.admin.command.return_value = {"ok": 1}
         mock_db = MagicMock()
         mock_collection = MagicMock()
 
         # Contagem insuficiente
-        mock_collection.aggregate.return_value = [{'total': 500}]
+        mock_collection.aggregate.return_value = [{"total": 500}]
         mock_collection.count_documents.return_value = 1000
 
         mock_db.__getitem__.return_value = mock_collection
@@ -148,20 +146,16 @@ class TestPreRetrainingValidatorSampleCount:
         mock_mongo_class.return_value = mock_client
 
         validator = PreRetrainingValidator(
-            mongodb_uri='mongodb://test:27017',
-            mongodb_database='test_db'
+            mongodb_uri="mongodb://test:27017", mongodb_database="test_db"
         )
 
         result = validator._check_sample_count(
-            specialist_type='technical',
-            days=90,
-            min_samples=1000,
-            min_feedback_rating=0.0
+            specialist_type="technical", days=90, min_samples=1000, min_feedback_rating=0.0
         )
 
-        assert result['passed'] is False
-        assert result['current'] == 500
-        assert result['required'] == 1000
+        assert result["passed"] is False
+        assert result["current"] == 500
+        assert result["required"] == 1000
 
         validator.close()
 
@@ -169,21 +163,21 @@ class TestPreRetrainingValidatorSampleCount:
 class TestPreRetrainingValidatorLabelDistribution:
     """Testes para verificação de distribuição de labels."""
 
-    @patch('pre_retraining_validator.MongoClient')
+    @patch("pre_retraining_validator.MongoClient")
     def test_check_label_distribution_balanced(self, mock_mongo_class):
         """Testa distribuição balanceada de labels."""
         from pre_retraining_validator import PreRetrainingValidator
 
         mock_client = MagicMock()
-        mock_client.admin.command.return_value = {'ok': 1}
+        mock_client.admin.command.return_value = {"ok": 1}
         mock_db = MagicMock()
         mock_collection = MagicMock()
 
         # Distribuição balanceada
         mock_collection.aggregate.return_value = [
-            {'_id': 'approve', 'count': 500},
-            {'_id': 'reject', 'count': 250},
-            {'_id': 'review_required', 'count': 250}
+            {"_id": "approve", "count": 500},
+            {"_id": "reject", "count": 250},
+            {"_id": "review_required", "count": 250},
         ]
 
         mock_db.__getitem__.return_value = mock_collection
@@ -191,40 +185,37 @@ class TestPreRetrainingValidatorLabelDistribution:
         mock_mongo_class.return_value = mock_client
 
         validator = PreRetrainingValidator(
-            mongodb_uri='mongodb://test:27017',
-            mongodb_database='test_db'
+            mongodb_uri="mongodb://test:27017", mongodb_database="test_db"
         )
 
         result = validator._check_label_distribution(
-            specialist_type='technical',
-            days=90,
-            min_feedback_rating=0.0
+            specialist_type="technical", days=90, min_feedback_rating=0.0
         )
 
-        assert result['passed'] is True
-        assert result['is_balanced'] is True
-        assert len(result['underrepresented_classes']) == 0
-        assert len(result['dominant_classes']) == 0
-        assert result['percentages']['approve'] == 50.0
-        assert result['percentages']['reject'] == 25.0
+        assert result["passed"] is True
+        assert result["is_balanced"] is True
+        assert len(result["underrepresented_classes"]) == 0
+        assert len(result["dominant_classes"]) == 0
+        assert result["percentages"]["approve"] == 50.0
+        assert result["percentages"]["reject"] == 25.0
 
         validator.close()
 
-    @patch('pre_retraining_validator.MongoClient')
+    @patch("pre_retraining_validator.MongoClient")
     def test_check_label_distribution_underrepresented(self, mock_mongo_class):
         """Testa detecção de classes subrepresentadas."""
         from pre_retraining_validator import PreRetrainingValidator
 
         mock_client = MagicMock()
-        mock_client.admin.command.return_value = {'ok': 1}
+        mock_client.admin.command.return_value = {"ok": 1}
         mock_db = MagicMock()
         mock_collection = MagicMock()
 
         # Classe subrepresentada (< 5%)
         mock_collection.aggregate.return_value = [
-            {'_id': 'approve', 'count': 900},
-            {'_id': 'reject', 'count': 80},
-            {'_id': 'review_required', 'count': 20}  # 2% - subrepresentada
+            {"_id": "approve", "count": 900},
+            {"_id": "reject", "count": 80},
+            {"_id": "review_required", "count": 20},  # 2% - subrepresentada
         ]
 
         mock_db.__getitem__.return_value = mock_collection
@@ -232,37 +223,34 @@ class TestPreRetrainingValidatorLabelDistribution:
         mock_mongo_class.return_value = mock_client
 
         validator = PreRetrainingValidator(
-            mongodb_uri='mongodb://test:27017',
-            mongodb_database='test_db'
+            mongodb_uri="mongodb://test:27017", mongodb_database="test_db"
         )
 
         result = validator._check_label_distribution(
-            specialist_type='technical',
-            days=90,
-            min_feedback_rating=0.0
+            specialist_type="technical", days=90, min_feedback_rating=0.0
         )
 
-        assert result['passed'] is False
-        assert result['is_balanced'] is False
-        assert 'review_required' in result['underrepresented_classes']
+        assert result["passed"] is False
+        assert result["is_balanced"] is False
+        assert "review_required" in result["underrepresented_classes"]
 
         validator.close()
 
-    @patch('pre_retraining_validator.MongoClient')
+    @patch("pre_retraining_validator.MongoClient")
     def test_check_label_distribution_dominant(self, mock_mongo_class):
         """Testa detecção de classe dominante."""
         from pre_retraining_validator import PreRetrainingValidator
 
         mock_client = MagicMock()
-        mock_client.admin.command.return_value = {'ok': 1}
+        mock_client.admin.command.return_value = {"ok": 1}
         mock_db = MagicMock()
         mock_collection = MagicMock()
 
         # Classe dominante (> 80%)
         mock_collection.aggregate.return_value = [
-            {'_id': 'approve', 'count': 850},  # 85% - dominante
-            {'_id': 'reject', 'count': 100},
-            {'_id': 'review_required', 'count': 50}
+            {"_id": "approve", "count": 850},  # 85% - dominante
+            {"_id": "reject", "count": 100},
+            {"_id": "review_required", "count": 50},
         ]
 
         mock_db.__getitem__.return_value = mock_collection
@@ -270,18 +258,15 @@ class TestPreRetrainingValidatorLabelDistribution:
         mock_mongo_class.return_value = mock_client
 
         validator = PreRetrainingValidator(
-            mongodb_uri='mongodb://test:27017',
-            mongodb_database='test_db'
+            mongodb_uri="mongodb://test:27017", mongodb_database="test_db"
         )
 
         result = validator._check_label_distribution(
-            specialist_type='technical',
-            days=90,
-            min_feedback_rating=0.0
+            specialist_type="technical", days=90, min_feedback_rating=0.0
         )
 
-        assert result['passed'] is False
-        assert 'approve' in result['dominant_classes']
+        assert result["passed"] is False
+        assert "approve" in result["dominant_classes"]
 
         validator.close()
 
@@ -289,22 +274,25 @@ class TestPreRetrainingValidatorLabelDistribution:
 class TestPreRetrainingValidatorFeatureQuality:
     """Testes para verificação de qualidade de features."""
 
-    @patch('pre_retraining_validator.MongoClient')
+    @patch("pre_retraining_validator.MongoClient")
     def test_check_feature_quality_fallback(self, mock_mongo_class):
         """Testa fallback quando FeatureExtractor não está disponível."""
         from pre_retraining_validator import PreRetrainingValidator
         from unittest.mock import patch as mock_patch
 
         mock_client = MagicMock()
-        mock_client.admin.command.return_value = {'ok': 1}
+        mock_client.admin.command.return_value = {"ok": 1}
         mock_db = MagicMock()
         mock_collection = MagicMock()
 
         # 100 amostras - todas com cognitive_plan válido
         samples = [
             {
-                'opinion_id': f'op_{i}',
-                'cognitive_plan': {'steps': [{'action': 'test'}], 'original_intent_text': 'test text'}
+                "opinion_id": f"op_{i}",
+                "cognitive_plan": {
+                    "steps": [{"action": "test"}],
+                    "original_intent_text": "test text",
+                },
             }
             for i in range(100)
         ]
@@ -315,48 +303,43 @@ class TestPreRetrainingValidatorFeatureQuality:
         mock_mongo_class.return_value = mock_client
 
         # Forçar FeatureExtractor como não disponível
-        with mock_patch('pre_retraining_validator._FEATURE_EXTRACTOR_AVAILABLE', False):
+        with mock_patch("pre_retraining_validator._FEATURE_EXTRACTOR_AVAILABLE", False):
             validator = PreRetrainingValidator(
-                mongodb_uri='mongodb://test:27017',
-                mongodb_database='test_db'
+                mongodb_uri="mongodb://test:27017", mongodb_database="test_db"
             )
 
             result = validator._check_feature_quality(
-                specialist_type='technical',
-                days=90,
-                min_feedback_rating=0.0,
-                sample_size=100
+                specialist_type="technical", days=90, min_feedback_rating=0.0, sample_size=100
             )
 
             # No fallback, deve passar se todos têm cognitive_plan
-            assert result['sample_size'] == 100
-            assert result['validation_method'] == 'cognitive_plan_completeness_only'
+            assert result["sample_size"] == 100
+            assert result["validation_method"] == "cognitive_plan_completeness_only"
 
         validator.close()
 
-    @patch('pre_retraining_validator.MongoClient')
+    @patch("pre_retraining_validator.MongoClient")
     def test_check_feature_quality_high_missing(self, mock_mongo_class):
         """Testa falha quando taxa de valores ausentes é alta (usando fallback)."""
         from pre_retraining_validator import PreRetrainingValidator
         from unittest.mock import patch as mock_patch
 
         mock_client = MagicMock()
-        mock_client.admin.command.return_value = {'ok': 1}
+        mock_client.admin.command.return_value = {"ok": 1}
         mock_db = MagicMock()
         mock_collection = MagicMock()
 
         # 10% sem cognitive_plan (acima do limite de 5%)
         samples = []
         for i in range(90):
-            samples.append({
-                'opinion_id': f'op_{i}',
-                'cognitive_plan': {'steps': [], 'original_intent_text': 'valid text'}
-            })
+            samples.append(
+                {
+                    "opinion_id": f"op_{i}",
+                    "cognitive_plan": {"steps": [], "original_intent_text": "valid text"},
+                }
+            )
         for i in range(10):
-            samples.append({
-                'opinion_id': f'op_missing_{i}',
-                'cognitive_plan': None  # Missing
-            })
+            samples.append({"opinion_id": f"op_missing_{i}", "cognitive_plan": None})  # Missing
 
         mock_collection.aggregate.return_value = samples
 
@@ -365,22 +348,18 @@ class TestPreRetrainingValidatorFeatureQuality:
         mock_mongo_class.return_value = mock_client
 
         # Forçar FeatureExtractor como não disponível para usar fallback
-        with mock_patch('pre_retraining_validator._FEATURE_EXTRACTOR_AVAILABLE', False):
+        with mock_patch("pre_retraining_validator._FEATURE_EXTRACTOR_AVAILABLE", False):
             validator = PreRetrainingValidator(
-                mongodb_uri='mongodb://test:27017',
-                mongodb_database='test_db'
+                mongodb_uri="mongodb://test:27017", mongodb_database="test_db"
             )
 
             result = validator._check_feature_quality(
-                specialist_type='technical',
-                days=90,
-                min_feedback_rating=0.0,
-                sample_size=100
+                specialist_type="technical", days=90, min_feedback_rating=0.0, sample_size=100
             )
 
             # 10% de missing cognitive_plan deve falhar
-            assert result['passed'] is False
-            assert result['missing_value_rate'] >= 0.05
+            assert result["passed"] is False
+            assert result["missing_value_rate"] >= 0.05
 
         validator.close()
 
@@ -388,13 +367,13 @@ class TestPreRetrainingValidatorFeatureQuality:
 class TestPreRetrainingValidatorTemporalIntegrity:
     """Testes para verificação de integridade temporal."""
 
-    @patch('pre_retraining_validator.MongoClient')
+    @patch("pre_retraining_validator.MongoClient")
     def test_validate_temporal_integrity_success(self, mock_mongo_class):
         """Testa sucesso quando dados temporais são válidos."""
         from pre_retraining_validator import PreRetrainingValidator
 
         mock_client = MagicMock()
-        mock_client.admin.command.return_value = {'ok': 1}
+        mock_client.admin.command.return_value = {"ok": 1}
         mock_db = MagicMock()
         mock_collection = MagicMock()
 
@@ -402,39 +381,33 @@ class TestPreRetrainingValidatorTemporalIntegrity:
         min_date = now - datetime.timedelta(days=30)
         max_date = now - datetime.timedelta(hours=1)
 
-        mock_collection.aggregate.return_value = [{
-            '_id': None,
-            'min_date': min_date,
-            'max_date': max_date
-        }]
+        mock_collection.aggregate.return_value = [
+            {"_id": None, "min_date": min_date, "max_date": max_date}
+        ]
 
         mock_db.__getitem__.return_value = mock_collection
         mock_client.__getitem__.return_value = mock_db
         mock_mongo_class.return_value = mock_client
 
         validator = PreRetrainingValidator(
-            mongodb_uri='mongodb://test:27017',
-            mongodb_database='test_db'
+            mongodb_uri="mongodb://test:27017", mongodb_database="test_db"
         )
 
-        result = validator._validate_temporal_integrity(
-            specialist_type='technical',
-            days=90
-        )
+        result = validator._validate_temporal_integrity(specialist_type="technical", days=90)
 
-        assert result['passed'] is True
-        assert result['has_future_timestamps'] is False
-        assert result['span_days'] >= 7
+        assert result["passed"] is True
+        assert result["has_future_timestamps"] is False
+        assert result["span_days"] >= 7
 
         validator.close()
 
-    @patch('pre_retraining_validator.MongoClient')
+    @patch("pre_retraining_validator.MongoClient")
     def test_validate_temporal_integrity_future_timestamps(self, mock_mongo_class):
         """Testa falha quando há timestamps no futuro."""
         from pre_retraining_validator import PreRetrainingValidator
 
         mock_client = MagicMock()
-        mock_client.admin.command.return_value = {'ok': 1}
+        mock_client.admin.command.return_value = {"ok": 1}
         mock_db = MagicMock()
         mock_collection = MagicMock()
 
@@ -442,38 +415,32 @@ class TestPreRetrainingValidatorTemporalIntegrity:
         min_date = now - datetime.timedelta(days=30)
         max_date = now + datetime.timedelta(days=1)  # Futuro
 
-        mock_collection.aggregate.return_value = [{
-            '_id': None,
-            'min_date': min_date,
-            'max_date': max_date
-        }]
+        mock_collection.aggregate.return_value = [
+            {"_id": None, "min_date": min_date, "max_date": max_date}
+        ]
 
         mock_db.__getitem__.return_value = mock_collection
         mock_client.__getitem__.return_value = mock_db
         mock_mongo_class.return_value = mock_client
 
         validator = PreRetrainingValidator(
-            mongodb_uri='mongodb://test:27017',
-            mongodb_database='test_db'
+            mongodb_uri="mongodb://test:27017", mongodb_database="test_db"
         )
 
-        result = validator._validate_temporal_integrity(
-            specialist_type='technical',
-            days=90
-        )
+        result = validator._validate_temporal_integrity(specialist_type="technical", days=90)
 
-        assert result['passed'] is False
-        assert result['has_future_timestamps'] is True
+        assert result["passed"] is False
+        assert result["has_future_timestamps"] is True
 
         validator.close()
 
-    @patch('pre_retraining_validator.MongoClient')
+    @patch("pre_retraining_validator.MongoClient")
     def test_validate_temporal_integrity_short_span(self, mock_mongo_class):
         """Testa falha quando range de dados é muito curto."""
         from pre_retraining_validator import PreRetrainingValidator
 
         mock_client = MagicMock()
-        mock_client.admin.command.return_value = {'ok': 1}
+        mock_client.admin.command.return_value = {"ok": 1}
         mock_db = MagicMock()
         mock_collection = MagicMock()
 
@@ -481,28 +448,22 @@ class TestPreRetrainingValidatorTemporalIntegrity:
         min_date = now - datetime.timedelta(days=2)
         max_date = now - datetime.timedelta(hours=1)
 
-        mock_collection.aggregate.return_value = [{
-            '_id': None,
-            'min_date': min_date,
-            'max_date': max_date
-        }]
+        mock_collection.aggregate.return_value = [
+            {"_id": None, "min_date": min_date, "max_date": max_date}
+        ]
 
         mock_db.__getitem__.return_value = mock_collection
         mock_client.__getitem__.return_value = mock_db
         mock_mongo_class.return_value = mock_client
 
         validator = PreRetrainingValidator(
-            mongodb_uri='mongodb://test:27017',
-            mongodb_database='test_db'
+            mongodb_uri="mongodb://test:27017", mongodb_database="test_db"
         )
 
-        result = validator._validate_temporal_integrity(
-            specialist_type='technical',
-            days=90
-        )
+        result = validator._validate_temporal_integrity(specialist_type="technical", days=90)
 
-        assert result['passed'] is False
-        assert result['span_days'] < 7
+        assert result["passed"] is False
+        assert result["span_days"] < 7
 
         validator.close()
 
@@ -510,42 +471,40 @@ class TestPreRetrainingValidatorTemporalIntegrity:
 class TestPreRetrainingValidatorBaselineComparison:
     """Testes para comparação com baseline MLflow."""
 
-    @patch('pre_retraining_validator.MongoClient')
+    @patch("pre_retraining_validator.MongoClient")
     def test_compare_with_baseline_no_mlflow(self, mock_mongo_class):
         """Testa quando MLflow não está disponível."""
         from pre_retraining_validator import PreRetrainingValidator
 
         mock_client = MagicMock()
-        mock_client.admin.command.return_value = {'ok': 1}
+        mock_client.admin.command.return_value = {"ok": 1}
         mock_db = MagicMock()
         mock_db.__getitem__.return_value = MagicMock()
         mock_client.__getitem__.return_value = mock_db
         mock_mongo_class.return_value = mock_client
 
         validator = PreRetrainingValidator(
-            mongodb_uri='mongodb://test:27017',
-            mongodb_database='test_db'
+            mongodb_uri="mongodb://test:27017", mongodb_database="test_db"
         )
 
-        with patch.dict('sys.modules', {'mlflow': None}):
+        with patch.dict("sys.modules", {"mlflow": None}):
             result = validator._compare_with_baseline(
-                specialist_type='technical',
-                current_distribution={'approve': 50.0, 'reject': 25.0}
+                specialist_type="technical", current_distribution={"approve": 50.0, "reject": 25.0}
             )
 
         # Deve retornar graciosamente quando MLflow não disponível
-        assert result.get('comparison_available') is False or 'error' in result
+        assert result.get("comparison_available") is False or "error" in result
 
         validator.close()
 
-    @patch('pre_retraining_validator.MongoClient')
-    @patch('mlflow.tracking.MlflowClient')
+    @patch("pre_retraining_validator.MongoClient")
+    @patch("mlflow.tracking.MlflowClient")
     def test_compare_with_baseline_no_production_model(self, mock_mlflow_client, mock_mongo_class):
         """Testa quando não há modelo Production no registry."""
         from pre_retraining_validator import PreRetrainingValidator
 
         mock_client = MagicMock()
-        mock_client.admin.command.return_value = {'ok': 1}
+        mock_client.admin.command.return_value = {"ok": 1}
         mock_db = MagicMock()
         mock_db.__getitem__.return_value = MagicMock()
         mock_client.__getitem__.return_value = mock_db
@@ -555,17 +514,15 @@ class TestPreRetrainingValidatorBaselineComparison:
         mock_mlflow_client.return_value.search_model_versions.return_value = []
 
         validator = PreRetrainingValidator(
-            mongodb_uri='mongodb://test:27017',
-            mongodb_database='test_db'
+            mongodb_uri="mongodb://test:27017", mongodb_database="test_db"
         )
 
         result = validator._compare_with_baseline(
-            specialist_type='technical',
-            current_distribution={'approve': 50.0, 'reject': 25.0}
+            specialist_type="technical", current_distribution={"approve": 50.0, "reject": 25.0}
         )
 
-        assert result['comparison_available'] is False
-        assert 'Production' in result.get('reason', '')
+        assert result["comparison_available"] is False
+        assert "Production" in result.get("reason", "")
 
         validator.close()
 
@@ -573,13 +530,13 @@ class TestPreRetrainingValidatorBaselineComparison:
 class TestPreRetrainingValidatorFullValidation:
     """Testes de validação completa."""
 
-    @patch('pre_retraining_validator.MongoClient')
+    @patch("pre_retraining_validator.MongoClient")
     def test_validate_prerequisites_insufficient_samples(self, mock_mongo_class):
         """Testa validação com amostras insuficientes."""
         from pre_retraining_validator import PreRetrainingValidator
 
         mock_client = MagicMock()
-        mock_client.admin.command.return_value = {'ok': 1}
+        mock_client.admin.command.return_value = {"ok": 1}
         mock_db = MagicMock()
         mock_collection = MagicMock()
 
@@ -587,18 +544,25 @@ class TestPreRetrainingValidatorFullValidation:
 
         def aggregate_side_effect(pipeline):
             pipeline_str = str(pipeline)
-            if '$count' in pipeline_str:
-                return [{'total': 500}]  # Insuficiente
-            elif '$group' in pipeline_str:
-                return [{'_id': 'approve', 'count': 500}]
-            elif '$sample' in pipeline_str:
-                return [{'opinion_id': 'op_1', 'cognitive_plan': {'steps': [], 'original_intent_text': 'test text'}}]
-            elif 'min_date' in pipeline_str:
-                return [{
-                    '_id': None,
-                    'min_date': now - datetime.timedelta(days=30),
-                    'max_date': now - datetime.timedelta(hours=1)
-                }]
+            if "$count" in pipeline_str:
+                return [{"total": 500}]  # Insuficiente
+            elif "$group" in pipeline_str:
+                return [{"_id": "approve", "count": 500}]
+            elif "$sample" in pipeline_str:
+                return [
+                    {
+                        "opinion_id": "op_1",
+                        "cognitive_plan": {"steps": [], "original_intent_text": "test text"},
+                    }
+                ]
+            elif "min_date" in pipeline_str:
+                return [
+                    {
+                        "_id": None,
+                        "min_date": now - datetime.timedelta(days=30),
+                        "max_date": now - datetime.timedelta(hours=1),
+                    }
+                ]
             return []
 
         mock_collection.aggregate.side_effect = aggregate_side_effect
@@ -609,33 +573,29 @@ class TestPreRetrainingValidatorFullValidation:
         mock_mongo_class.return_value = mock_client
 
         validator = PreRetrainingValidator(
-            mongodb_uri='mongodb://test:27017',
-            mongodb_database='test_db'
+            mongodb_uri="mongodb://test:27017", mongodb_database="test_db"
         )
 
-        with patch.object(validator, '_compare_with_baseline') as mock_baseline:
-            mock_baseline.return_value = {'comparison_available': False}
+        with patch.object(validator, "_compare_with_baseline") as mock_baseline:
+            mock_baseline.return_value = {"comparison_available": False}
 
             result = validator.validate_prerequisites(
-                specialist_type='technical',
-                days=90,
-                min_samples=1000,
-                min_feedback_rating=0.0
+                specialist_type="technical", days=90, min_samples=1000, min_feedback_rating=0.0
             )
 
-        assert result['passed'] is False
-        assert result['recommendation'] == 'wait_for_more_data'
-        assert len(result['blocking_issues']) > 0
+        assert result["passed"] is False
+        assert result["recommendation"] == "wait_for_more_data"
+        assert len(result["blocking_issues"]) > 0
 
         validator.close()
 
-    @patch('pre_retraining_validator.MongoClient')
+    @patch("pre_retraining_validator.MongoClient")
     def test_validate_prerequisites_insufficient_samples(self, mock_mongo_class):
         """Testa validação com amostras insuficientes."""
         from pre_retraining_validator import PreRetrainingValidator
 
         mock_client = MagicMock()
-        mock_client.admin.command.return_value = {'ok': 1}
+        mock_client.admin.command.return_value = {"ok": 1}
         mock_db = MagicMock()
         mock_collection = MagicMock()
 
@@ -643,18 +603,20 @@ class TestPreRetrainingValidatorFullValidation:
 
         def aggregate_side_effect(pipeline):
             pipeline_str = str(pipeline)
-            if '$count' in pipeline_str:
-                return [{'total': 500}]  # Insuficiente
-            elif '$group' in pipeline_str:
-                return [{'_id': 'approve', 'count': 500}]
-            elif '$sample' in pipeline_str:
-                return [{'opinion_id': 'op_1', 'cognitive_plan': {}}]
-            elif 'min_date' in pipeline_str:
-                return [{
-                    '_id': None,
-                    'min_date': now - datetime.timedelta(days=30),
-                    'max_date': now - datetime.timedelta(hours=1)
-                }]
+            if "$count" in pipeline_str:
+                return [{"total": 500}]  # Insuficiente
+            elif "$group" in pipeline_str:
+                return [{"_id": "approve", "count": 500}]
+            elif "$sample" in pipeline_str:
+                return [{"opinion_id": "op_1", "cognitive_plan": {}}]
+            elif "min_date" in pipeline_str:
+                return [
+                    {
+                        "_id": None,
+                        "min_date": now - datetime.timedelta(days=30),
+                        "max_date": now - datetime.timedelta(hours=1),
+                    }
+                ]
             return []
 
         mock_collection.aggregate.side_effect = aggregate_side_effect
@@ -665,23 +627,19 @@ class TestPreRetrainingValidatorFullValidation:
         mock_mongo_class.return_value = mock_client
 
         validator = PreRetrainingValidator(
-            mongodb_uri='mongodb://test:27017',
-            mongodb_database='test_db'
+            mongodb_uri="mongodb://test:27017", mongodb_database="test_db"
         )
 
-        with patch.object(validator, '_compare_with_baseline') as mock_baseline:
-            mock_baseline.return_value = {'comparison_available': False}
+        with patch.object(validator, "_compare_with_baseline") as mock_baseline:
+            mock_baseline.return_value = {"comparison_available": False}
 
             result = validator.validate_prerequisites(
-                specialist_type='technical',
-                days=90,
-                min_samples=1000,
-                min_feedback_rating=0.0
+                specialist_type="technical", days=90, min_samples=1000, min_feedback_rating=0.0
             )
 
-        assert result['passed'] is False
-        assert result['recommendation'] == 'wait_for_more_data'
-        assert len(result['blocking_issues']) > 0
+        assert result["passed"] is False
+        assert result["recommendation"] == "wait_for_more_data"
+        assert len(result["blocking_issues"]) > 0
 
         validator.close()
 
@@ -709,13 +667,13 @@ class TestValidationFailedError:
 class TestValidationReportFormat:
     """Testes para formato do relatório de validação."""
 
-    @patch('pre_retraining_validator.MongoClient')
+    @patch("pre_retraining_validator.MongoClient")
     def test_validation_report_structure(self, mock_mongo_class):
         """Testa que relatório tem estrutura correta para MLflow."""
         from pre_retraining_validator import PreRetrainingValidator
 
         mock_client = MagicMock()
-        mock_client.admin.command.return_value = {'ok': 1}
+        mock_client.admin.command.return_value = {"ok": 1}
         mock_db = MagicMock()
         mock_collection = MagicMock()
 
@@ -723,22 +681,24 @@ class TestValidationReportFormat:
 
         def aggregate_side_effect(pipeline):
             pipeline_str = str(pipeline)
-            if '$count' in pipeline_str:
-                return [{'total': 1500}]
-            elif '$group' in pipeline_str:
+            if "$count" in pipeline_str:
+                return [{"total": 1500}]
+            elif "$group" in pipeline_str:
                 return [
-                    {'_id': 'approve', 'count': 750},
-                    {'_id': 'reject', 'count': 375},
-                    {'_id': 'review_required', 'count': 375}
+                    {"_id": "approve", "count": 750},
+                    {"_id": "reject", "count": 375},
+                    {"_id": "review_required", "count": 375},
                 ]
-            elif '$sample' in pipeline_str:
-                return [{'opinion_id': f'op_{i}', 'cognitive_plan': {}} for i in range(100)]
-            elif 'min_date' in pipeline_str:
-                return [{
-                    '_id': None,
-                    'min_date': now - datetime.timedelta(days=30),
-                    'max_date': now - datetime.timedelta(hours=1)
-                }]
+            elif "$sample" in pipeline_str:
+                return [{"opinion_id": f"op_{i}", "cognitive_plan": {}} for i in range(100)]
+            elif "min_date" in pipeline_str:
+                return [
+                    {
+                        "_id": None,
+                        "min_date": now - datetime.timedelta(days=30),
+                        "max_date": now - datetime.timedelta(hours=1),
+                    }
+                ]
             return []
 
         mock_collection.aggregate.side_effect = aggregate_side_effect
@@ -749,39 +709,39 @@ class TestValidationReportFormat:
         mock_mongo_class.return_value = mock_client
 
         validator = PreRetrainingValidator(
-            mongodb_uri='mongodb://test:27017',
-            mongodb_database='test_db'
+            mongodb_uri="mongodb://test:27017", mongodb_database="test_db"
         )
 
-        with patch.object(validator, '_compare_with_baseline') as mock_baseline:
-            mock_baseline.return_value = {'comparison_available': False}
+        with patch.object(validator, "_compare_with_baseline") as mock_baseline:
+            mock_baseline.return_value = {"comparison_available": False}
 
             result = validator.validate_prerequisites(
-                specialist_type='technical',
-                days=90,
-                min_samples=1000,
-                min_feedback_rating=0.0
+                specialist_type="technical", days=90, min_samples=1000, min_feedback_rating=0.0
             )
 
         # Verificar campos obrigatórios
-        assert 'validation_timestamp' in result
-        assert 'specialist_type' in result
-        assert 'passed' in result
-        assert 'recommendation' in result
-        assert 'checks' in result
-        assert 'warnings' in result
-        assert 'blocking_issues' in result
-        assert 'recommendations' in result
+        assert "validation_timestamp" in result
+        assert "specialist_type" in result
+        assert "passed" in result
+        assert "recommendation" in result
+        assert "checks" in result
+        assert "warnings" in result
+        assert "blocking_issues" in result
+        assert "recommendations" in result
 
         # Verificar sub-estrutura de checks
-        checks = result['checks']
-        assert 'sample_count' in checks
-        assert 'label_distribution' in checks
-        assert 'feature_quality' in checks
-        assert 'temporal_integrity' in checks
-        assert 'baseline_comparison' in checks
+        checks = result["checks"]
+        assert "sample_count" in checks
+        assert "label_distribution" in checks
+        assert "feature_quality" in checks
+        assert "temporal_integrity" in checks
+        assert "baseline_comparison" in checks
 
         # Verificar que recommendation é válida
-        assert result['recommendation'] in ['proceed', 'wait_for_more_data', 'investigate_distribution']
+        assert result["recommendation"] in [
+            "proceed",
+            "wait_for_more_data",
+            "investigate_distribution",
+        ]
 
         validator.close()

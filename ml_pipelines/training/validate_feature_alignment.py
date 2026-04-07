@@ -34,27 +34,27 @@ def validate_feature_extractor():
 
     # Criar plano dummy
     dummy_plan = {
-        'plan_id': 'validation-test',
-        'tasks': [
+        "plan_id": "validation-test",
+        "tasks": [
             {
-                'task_id': '1',
-                'task_type': 'analysis',
-                'description': 'Test task for validation',
-                'dependencies': [],
-                'estimated_duration_ms': 1000
+                "task_id": "1",
+                "task_type": "analysis",
+                "description": "Test task for validation",
+                "dependencies": [],
+                "estimated_duration_ms": 1000,
             }
         ],
-        'original_domain': 'test-domain',
-        'original_priority': 'normal',
-        'risk_score': 0.5,
-        'complexity_score': 0.5
+        "original_domain": "test-domain",
+        "original_priority": "normal",
+        "risk_score": 0.5,
+        "complexity_score": 0.5,
     }
 
     # Extrair features
     try:
         extractor = FeatureExtractor()
         features = extractor.extract_features(dummy_plan)
-        extracted_features = features.get('aggregated_features', {})
+        extracted_features = features.get("aggregated_features", {})
     except Exception as e:
         print(f"   Erro ao extrair features: {e}")
         return False
@@ -94,7 +94,7 @@ def validate_dataset(dataset_path: str):
         df = pd.read_parquet(dataset_path)
 
         expected_features = set(get_feature_names())
-        actual_features = set(df.columns) - {'label'}
+        actual_features = set(df.columns) - {"label"}
 
         missing = expected_features - actual_features
         extra = actual_features - expected_features
@@ -129,8 +129,8 @@ def main():
     extractor_ok = validate_feature_extractor()
 
     # Validar datasets
-    specialists = ['technical', 'business', 'behavior', 'evolution', 'architecture']
-    dataset_dir = os.getenv('DATASET_DIR', '/data/training')
+    specialists = ["technical", "business", "behavior", "evolution", "architecture"]
+    dataset_dir = os.getenv("DATASET_DIR", "/data/training")
 
     datasets_ok = True
     datasets_found = 0
@@ -160,5 +160,5 @@ def main():
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

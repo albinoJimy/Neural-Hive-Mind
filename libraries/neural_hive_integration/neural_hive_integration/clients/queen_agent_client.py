@@ -15,6 +15,7 @@ tracer = trace.get_tracer(__name__)
 
 class StrategicDecisionRequest(BaseModel):
     """Request for strategic decision."""
+
     context: Dict[str, Any]
     intent_id: str
     correlation_id: str
@@ -22,6 +23,7 @@ class StrategicDecisionRequest(BaseModel):
 
 class StrategicDecision(BaseModel):
     """Strategic decision response."""
+
     decision_id: str
     decision_type: str
     recommended_actions: List[Dict[str, Any]]
@@ -144,9 +146,7 @@ class QueenAgentClient:
         Returns:
             List of priorities
         """
-        response = await self.client.get(
-            f"{self.base_url}/api/v1/priorities"
-        )
+        response = await self.client.get(f"{self.base_url}/api/v1/priorities")
         response.raise_for_status()
 
         return response.json()

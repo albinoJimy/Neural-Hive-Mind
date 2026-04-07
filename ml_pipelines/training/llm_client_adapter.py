@@ -74,9 +74,13 @@ class LLMClientAdapter:
 
         # Validar configuração
         cloud_providers = (
-            LLMProvider.OPENAI, LLMProvider.ANTHROPIC, LLMProvider.DEEPSEEK,
-            LLMProvider.GROQ, LLMProvider.TOGETHER, LLMProvider.OPENROUTER,
-            LLMProvider.AZURE_OPENAI
+            LLMProvider.OPENAI,
+            LLMProvider.ANTHROPIC,
+            LLMProvider.DEEPSEEK,
+            LLMProvider.GROQ,
+            LLMProvider.TOGETHER,
+            LLMProvider.OPENROUTER,
+            LLMProvider.AZURE_OPENAI,
         )
         if provider in cloud_providers and not api_key:
             logger.warning(
@@ -107,25 +111,31 @@ class LLMClientAdapter:
         if self.api_key and self.provider != LLMProvider.LOCAL:
             # Providers OpenAI-compatible (usam Bearer token)
             openai_compatible = (
-                LLMProvider.OPENAI, LLMProvider.DEEPSEEK, LLMProvider.GROQ,
-                LLMProvider.TOGETHER, LLMProvider.AZURE_OPENAI
+                LLMProvider.OPENAI,
+                LLMProvider.DEEPSEEK,
+                LLMProvider.GROQ,
+                LLMProvider.TOGETHER,
+                LLMProvider.AZURE_OPENAI,
             )
             if self.provider in openai_compatible:
                 headers["Authorization"] = f"Bearer {self.api_key}"
             elif self.provider == LLMProvider.OPENROUTER:
                 headers["Authorization"] = f"Bearer {self.api_key}"
-                headers["HTTP-Referer"] = "https://neural-hive-mind.local"  # Requerido pelo OpenRouter
+                headers[
+                    "HTTP-Referer"
+                ] = "https://neural-hive-mind.local"  # Requerido pelo OpenRouter
                 headers["X-Title"] = "Neural Hive Mind Dataset Generator"
             elif self.provider == LLMProvider.ANTHROPIC:
                 headers["x-api-key"] = self.api_key
                 headers["anthropic-version"] = "2023-06-01"
 
-        self.client = httpx.AsyncClient(
+        self.client = httpx.AsyncClient(base_url=self.base_url, headers=headers, timeout=120.0)
+        logger.info(
+            "llm_client_started",
+            provider=self.provider.value,
+            model=self.model_name,
             base_url=self.base_url,
-            headers=headers,
-            timeout=120.0
         )
-        logger.info("llm_client_started", provider=self.provider.value, model=self.model_name, base_url=self.base_url)
 
     async def stop(self):
         """Fecha cliente HTTP."""
@@ -152,8 +162,12 @@ class LLMClientAdapter:
                 # Chamar LLM baseado no provider
                 # Providers OpenAI-compatible
                 openai_compatible = (
-                    LLMProvider.OPENAI, LLMProvider.DEEPSEEK, LLMProvider.GROQ,
-                    LLMProvider.TOGETHER, LLMProvider.OPENROUTER, LLMProvider.AZURE_OPENAI
+                    LLMProvider.OPENAI,
+                    LLMProvider.DEEPSEEK,
+                    LLMProvider.GROQ,
+                    LLMProvider.TOGETHER,
+                    LLMProvider.OPENROUTER,
+                    LLMProvider.AZURE_OPENAI,
                 )
                 if self.provider in openai_compatible:
                     response_text = await self._call_openai(prompt, self.temperature)
@@ -185,7 +199,7 @@ class LLMClientAdapter:
 
                 if attempt < max_retries - 1:
                     # Exponential backoff
-                    await asyncio.sleep(2 ** attempt)
+                    await asyncio.sleep(2**attempt)
                     continue
                 else:
                     raise Exception(f"Falha ao gerar JSON válido após {max_retries} tentativas")
@@ -281,8 +295,6 @@ class LLMClientAdapter:
         json_data = json.loads(response_text)
 
         if not isinstance(json_data, dict):
-            raise json.JSONDecodeError(
-                "Resposta não é um objeto JSON", response_text, 0
-            )
+            raise json.JSONDecodeError("Resposta não é um objeto JSON", response_text, 0)
 
         return json_data

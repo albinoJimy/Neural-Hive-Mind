@@ -50,7 +50,7 @@ def get_opinions_map(client, db):
             "opinion.risk_score": 1,
             "opinion.reasoning_factors": 1,
             "cognitive_plan": 1,
-        }
+        },
     )
 
     for opinion in cursor:
@@ -67,13 +67,15 @@ def migrate_feedbacks(client, db, opinions_map):
     feedbacks_col = db[FEEDBACK_COLLECTION]
 
     # Contar feedbacks que precisam de migração
-    total = feedbacks_col.count_documents({
-        "$or": [
-            {"opinion_recommendation": {"$exists": False}},
-            {"opinion_confidence": {"$exists": False}},
-            {"intent_id": {"$exists": False}}
-        ]
-    })
+    total = feedbacks_col.count_documents(
+        {
+            "$or": [
+                {"opinion_recommendation": {"$exists": False}},
+                {"opinion_confidence": {"$exists": False}},
+                {"intent_id": {"$exists": False}},
+            ]
+        }
+    )
 
     if total == 0:
         print("✅ Todos os feedbacks já estão enriquecidos!")
@@ -82,13 +84,15 @@ def migrate_feedbacks(client, db, opinions_map):
     print(f"📋 {total} feedbacks para migrar")
 
     # Buscar feedbacks que precisam de migração
-    cursor = feedbacks_col.find({
-        "$or": [
-            {"opinion_recommendation": {"$exists": False}},
-            {"opinion_confidence": {"$exists": False}},
-            {"intent_id": {"$exists": False}}
-        ]
-    })
+    cursor = feedbacks_col.find(
+        {
+            "$or": [
+                {"opinion_recommendation": {"$exists": False}},
+                {"opinion_confidence": {"$exists": False}},
+                {"intent_id": {"$exists": False}},
+            ]
+        }
+    )
 
     bulk_updates = []
     migrated = 0
@@ -144,9 +148,7 @@ def migrate_feedbacks(client, db, opinions_map):
         if "manual_review" not in feedback:
             update_doc["$set"]["manual_review"] = True
 
-        bulk_updates.append(
-            UpdateOne({"_id": feedback["_id"]}, update_doc)
-        )
+        bulk_updates.append(UpdateOne({"_id": feedback["_id"]}, update_doc))
 
         migrated += 1
 
@@ -155,7 +157,7 @@ def migrate_feedbacks(client, db, opinions_map):
             if not DRY_RUN:
                 result = feedbacks_col.bulk_write(bulk_updates)
             else:
-                result = type('obj', (object,), {'modified_count': len(bulk_updates)})()
+                result = type("obj", (object,), {"modified_count": len(bulk_updates)})()
             bulk_updates = []
             print(f"  ✓ Batch de {BATCH_SIZE} processado")
 
@@ -173,11 +175,13 @@ def verify_migration(client, db):
     feedbacks_col = db[FEEDBACK_COLLECTION]
 
     # Contar feedbacks enriquecidos
-    enriched = feedbacks_col.count_documents({
-        "opinion_recommendation": {"$exists": True},
-        "opinion_confidence": {"$exists": True},
-        "intent_id": {"$exists": True}
-    })
+    enriched = feedbacks_col.count_documents(
+        {
+            "opinion_recommendation": {"$exists": True},
+            "opinion_confidence": {"$exists": True},
+            "intent_id": {"$exists": True},
+        }
+    )
 
     total = feedbacks_col.estimated_document_count()
 
@@ -187,9 +191,7 @@ def verify_migration(client, db):
     print(f"  Coverage: {enriched/total*100:.1f}%")
 
     # Amostra de feedback enriquecido
-    sample = feedbacks_col.find_one({
-        "opinion_recommendation": {"$exists": True}
-    })
+    sample = feedbacks_col.find_one({"opinion_recommendation": {"$exists": True}})
 
     if sample:
         print(f"\n📄 Amostra de feedback enriquecido:")
@@ -214,7 +216,7 @@ def main():
 
     try:
         # Ping
-        client.admin.command('ping')
+        client.admin.command("ping")
         print("✅ Conectado ao MongoDB\n")
 
         # Carregar mapa de opiniões
@@ -235,6 +237,7 @@ def main():
     except Exception as e:
         print(f"\n❌ Erro na migração: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
     finally:

@@ -37,7 +37,7 @@ import structlog
 from google.protobuf.timestamp_pb2 import Timestamp
 
 # Adicionar path das libraries
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../libraries/python'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../libraries/python"))
 
 from neural_hive_specialists.proto_gen import specialist_pb2, specialist_pb2_grpc
 
@@ -46,7 +46,7 @@ structlog.configure(
     processors=[
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.add_log_level,
-        structlog.dev.ConsoleRenderer()
+        structlog.dev.ConsoleRenderer(),
     ]
 )
 logger = structlog.get_logger()
@@ -79,7 +79,7 @@ class CognitivePlanGenerator:
                     "task_type": "system_query",
                     "description": "Consultar status do sistema - operação de baixo risco",
                     "estimated_duration_ms": 500,
-                    "dependencies": []
+                    "dependencies": [],
                 }
             ],
             "execution_order": [f"{plan_id}-task-1"],
@@ -90,7 +90,7 @@ class CognitivePlanGenerator:
             "reasoning_summary": "Plano simples de consulta ao sistema",
             "status": "pending_evaluation",
             "created_at": datetime.now(timezone.utc).isoformat(),
-            "metadata": {"test_type": "simple_inference"}
+            "metadata": {"test_type": "simple_inference"},
         }
 
     def generate_high_risk_plan(self) -> Dict[str, Any]:
@@ -111,7 +111,7 @@ class CognitivePlanGenerator:
                     "estimated_duration_ms": 3600000,
                     "dependencies": [],
                     "required_capabilities": ["database_admin", "data_migration"],
-                    "parameters": {"target_env": "production", "data_volume": "10TB"}
+                    "parameters": {"target_env": "production", "data_volume": "10TB"},
                 },
                 {
                     "task_id": f"{plan_id}-task-2",
@@ -120,8 +120,8 @@ class CognitivePlanGenerator:
                     "description": "Atualizar schema de banco de dados em produção",
                     "estimated_duration_ms": 1800000,
                     "dependencies": [f"{plan_id}-task-1"],
-                    "required_capabilities": ["database_admin"]
-                }
+                    "required_capabilities": ["database_admin"],
+                },
             ],
             "execution_order": [f"{plan_id}-task-1", f"{plan_id}-task-2"],
             "risk_score": 0.85,
@@ -130,13 +130,13 @@ class CognitivePlanGenerator:
                 "complexity": 0.9,
                 "data_sensitivity": 0.95,
                 "operational_impact": 0.8,
-                "rollback_difficulty": 0.85
+                "rollback_difficulty": 0.85,
             },
             "explainability_token": f"exp-{plan_id}",
             "reasoning_summary": "Plano de migração de dados com alto risco operacional",
             "status": "pending_evaluation",
             "created_at": datetime.now(timezone.utc).isoformat(),
-            "metadata": {"test_type": "high_risk_inference", "environment": "production"}
+            "metadata": {"test_type": "high_risk_inference", "environment": "production"},
         }
 
     def generate_complex_plan(self) -> Dict[str, Any]:
@@ -153,8 +153,8 @@ class CognitivePlanGenerator:
                 "description": f"Tarefa de negócio complexa {i} com múltiplas integrações",
                 "estimated_duration_ms": 5000 * i,
                 "dependencies": [f"{plan_id}-task-{j}" for j in range(1, i)] if i > 1 else [],
-                "required_capabilities": [f"capability-{j}" for j in range(1, min(i+1, 4))],
-                "parameters": {"step": str(i), "criticality": "medium"}
+                "required_capabilities": [f"capability-{j}" for j in range(1, min(i + 1, 4))],
+                "parameters": {"step": str(i), "criticality": "medium"},
             }
             tasks.append(task)
 
@@ -168,16 +168,12 @@ class CognitivePlanGenerator:
             "execution_order": [f"{plan_id}-task-{i}" for i in range(1, 6)],
             "risk_score": 0.55,
             "risk_band": "medium",
-            "risk_factors": {
-                "complexity": 0.7,
-                "data_sensitivity": 0.5,
-                "dependency_count": 0.6
-            },
+            "risk_factors": {"complexity": 0.7, "data_sensitivity": 0.5, "dependency_count": 0.6},
             "explainability_token": f"exp-{plan_id}",
             "reasoning_summary": "Plano de processo de negócio com múltiplas etapas e dependências",
             "status": "pending_evaluation",
             "created_at": datetime.now(timezone.utc).isoformat(),
-            "metadata": {"test_type": "complex_inference", "task_count": "5"}
+            "metadata": {"test_type": "complex_inference", "task_count": "5"},
         }
 
     def generate_malformed_plan(self) -> Dict[str, Any]:
@@ -187,7 +183,7 @@ class CognitivePlanGenerator:
             "version": "1.0.0",
             "plan_id": plan_id,
             # Faltando campos obrigatórios: intent_id, tasks, etc
-            "metadata": {"test_type": "malformed_inference"}
+            "metadata": {"test_type": "malformed_inference"},
         }
 
 
@@ -198,11 +194,7 @@ class SpecialistInferenceTester:
     GRPC_PORT = 50051
     DEFAULT_TIMEOUT = 30
 
-    def __init__(
-        self,
-        namespace: str = "semantic-translation",
-        verbose: bool = False
-    ):
+    def __init__(self, namespace: str = "semantic-translation", verbose: bool = False):
         self.namespace = namespace
         self.verbose = verbose
         self.plan_generator = CognitivePlanGenerator()
@@ -213,28 +205,25 @@ class SpecialistInferenceTester:
         return f"specialist-{specialist_type}.{self.namespace}.svc.cluster.local:{self.GRPC_PORT}"
 
     def _create_grpc_request(
-        self,
-        cognitive_plan: Dict[str, Any]
+        self, cognitive_plan: Dict[str, Any]
     ) -> specialist_pb2.EvaluatePlanRequest:
         """Cria EvaluatePlanRequest protobuf a partir do plano cognitivo"""
-        plan_bytes = json.dumps(cognitive_plan, default=str).encode('utf-8')
+        plan_bytes = json.dumps(cognitive_plan, default=str).encode("utf-8")
 
         return specialist_pb2.EvaluatePlanRequest(
-            plan_id=cognitive_plan.get('plan_id', str(uuid.uuid4())),
-            intent_id=cognitive_plan.get('intent_id', str(uuid.uuid4())),
+            plan_id=cognitive_plan.get("plan_id", str(uuid.uuid4())),
+            intent_id=cognitive_plan.get("intent_id", str(uuid.uuid4())),
             correlation_id=str(uuid.uuid4()),
             trace_id=str(uuid.uuid4()),
             span_id=str(uuid.uuid4()),
             cognitive_plan=plan_bytes,
-            plan_version=cognitive_plan.get('version', '1.0.0'),
+            plan_version=cognitive_plan.get("version", "1.0.0"),
             context={},
-            timeout_ms=self.DEFAULT_TIMEOUT * 1000
+            timeout_ms=self.DEFAULT_TIMEOUT * 1000,
         )
 
     def _validate_response(
-        self,
-        response: specialist_pb2.EvaluatePlanResponse,
-        specialist_type: str
+        self, response: specialist_pb2.EvaluatePlanResponse, specialist_type: str
     ) -> Tuple[bool, List[str]]:
         """
         Valida estrutura da resposta de inferência
@@ -275,12 +264,10 @@ class SpecialistInferenceTester:
 
         # Validar risk_score
         if not (0.0 <= opinion.risk_score <= 1.0):
-            errors.append(
-                f"Campo 'risk_score' fora do range [0.0-1.0]: {opinion.risk_score}"
-            )
+            errors.append(f"Campo 'risk_score' fora do range [0.0-1.0]: {opinion.risk_score}")
 
         # Validar recommendation
-        valid_recommendations = ['approve', 'reject', 'review_required', 'conditional']
+        valid_recommendations = ["approve", "reject", "review_required", "conditional"]
         if opinion.recommendation not in valid_recommendations:
             errors.append(
                 f"Campo 'recommendation' inválido: '{opinion.recommendation}'. "
@@ -306,9 +293,7 @@ class SpecialistInferenceTester:
         return (len(errors) == 0, errors)
 
     def test_specialist_inference(
-        self,
-        specialist_type: str,
-        test_scenarios: Optional[List[str]] = None
+        self, specialist_type: str, test_scenarios: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """
         Testa inferência de um especialista com múltiplos cenários
@@ -328,19 +313,14 @@ class SpecialistInferenceTester:
             "Testando inferência do especialista",
             specialist=specialist_type,
             address=address,
-            scenarios=test_scenarios
+            scenarios=test_scenarios,
         )
 
         results = {
             "specialist_type": specialist_type,
             "address": address,
             "scenarios": [],
-            "summary": {
-                "total": 0,
-                "passed": 0,
-                "failed": 0,
-                "errors": 0
-            }
+            "summary": {"total": 0, "passed": 0, "failed": 0, "errors": 0},
         }
 
         try:
@@ -348,20 +328,16 @@ class SpecialistInferenceTester:
             channel = grpc.insecure_channel(
                 address,
                 options=[
-                    ('grpc.max_send_message_length', 10 * 1024 * 1024),
-                    ('grpc.max_receive_message_length', 10 * 1024 * 1024),
-                ]
+                    ("grpc.max_send_message_length", 10 * 1024 * 1024),
+                    ("grpc.max_receive_message_length", 10 * 1024 * 1024),
+                ],
             )
             stub = specialist_pb2_grpc.SpecialistServiceStub(channel)
 
             # Testar cada cenário
             for scenario in test_scenarios:
                 results["summary"]["total"] += 1
-                scenario_result = self._test_scenario(
-                    stub,
-                    specialist_type,
-                    scenario
-                )
+                scenario_result = self._test_scenario(stub, specialist_type, scenario)
                 results["scenarios"].append(scenario_result)
 
                 if scenario_result["status"] == "passed":
@@ -378,7 +354,7 @@ class SpecialistInferenceTester:
                 "Erro ao testar especialista",
                 specialist=specialist_type,
                 error=str(e),
-                traceback=traceback.format_exc()
+                traceback=traceback.format_exc(),
             )
             results["error"] = str(e)
             results["summary"]["errors"] = len(test_scenarios)
@@ -386,10 +362,7 @@ class SpecialistInferenceTester:
         return results
 
     def _test_scenario(
-        self,
-        stub: specialist_pb2_grpc.SpecialistServiceStub,
-        specialist_type: str,
-        scenario: str
+        self, stub: specialist_pb2_grpc.SpecialistServiceStub, specialist_type: str, scenario: str
     ) -> Dict[str, Any]:
         """Testa um cenário específico de inferência"""
 
@@ -411,7 +384,7 @@ class SpecialistInferenceTester:
             "status": "unknown",
             "errors": [],
             "response_time_ms": 0,
-            "opinion": {}
+            "opinion": {},
         }
 
         try:
@@ -438,7 +411,7 @@ class SpecialistInferenceTester:
                     "recommendation": response.opinion.recommendation,
                     "reasoning_summary": response.opinion.reasoning_summary[:100] + "..."
                     if len(response.opinion.reasoning_summary) > 100
-                    else response.opinion.reasoning_summary
+                    else response.opinion.reasoning_summary,
                 }
 
                 if self.verbose:
@@ -449,7 +422,7 @@ class SpecialistInferenceTester:
                         response_time_ms=result["response_time_ms"],
                         confidence=response.opinion.confidence_score,
                         risk=response.opinion.risk_score,
-                        recommendation=response.opinion.recommendation
+                        recommendation=response.opinion.recommendation,
                     )
             else:
                 result["status"] = "failed"
@@ -457,7 +430,7 @@ class SpecialistInferenceTester:
                     "Cenário falhou na validação",
                     specialist=specialist_type,
                     scenario=scenario,
-                    errors=errors
+                    errors=errors,
                 )
 
         except grpc.RpcError as e:
@@ -468,7 +441,7 @@ class SpecialistInferenceTester:
                 specialist=specialist_type,
                 scenario=scenario,
                 code=e.code(),
-                details=e.details()
+                details=e.details(),
             )
 
         except Exception as e:
@@ -479,15 +452,13 @@ class SpecialistInferenceTester:
                 specialist=specialist_type,
                 scenario=scenario,
                 error=str(e),
-                traceback=traceback.format_exc()
+                traceback=traceback.format_exc(),
             )
 
         return result
 
     def run_all_tests(
-        self,
-        specialists: Optional[List[str]] = None,
-        scenarios: Optional[List[str]] = None
+        self, specialists: Optional[List[str]] = None, scenarios: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """
         Executa testes de inferência para todos os especialistas
@@ -513,15 +484,12 @@ class SpecialistInferenceTester:
                 "passed": 0,
                 "failed": 0,
                 "errors": 0,
-                "success_rate": 0.0
-            }
+                "success_rate": 0.0,
+            },
         }
 
         for specialist_type in specialists:
-            specialist_result = self.test_specialist_inference(
-                specialist_type,
-                scenarios
-            )
+            specialist_result = self.test_specialist_inference(specialist_type, scenarios)
             report["results"].append(specialist_result)
 
             # Agregar estatísticas
@@ -544,42 +512,27 @@ def main():
     parser = argparse.ArgumentParser(
         description="Testa inferência de modelos dos especialistas Neural Hive"
     )
-    parser.add_argument(
-        "--specialist",
-        type=str,
-        help="Testar apenas um especialista específico"
-    )
+    parser.add_argument("--specialist", type=str, help="Testar apenas um especialista específico")
     parser.add_argument(
         "--namespace",
         type=str,
         default="semantic-translation",
-        help="Namespace Kubernetes (padrão: semantic-translation)"
+        help="Namespace Kubernetes (padrão: semantic-translation)",
     )
     parser.add_argument(
         "--scenarios",
         type=str,
         nargs="+",
         choices=["simple", "high_risk", "complex", "malformed"],
-        help="Cenários específicos a testar"
+        help="Cenários específicos a testar",
     )
-    parser.add_argument(
-        "--verbose",
-        action="store_true",
-        help="Output detalhado"
-    )
-    parser.add_argument(
-        "--output-json",
-        type=str,
-        help="Salvar relatório JSON em arquivo"
-    )
+    parser.add_argument("--verbose", action="store_true", help="Output detalhado")
+    parser.add_argument("--output-json", type=str, help="Salvar relatório JSON em arquivo")
 
     args = parser.parse_args()
 
     # Configurar tester
-    tester = SpecialistInferenceTester(
-        namespace=args.namespace,
-        verbose=args.verbose
-    )
+    tester = SpecialistInferenceTester(namespace=args.namespace, verbose=args.verbose)
 
     # Determinar especialistas a testar
     specialists = [args.specialist] if args.specialist else None
@@ -627,7 +580,7 @@ def main():
         print(f"\n✅ Relatório JSON salvo em: {output_path}")
 
     # Exit code baseado em sucesso
-    if report['overall_summary']['errors'] > 0 or report['overall_summary']['failed'] > 0:
+    if report["overall_summary"]["errors"] > 0 or report["overall_summary"]["failed"] > 0:
         sys.exit(1)
     else:
         sys.exit(0)

@@ -41,10 +41,18 @@ logger = logging.getLogger(__name__)
 @dataclass
 class FlowCLoadTestMetrics:
     """Metricas especificas do teste de carga do Fluxo C."""
+
     # Latencias por step (ms)
-    step_latencies: Dict[str, List[float]] = field(default_factory=lambda: {
-        'C1': [], 'C2': [], 'C3': [], 'C4': [], 'C5': [], 'C6': [],
-    })
+    step_latencies: Dict[str, List[float]] = field(
+        default_factory=lambda: {
+            "C1": [],
+            "C2": [],
+            "C3": [],
+            "C4": [],
+            "C5": [],
+            "C6": [],
+        }
+    )
 
     # Latencias end-to-end (ms)
     workflow_latencies_ms: List[float] = field(default_factory=list)
@@ -91,16 +99,16 @@ class FlowCLoadTestMetrics:
 
     def record_circuit_breaker_trip(self, component: str) -> None:
         """Registra trip de circuit breaker."""
-        self.circuit_breaker_trips[component] = (
-            self.circuit_breaker_trips.get(component, 0) + 1
-        )
+        self.circuit_breaker_trips[component] = self.circuit_breaker_trips.get(component, 0) + 1
 
     def record_circuit_breaker_state(self, states: Dict[str, str]) -> None:
         """Registra estados dos circuit breakers para historico."""
-        self.circuit_breaker_states_history.append({
-            'timestamp': time.time(),
-            'states': states.copy(),
-        })
+        self.circuit_breaker_states_history.append(
+            {
+                "timestamp": time.time(),
+                "states": states.copy(),
+            }
+        )
 
     def record_replica_count(self, count: int) -> None:
         """Registra contagem de replicas."""
@@ -113,12 +121,14 @@ class FlowCLoadTestMetrics:
         to_replicas: int,
     ) -> None:
         """Registra evento de scaling."""
-        self.scaling_events.append({
-            'timestamp': time.time(),
-            'event_type': event_type,
-            'from_replicas': from_replicas,
-            'to_replicas': to_replicas,
-        })
+        self.scaling_events.append(
+            {
+                "timestamp": time.time(),
+                "event_type": event_type,
+                "from_replicas": from_replicas,
+                "to_replicas": to_replicas,
+            }
+        )
 
     def add_workflow_id(self, workflow_id: str) -> None:
         """Adiciona workflow_id para tracking."""
@@ -213,7 +223,7 @@ class FlowCLoadTester:
             kubernetes_client: Cliente Kubernetes para HPA
             config: Configuracao adicional
         """
-        self.orchestrator_url = orchestrator_url.rstrip('/')
+        self.orchestrator_url = orchestrator_url.rstrip("/")
         self.prometheus = prometheus_client
         self.kubernetes = kubernetes_client
         self.config = config or {}
@@ -232,11 +242,11 @@ class FlowCLoadTester:
 
         # Validar health do orchestrator
         try:
-            response = await self._http_client.get(f'{self.orchestrator_url}/health')
+            response = await self._http_client.get(f"{self.orchestrator_url}/health")
             if response.status_code != 200:
-                logger.warning(f'Orchestrator health check falhou: {response.status_code}')
+                logger.warning(f"Orchestrator health check falhou: {response.status_code}")
         except Exception as e:
-            logger.warning(f'Nao foi possivel conectar ao orchestrator: {e}')
+            logger.warning(f"Nao foi possivel conectar ao orchestrator: {e}")
 
     async def cleanup(self) -> None:
         """Fecha conexoes e garante limpeza de workflows pendentes."""
@@ -255,34 +265,34 @@ class FlowCLoadTester:
         if not self.metrics.active_workflow_ids:
             return
 
-        logger.info(f'Limpando {len(self.metrics.active_workflow_ids)} workflows pendentes...')
+        logger.info(f"Limpando {len(self.metrics.active_workflow_ids)} workflows pendentes...")
 
         for workflow_id in list(self.metrics.active_workflow_ids):
             try:
                 # Tentar aguardar conclusao rapida (30s)
                 result = await self.wait_for_workflow_completion(workflow_id, timeout_seconds=30)
-                if result['status'] == 'TIMEOUT':
+                if result["status"] == "TIMEOUT":
                     # Cancelar workflow se ainda pendente
                     await self._cancel_workflow(workflow_id)
                 self.metrics.remove_workflow_id(workflow_id)
             except Exception as e:
-                logger.warning(f'Erro ao limpar workflow {workflow_id}: {e}')
+                logger.warning(f"Erro ao limpar workflow {workflow_id}: {e}")
 
     async def _cancel_workflow(self, workflow_id: str) -> bool:
         """Cancela um workflow via API."""
         try:
             response = await self._http_client.post(
-                f'{self.orchestrator_url}/api/v1/workflows/{workflow_id}/cancel'
+                f"{self.orchestrator_url}/api/v1/workflows/{workflow_id}/cancel"
             )
             return response.status_code in (200, 202, 204)
         except Exception as e:
-            logger.debug(f'Erro ao cancelar workflow {workflow_id}: {e}')
+            logger.debug(f"Erro ao cancelar workflow {workflow_id}: {e}")
             return False
 
     async def inject_failure(
         self,
         component: str,
-        failure_type: str = 'timeout',
+        failure_type: str = "timeout",
         duration_ms: int = 5000,
     ) -> bool:
         """
@@ -298,27 +308,27 @@ class FlowCLoadTester:
         """
         try:
             response = await self._http_client.post(
-                f'{self.orchestrator_url}/api/v1/test/inject-failure',
+                f"{self.orchestrator_url}/api/v1/test/inject-failure",
                 json={
-                    'component': component,
-                    'failure_type': failure_type,
-                    'duration_ms': duration_ms,
+                    "component": component,
+                    "failure_type": failure_type,
+                    "duration_ms": duration_ms,
                 },
             )
             return response.status_code in (200, 202)
         except Exception as e:
-            logger.warning(f'Erro ao injetar falha em {component}: {e}')
+            logger.warning(f"Erro ao injetar falha em {component}: {e}")
             return False
 
     async def clear_failure_injection(self, component: str) -> bool:
         """Remove injecao de falha de um componente."""
         try:
             response = await self._http_client.delete(
-                f'{self.orchestrator_url}/api/v1/test/inject-failure/{component}'
+                f"{self.orchestrator_url}/api/v1/test/inject-failure/{component}"
             )
             return response.status_code in (200, 204)
         except Exception as e:
-            logger.debug(f'Erro ao limpar falha de {component}: {e}')
+            logger.debug(f"Erro ao limpar falha de {component}: {e}")
             return False
 
     async def get_circuit_breaker_states(self) -> Dict[str, str]:
@@ -327,7 +337,7 @@ class FlowCLoadTester:
             return {}
 
         states = {}
-        components = ['kafka', 'temporal', 'redis', 'mongodb']
+        components = ["kafka", "temporal", "redis", "mongodb"]
 
         for component in components:
             state = await self.prometheus.get_circuit_breaker_state(component)
@@ -386,23 +396,23 @@ class FlowCLoadTester:
         try:
             headers = failure_headers or {}
             response = await self._http_client.post(
-                f'{self.orchestrator_url}/api/v1/workflows/start',
+                f"{self.orchestrator_url}/api/v1/workflows/start",
                 json=decision,
                 headers=headers,
             )
 
             if response.status_code in (200, 201, 202):
                 data = response.json()
-                workflow_id = data.get('workflow_id')
+                workflow_id = data.get("workflow_id")
                 if workflow_id:
                     self.metrics.add_workflow_id(workflow_id)  # Comment 4
                 return workflow_id
             else:
-                logger.warning(f'Falha ao iniciar workflow: {response.status_code}')
+                logger.warning(f"Falha ao iniciar workflow: {response.status_code}")
                 return None
 
         except Exception as e:
-            logger.error(f'Erro ao iniciar workflow: {e}')
+            logger.error(f"Erro ao iniciar workflow: {e}")
             return None
 
     async def wait_for_workflow_completion(
@@ -425,36 +435,36 @@ class FlowCLoadTester:
         while time.time() - start < timeout_seconds:
             try:
                 response = await self._http_client.get(
-                    f'{self.orchestrator_url}/api/v1/workflows/{workflow_id}/status'
+                    f"{self.orchestrator_url}/api/v1/workflows/{workflow_id}/status"
                 )
 
                 if response.status_code == 200:
                     data = response.json()
-                    status = data.get('status', '')
+                    status = data.get("status", "")
 
-                    if status in ('COMPLETED', 'completed'):
+                    if status in ("COMPLETED", "completed"):
                         return {
-                            'success': True,
-                            'status': status,
-                            'duration_ms': (time.time() - start) * 1000,
+                            "success": True,
+                            "status": status,
+                            "duration_ms": (time.time() - start) * 1000,
                         }
-                    elif status in ('FAILED', 'failed', 'CANCELLED', 'cancelled'):
+                    elif status in ("FAILED", "failed", "CANCELLED", "cancelled"):
                         return {
-                            'success': False,
-                            'status': status,
-                            'duration_ms': (time.time() - start) * 1000,
-                            'error': data.get('error'),
+                            "success": False,
+                            "status": status,
+                            "duration_ms": (time.time() - start) * 1000,
+                            "error": data.get("error"),
                         }
 
             except Exception as e:
-                logger.debug(f'Erro consultando status: {e}')
+                logger.debug(f"Erro consultando status: {e}")
 
             await asyncio.sleep(5)
 
         return {
-            'success': False,
-            'status': 'TIMEOUT',
-            'duration_ms': timeout_seconds * 1000,
+            "success": False,
+            "status": "TIMEOUT",
+            "duration_ms": timeout_seconds * 1000,
         }
 
     async def execute_single_workflow(
@@ -483,20 +493,20 @@ class FlowCLoadTester:
         if not workflow_id:
             self.metrics.workflows_failed += 1
             return {
-                'success': False,
-                'error': 'Falha ao iniciar workflow',
-                'duration_ms': (time.time() - start_time) * 1000,
+                "success": False,
+                "error": "Falha ao iniciar workflow",
+                "duration_ms": (time.time() - start_time) * 1000,
             }
 
         # Contar tickets esperados
-        tasks = decision.get('cognitive_plan', {}).get('tasks', [])
+        tasks = decision.get("cognitive_plan", {}).get("tasks", [])
         self.metrics.tickets_created += len(tasks)
 
         if not wait_completion:
             return {
-                'success': True,
-                'workflow_id': workflow_id,
-                'started_at': start_time,
+                "success": True,
+                "workflow_id": workflow_id,
+                "started_at": start_time,
             }
 
         # Aguardar conclusao
@@ -506,16 +516,16 @@ class FlowCLoadTester:
         self.metrics.remove_workflow_id(workflow_id)
 
         self.metrics.record_workflow_completion(
-            success=result['success'],
-            total_duration_ms=result['duration_ms'],
+            success=result["success"],
+            total_duration_ms=result["duration_ms"],
         )
 
-        if result['success']:
+        if result["success"]:
             self.metrics.tickets_completed += len(tasks)
         else:
             self.metrics.tickets_failed += len(tasks)
 
-        result['workflow_id'] = workflow_id
+        result["workflow_id"] = workflow_id
         return result
 
     async def run_concurrent_workflows(
@@ -546,10 +556,12 @@ class FlowCLoadTester:
         processed_results = []
         for result in results:
             if isinstance(result, Exception):
-                processed_results.append({
-                    'success': False,
-                    'error': str(result),
-                })
+                processed_results.append(
+                    {
+                        "success": False,
+                        "error": str(result),
+                    }
+                )
             else:
                 processed_results.append(result)
 
@@ -574,7 +586,7 @@ class FlowCLoadTester:
             return []
 
         return await self.kubernetes.watch_hpa_scaling(
-            name='orchestrator-dynamic',
+            name="orchestrator-dynamic",
             duration_seconds=duration_seconds,
             poll_interval=poll_interval,
         )
@@ -614,7 +626,7 @@ class TestFlowCThroughput:
         - Taxa de sucesso > 95%
         """
         tester = FlowCLoadTester(
-            orchestrator_url=load_test_config['orchestrator_url'],
+            orchestrator_url=load_test_config["orchestrator_url"],
             prometheus_client=prometheus_client,
             config=load_test_config,
         )
@@ -642,33 +654,36 @@ class TestFlowCThroughput:
             # Validacoes
             metrics = tester.metrics
 
-            assert metrics.workflows_completed + metrics.workflows_failed == 100, \
-                f'Todos os 100 workflows devem ser processados'
+            assert (
+                metrics.workflows_completed + metrics.workflows_failed == 100
+            ), f"Todos os 100 workflows devem ser processados"
 
             # SLO: Throughput
             tickets_per_second = metrics.tickets_per_second
-            logger.info(f'Throughput: {tickets_per_second:.2f} tickets/s')
+            logger.info(f"Throughput: {tickets_per_second:.2f} tickets/s")
             # Nota: Em modo sequencial, throughput pode ser menor que target
 
             # SLO: Taxa de sucesso
-            assert metrics.success_rate >= 0.95, \
-                f'Taxa de sucesso deve ser >= 95%, obtido: {metrics.success_rate*100:.1f}%'
+            assert (
+                metrics.success_rate >= 0.95
+            ), f"Taxa de sucesso deve ser >= 95%, obtido: {metrics.success_rate*100:.1f}%"
 
             # SLO: Latencia P95
             if metrics.latency_p95_ms:
                 p95_hours = metrics.latency_p95_ms / 3600000
-                logger.info(f'Latencia P95: {p95_hours:.2f}h')
-                assert metrics.latency_p95_ms < 14400000, \
-                    f'Latencia P95 deve ser < 4h, obtido: {p95_hours:.2f}h'
+                logger.info(f"Latencia P95: {p95_hours:.2f}h")
+                assert (
+                    metrics.latency_p95_ms < 14400000
+                ), f"Latencia P95 deve ser < 4h, obtido: {p95_hours:.2f}h"
 
             # Report
-            logger.info(f'\n[Throughput Sequencial]')
-            logger.info(f'  Workflows: {metrics.workflows_started}')
-            logger.info(f'  Completados: {metrics.workflows_completed}')
-            logger.info(f'  Falhados: {metrics.workflows_failed}')
-            logger.info(f'  Taxa de sucesso: {metrics.success_rate*100:.1f}%')
-            logger.info(f'  Duracao: {metrics.duration_seconds:.1f}s')
-            logger.info(f'  Throughput: {metrics.workflows_per_second:.2f} workflows/s')
+            logger.info(f"\n[Throughput Sequencial]")
+            logger.info(f"  Workflows: {metrics.workflows_started}")
+            logger.info(f"  Completados: {metrics.workflows_completed}")
+            logger.info(f"  Falhados: {metrics.workflows_failed}")
+            logger.info(f"  Taxa de sucesso: {metrics.success_rate*100:.1f}%")
+            logger.info(f"  Duracao: {metrics.duration_seconds:.1f}s")
+            logger.info(f"  Throughput: {metrics.workflows_per_second:.2f} workflows/s")
 
         finally:
             await tester.cleanup()
@@ -692,7 +707,7 @@ class TestFlowCThroughput:
         - Nenhum circuit breaker trip
         """
         tester = FlowCLoadTester(
-            orchestrator_url=load_test_config['orchestrator_url'],
+            orchestrator_url=load_test_config["orchestrator_url"],
             prometheus_client=prometheus_client,
             kubernetes_client=kubernetes_client,
             config=load_test_config,
@@ -716,26 +731,26 @@ class TestFlowCThroughput:
 
             # Validacoes
             metrics = tester.metrics
-            success_count = sum(1 for r in results if r.get('success'))
+            success_count = sum(1 for r in results if r.get("success"))
 
             assert metrics.workflows_started == 50
-            assert metrics.success_rate >= 0.99, \
-                f'Taxa de sucesso deve ser >= 99%, obtido: {metrics.success_rate*100:.1f}%'
+            assert (
+                metrics.success_rate >= 0.99
+            ), f"Taxa de sucesso deve ser >= 99%, obtido: {metrics.success_rate*100:.1f}%"
 
             # Verificar circuit breakers
             if prometheus_client:
                 snapshot = await tester.collect_prometheus_metrics()
                 if snapshot:
                     for comp, state in snapshot.circuit_breaker_states.items():
-                        assert state != 'open', \
-                            f'Circuit breaker {comp} nao deve estar aberto'
+                        assert state != "open", f"Circuit breaker {comp} nao deve estar aberto"
 
-            logger.info(f'\n[Concorrencia Moderada]')
-            logger.info(f'  Workflows: 50 (concorrentes)')
-            logger.info(f'  Sucesso: {success_count}')
-            logger.info(f'  Taxa de sucesso: {metrics.success_rate*100:.1f}%')
-            logger.info(f'  Duracao: {metrics.duration_seconds:.1f}s')
-            logger.info(f'  Throughput: {metrics.tickets_per_second:.2f} tickets/s')
+            logger.info(f"\n[Concorrencia Moderada]")
+            logger.info(f"  Workflows: 50 (concorrentes)")
+            logger.info(f"  Sucesso: {success_count}")
+            logger.info(f"  Taxa de sucesso: {metrics.success_rate*100:.1f}%")
+            logger.info(f"  Duracao: {metrics.duration_seconds:.1f}s")
+            logger.info(f"  Throughput: {metrics.tickets_per_second:.2f} tickets/s")
 
         finally:
             await tester.cleanup()
@@ -761,7 +776,7 @@ class TestFlowCThroughput:
         - Identificar bottlenecks (incluindo I/O e rede - Comment 5)
         """
         tester = FlowCLoadTester(
-            orchestrator_url=load_test_config['orchestrator_url'],
+            orchestrator_url=load_test_config["orchestrator_url"],
             prometheus_client=prometheus_client,
             kubernetes_client=kubernetes_client,
             config=load_test_config,
@@ -795,83 +810,95 @@ class TestFlowCThroughput:
                 bottleneck_analyzer.analyze_all()
 
                 # Reportar TODOS os bottlenecks incluindo I/O e rede
-                logger.info('\n[Analise de Bottlenecks]')
+                logger.info("\n[Analise de Bottlenecks]")
 
                 if bottleneck_analyzer.has_critical_issues():
-                    logger.warning('Bottlenecks CRITICOS identificados:')
+                    logger.warning("Bottlenecks CRITICOS identificados:")
                     for bn in bottleneck_analyzer.get_critical_bottlenecks():
-                        logger.warning(f'  - [{bn.type.value.upper()}] {bn.description}')
-                        logger.warning(f'    Recomendacao: {bn.recommendation}')
+                        logger.warning(f"  - [{bn.type.value.upper()}] {bn.description}")
+                        logger.warning(f"    Recomendacao: {bn.recommendation}")
 
                 warnings = bottleneck_analyzer.get_warnings()
                 if warnings:
-                    logger.info('Bottlenecks WARNING identificados:')
+                    logger.info("Bottlenecks WARNING identificados:")
                     for bn in warnings:
-                        logger.info(f'  - [{bn.type.value.upper()}] {bn.description}')
+                        logger.info(f"  - [{bn.type.value.upper()}] {bn.description}")
 
                 # Reportar metricas de I/O especificamente (Comment 5)
-                logger.info('\n[Metricas de I/O]')
+                logger.info("\n[Metricas de I/O]")
                 if final_snapshot.io_read_bytes_rate is not None:
-                    logger.info(f'  Read rate: {final_snapshot.io_read_bytes_rate/1024/1024:.2f} MB/s')
+                    logger.info(
+                        f"  Read rate: {final_snapshot.io_read_bytes_rate/1024/1024:.2f} MB/s"
+                    )
                 if final_snapshot.io_write_bytes_rate is not None:
-                    logger.info(f'  Write rate: {final_snapshot.io_write_bytes_rate/1024/1024:.2f} MB/s')
+                    logger.info(
+                        f"  Write rate: {final_snapshot.io_write_bytes_rate/1024/1024:.2f} MB/s"
+                    )
                 if final_snapshot.disk_io_utilization is not None:
-                    logger.info(f'  Disk I/O utilization: {final_snapshot.disk_io_utilization:.1f}%')
+                    logger.info(
+                        f"  Disk I/O utilization: {final_snapshot.disk_io_utilization:.1f}%"
+                    )
                 if final_snapshot.io_time_seconds_rate is not None:
-                    logger.info(f'  I/O time rate: {final_snapshot.io_time_seconds_rate*100:.1f}%')
+                    logger.info(f"  I/O time rate: {final_snapshot.io_time_seconds_rate*100:.1f}%")
 
                 # Reportar metricas de rede especificamente (Comment 5)
-                logger.info('\n[Metricas de Rede]')
+                logger.info("\n[Metricas de Rede]")
                 if final_snapshot.network_transmit_bytes_rate is not None:
-                    logger.info(f'  TX rate: {final_snapshot.network_transmit_bytes_rate/1024/1024:.2f} MB/s')
+                    logger.info(
+                        f"  TX rate: {final_snapshot.network_transmit_bytes_rate/1024/1024:.2f} MB/s"
+                    )
                 if final_snapshot.network_receive_bytes_rate is not None:
-                    logger.info(f'  RX rate: {final_snapshot.network_receive_bytes_rate/1024/1024:.2f} MB/s')
+                    logger.info(
+                        f"  RX rate: {final_snapshot.network_receive_bytes_rate/1024/1024:.2f} MB/s"
+                    )
                 if final_snapshot.network_transmit_errors_rate is not None:
-                    logger.info(f'  TX errors: {final_snapshot.network_transmit_errors_rate:.2f}/s')
+                    logger.info(f"  TX errors: {final_snapshot.network_transmit_errors_rate:.2f}/s")
                 if final_snapshot.network_receive_errors_rate is not None:
-                    logger.info(f'  RX errors: {final_snapshot.network_receive_errors_rate:.2f}/s')
+                    logger.info(f"  RX errors: {final_snapshot.network_receive_errors_rate:.2f}/s")
                 if final_snapshot.inter_service_latencies:
-                    logger.info('  Latencias inter-servico:')
+                    logger.info("  Latencias inter-servico:")
                     for service, latency in final_snapshot.inter_service_latencies.items():
-                        logger.info(f'    - {service}: {latency*1000:.0f}ms')
+                        logger.info(f"    - {service}: {latency*1000:.0f}ms")
 
             # Validacoes
             metrics = tester.metrics
 
             # SLO: Throughput
-            assert metrics.tickets_per_second >= 10, \
-                f'Throughput deve ser >= 10 tickets/s, obtido: {metrics.tickets_per_second:.2f}'
+            assert (
+                metrics.tickets_per_second >= 10
+            ), f"Throughput deve ser >= 10 tickets/s, obtido: {metrics.tickets_per_second:.2f}"
 
             # SLO: Latencia P99
             if metrics.latency_p99_ms:
                 p99_hours = metrics.latency_p99_ms / 3600000
-                assert metrics.latency_p99_ms < 21600000, \
-                    f'Latencia P99 deve ser < 6h, obtido: {p99_hours:.2f}h'
+                assert (
+                    metrics.latency_p99_ms < 21600000
+                ), f"Latencia P99 deve ser < 6h, obtido: {p99_hours:.2f}h"
 
             # Verificar autoscaling
             if kubernetes_client and kubernetes_client.is_available():
-                hpa_status = await kubernetes_client.get_hpa_status('orchestrator-dynamic')
+                hpa_status = await kubernetes_client.get_hpa_status("orchestrator-dynamic")
                 if hpa_status:
-                    logger.info(f'HPA: {hpa_status.current_replicas} replicas')
+                    logger.info(f"HPA: {hpa_status.current_replicas} replicas")
                     # Sob alta carga, esperamos >= 4 replicas
                     if hpa_status.current_replicas < 4:
                         logger.warning(
-                            f'HPA nao escalou adequadamente: '
-                            f'{hpa_status.current_replicas} replicas'
+                            f"HPA nao escalou adequadamente: "
+                            f"{hpa_status.current_replicas} replicas"
                         )
 
-            logger.info(f'\n[Alta Concorrencia - Resumo]')
-            logger.info(f'  Workflows: 100 (concorrentes)')
-            logger.info(f'  Taxa de sucesso: {metrics.success_rate*100:.1f}%')
-            logger.info(f'  Throughput: {metrics.tickets_per_second:.2f} tickets/s')
+            logger.info(f"\n[Alta Concorrencia - Resumo]")
+            logger.info(f"  Workflows: 100 (concorrentes)")
+            logger.info(f"  Taxa de sucesso: {metrics.success_rate*100:.1f}%")
+            logger.info(f"  Throughput: {metrics.tickets_per_second:.2f} tickets/s")
             if metrics.latency_p95_ms:
-                logger.info(f'  Latencia P95: {metrics.latency_p95_ms/3600000:.2f}h')
+                logger.info(f"  Latencia P95: {metrics.latency_p95_ms/3600000:.2f}h")
             if metrics.latency_p99_ms:
-                logger.info(f'  Latencia P99: {metrics.latency_p99_ms/3600000:.2f}h')
+                logger.info(f"  Latencia P99: {metrics.latency_p99_ms/3600000:.2f}h")
 
             # Gerar relatorio completo de bottlenecks
             report = bottleneck_analyzer.generate_report()
-            logger.info(f'\n{report}')
+            logger.info(f"\n{report}")
 
         finally:
             await tester.cleanup()
@@ -900,10 +927,10 @@ class TestFlowCAutoscaling:
         - Scale-down deve ocorrer apos cooldown
         """
         if not kubernetes_client or not kubernetes_client.is_available():
-            pytest.skip('Kubernetes client nao disponivel')
+            pytest.skip("Kubernetes client nao disponivel")
 
         tester = FlowCLoadTester(
-            orchestrator_url=load_test_config['orchestrator_url'],
+            orchestrator_url=load_test_config["orchestrator_url"],
             prometheus_client=prometheus_client,
             kubernetes_client=kubernetes_client,
         )
@@ -913,10 +940,10 @@ class TestFlowCAutoscaling:
 
         try:
             # Verificar estado inicial
-            initial_status = await kubernetes_client.get_hpa_status('orchestrator-dynamic')
+            initial_status = await kubernetes_client.get_hpa_status("orchestrator-dynamic")
             initial_replicas = initial_status.current_replicas if initial_status else 2
 
-            logger.info(f'Replicas iniciais: {initial_replicas}')
+            logger.info(f"Replicas iniciais: {initial_replicas}")
 
             # Ramp-up gradual
             ramp_up_duration = 300  # 5 minutos
@@ -941,26 +968,24 @@ class TestFlowCAutoscaling:
                 batch_end = batch_start + batch_size
                 batch = decisions[batch_start:batch_end]
 
-                logger.info(f'Batch {i+1}/{batches}: iniciando {len(batch)} workflows')
+                logger.info(f"Batch {i+1}/{batches}: iniciando {len(batch)} workflows")
 
                 # Executar batch sem aguardar conclusao
                 for decision in batch:
-                    result = await tester.execute_single_workflow(
-                        decision, wait_completion=False
-                    )
-                    if result.get('workflow_id'):
-                        started_workflow_ids.append(result['workflow_id'])
+                    result = await tester.execute_single_workflow(decision, wait_completion=False)
+                    if result.get("workflow_id"):
+                        started_workflow_ids.append(result["workflow_id"])
 
                 # Monitorar replicas durante ramp-up
-                current_status = await kubernetes_client.get_hpa_status('orchestrator-dynamic')
+                current_status = await kubernetes_client.get_hpa_status("orchestrator-dynamic")
                 if current_status:
                     current_replicas = current_status.current_replicas
                     if current_replicas > max_replicas_observed:
                         tester.metrics.record_scaling_event(
-                            'scale_up', max_replicas_observed, current_replicas
+                            "scale_up", max_replicas_observed, current_replicas
                         )
                         max_replicas_observed = current_replicas
-                        logger.info(f'Scale-up detectado: {current_replicas} replicas')
+                        logger.info(f"Scale-up detectado: {current_replicas} replicas")
 
                 # Intervalo entre batches para ramp-up gradual
                 await asyncio.sleep(ramp_up_duration / batches)
@@ -975,69 +1000,73 @@ class TestFlowCAutoscaling:
 
             # Verificar evictions
             evictions = await kubernetes_client.check_for_evictions()
-            assert len(evictions) == 0, \
-                f'Nenhum pod deve ser evicted durante teste, mas {len(evictions)} foram'
+            assert (
+                len(evictions) == 0
+            ), f"Nenhum pod deve ser evicted durante teste, mas {len(evictions)} foram"
 
             # Verificar scaling (Comment 3 - ASSERTS OBRIGATORIOS)
-            final_status = await kubernetes_client.get_hpa_status('orchestrator-dynamic')
+            final_status = await kubernetes_client.get_hpa_status("orchestrator-dynamic")
             final_replicas = final_status.current_replicas if final_status else initial_replicas
 
             # ASSERT OBRIGATORIO: HPA deve escalar para >= 4 replicas
             min_expected_replicas = 4
-            assert max_replicas_observed >= min_expected_replicas, \
-                f'HPA DEVE escalar para >= {min_expected_replicas} replicas durante carga, ' \
-                f'mas max observado foi {max_replicas_observed}'
+            assert max_replicas_observed >= min_expected_replicas, (
+                f"HPA DEVE escalar para >= {min_expected_replicas} replicas durante carga, "
+                f"mas max observado foi {max_replicas_observed}"
+            )
 
             # ASSERT OBRIGATORIO: Deve haver eventos de scale-up
-            scale_up_events = [e for e in scaling_events if e.event_type == 'scale_up']
+            scale_up_events = [e for e in scaling_events if e.event_type == "scale_up"]
             scale_up_from_metrics = [
-                e for e in tester.metrics.scaling_events if e['event_type'] == 'scale_up'
+                e for e in tester.metrics.scaling_events if e["event_type"] == "scale_up"
             ]
             total_scale_up_events = len(scale_up_events) + len(scale_up_from_metrics)
 
-            assert total_scale_up_events > 0, \
-                'DEVE haver pelo menos 1 evento de scale-up durante teste de carga'
+            assert (
+                total_scale_up_events > 0
+            ), "DEVE haver pelo menos 1 evento de scale-up durante teste de carga"
 
-            logger.info(f'\n[Autoscaling - Resultados]')
-            logger.info(f'  Replicas iniciais: {initial_replicas}')
-            logger.info(f'  Max replicas observadas: {max_replicas_observed}')
-            logger.info(f'  Replicas finais: {final_replicas}')
-            logger.info(f'  Eventos de scale-up: {total_scale_up_events}')
+            logger.info(f"\n[Autoscaling - Resultados]")
+            logger.info(f"  Replicas iniciais: {initial_replicas}")
+            logger.info(f"  Max replicas observadas: {max_replicas_observed}")
+            logger.info(f"  Replicas finais: {final_replicas}")
+            logger.info(f"  Eventos de scale-up: {total_scale_up_events}")
 
             for event in scaling_events:
-                logger.info(
-                    f'  - {event.event_type}: {event.from_replicas} -> {event.to_replicas}'
-                )
+                logger.info(f"  - {event.event_type}: {event.from_replicas} -> {event.to_replicas}")
 
             # Aguardar cooldown e verificar scale-down (Comment 3)
-            logger.info(f'Aguardando cooldown para verificar scale-down...')
+            logger.info(f"Aguardando cooldown para verificar scale-down...")
             cooldown_seconds = 180  # 3 minutos
             await asyncio.sleep(cooldown_seconds)
 
-            post_cooldown_status = await kubernetes_client.get_hpa_status('orchestrator-dynamic')
+            post_cooldown_status = await kubernetes_client.get_hpa_status("orchestrator-dynamic")
             post_cooldown_replicas = (
                 post_cooldown_status.current_replicas if post_cooldown_status else final_replicas
             )
 
             # ASSERT OBRIGATORIO: Scale-down deve ocorrer apos cooldown
             # (ou replicas devem ser menores que max observado)
-            if post_cooldown_replicas >= max_replicas_observed and max_replicas_observed > initial_replicas:
+            if (
+                post_cooldown_replicas >= max_replicas_observed
+                and max_replicas_observed > initial_replicas
+            ):
                 # Pode ser que o cooldown nao foi suficiente, apenas warning
                 logger.warning(
-                    f'Scale-down pode nao ter ocorrido: {post_cooldown_replicas} replicas '
-                    f'(esperado < {max_replicas_observed})'
+                    f"Scale-down pode nao ter ocorrido: {post_cooldown_replicas} replicas "
+                    f"(esperado < {max_replicas_observed})"
                 )
 
-            logger.info(f'  Replicas pos-cooldown: {post_cooldown_replicas}')
+            logger.info(f"  Replicas pos-cooldown: {post_cooldown_replicas}")
 
         finally:
             # Comment 4: Aguardar conclusao de TODOS os workflows iniciados
-            logger.info(f'Aguardando conclusao de {len(started_workflow_ids)} workflows...')
+            logger.info(f"Aguardando conclusao de {len(started_workflow_ids)} workflows...")
             for workflow_id in started_workflow_ids:
                 try:
                     await tester.wait_for_workflow_completion(workflow_id, timeout_seconds=60)
                 except Exception as e:
-                    logger.debug(f'Erro aguardando workflow {workflow_id}: {e}')
+                    logger.debug(f"Erro aguardando workflow {workflow_id}: {e}")
 
             await tester.cleanup()
 
@@ -1061,7 +1090,7 @@ class TestFlowCCircuitBreakers:
         - Metricas de estado sao publicadas
         """
         tester = FlowCLoadTester(
-            orchestrator_url=load_test_config['orchestrator_url'],
+            orchestrator_url=load_test_config["orchestrator_url"],
             prometheus_client=prometheus_client,
         )
 
@@ -1084,14 +1113,15 @@ class TestFlowCCircuitBreakers:
             if prometheus_client:
                 snapshot = await tester.collect_prometheus_metrics()
                 if snapshot:
-                    logger.info('\n[Circuit Breakers]')
+                    logger.info("\n[Circuit Breakers]")
                     for comp, state in snapshot.circuit_breaker_states.items():
-                        status = '✅' if state == 'closed' else '❌'
-                        logger.info(f'  {comp}: {status} {state}')
+                        status = "✅" if state == "closed" else "❌"
+                        logger.info(f"  {comp}: {status} {state}")
 
                         # Todos devem estar fechados sob carga normal
-                        assert state == 'closed', \
-                            f'Circuit breaker {comp} deve estar fechado, mas esta {state}'
+                        assert (
+                            state == "closed"
+                        ), f"Circuit breaker {comp} deve estar fechado, mas esta {state}"
 
         finally:
             await tester.cleanup()
@@ -1115,33 +1145,33 @@ class TestFlowCCircuitBreakers:
         Usa metricas neural_hive_circuit_breaker_state e _trips_total.
         """
         tester = FlowCLoadTester(
-            orchestrator_url=load_test_config['orchestrator_url'],
+            orchestrator_url=load_test_config["orchestrator_url"],
             prometheus_client=prometheus_client,
         )
 
         await tester.setup()
 
         # Componentes para testar
-        components_to_test = ['mongodb', 'kafka', 'redis']
+        components_to_test = ["mongodb", "kafka", "redis"]
 
         try:
             for component in components_to_test:
-                logger.info(f'\n[Testando Circuit Breaker: {component}]')
+                logger.info(f"\n[Testando Circuit Breaker: {component}]")
 
                 # 1. Verificar estado inicial (deve ser closed)
                 initial_state = await prometheus_client.get_circuit_breaker_state(component)
                 initial_trips = await prometheus_client.get_circuit_breaker_trips(component)
-                logger.info(f'  Estado inicial: {initial_state}, trips: {initial_trips}')
+                logger.info(f"  Estado inicial: {initial_state}, trips: {initial_trips}")
 
-                if initial_state and initial_state != 'closed':
-                    logger.warning(f'  CB {component} nao esta fechado, pulando...')
+                if initial_state and initial_state != "closed":
+                    logger.warning(f"  CB {component} nao esta fechado, pulando...")
                     continue
 
                 # 2. Injetar falhas para forcar abertura do circuit breaker
-                logger.info(f'  Injetando falhas em {component}...')
+                logger.info(f"  Injetando falhas em {component}...")
                 await tester.inject_failure(
                     component=component,
-                    failure_type='timeout',
+                    failure_type="timeout",
                     duration_ms=30000,  # 30 segundos
                 )
 
@@ -1150,8 +1180,8 @@ class TestFlowCCircuitBreakers:
                 decisions = generate_consolidated_decisions(plans)
 
                 failure_headers = {
-                    'X-Inject-Failure': component,
-                    'X-Failure-Type': 'timeout',
+                    "X-Inject-Failure": component,
+                    "X-Failure-Type": "timeout",
                 }
 
                 for decision in decisions[:10]:
@@ -1166,33 +1196,36 @@ class TestFlowCCircuitBreakers:
                 await asyncio.sleep(5)  # Aguardar propagacao de metricas
 
                 open_state_reached = await tester.wait_for_circuit_breaker_state(
-                    component, 'open', timeout_seconds=30
+                    component, "open", timeout_seconds=30
                 )
 
                 post_injection_state = await prometheus_client.get_circuit_breaker_state(component)
                 post_injection_trips = await prometheus_client.get_circuit_breaker_trips(component)
 
-                logger.info(f'  Estado apos falhas: {post_injection_state}, trips: {post_injection_trips}')
+                logger.info(
+                    f"  Estado apos falhas: {post_injection_state}, trips: {post_injection_trips}"
+                )
 
                 # ASSERT: CB deve ter mais trips que antes
                 if initial_trips is not None and post_injection_trips is not None:
-                    assert post_injection_trips > initial_trips, \
-                        f'Circuit breaker {component} DEVE ter registrado trips ' \
-                        f'(antes: {initial_trips}, depois: {post_injection_trips})'
+                    assert post_injection_trips > initial_trips, (
+                        f"Circuit breaker {component} DEVE ter registrado trips "
+                        f"(antes: {initial_trips}, depois: {post_injection_trips})"
+                    )
 
                 # 5. Limpar injecao de falhas
                 await tester.clear_failure_injection(component)
 
                 # 6. Se CB abriu, aguardar transicao para half_open
-                if post_injection_state == 'open' or open_state_reached:
-                    logger.info(f'  Aguardando transicao para half_open...')
+                if post_injection_state == "open" or open_state_reached:
+                    logger.info(f"  Aguardando transicao para half_open...")
 
                     half_open_reached = await tester.wait_for_circuit_breaker_state(
-                        component, 'half_open', timeout_seconds=60
+                        component, "half_open", timeout_seconds=60
                     )
 
                     if half_open_reached:
-                        logger.info(f'  CB {component} em half_open, testando recovery...')
+                        logger.info(f"  CB {component} em half_open, testando recovery...")
 
                         # 7. Executar requisicoes para recovery (Comment 2 - validar half_open -> closed)
                         for decision in decisions[10:15]:
@@ -1204,27 +1237,29 @@ class TestFlowCCircuitBreakers:
 
                         # 8. Verificar se CB voltou para closed
                         closed_reached = await tester.wait_for_circuit_breaker_state(
-                            component, 'closed', timeout_seconds=60
+                            component, "closed", timeout_seconds=60
                         )
 
                         final_state = await prometheus_client.get_circuit_breaker_state(component)
-                        logger.info(f'  Estado final: {final_state}')
+                        logger.info(f"  Estado final: {final_state}")
 
                         # ASSERT: CB deve ter recuperado para closed
-                        assert closed_reached or final_state == 'closed', \
-                            f'Circuit breaker {component} DEVE recuperar para closed ' \
-                            f'(estado atual: {final_state})'
+                        assert closed_reached or final_state == "closed", (
+                            f"Circuit breaker {component} DEVE recuperar para closed "
+                            f"(estado atual: {final_state})"
+                        )
                     else:
-                        logger.warning(f'  CB {component} nao atingiu half_open no timeout')
+                        logger.warning(f"  CB {component} nao atingiu half_open no timeout")
 
             # Validar historico de estados registrados
-            logger.info('\n[Historico de Estados dos Circuit Breakers]')
+            logger.info("\n[Historico de Estados dos Circuit Breakers]")
             for record in tester.metrics.circuit_breaker_states_history[-10:]:
-                logger.info(f'  {record}')
+                logger.info(f"  {record}")
 
             # ASSERT FINAL: Deve ter registrado transicoes
-            assert len(tester.metrics.circuit_breaker_states_history) > 0, \
-                'DEVE ter registrado historico de estados dos circuit breakers'
+            assert (
+                len(tester.metrics.circuit_breaker_states_history) > 0
+            ), "DEVE ter registrado historico de estados dos circuit breakers"
 
         finally:
             # Limpar todas as injecoes de falha
@@ -1249,7 +1284,7 @@ class TestFlowCCircuitBreakers:
         - neural_hive_circuit_breaker_trips_total
         """
         tester = FlowCLoadTester(
-            orchestrator_url=load_test_config['orchestrator_url'],
+            orchestrator_url=load_test_config["orchestrator_url"],
             prometheus_client=prometheus_client,
         )
 
@@ -1257,14 +1292,14 @@ class TestFlowCCircuitBreakers:
 
         try:
             # Coletar metricas iniciais
-            components = ['kafka', 'temporal', 'redis', 'mongodb']
+            components = ["kafka", "temporal", "redis", "mongodb"]
             initial_metrics = {}
 
             for comp in components:
                 state = await prometheus_client.get_circuit_breaker_state(comp)
                 trips = await prometheus_client.get_circuit_breaker_trips(comp)
-                initial_metrics[comp] = {'state': state, 'trips': trips}
-                logger.info(f'[CB {comp}] Inicial - state: {state}, trips: {trips}')
+                initial_metrics[comp] = {"state": state, "trips": trips}
+                logger.info(f"[CB {comp}] Inicial - state: {state}, trips: {trips}")
 
             # Executar carga com mix de falhas
             plans = generate_cognitive_plans(50, sample_cognitive_plan)
@@ -1278,8 +1313,8 @@ class TestFlowCCircuitBreakers:
                 if i % 3 == 0:  # ~33% com falha
                     target_comp = components[i % len(components)]
                     failure_headers = {
-                        'X-Inject-Failure': target_comp,
-                        'X-Failure-Type': 'error',
+                        "X-Inject-Failure": target_comp,
+                        "X-Failure-Type": "error",
                     }
 
                 await tester.execute_single_workflow(
@@ -1295,18 +1330,18 @@ class TestFlowCCircuitBreakers:
             await asyncio.sleep(10)
 
             # Coletar metricas finais
-            logger.info('\n[Metricas Finais de Circuit Breakers]')
+            logger.info("\n[Metricas Finais de Circuit Breakers]")
             for comp in components:
                 state = await prometheus_client.get_circuit_breaker_state(comp)
                 trips = await prometheus_client.get_circuit_breaker_trips(comp)
 
                 initial = initial_metrics.get(comp, {})
-                initial_trips = initial.get('trips', 0) or 0
+                initial_trips = initial.get("trips", 0) or 0
                 current_trips = trips or 0
 
                 logger.info(
-                    f'  {comp}: state={state}, trips={current_trips} '
-                    f'(delta: +{current_trips - initial_trips})'
+                    f"  {comp}: state={state}, trips={current_trips} "
+                    f"(delta: +{current_trips - initial_trips})"
                 )
 
                 # Registrar trips no metrics
@@ -1316,15 +1351,15 @@ class TestFlowCCircuitBreakers:
 
             # ASSERT: Metricas devem estar sendo publicadas
             total_trips = sum(tester.metrics.circuit_breaker_trips.values())
-            logger.info(f'\nTotal de trips registrados: {total_trips}')
+            logger.info(f"\nTotal de trips registrados: {total_trips}")
 
             # Pelo menos algumas metricas devem ter sido publicadas
             any_state_available = any(
-                await prometheus_client.get_circuit_breaker_state(c) is not None
-                for c in components
+                await prometheus_client.get_circuit_breaker_state(c) is not None for c in components
             )
-            assert any_state_available, \
-                'Metricas neural_hive_circuit_breaker_state DEVEM estar disponiveis'
+            assert (
+                any_state_available
+            ), "Metricas neural_hive_circuit_breaker_state DEVEM estar disponiveis"
 
         finally:
             await tester.cleanup()
@@ -1352,7 +1387,7 @@ class TestFlowCLatencyDistribution:
         - C6 (Publish Telemetry): P95 < 10s
         """
         tester = FlowCLoadTester(
-            orchestrator_url=load_test_config['orchestrator_url'],
+            orchestrator_url=load_test_config["orchestrator_url"],
             prometheus_client=prometheus_client,
         )
 
@@ -1362,36 +1397,37 @@ class TestFlowCLatencyDistribution:
             # Coletar metricas de latencia do Prometheus
             if prometheus_client:
                 step_latencies = {}
-                steps = ['C1', 'C2', 'C3', 'C4', 'C5', 'C6']
+                steps = ["C1", "C2", "C3", "C4", "C5", "C6"]
 
                 for step in steps:
                     latency = await prometheus_client.get_step_latency_p95(step)
                     if latency is not None:
                         step_latencies[step] = latency * 1000  # Converter para ms
 
-                logger.info('\n[Latencia por Step (P95)]')
+                logger.info("\n[Latencia por Step (P95)]")
 
                 # Validar SLOs por step
                 step_slos = {
-                    'C1': 5000,   # 5s
-                    'C2': 30000,  # 30s
-                    'C3': 10000,  # 10s
-                    'C4': 60000,  # 60s
-                    'C5': 10800000,  # 3h (execucao real)
-                    'C6': 10000,  # 10s
+                    "C1": 5000,  # 5s
+                    "C2": 30000,  # 30s
+                    "C3": 10000,  # 10s
+                    "C4": 60000,  # 60s
+                    "C5": 10800000,  # 3h (execucao real)
+                    "C6": 10000,  # 10s
                 }
 
                 for step, slo_ms in step_slos.items():
                     if step in step_latencies:
                         actual = step_latencies[step]
-                        status = '✅' if actual < slo_ms else '❌'
-                        logger.info(f'  {step}: {actual:.0f}ms (SLO: {slo_ms}ms) {status}')
+                        status = "✅" if actual < slo_ms else "❌"
+                        logger.info(f"  {step}: {actual:.0f}ms (SLO: {slo_ms}ms) {status}")
 
-                        if step != 'C5':  # C5 depende de execucao real
-                            assert actual < slo_ms, \
-                                f'{step} P95 deve ser < {slo_ms}ms, obtido: {actual:.0f}ms'
+                        if step != "C5":  # C5 depende de execucao real
+                            assert (
+                                actual < slo_ms
+                            ), f"{step} P95 deve ser < {slo_ms}ms, obtido: {actual:.0f}ms"
                     else:
-                        logger.info(f'  {step}: N/A')
+                        logger.info(f"  {step}: N/A")
 
         finally:
             await tester.cleanup()
@@ -1402,6 +1438,7 @@ class TestFlowCLatencyDistribution:
 # ============================================
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import sys
-    sys.exit(pytest.main([__file__, '-v', '-m', 'performance', '--tb=short']))
+
+    sys.exit(pytest.main([__file__, "-v", "-m", "performance", "--tb=short"]))

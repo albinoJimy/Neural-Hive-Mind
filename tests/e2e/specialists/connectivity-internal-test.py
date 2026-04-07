@@ -8,18 +8,19 @@ import sys
 from datetime import datetime
 
 SPECIALISTS = {
-    'business': 'specialist-business.specialist-business.svc.cluster.local',
-    'behavior': 'specialist-behavior.specialist-behavior.svc.cluster.local',
-    'evolution': 'specialist-evolution.specialist-evolution.svc.cluster.local',
-    'architecture': 'specialist-architecture.specialist-architecture.svc.cluster.local',
-    'technical': 'specialist-technical.specialist-technical.svc.cluster.local',
+    "business": "specialist-business.specialist-business.svc.cluster.local",
+    "behavior": "specialist-behavior.specialist-behavior.svc.cluster.local",
+    "evolution": "specialist-evolution.specialist-evolution.svc.cluster.local",
+    "architecture": "specialist-architecture.specialist-architecture.svc.cluster.local",
+    "technical": "specialist-technical.specialist-technical.svc.cluster.local",
 }
 
 PORTS = {
-    'gRPC': 50051,
-    'HTTP': 8000,
-    'Prometheus': 8080,
+    "gRPC": 50051,
+    "HTTP": 8000,
+    "Prometheus": 8080,
 }
+
 
 def test_port(host, port, timeout=2):
     """Testa se uma porta está acessível"""
@@ -31,6 +32,7 @@ def test_port(host, port, timeout=2):
         return result == 0
     except Exception as e:
         return False
+
 
 def main():
     print("=" * 60)
@@ -74,6 +76,7 @@ def main():
     else:
         print("✗ ALGUNS TESTES FALHARAM")
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

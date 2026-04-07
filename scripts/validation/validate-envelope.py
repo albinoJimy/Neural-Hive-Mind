@@ -17,8 +17,7 @@ import logging
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -38,10 +37,10 @@ class EnvelopeValidator:
         # JSON-LD Schema
         jsonld_path = self.schema_dir / "intent-envelope.jsonld"
         if jsonld_path.exists():
-            with open(jsonld_path, 'r', encoding='utf-8') as f:
+            with open(jsonld_path, "r", encoding="utf-8") as f:
                 jsonld_data = json.load(f)
                 # Extrair JSON Schema do contexto JSON-LD se disponível
-                if '@context' in jsonld_data and 'properties' in jsonld_data:
+                if "@context" in jsonld_data and "properties" in jsonld_data:
                     self.jsonld_schema = jsonld_data
                 else:
                     logger.warning("JSON-LD schema não contém definição JSON Schema válida")
@@ -49,7 +48,7 @@ class EnvelopeValidator:
         # Avro Schema
         avro_path = self.schema_dir / "intent-envelope.avsc"
         if avro_path.exists():
-            with open(avro_path, 'r', encoding='utf-8') as f:
+            with open(avro_path, "r", encoding="utf-8") as f:
                 avro_data = json.load(f)
                 self.avro_schema = avro.schema.parse(json.dumps(avro_data))
         else:
@@ -60,57 +59,69 @@ class EnvelopeValidator:
         errors = []
 
         # Campos obrigatórios básicos
-        required_fields = ['id', 'actor', 'intent', 'confidence', 'timestamp']
+        required_fields = ["id", "actor", "intent", "confidence", "timestamp"]
 
         for field in required_fields:
             if field not in data:
                 errors.append(f"Campo obrigatório ausente: {field}")
 
         # Validar tipos básicos
-        if 'id' in data and not isinstance(data['id'], str):
+        if "id" in data and not isinstance(data["id"], str):
             errors.append("Campo 'id' deve ser string")
 
-        if 'confidence' in data:
-            if not isinstance(data['confidence'], (int, float)):
+        if "confidence" in data:
+            if not isinstance(data["confidence"], (int, float)):
                 errors.append("Campo 'confidence' deve ser número")
-            elif not (0.0 <= data['confidence'] <= 1.0):
+            elif not (0.0 <= data["confidence"] <= 1.0):
                 errors.append("Campo 'confidence' deve estar entre 0.0 e 1.0")
 
-        if 'timestamp' in data and not isinstance(data['timestamp'], (str, int)):
+        if "timestamp" in data and not isinstance(data["timestamp"], (str, int)):
             errors.append("Campo 'timestamp' deve ser string (ISO) ou número (Unix)")
 
         # Validar estrutura do actor
-        if 'actor' in data:
-            if not isinstance(data['actor'], dict):
+        if "actor" in data:
+            if not isinstance(data["actor"], dict):
                 errors.append("Campo 'actor' deve ser objeto")
             else:
-                actor = data['actor']
-                if 'id' not in actor:
+                actor = data["actor"]
+                if "id" not in actor:
                     errors.append("Campo 'actor.id' é obrigatório")
-                if 'actor_type' not in actor and 'actorType' not in actor:
+                if "actor_type" not in actor and "actorType" not in actor:
                     errors.append("Campo 'actor.actor_type' ou 'actor.actorType' é obrigatório")
 
         # Validar estrutura da intent
-        if 'intent' in data:
-            if not isinstance(data['intent'], dict):
+        if "intent" in data:
+            if not isinstance(data["intent"], dict):
                 errors.append("Campo 'intent' deve ser objeto")
             else:
-                intent = data['intent']
-                if 'text' not in intent:
+                intent = data["intent"]
+                if "text" not in intent:
                     errors.append("Campo 'intent.text' é obrigatório")
-                if 'domain' not in intent:
+                if "domain" not in intent:
                     errors.append("Campo 'intent.domain' é obrigatório")
 
                 # Validar domínios válidos (7 domínios unificados)
-                if 'domain' in intent:
+                if "domain" in intent:
                     valid_domains = [
-                        'BUSINESS', 'TECHNICAL', 'SECURITY', 'INFRASTRUCTURE',
-                        'BEHAVIOR', 'OPERATIONAL', 'COMPLIANCE',
-                        'business', 'technical', 'security', 'infrastructure',
-                        'behavior', 'operational', 'compliance'
+                        "BUSINESS",
+                        "TECHNICAL",
+                        "SECURITY",
+                        "INFRASTRUCTURE",
+                        "BEHAVIOR",
+                        "OPERATIONAL",
+                        "COMPLIANCE",
+                        "business",
+                        "technical",
+                        "security",
+                        "infrastructure",
+                        "behavior",
+                        "operational",
+                        "compliance",
                     ]
-                    if intent['domain'] not in valid_domains:
-                        errors.append(f"Domínio inválido: {intent['domain']}. Domínios válidos: BUSINESS, TECHNICAL, SECURITY, INFRASTRUCTURE, BEHAVIOR, OPERATIONAL, COMPLIANCE")
+                    if intent["domain"] not in valid_domains:
+                        errors.append(
+                            f"Domínio inválido: {intent['domain']}. Domínios válidos: BUSINESS, TECHNICAL, SECURITY, INFRASTRUCTURE, BEHAVIOR, OPERATIONAL, COMPLIANCE"
+                        )
 
         return errors
 
@@ -170,147 +181,137 @@ class EnvelopeValidator:
         converted = data.copy()
 
         # Converter campos específicos
-        if 'correlation_id' in converted:
-            converted['correlationId'] = converted.pop('correlation_id')
+        if "correlation_id" in converted:
+            converted["correlationId"] = converted.pop("correlation_id")
 
-        if 'trace_id' in converted:
-            converted['traceId'] = converted.pop('trace_id')
+        if "trace_id" in converted:
+            converted["traceId"] = converted.pop("trace_id")
 
-        if 'span_id' in converted:
-            converted['spanId'] = converted.pop('span_id')
+        if "span_id" in converted:
+            converted["spanId"] = converted.pop("span_id")
 
         # Converter actor
-        if 'actor' in converted and isinstance(converted['actor'], dict):
-            actor = converted['actor']
-            if 'actor_type' in actor:
+        if "actor" in converted and isinstance(converted["actor"], dict):
+            actor = converted["actor"]
+            if "actor_type" in actor:
                 # Converter para formato enum esperado pelo Avro
                 actor_type_map = {
-                    'human': 'HUMAN',
-                    'system': 'SYSTEM',
-                    'service': 'SERVICE',
-                    'bot': 'BOT'
+                    "human": "HUMAN",
+                    "system": "SYSTEM",
+                    "service": "SERVICE",
+                    "bot": "BOT",
                 }
-                actor_type = actor.pop('actor_type')
-                actor['actorType'] = actor_type_map.get(actor_type.lower(), actor_type.upper())
+                actor_type = actor.pop("actor_type")
+                actor["actorType"] = actor_type_map.get(actor_type.lower(), actor_type.upper())
 
         # Converter intent
-        if 'intent' in converted and isinstance(converted['intent'], dict):
-            intent = converted['intent']
+        if "intent" in converted and isinstance(converted["intent"], dict):
+            intent = converted["intent"]
 
             # Converter domain para formato enum (7 domínios unificados)
-            if 'domain' in intent:
+            if "domain" in intent:
                 domain_map = {
-                    'business': 'BUSINESS',
-                    'technical': 'TECHNICAL',
-                    'infrastructure': 'INFRASTRUCTURE',
-                    'security': 'SECURITY',
-                    'behavior': 'BEHAVIOR',
-                    'operational': 'OPERATIONAL',
-                    'compliance': 'COMPLIANCE'
+                    "business": "BUSINESS",
+                    "technical": "TECHNICAL",
+                    "infrastructure": "INFRASTRUCTURE",
+                    "security": "SECURITY",
+                    "behavior": "BEHAVIOR",
+                    "operational": "OPERATIONAL",
+                    "compliance": "COMPLIANCE",
                 }
-                domain = intent['domain']
-                intent['domain'] = domain_map.get(domain.lower(), domain.upper())
+                domain = intent["domain"]
+                intent["domain"] = domain_map.get(domain.lower(), domain.upper())
 
             # Converter originalLanguage
-            if 'original_language' in intent:
-                intent['originalLanguage'] = intent.pop('original_language')
+            if "original_language" in intent:
+                intent["originalLanguage"] = intent.pop("original_language")
 
             # Converter processedText
-            if 'processed_text' in intent:
-                intent['processedText'] = intent.pop('processed_text')
+            if "processed_text" in intent:
+                intent["processedText"] = intent.pop("processed_text")
 
             # Garantir que entities é uma lista
-            if 'entities' not in intent:
-                intent['entities'] = []
-            elif not isinstance(intent['entities'], list):
-                intent['entities'] = []
+            if "entities" not in intent:
+                intent["entities"] = []
+            elif not isinstance(intent["entities"], list):
+                intent["entities"] = []
 
             # Converter entidades
-            for entity in intent['entities']:
+            for entity in intent["entities"]:
                 if isinstance(entity, dict):
-                    if 'entity_type' in entity:
-                        entity['entityType'] = entity.pop('entity_type')
+                    if "entity_type" in entity:
+                        entity["entityType"] = entity.pop("entity_type")
 
         # Converter timestamp
-        if 'timestamp' in converted:
-            timestamp = converted['timestamp']
+        if "timestamp" in converted:
+            timestamp = converted["timestamp"]
             if isinstance(timestamp, str):
                 # Tentar converter ISO string para timestamp Unix em ms
                 try:
                     from datetime import datetime, timezone
-                    dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-                    converted['timestamp'] = int(dt.timestamp() * 1000)
+
+                    dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+                    converted["timestamp"] = int(dt.timestamp() * 1000)
                 except:
                     # Se falhar, usar timestamp atual
                     import time
-                    converted['timestamp'] = int(time.time() * 1000)
+
+                    converted["timestamp"] = int(time.time() * 1000)
             elif isinstance(timestamp, (int, float)):
                 # Se já é timestamp, garantir que está em ms
                 if timestamp < 1e12:  # Probably seconds
-                    converted['timestamp'] = int(timestamp * 1000)
+                    converted["timestamp"] = int(timestamp * 1000)
                 else:
-                    converted['timestamp'] = int(timestamp)
+                    converted["timestamp"] = int(timestamp)
 
         # Garantir campos opcionais com valores padrão
-        if 'version' not in converted:
-            converted['version'] = '1.0.0'
+        if "version" not in converted:
+            converted["version"] = "1.0.0"
 
-        if 'schemaVersion' not in converted:
-            converted['schemaVersion'] = 1
+        if "schemaVersion" not in converted:
+            converted["schemaVersion"] = 1
 
-        if 'metadata' not in converted:
-            converted['metadata'] = {}
+        if "metadata" not in converted:
+            converted["metadata"] = {}
 
         return converted
 
     def validate_envelope(self, envelope_data: Dict[str, Any]) -> Dict[str, Any]:
         """Validar envelope completo"""
-        result = {
-            'valid': True,
-            'errors': [],
-            'warnings': []
-        }
+        result = {"valid": True, "errors": [], "warnings": []}
 
         # Validação estrutural básica
         struct_errors = self.validate_json_structure(envelope_data)
-        result['errors'].extend(struct_errors)
+        result["errors"].extend(struct_errors)
 
         # Validação JSON-LD
         if self.jsonld_schema:
             jsonld_errors = self.validate_jsonld(envelope_data)
-            result['errors'].extend(jsonld_errors)
+            result["errors"].extend(jsonld_errors)
         else:
-            result['warnings'].append("Schema JSON-LD não disponível")
+            result["warnings"].append("Schema JSON-LD não disponível")
 
         # Validação Avro
         avro_errors = self.validate_avro(envelope_data)
-        result['errors'].extend(avro_errors)
+        result["errors"].extend(avro_errors)
 
         # Determinar se é válido
-        result['valid'] = len(result['errors']) == 0
+        result["valid"] = len(result["errors"]) == 0
 
         return result
 
     def validate_file(self, file_path: str) -> Dict[str, Any]:
         """Validar arquivo de envelope"""
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
             return self.validate_envelope(data)
 
         except json.JSONDecodeError as e:
-            return {
-                'valid': False,
-                'errors': [f"Erro ao parsear JSON: {str(e)}"],
-                'warnings': []
-            }
+            return {"valid": False, "errors": [f"Erro ao parsear JSON: {str(e)}"], "warnings": []}
         except Exception as e:
-            return {
-                'valid': False,
-                'errors': [f"Erro ao ler arquivo: {str(e)}"],
-                'warnings': []
-            }
+            return {"valid": False, "errors": [f"Erro ao ler arquivo: {str(e)}"], "warnings": []}
 
 
 def create_sample_envelope() -> Dict[str, Any]:
@@ -322,11 +323,7 @@ def create_sample_envelope() -> Dict[str, Any]:
         "id": str(uuid.uuid4()),
         "version": "1.0.0",
         "correlationId": str(uuid.uuid4()),
-        "actor": {
-            "id": "user-123",
-            "actorType": "human",
-            "name": "Test User"
-        },
+        "actor": {"id": "user-123", "actorType": "human", "name": "Test User"},
         "intent": {
             "text": "Implementar sistema de autenticação OAuth2",
             "domain": "technical",
@@ -339,33 +336,28 @@ def create_sample_envelope() -> Dict[str, Any]:
                     "value": "OAuth2",
                     "confidence": 0.95,
                     "start": 35,
-                    "end": 41
+                    "end": 41,
                 }
             ],
-            "keywords": ["implementar", "sistema", "autenticação", "oauth2"]
+            "keywords": ["implementar", "sistema", "autenticação", "oauth2"],
         },
         "confidence": 0.87,
-        "context": {
-            "userId": "user-123",
-            "sessionId": "session-456",
-            "tenantId": "tenant-789"
-        },
+        "context": {"userId": "user-123", "sessionId": "session-456", "tenantId": "tenant-789"},
         "timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
         "schemaVersion": 1,
-        "metadata": {
-            "source": "validation-test",
-            "environment": "test"
-        }
+        "metadata": {"source": "validation-test", "environment": "test"},
     }
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Validate Intent Envelope')
-    parser.add_argument('--schema-dir', required=True, help='Directory containing schema files')
-    parser.add_argument('--file', help='Envelope file to validate')
-    parser.add_argument('--create-sample', action='store_true', help='Create sample envelope for testing')
-    parser.add_argument('--output', help='Output file for sample envelope')
-    parser.add_argument('--verbose', '-v', action='store_true', help='Verbose logging')
+    parser = argparse.ArgumentParser(description="Validate Intent Envelope")
+    parser.add_argument("--schema-dir", required=True, help="Directory containing schema files")
+    parser.add_argument("--file", help="Envelope file to validate")
+    parser.add_argument(
+        "--create-sample", action="store_true", help="Create sample envelope for testing"
+    )
+    parser.add_argument("--output", help="Output file for sample envelope")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Verbose logging")
 
     args = parser.parse_args()
 
@@ -377,7 +369,7 @@ def main():
         sample = create_sample_envelope()
 
         if args.output:
-            with open(args.output, 'w', encoding='utf-8') as f:
+            with open(args.output, "w", encoding="utf-8") as f:
                 json.dump(sample, f, indent=2, ensure_ascii=False)
             print(f"Sample envelope created: {args.output}")
         else:
@@ -396,20 +388,20 @@ def main():
         print(f"File: {args.file}")
         print(f"Valid: {'✅ PASS' if result['valid'] else '❌ FAIL'}")
 
-        if result['warnings']:
+        if result["warnings"]:
             print(f"\nWarnings ({len(result['warnings'])}):")
-            for warning in result['warnings']:
+            for warning in result["warnings"]:
                 print(f"  ⚠️  {warning}")
 
-        if result['errors']:
+        if result["errors"]:
             print(f"\nErrors ({len(result['errors'])}):")
-            for error in result['errors']:
+            for error in result["errors"]:
                 print(f"  ❌ {error}")
 
-        print("="*40)
+        print("=" * 40)
 
         # Exit with error code if validation failed
-        sys.exit(0 if result['valid'] else 1)
+        sys.exit(0 if result["valid"] else 1)
 
     except Exception as e:
         logger.error(f"Validation failed: {e}")

@@ -1,7 +1,13 @@
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from typing import ClassVar as _ClassVar, Iterable as _Iterable, Mapping as _Mapping, Optional as _Optional, Union as _Union
+from typing import (
+    ClassVar as _ClassVar,
+    Iterable as _Iterable,
+    Mapping as _Mapping,
+    Optional as _Optional,
+    Union as _Union,
+)
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -27,7 +33,13 @@ class ListTicketsRequest(_message.Message):
     status: str
     offset: int
     limit: int
-    def __init__(self, plan_id: _Optional[str] = ..., status: _Optional[str] = ..., offset: _Optional[int] = ..., limit: _Optional[int] = ...) -> None: ...
+    def __init__(
+        self,
+        plan_id: _Optional[str] = ...,
+        status: _Optional[str] = ...,
+        offset: _Optional[int] = ...,
+        limit: _Optional[int] = ...,
+    ) -> None: ...
 
 class ListTicketsResponse(_message.Message):
     __slots__ = ("tickets", "total")
@@ -35,7 +47,11 @@ class ListTicketsResponse(_message.Message):
     TOTAL_FIELD_NUMBER: _ClassVar[int]
     tickets: _containers.RepeatedCompositeFieldContainer[ExecutionTicketProto]
     total: int
-    def __init__(self, tickets: _Optional[_Iterable[_Union[ExecutionTicketProto, _Mapping]]] = ..., total: _Optional[int] = ...) -> None: ...
+    def __init__(
+        self,
+        tickets: _Optional[_Iterable[_Union[ExecutionTicketProto, _Mapping]]] = ...,
+        total: _Optional[int] = ...,
+    ) -> None: ...
 
 class UpdateTicketStatusRequest(_message.Message):
     __slots__ = ("ticket_id", "status", "error_message")
@@ -45,7 +61,12 @@ class UpdateTicketStatusRequest(_message.Message):
     ticket_id: str
     status: str
     error_message: str
-    def __init__(self, ticket_id: _Optional[str] = ..., status: _Optional[str] = ..., error_message: _Optional[str] = ...) -> None: ...
+    def __init__(
+        self,
+        ticket_id: _Optional[str] = ...,
+        status: _Optional[str] = ...,
+        error_message: _Optional[str] = ...,
+    ) -> None: ...
 
 class UpdateTicketStatusResponse(_message.Message):
     __slots__ = ("ticket",)
@@ -65,10 +86,22 @@ class GenerateTokenResponse(_message.Message):
     EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
     access_token: str
     expires_at: int
-    def __init__(self, access_token: _Optional[str] = ..., expires_at: _Optional[int] = ...) -> None: ...
+    def __init__(
+        self, access_token: _Optional[str] = ..., expires_at: _Optional[int] = ...
+    ) -> None: ...
 
 class ExecutionTicketProto(_message.Message):
-    __slots__ = ("ticket_id", "plan_id", "intent_id", "task_id", "task_type", "description", "status", "priority", "created_at")
+    __slots__ = (
+        "ticket_id",
+        "plan_id",
+        "intent_id",
+        "task_id",
+        "task_type",
+        "description",
+        "status",
+        "priority",
+        "created_at",
+    )
     TICKET_ID_FIELD_NUMBER: _ClassVar[int]
     PLAN_ID_FIELD_NUMBER: _ClassVar[int]
     INTENT_ID_FIELD_NUMBER: _ClassVar[int]
@@ -87,4 +120,15 @@ class ExecutionTicketProto(_message.Message):
     status: str
     priority: str
     created_at: int
-    def __init__(self, ticket_id: _Optional[str] = ..., plan_id: _Optional[str] = ..., intent_id: _Optional[str] = ..., task_id: _Optional[str] = ..., task_type: _Optional[str] = ..., description: _Optional[str] = ..., status: _Optional[str] = ..., priority: _Optional[str] = ..., created_at: _Optional[int] = ...) -> None: ...
+    def __init__(
+        self,
+        ticket_id: _Optional[str] = ...,
+        plan_id: _Optional[str] = ...,
+        intent_id: _Optional[str] = ...,
+        task_id: _Optional[str] = ...,
+        task_type: _Optional[str] = ...,
+        description: _Optional[str] = ...,
+        status: _Optional[str] = ...,
+        priority: _Optional[str] = ...,
+        created_at: _Optional[int] = ...,
+    ) -> None: ...

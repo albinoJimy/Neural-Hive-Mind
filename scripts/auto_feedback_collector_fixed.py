@@ -1,5 +1,6 @@
 import sys
 import subprocess
+
 subprocess.check_call([sys.executable, "-m", "pip", "install", "pymongo", "-q"])
 
 from pymongo import MongoClient
@@ -12,11 +13,11 @@ opinions_col = db.specialist_opinions
 feedback_col = db.specialist_feedback
 
 # IDs que já têm feedback
-feedbacked_ids = set(fb['opinion_id'] for fb in feedback_col.find({}, {'opinion_id': 1}))
+feedbacked_ids = set(fb["opinion_id"] for fb in feedback_col.find({}, {"opinion_id": 1}))
 print(f"Com feedback: {len(feedbacked_ids)}")
 
 # Buscar sem feedback
-query = {'opinion_id': {'$nin': list(feedbacked_ids)}}
+query = {"opinion_id": {"$nin": list(feedbacked_ids)}}
 opinions = list(opinions_col.find(query).sort("evaluated_at", -1).limit(100))
 
 print(f"Processando {len(opinions)} opinioes...")
@@ -47,7 +48,7 @@ for i, op in enumerate(opinions, 1):
         "specialist_type": specialist,
         "auto_generated": True,
         "submitted_at": datetime.now(timezone.utc),
-        "trace_id": op.get("trace_id")
+        "trace_id": op.get("trace_id"),
     }
 
     feedback_col.insert_one(feedback_doc)

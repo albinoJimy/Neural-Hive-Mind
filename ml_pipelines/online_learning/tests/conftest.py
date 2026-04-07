@@ -10,7 +10,7 @@ import prometheus_client
 # Adiciona o diretório ml_pipelines ao sys.path para permitir imports
 _sys_path_inserted = False
 if _sys_path_inserted is False:
-    _ml_pipelines_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+    _ml_pipelines_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     if _ml_pipelines_root not in sys.path:
         sys.path.insert(0, _ml_pipelines_root)
     _sys_path_inserted = True
@@ -22,8 +22,10 @@ if _sys_path_inserted is False:
 # que utiliza MongoClient. O pymongo precisa ser substituído em sys.modules.
 # ============================================================================
 
+
 class MockMongoCollection:
     """Mock de coleção MongoDB."""
+
     def __init__(self):
         self.data = []
 
@@ -34,7 +36,7 @@ class MockMongoCollection:
         return None
 
     def insert_one(self, *args, **kwargs):
-        return Mock(inserted_id='test_id')
+        return Mock(inserted_id="test_id")
 
     def update_one(self, *args, **kwargs):
         return Mock(modified_count=1)
@@ -60,6 +62,7 @@ class MockMongoCollection:
 
 class MockMongoDB:
     """Mock de database MongoDB."""
+
     def __init__(self):
         self._collection = MockMongoCollection()
 
@@ -67,13 +70,14 @@ class MockMongoDB:
         return self._collection
 
     def __getattr__(self, name):
-        if name.startswith('_'):
+        if name.startswith("_"):
             raise AttributeError(name)
         return self._collection
 
 
 class MockMongoClient:
     """Mock de cliente MongoDB."""
+
     def __init__(self, *args, **kwargs):
         self._db = MockMongoDB()
 
@@ -81,7 +85,7 @@ class MockMongoClient:
         return self._db
 
     def __getattr__(self, name):
-        if name == '_MongoClient__all_options' or name.startswith('_'):
+        if name == "_MongoClient__all_options" or name.startswith("_"):
             raise AttributeError(name)
         return self._db
 
@@ -92,8 +96,8 @@ class MockMongoClient:
 
 # Patch MongoDB imports at module level (before any test module imports)
 _mongo_mock_instance = MockMongoClient()
-_pymongo_patch = patch('pymongo.MongoClient', return_value=_mongo_mock_instance)
-_motor_patch = patch('motor.motor_asyncio.AsyncIOMotorClient', return_value=_mongo_mock_instance)
+_pymongo_patch = patch("pymongo.MongoClient", return_value=_mongo_mock_instance)
+_motor_patch = patch("motor.motor_asyncio.AsyncIOMotorClient", return_value=_mongo_mock_instance)
 
 # Start patches immediately
 _pymongo_patch.start()
@@ -128,6 +132,7 @@ def reset_prometheus_registry():
     """Limpa o CollectorRegistry antes de cada teste."""
     # Criar um novo registry para testes
     from prometheus_client import CollectorRegistry
+
     old_registry = prometheus_client.REGISTRY
     prometheus_client.REGISTRY = CollectorRegistry()
     yield
@@ -140,7 +145,7 @@ def default_config():
     """Configuração padrão para testes."""
     return OnlineLearningConfig(
         online_learning_enabled=True,
-        incremental_algorithm='sgd',
+        incremental_algorithm="sgd",
         mini_batch_size=32,
         learning_rate=0.01,
         regularization_alpha=0.0001,
@@ -155,9 +160,9 @@ def default_config():
         max_versions_to_keep=10,
         rollout_stages=[0.1, 0.5, 1.0],
         rollout_stage_duration_minutes=60,
-        ensemble_strategy='weighted_average',
+        ensemble_strategy="weighted_average",
         batch_model_weight=0.7,
-        online_model_weight=0.3
+        online_model_weight=0.3,
     )
 
 
@@ -173,7 +178,7 @@ def mock_mongodb_client():
 
     collection.find = Mock(return_value=[])
     collection.find_one = Mock(return_value=None)
-    collection.insert_one = Mock(return_value=Mock(inserted_id='test_id'))
+    collection.insert_one = Mock(return_value=Mock(inserted_id="test_id"))
     collection.update_one = Mock(return_value=Mock(modified_count=1))
     collection.delete_one = Mock(return_value=Mock(deleted_count=1))
 
@@ -189,7 +194,7 @@ def mock_mlflow_client():
     client.search_model_versions = Mock(return_value=[])
     client.get_model_version = Mock(return_value=None)
     client.transition_model_version_stage = Mock()
-    client.create_model_version = Mock(return_value=Mock(version='1'))
+    client.create_model_version = Mock(return_value=Mock(version="1"))
 
     return client
 

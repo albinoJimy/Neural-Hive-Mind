@@ -22,6 +22,7 @@ pytestmark = pytest.mark.skipif(not REAL_E2E, reason="RUN_SPIFFE_MTLS_E2E not en
 @dataclass
 class FlowCContext:
     """Contexto do Fluxo C"""
+
     correlation_id: str
     intent_id: str
     plan_id: str
@@ -32,6 +33,7 @@ class FlowCContext:
 @dataclass
 class FlowCResult:
     """Resultado do Fluxo C"""
+
     success: bool
     workflow_id: Optional[str]
     execution_tickets: List[Dict[str, Any]]
@@ -46,7 +48,7 @@ def flow_c_context():
         intent_id="intent-mtls-001",
         plan_id="plan-mtls-001",
         decision_id="decision-mtls-001",
-        sla_deadline_seconds=14400
+        sla_deadline_seconds=14400,
     )
 
 
@@ -66,14 +68,11 @@ def consolidated_decision():
                     "task_type": "BUILD",
                     "description": "Build test application",
                     "parameters": {"repo": "test-repo"},
-                    "dependencies": []
+                    "dependencies": [],
                 }
-            ]
+            ],
         },
-        "consensus_metadata": {
-            "confidence": 0.95,
-            "specialist_agreement": 0.9
-        }
+        "consensus_metadata": {"confidence": 0.95, "specialist_agreement": 0.9},
     }
 
 
@@ -84,36 +83,49 @@ def mock_spiffe_manager():
     import json
 
     # Criar JWT mock
-    header = base64.urlsafe_b64encode(json.dumps({
-        "alg": "RS256",
-        "typ": "JWT"
-    }).encode()).decode().rstrip("=")
+    header = (
+        base64.urlsafe_b64encode(json.dumps({"alg": "RS256", "typ": "JWT"}).encode())
+        .decode()
+        .rstrip("=")
+    )
 
-    payload = base64.urlsafe_b64encode(json.dumps({
-        "sub": "spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic",
-        "aud": ["service-registry.neural-hive.local"],
-        "exp": int((datetime.now(timezone.utc) + timedelta(hours=1)).timestamp()),
-        "iat": int(datetime.now(timezone.utc).timestamp()),
-        "iss": "https://spire-server.spire-system.svc.cluster.local"
-    }).encode()).decode().rstrip("=")
+    payload = (
+        base64.urlsafe_b64encode(
+            json.dumps(
+                {
+                    "sub": "spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic",
+                    "aud": ["service-registry.neural-hive.local"],
+                    "exp": int((datetime.now(timezone.utc) + timedelta(hours=1)).timestamp()),
+                    "iat": int(datetime.now(timezone.utc).timestamp()),
+                    "iss": "https://spire-server.spire-system.svc.cluster.local",
+                }
+            ).encode()
+        )
+        .decode()
+        .rstrip("=")
+    )
 
     signature = base64.urlsafe_b64encode(b"mock_signature").decode().rstrip("=")
 
     mock_jwt = f"{header}.{payload}.{signature}"
 
     manager = AsyncMock()
-    manager.fetch_jwt_svid = AsyncMock(return_value=MagicMock(
-        token=mock_jwt,
-        spiffe_id="spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic",
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=1)
-    ))
-    manager.fetch_x509_svid = AsyncMock(return_value=MagicMock(
-        spiffe_id="spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic",
-        certificate="-----BEGIN CERTIFICATE-----\nMOCK\n-----END CERTIFICATE-----",
-        private_key="-----BEGIN PRIVATE KEY-----\nMOCK\n-----END PRIVATE KEY-----",
-        ca_bundle="-----BEGIN CERTIFICATE-----\nMOCK_CA\n-----END CERTIFICATE-----",
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=1)
-    ))
+    manager.fetch_jwt_svid = AsyncMock(
+        return_value=MagicMock(
+            token=mock_jwt,
+            spiffe_id="spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic",
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+        )
+    )
+    manager.fetch_x509_svid = AsyncMock(
+        return_value=MagicMock(
+            spiffe_id="spiffe://neural-hive.local/ns/neural-hive-orchestration/sa/orchestrator-dynamic",
+            certificate="-----BEGIN CERTIFICATE-----\nMOCK\n-----END CERTIFICATE-----",
+            private_key="-----BEGIN PRIVATE KEY-----\nMOCK\n-----END PRIVATE KEY-----",
+            ca_bundle="-----BEGIN CERTIFICATE-----\nMOCK_CA\n-----END CERTIFICATE-----",
+            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+        )
+    )
     manager.initialize = AsyncMock()
     manager.close = AsyncMock()
 
@@ -168,10 +180,13 @@ class TestFlowCMTLSE2E:
 
         # Validar claims
         assert payload.get("sub") is not None, "JWT deve ter claim 'sub'"
-        assert payload.get("sub").startswith("spiffe://neural-hive.local/"), \
-            "Subject deve ser SPIFFE ID valido"
+        assert payload.get("sub").startswith(
+            "spiffe://neural-hive.local/"
+        ), "Subject deve ser SPIFFE ID valido"
         assert payload.get("exp") is not None, "JWT deve ter claim 'exp'"
-        assert payload.get("exp") > datetime.now(timezone.utc).timestamp(), "JWT nao deve estar expirado"
+        assert (
+            payload.get("exp") > datetime.now(timezone.utc).timestamp()
+        ), "JWT nao deve estar expirado"
 
     async def test_flow_c_grpc_metadata_preparation(self, mock_spiffe_manager):
         """Testa preparacao de metadata gRPC com JWT."""
@@ -207,15 +222,12 @@ class TestFlowCMTLSE2E:
 
         # Validar que o SPIFFE ID obtido esta na lista de esperados
         assert any(
-            x509_svid.spiffe_id.startswith(expected[:expected.rfind("/")])
+            x509_svid.spiffe_id.startswith(expected[: expected.rfind("/")])
             for expected in expected_spiffe_ids
         ), f"SPIFFE ID {x509_svid.spiffe_id} nao e esperado para Fluxo C"
 
     async def test_flow_c_no_authentication_errors(
-        self,
-        flow_c_context,
-        consolidated_decision,
-        mock_spiffe_manager
+        self, flow_c_context, consolidated_decision, mock_spiffe_manager
     ):
         """Testa que Fluxo C nao tem erros de autenticacao com mTLS."""
         # Simular resultado do Fluxo C
@@ -223,13 +235,9 @@ class TestFlowCMTLSE2E:
             success=True,
             workflow_id="wf-mtls-001",
             execution_tickets=[
-                {
-                    "ticket_id": "ticket-001",
-                    "task_id": "task-001",
-                    "status": "CREATED"
-                }
+                {"ticket_id": "ticket-001", "task_id": "task-001", "status": "CREATED"}
             ],
-            errors=[]
+            errors=[],
         )
 
         # Validar que nao houve erros de autenticacao
@@ -239,8 +247,7 @@ class TestFlowCMTLSE2E:
 
         # Validar ausencia de erros de autenticacao
         auth_errors = [
-            e for e in result.errors
-            if "UNAUTHENTICATED" in e or "PERMISSION_DENIED" in e
+            e for e in result.errors if "UNAUTHENTICATED" in e or "PERMISSION_DENIED" in e
         ]
         assert len(auth_errors) == 0, f"Erros de autenticacao encontrados: {auth_errors}"
 
@@ -275,8 +282,7 @@ class TestFlowCMTLSMetrics:
 
         success_rate = successful_attempts / total_attempts
 
-        assert success_rate >= 0.9, \
-            f"Taxa de sucesso ({success_rate}) deve ser >= 90%"
+        assert success_rate >= 0.9, f"Taxa de sucesso ({success_rate}) deve ser >= 90%"
 
     async def test_spiffe_svid_expiration_monitoring(self, mock_spiffe_manager):
         """Testa monitoramento de expiracao de SVID."""
@@ -289,8 +295,9 @@ class TestFlowCMTLSMetrics:
         # Alerta se expira em menos de 1 hora
         warning_threshold_seconds = 3600
 
-        assert time_to_expiry_seconds > warning_threshold_seconds, \
-            f"SVID expira em menos de 1 hora: {time_to_expiry_seconds}s"
+        assert (
+            time_to_expiry_seconds > warning_threshold_seconds
+        ), f"SVID expira em menos de 1 hora: {time_to_expiry_seconds}s"
 
 
 @pytest.mark.asyncio
@@ -307,13 +314,19 @@ class TestFlowCMTLSFallback:
         fallback_allowed = False
 
         # Em producao, sem SPIFFE e sem fallback, deve falhar
-        if environment == "production" and spiffe_enabled and not spiffe_available and not fallback_allowed:
+        if (
+            environment == "production"
+            and spiffe_enabled
+            and not spiffe_available
+            and not fallback_allowed
+        ):
             should_fail = True
         else:
             should_fail = False
 
-        assert should_fail is True, \
-            "Producao deve falhar quando SPIFFE nao esta disponivel e fallback nao e permitido"
+        assert (
+            should_fail is True
+        ), "Producao deve falhar quando SPIFFE nao esta disponivel e fallback nao e permitido"
 
     async def test_fallback_allowed_in_development(self):
         """Testa que fallback e permitido em desenvolvimento."""
@@ -328,5 +341,6 @@ class TestFlowCMTLSFallback:
         else:
             can_continue = False
 
-        assert can_continue is True, \
-            "Desenvolvimento deve permitir fallback quando SPIFFE nao esta disponivel"
+        assert (
+            can_continue is True
+        ), "Desenvolvimento deve permitir fallback quando SPIFFE nao esta disponivel"

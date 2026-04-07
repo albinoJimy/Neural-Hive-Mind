@@ -35,24 +35,25 @@ logger = logging.getLogger(__name__)
 # ============================================
 
 CONFIG = {
-    'prometheus_url': os.getenv('PROMETHEUS_URL', 'http://prometheus:9090'),
-    'kubernetes_namespace': os.getenv('K8S_NAMESPACE', 'neural-hive-orchestration'),
-    'workflow_timeout_seconds': int(os.getenv('WORKFLOW_TIMEOUT_SECONDS', 14400)),
+    "prometheus_url": os.getenv("PROMETHEUS_URL", "http://prometheus:9090"),
+    "kubernetes_namespace": os.getenv("K8S_NAMESPACE", "neural-hive-orchestration"),
+    "workflow_timeout_seconds": int(os.getenv("WORKFLOW_TIMEOUT_SECONDS", 14400)),
     # SLOs
-    'slo_latency_p95_seconds': 14400,  # 4h
-    'slo_throughput_tickets_per_second': 10.0,
-    'slo_success_rate': 0.99,
+    "slo_latency_p95_seconds": 14400,  # 4h
+    "slo_throughput_tickets_per_second": 10.0,
+    "slo_success_rate": 0.99,
     # Autoscaling
-    'min_scale_up_replicas': 4,
-    'autoscaling_cooldown_seconds': 300,
+    "min_scale_up_replicas": 4,
+    "autoscaling_cooldown_seconds": 300,
     # Circuit breaker
-    'circuit_breaker_components': ['kafka', 'temporal', 'redis', 'mongodb'],
+    "circuit_breaker_components": ["kafka", "temporal", "redis", "mongodb"],
 }
 
 
 @dataclass
 class LoadTestState:
     """Estado global do teste de carga."""
+
     workflow_ids: Set[str] = field(default_factory=set)
     completed_workflows: int = 0
     failed_workflows: int = 0
@@ -81,17 +82,17 @@ class LoadTestState:
         with self.lock:
             if count > self.max_replicas_observed:
                 self.max_replicas_observed = count
-                self.scaling_events.append({
-                    'timestamp': datetime.now(timezone.utc).isoformat(),
-                    'replicas': count,
-                    'event': 'scale_up',
-                })
+                self.scaling_events.append(
+                    {
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "replicas": count,
+                        "event": "scale_up",
+                    }
+                )
 
     def record_circuit_breaker_trip(self, component: str) -> None:
         with self.lock:
-            self.circuit_breaker_trips[component] = (
-                self.circuit_breaker_trips.get(component, 0) + 1
-            )
+            self.circuit_breaker_trips[component] = self.circuit_breaker_trips.get(component, 0) + 1
 
     @property
     def pending_workflows(self) -> int:
@@ -115,61 +116,65 @@ test_state = LoadTestState()
 # Geracao de Dados de Teste
 # ============================================
 
+
 def generate_cognitive_plan() -> Dict[str, Any]:
     """Gera um plano cognitivo aleatorio para teste."""
-    plan_id = f'plan-{uuid.uuid4().hex[:8]}'
-    risk_bands = ['low', 'medium', 'high', 'critical']
+    plan_id = f"plan-{uuid.uuid4().hex[:8]}"
+    risk_bands = ["low", "medium", "high", "critical"]
     risk_weights = [0.2, 0.3, 0.3, 0.2]
 
     num_tasks = random.randint(3, 5)
     tasks = []
     for i in range(num_tasks):
-        tasks.append({
-            'task_id': f'task-{i+1}',
-            'task_type': random.choice(['BUILD', 'TEST', 'DEPLOY', 'VALIDATE']),
-            'description': f'Task {i+1} do plano {plan_id}',
-            'dependencies': [f'task-{i}'] if i > 0 else [],
-            'estimated_duration_ms': random.randint(30000, 180000),
-            'required_capabilities': ['python', 'automation'],
-        })
+        tasks.append(
+            {
+                "task_id": f"task-{i+1}",
+                "task_type": random.choice(["BUILD", "TEST", "DEPLOY", "VALIDATE"]),
+                "description": f"Task {i+1} do plano {plan_id}",
+                "dependencies": [f"task-{i}"] if i > 0 else [],
+                "estimated_duration_ms": random.randint(30000, 180000),
+                "required_capabilities": ["python", "automation"],
+            }
+        )
 
     return {
-        'plan_id': plan_id,
-        'intent_id': f'intent-{uuid.uuid4().hex[:8]}',
-        'correlation_id': f'corr-{uuid.uuid4().hex[:8]}',
-        'risk_band': random.choices(risk_bands, weights=risk_weights)[0],
-        'tasks': tasks,
-        'qos': {
-            'delivery_mode': 'AT_LEAST_ONCE',
-            'consistency': 'EVENTUAL',
-            'durability': 'PERSISTENT',
+        "plan_id": plan_id,
+        "intent_id": f"intent-{uuid.uuid4().hex[:8]}",
+        "correlation_id": f"corr-{uuid.uuid4().hex[:8]}",
+        "risk_band": random.choices(risk_bands, weights=risk_weights)[0],
+        "tasks": tasks,
+        "qos": {
+            "delivery_mode": "AT_LEAST_ONCE",
+            "consistency": "EVENTUAL",
+            "durability": "PERSISTENT",
         },
-        'sla': {
-            'deadline': int((time.time() + 14400) * 1000),
-            'timeout_ms': 14400000,
-            'max_retries': 3,
+        "sla": {
+            "deadline": int((time.time() + 14400) * 1000),
+            "timeout_ms": 14400000,
+            "max_retries": 3,
         },
-        'namespace': 'default',
-        'security_level': 'standard',
+        "namespace": "default",
+        "security_level": "standard",
     }
 
 
 def generate_consolidated_decision(plan: Dict[str, Any]) -> Dict[str, Any]:
     """Gera decisao consolidada a partir de um plano."""
     return {
-        'plan_id': plan['plan_id'],
-        'intent_id': plan['intent_id'],
-        'correlation_id': plan['correlation_id'],
-        'final_decision': 'approve',
-        'consensus_type': 'UNANIMOUS',
-        'cognitive_plan': plan,
-        'created_at': int(time.time() * 1000),
+        "plan_id": plan["plan_id"],
+        "intent_id": plan["intent_id"],
+        "correlation_id": plan["correlation_id"],
+        "final_decision": "approve",
+        "consensus_type": "UNANIMOUS",
+        "cognitive_plan": plan,
+        "created_at": int(time.time() * 1000),
     }
 
 
 # ============================================
 # Tasks do Locust
 # ============================================
+
 
 class FlowCTasks(TaskSet):
     """TaskSet para testes do Fluxo C."""
@@ -186,12 +191,12 @@ class FlowCTasks(TaskSet):
         """Aguarda conclusao ou cancela workflows pendentes."""
         for workflow_id, start_time in list(self._pending_workflows.items()):
             elapsed = time.time() - start_time
-            if elapsed < CONFIG['workflow_timeout_seconds']:
+            if elapsed < CONFIG["workflow_timeout_seconds"]:
                 # Tentar cancelar
                 try:
                     self.client.post(
-                        f'/api/v1/workflows/{workflow_id}/cancel',
-                        name='/api/v1/workflows/[id]/cancel',
+                        f"/api/v1/workflows/{workflow_id}/cancel",
+                        name="/api/v1/workflows/[id]/cancel",
                     )
                 except Exception:
                     pass
@@ -212,15 +217,15 @@ class FlowCTasks(TaskSet):
 
         # Iniciar workflow
         with self.client.post(
-            '/api/v1/workflows/start',
+            "/api/v1/workflows/start",
             json=decision,
-            name='/api/v1/workflows/start',
+            name="/api/v1/workflows/start",
             catch_response=True,
         ) as response:
             if response.status_code in (200, 201, 202):
                 try:
                     data = response.json()
-                    workflow_id = data.get('workflow_id')
+                    workflow_id = data.get("workflow_id")
 
                     if workflow_id:
                         test_state.add_workflow_id(workflow_id)
@@ -230,11 +235,11 @@ class FlowCTasks(TaskSet):
                         # Aguardar conclusao em background
                         self._wait_for_completion(workflow_id, start_time)
                     else:
-                        response.failure('workflow_id nao retornado')
+                        response.failure("workflow_id nao retornado")
                 except Exception as e:
-                    response.failure(f'Erro ao parsear resposta: {e}')
+                    response.failure(f"Erro ao parsear resposta: {e}")
             else:
-                response.failure(f'Status code: {response.status_code}')
+                response.failure(f"Status code: {response.status_code}")
 
     def _wait_for_completion(self, workflow_id: str, start_time: float):
         """
@@ -242,33 +247,33 @@ class FlowCTasks(TaskSet):
 
         Registra metricas de latencia e sucesso/falha.
         """
-        timeout = CONFIG['workflow_timeout_seconds']
+        timeout = CONFIG["workflow_timeout_seconds"]
         poll_interval = 5  # segundos
 
         while time.time() - start_time < timeout:
             try:
                 response = self.client.get(
-                    f'/api/v1/workflows/{workflow_id}/status',
-                    name='/api/v1/workflows/[id]/status',
+                    f"/api/v1/workflows/{workflow_id}/status",
+                    name="/api/v1/workflows/[id]/status",
                 )
 
                 if response.status_code == 200:
                     data = response.json()
-                    status = data.get('status', '').lower()
+                    status = data.get("status", "").lower()
 
-                    if status in ('completed', 'success'):
+                    if status in ("completed", "success"):
                         latency_ms = (time.time() - start_time) * 1000
                         test_state.record_completion(workflow_id, True, latency_ms)
                         self._pending_workflows.pop(workflow_id, None)
                         return
-                    elif status in ('failed', 'cancelled', 'error'):
+                    elif status in ("failed", "cancelled", "error"):
                         latency_ms = (time.time() - start_time) * 1000
                         test_state.record_completion(workflow_id, False, latency_ms)
                         self._pending_workflows.pop(workflow_id, None)
                         return
 
             except Exception as e:
-                logger.debug(f'Erro ao consultar status: {e}')
+                logger.debug(f"Erro ao consultar status: {e}")
 
             time.sleep(poll_interval)
 
@@ -279,12 +284,12 @@ class FlowCTasks(TaskSet):
     @task(2)
     def check_health(self):
         """Verifica health do orchestrator."""
-        self.client.get('/health', name='/health')
+        self.client.get("/health", name="/health")
 
     @task(1)
     def check_metrics(self):
         """Consulta metricas do orchestrator."""
-        self.client.get('/metrics', name='/metrics')
+        self.client.get("/metrics", name="/metrics")
 
 
 class FlowCCircuitBreakerTasks(TaskSet):
@@ -302,20 +307,20 @@ class FlowCCircuitBreakerTasks(TaskSet):
 
         # Escolher componente para simular falha (20% de chance)
         if random.random() < 0.2:
-            component = random.choice(CONFIG['circuit_breaker_components'])
+            component = random.choice(CONFIG["circuit_breaker_components"])
             headers = {
-                'X-Inject-Failure': component,
-                'X-Failure-Type': random.choice(['timeout', 'error', 'unavailable']),
-                'X-Failure-Duration-Ms': str(random.randint(1000, 5000)),
+                "X-Inject-Failure": component,
+                "X-Failure-Type": random.choice(["timeout", "error", "unavailable"]),
+                "X-Failure-Duration-Ms": str(random.randint(1000, 5000)),
             }
         else:
             headers = {}
 
         with self.client.post(
-            '/api/v1/workflows/start',
+            "/api/v1/workflows/start",
             json=decision,
             headers=headers,
-            name='/api/v1/workflows/start (failure_injection)',
+            name="/api/v1/workflows/start (failure_injection)",
             catch_response=True,
         ) as response:
             # Falhas injetadas podem retornar 503 (circuit breaker aberto)
@@ -323,18 +328,18 @@ class FlowCCircuitBreakerTasks(TaskSet):
                 # Verificar se e circuit breaker
                 try:
                     data = response.json()
-                    if 'circuit_breaker' in data.get('error', '').lower():
-                        component = data.get('component', 'unknown')
+                    if "circuit_breaker" in data.get("error", "").lower():
+                        component = data.get("component", "unknown")
                         test_state.record_circuit_breaker_trip(component)
                         response.success()  # Esperado quando CB esta aberto
                     else:
-                        response.failure(f'Erro 503 nao relacionado a CB')
+                        response.failure(f"Erro 503 nao relacionado a CB")
                 except Exception:
-                    response.failure('Erro 503 inesperado')
+                    response.failure("Erro 503 inesperado")
             elif response.status_code in (200, 201, 202):
                 response.success()
             else:
-                response.failure(f'Status code: {response.status_code}')
+                response.failure(f"Status code: {response.status_code}")
 
     @task(3)
     def check_circuit_breaker_states(self):
@@ -344,38 +349,38 @@ class FlowCCircuitBreakerTasks(TaskSet):
         Valida transicoes open -> half_open -> closed.
         """
         with self.client.get(
-            '/api/v1/circuit-breakers',
-            name='/api/v1/circuit-breakers',
+            "/api/v1/circuit-breakers",
+            name="/api/v1/circuit-breakers",
             catch_response=True,
         ) as response:
             if response.status_code == 200:
                 try:
                     data = response.json()
-                    states = data.get('circuit_breakers', {})
+                    states = data.get("circuit_breakers", {})
 
                     for component, info in states.items():
-                        state = info.get('state', 'unknown')
-                        if state == 'open':
+                        state = info.get("state", "unknown")
+                        if state == "open":
                             test_state.record_circuit_breaker_trip(component)
-                            logger.info(f'Circuit breaker {component} OPEN')
-                        elif state == 'half_open':
-                            logger.info(f'Circuit breaker {component} HALF_OPEN (recuperando)')
+                            logger.info(f"Circuit breaker {component} OPEN")
+                        elif state == "half_open":
+                            logger.info(f"Circuit breaker {component} HALF_OPEN (recuperando)")
 
                     response.success()
                 except Exception as e:
-                    response.failure(f'Erro ao parsear: {e}')
+                    response.failure(f"Erro ao parsear: {e}")
             else:
-                response.failure(f'Status: {response.status_code}')
+                response.failure(f"Status: {response.status_code}")
 
     @task(2)
     def trigger_recovery_check(self):
         """
         Envia requisicao de teste para verificar recovery de circuit breakers.
         """
-        for component in CONFIG['circuit_breaker_components']:
+        for component in CONFIG["circuit_breaker_components"]:
             self.client.get(
-                f'/api/v1/circuit-breakers/{component}/test',
-                name='/api/v1/circuit-breakers/[component]/test',
+                f"/api/v1/circuit-breakers/{component}/test",
+                name="/api/v1/circuit-breakers/[component]/test",
             )
 
 
@@ -383,14 +388,17 @@ class FlowCCircuitBreakerTasks(TaskSet):
 # Usuarios Locust
 # ============================================
 
+
 class FlowCUser(HttpUser):
     """Usuario padrao para testes do Fluxo C."""
+
     tasks = [FlowCTasks]
     wait_time = between(1, 3)
 
 
 class FlowCCircuitBreakerUser(HttpUser):
     """Usuario para testes de circuit breaker com injecao de falhas."""
+
     tasks = [FlowCCircuitBreakerTasks]
     wait_time = between(0.5, 2)
     weight = 3  # Maior peso para mais usuarios deste tipo
@@ -398,6 +406,7 @@ class FlowCCircuitBreakerUser(HttpUser):
 
 class FlowCLoadUser(HttpUser):
     """Usuario de alta carga (100 concorrentes)."""
+
     tasks = [FlowCTasks]
     wait_time = between(0.1, 0.5)  # Mais agressivo
     weight = 10
@@ -406,6 +415,7 @@ class FlowCLoadUser(HttpUser):
 # ============================================
 # Monitoramento e Validacoes
 # ============================================
+
 
 class MetricsCollector:
     """Coletor de metricas para validacoes."""
@@ -436,51 +446,52 @@ class MetricsCollector:
             try:
                 # Coletar replicas via Prometheus
                 response = requests.get(
-                    f'{self.prometheus_url}/api/v1/query',
+                    f"{self.prometheus_url}/api/v1/query",
                     params={
-                        'query': f'count(kube_pod_info{{pod=~"orchestrator-dynamic-.*", namespace="{self.k8s_namespace}", phase="Running"}})'
+                        "query": f'count(kube_pod_info{{pod=~"orchestrator-dynamic-.*", namespace="{self.k8s_namespace}", phase="Running"}})'
                     },
                     timeout=5,
                 )
 
                 if response.status_code == 200:
                     data = response.json()
-                    results = data.get('data', {}).get('result', [])
+                    results = data.get("data", {}).get("result", [])
                     if results:
-                        replicas = int(float(results[0]['value'][1]))
+                        replicas = int(float(results[0]["value"][1]))
                         test_state.record_replicas(replicas)
 
                 # Coletar estados de circuit breaker
                 response = requests.get(
-                    f'{self.prometheus_url}/api/v1/query',
-                    params={'query': 'neural_hive_circuit_breaker_state'},
+                    f"{self.prometheus_url}/api/v1/query",
+                    params={"query": "neural_hive_circuit_breaker_state"},
                     timeout=5,
                 )
 
                 if response.status_code == 200:
                     data = response.json()
-                    for result in data.get('data', {}).get('result', []):
-                        component = result.get('metric', {}).get('component', 'unknown')
-                        state = int(float(result['value'][1]))
+                    for result in data.get("data", {}).get("result", []):
+                        component = result.get("metric", {}).get("component", "unknown")
+                        state = int(float(result["value"][1]))
                         if state == 1:  # open
                             test_state.record_circuit_breaker_trip(component)
 
             except Exception as e:
-                logger.debug(f'Erro ao coletar metricas: {e}')
+                logger.debug(f"Erro ao coletar metricas: {e}")
 
             time.sleep(10)
 
 
 # Instancia global do coletor
 metrics_collector = MetricsCollector(
-    prometheus_url=CONFIG['prometheus_url'],
-    k8s_namespace=CONFIG['kubernetes_namespace'],
+    prometheus_url=CONFIG["prometheus_url"],
+    k8s_namespace=CONFIG["kubernetes_namespace"],
 )
 
 
 # ============================================
 # Event Hooks
 # ============================================
+
 
 @events.test_start.add_listener
 def on_test_start(environment, **kwargs):
@@ -492,7 +503,7 @@ def on_test_start(environment, **kwargs):
     # Iniciar coleta de metricas (apenas no master ou standalone)
     if not isinstance(environment.runner, WorkerRunner):
         metrics_collector.start()
-        logger.info('Teste de carga iniciado - coletando metricas')
+        logger.info("Teste de carga iniciado - coletando metricas")
 
 
 @events.test_stop.add_listener
@@ -503,7 +514,7 @@ def on_test_stop(environment, **kwargs):
         metrics_collector.stop()
 
     # Aguardar conclusao de workflows pendentes (max 60s)
-    logger.info(f'Aguardando {test_state.pending_workflows} workflows pendentes...')
+    logger.info(f"Aguardando {test_state.pending_workflows} workflows pendentes...")
     timeout = 60
     start = time.time()
 
@@ -511,7 +522,7 @@ def on_test_stop(environment, **kwargs):
         time.sleep(5)
 
     if test_state.pending_workflows > 0:
-        logger.warning(f'{test_state.pending_workflows} workflows nao concluidos')
+        logger.warning(f"{test_state.pending_workflows} workflows nao concluidos")
 
     # Validar resultados
     _validate_test_results(environment)
@@ -528,11 +539,11 @@ def _validate_test_results(environment):
 
     # 1. Validar taxa de sucesso (Comment 3 - mandatory asserts)
     success_rate = test_state.success_rate
-    if success_rate < CONFIG['slo_success_rate']:
+    if success_rate < CONFIG["slo_success_rate"]:
         failures.append(
             f'Taxa de sucesso {success_rate*100:.1f}% < {CONFIG["slo_success_rate"]*100}% (SLO)'
         )
-    results.append(f'Taxa de sucesso: {success_rate*100:.1f}%')
+    results.append(f"Taxa de sucesso: {success_rate*100:.1f}%")
 
     # 2. Validar latencia P95
     if test_state.latencies_ms:
@@ -541,67 +552,70 @@ def _validate_test_results(environment):
         p95_ms = sorted_latencies[min(p95_idx, len(sorted_latencies) - 1)]
         p95_seconds = p95_ms / 1000
 
-        if p95_seconds > CONFIG['slo_latency_p95_seconds']:
+        if p95_seconds > CONFIG["slo_latency_p95_seconds"]:
             failures.append(
                 f'Latencia P95 {p95_seconds/3600:.2f}h > {CONFIG["slo_latency_p95_seconds"]/3600:.1f}h (SLO)'
             )
-        results.append(f'Latencia P95: {p95_seconds/3600:.2f}h')
+        results.append(f"Latencia P95: {p95_seconds/3600:.2f}h")
 
     # 3. Validar throughput
     test_duration = time.time() - test_state.start_time
     if test_duration > 0:
         throughput = (test_state.completed_workflows + test_state.failed_workflows) / test_duration
-        if throughput < CONFIG['slo_throughput_tickets_per_second']:
+        if throughput < CONFIG["slo_throughput_tickets_per_second"]:
             failures.append(
                 f'Throughput {throughput:.2f} wf/s < {CONFIG["slo_throughput_tickets_per_second"]} (SLO)'
             )
-        results.append(f'Throughput: {throughput:.2f} workflows/s')
+        results.append(f"Throughput: {throughput:.2f} workflows/s")
 
     # 4. Validar autoscaling (Comment 3 - mandatory asserts)
-    if test_state.max_replicas_observed < CONFIG['min_scale_up_replicas']:
+    if test_state.max_replicas_observed < CONFIG["min_scale_up_replicas"]:
         failures.append(
-            f'HPA nao escalou: max {test_state.max_replicas_observed} replicas < '
+            f"HPA nao escalou: max {test_state.max_replicas_observed} replicas < "
             f'{CONFIG["min_scale_up_replicas"]} (esperado durante carga)'
         )
-    results.append(f'Max replicas observadas: {test_state.max_replicas_observed}')
+    results.append(f"Max replicas observadas: {test_state.max_replicas_observed}")
 
     # 5. Reportar circuit breaker trips (Comment 2 - validacao de transicoes)
     if test_state.circuit_breaker_trips:
-        results.append('Circuit breaker trips:')
+        results.append("Circuit breaker trips:")
         for comp, count in test_state.circuit_breaker_trips.items():
-            results.append(f'  - {comp}: {count} trips')
+            results.append(f"  - {comp}: {count} trips")
 
     # Reportar resultados
-    logger.info('\n' + '='*60)
-    logger.info('RESULTADOS DO TESTE DE CARGA')
-    logger.info('='*60)
+    logger.info("\n" + "=" * 60)
+    logger.info("RESULTADOS DO TESTE DE CARGA")
+    logger.info("=" * 60)
     for r in results:
         logger.info(r)
 
     if failures:
-        logger.error('\n' + '-'*60)
-        logger.error('FALHAS DE VALIDACAO:')
+        logger.error("\n" + "-" * 60)
+        logger.error("FALHAS DE VALIDACAO:")
         for f in failures:
-            logger.error(f'  FAIL: {f}')
-        logger.error('-'*60)
+            logger.error(f"  FAIL: {f}")
+        logger.error("-" * 60)
 
         # Falhar o teste (Comment 3 - asserts obrigatorios)
         environment.runner.quit()
-        raise AssertionError('\n'.join(failures))
+        raise AssertionError("\n".join(failures))
     else:
-        logger.info('\nTodos os SLOs atendidos!')
+        logger.info("\nTodos os SLOs atendidos!")
 
 
 @events.request.add_listener
-def on_request(request_type, name, response_time, response_length, response, context, exception, **kwargs):
+def on_request(
+    request_type, name, response_time, response_length, response, context, exception, **kwargs
+):
     """Listener para cada requisicao - usado para tracking detalhado."""
     if exception:
-        logger.debug(f'Requisicao falhou: {name} - {exception}')
+        logger.debug(f"Requisicao falhou: {name} - {exception}")
 
 
 # ============================================
 # Funcoes de Validacao de Circuit Breaker
 # ============================================
+
 
 def validate_circuit_breaker_transitions():
     """
@@ -619,7 +633,7 @@ def validate_circuit_breaker_transitions():
     try:
         response = requests.get(
             f'{CONFIG["prometheus_url"]}/api/v1/query',
-            params={'query': 'neural_hive_circuit_breaker_state'},
+            params={"query": "neural_hive_circuit_breaker_state"},
             timeout=10,
         )
 
@@ -627,15 +641,15 @@ def validate_circuit_breaker_transitions():
             data = response.json()
             states = {}
 
-            for result in data.get('data', {}).get('result', []):
-                component = result.get('metric', {}).get('component', 'unknown')
-                state_value = int(float(result['value'][1]))
-                state_map = {0: 'closed', 1: 'open', 2: 'half_open'}
-                states[component] = state_map.get(state_value, 'unknown')
+            for result in data.get("data", {}).get("result", []):
+                component = result.get("metric", {}).get("component", "unknown")
+                state_value = int(float(result["value"][1]))
+                state_map = {0: "closed", 1: "open", 2: "half_open"}
+                states[component] = state_map.get(state_value, "unknown")
 
             return states
     except Exception as e:
-        logger.warning(f'Erro ao validar circuit breakers: {e}')
+        logger.warning(f"Erro ao validar circuit breakers: {e}")
 
     return {}
 
@@ -644,7 +658,7 @@ def validate_circuit_breaker_transitions():
 # Script K6 alternativo (referencia)
 # ============================================
 
-K6_SCRIPT_TEMPLATE = '''
+K6_SCRIPT_TEMPLATE = """
 // k6_flow_c_load.js - Script K6 alternativo para testes de carga
 // Uso: k6 run --vus 100 --duration 10m k6_flow_c_load.js
 
@@ -730,13 +744,16 @@ export default function() {
     }
   }
 }
-'''
+"""
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Executar via locust CLI
     import sys
-    print('Execute via: locust -f locustfile_flow_c.py --host=http://orchestrator-dynamic:8000')
-    print('\nOu em modo headless:')
-    print('locust -f locustfile_flow_c.py --host=http://orchestrator-dynamic:8000 --headless -u 100 -r 10 --run-time 10m')
+
+    print("Execute via: locust -f locustfile_flow_c.py --host=http://orchestrator-dynamic:8000")
+    print("\nOu em modo headless:")
+    print(
+        "locust -f locustfile_flow_c.py --host=http://orchestrator-dynamic:8000 --headless -u 100 -r 10 --run-time 10m"
+    )
     sys.exit(0)

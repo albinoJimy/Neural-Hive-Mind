@@ -30,12 +30,13 @@ class FlowCContext(BaseModel):
         priority: Prioridade de execução (1-10)
         risk_band: Banda de risco (low, medium, high, critical)
     """
+
     intent_id: str
     plan_id: str
     decision_id: Optional[str] = None
     correlation_id: str = Field(
         default_factory=lambda: str(uuid.uuid4()),
-        description="ID de correlação para tracing distribuído"
+        description="ID de correlação para tracing distribuído",
     )
     trace_id: str = Field(default="", description="OpenTelemetry trace ID")
     span_id: str = Field(default="", description="OpenTelemetry span ID")
@@ -44,7 +45,7 @@ class FlowCContext(BaseModel):
     priority: int = Field(default=5, ge=1, le=10)
     risk_band: str = Field(default="medium")  # low, medium, high, critical
 
-    @field_validator('correlation_id', mode='before')
+    @field_validator("correlation_id", mode="before")
     @classmethod
     def ensure_correlation_id(cls, v):
         """
@@ -57,25 +58,26 @@ class FlowCContext(BaseModel):
             return str(uuid.uuid4())
         return v
 
-    @field_validator('trace_id', 'span_id', mode='before')
+    @field_validator("trace_id", "span_id", mode="before")
     @classmethod
     def ensure_string_ids(cls, v):
         """Converte None para string vazia para IDs de tracing."""
         return v if v is not None else ""
 
-    @field_validator('risk_band', mode='before')
+    @field_validator("risk_band", mode="before")
     @classmethod
     def normalize_risk_band(cls, v):
         """Normaliza e valida risk_band."""
-        valid_bands = {'low', 'medium', 'high', 'critical'}
+        valid_bands = {"low", "medium", "high", "critical"}
         if v is None:
-            return 'medium'
+            return "medium"
         normalized = str(v).lower().strip()
-        return normalized if normalized in valid_bands else 'medium'
+        return normalized if normalized in valid_bands else "medium"
 
 
 class FlowCStep(BaseModel):
     """Individual step in Flow C execution."""
+
     step_name: str  # C1, C2, C3, C4, C5, C6
     status: str  # pending, in_progress, completed, failed
     started_at: Optional[datetime] = None
@@ -87,6 +89,7 @@ class FlowCStep(BaseModel):
 
 class FlowCResult(BaseModel):
     """Complete Flow C execution result."""
+
     success: bool
     steps: List[FlowCStep]
     total_duration_ms: int

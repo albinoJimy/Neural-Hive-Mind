@@ -21,102 +21,103 @@ TEST_INTENTS = [
         "text": "Create a new user account with email verification and password hashing",
         "domain": "security",
         "action": "create",
-        "expected_decision": "approve"
+        "expected_decision": "approve",
     },
     {
         "text": "Delete all records from the users table without backup",
         "domain": "database",
         "action": "delete",
-        "expected_decision": "reject"
+        "expected_decision": "reject",
     },
     {
         "text": "Add index to email column for improved query performance",
         "domain": "database",
         "action": "update",
-        "expected_decision": "approve"
+        "expected_decision": "approve",
     },
     {
         "text": "Deploy the new feature to production without testing",
         "domain": "devops",
         "action": "deploy",
-        "expected_decision": "reject"
+        "expected_decision": "reject",
     },
     {
         "text": "Run database backup before schema migration",
         "domain": "database",
         "action": "create",
-        "expected_decision": "approve"
+        "expected_decision": "approve",
     },
     {
         "text": "Grant admin privileges to all authenticated users",
         "domain": "security",
         "action": "update",
-        "expected_decision": "reject"
+        "expected_decision": "reject",
     },
     {
         "text": "Implement rate limiting for API endpoints to prevent abuse",
         "domain": "security",
         "action": "create",
-        "expected_decision": "approve"
+        "expected_decision": "approve",
     },
     {
         "text": "Remove SSL certificate validation to speed up requests",
         "domain": "security",
         "action": "delete",
-        "expected_decision": "reject"
+        "expected_decision": "reject",
     },
     {
         "text": "Create unit tests for the authentication module",
         "domain": "testing",
         "action": "create",
-        "expected_decision": "approve"
+        "expected_decision": "approve",
     },
     {
         "text": "Drop the production database and recreate from scratch",
         "domain": "database",
         "action": "delete",
-        "expected_decision": "reject"
+        "expected_decision": "reject",
     },
     {
         "text": "Enable two-factor authentication for all user accounts",
         "domain": "security",
         "action": "update",
-        "expected_decision": "approve"
+        "expected_decision": "approve",
     },
     {
         "text": "Log all user passwords in plain text for debugging",
         "domain": "security",
         "action": "create",
-        "expected_decision": "reject"
+        "expected_decision": "reject",
     },
     {
         "text": "Optimize database queries by adding appropriate indexes",
         "domain": "database",
         "action": "update",
-        "expected_decision": "approve"
+        "expected_decision": "approve",
     },
     {
         "text": "Deploy container images with known vulnerabilities",
         "domain": "devops",
         "action": "deploy",
-        "expected_decision": "reject"
+        "expected_decision": "reject",
     },
     {
         "text": "Set up automated security scanning in CI/CD pipeline",
         "domain": "devops",
         "action": "create",
-        "expected_decision": "approve"
+        "expected_decision": "approve",
     },
     {
         "text": "Expose database port 27017 to public internet",
         "domain": "security",
         "action": "update",
-        "expected_decision": "reject"
+        "expected_decision": "reject",
     },
 ]
 
 try:
     from kafka import KafkaProducer
+
     KAFKA_AVAILABLE = True
 except ImportError:
     KAFKA_AVAILABLE = False
@@ -131,11 +132,7 @@ def create_intent_envelope(test_intent):
     envelope = {
         "id": intent_id,
         "correlationId": correlation_id,
-        "actor": {
-            "id": "test-user-ml",
-            "actor_type": "human",
-            "name": "ML Test User"
-        },
+        "actor": {"id": "test-user-ml", "actor_type": "human", "name": "ML Test User"},
         "intent": {
             "text": test_intent["text"],
             "domain": test_intent["domain"].upper(),
@@ -143,14 +140,11 @@ def create_intent_envelope(test_intent):
             "original_language": "pt-BR",
             "processed_text": test_intent["text"],
             "entities": [],
-            "keywords": test_intent["text"].split()[:5]
+            "keywords": test_intent["text"].split()[:5],
         },
         "confidence": 0.95,
-        "context": {
-            "session_id": correlation_id,
-            "user_id": "test-user-ml"
-        },
-        "timestamp": datetime.now(timezone.utc).isoformat()
+        "context": {"session_id": correlation_id, "user_id": "test-user-ml"},
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
     return envelope, intent_id, correlation_id
 
@@ -164,8 +158,8 @@ def send_intent_to_kafka(envelope):
     try:
         producer = KafkaProducer(
             bootstrap_servers=KAFKA_BROKER,
-            value_serializer=lambda v: json.dumps(v).encode('utf-8'),
-            request_timeout_ms=10000
+            value_serializer=lambda v: json.dumps(v).encode("utf-8"),
+            request_timeout_ms=10000,
         )
 
         # Determinar tópico baseado no domínio
@@ -177,7 +171,9 @@ def send_intent_to_kafka(envelope):
         producer.flush()
         producer.close()
 
-        print(f"  [KAFKA] Enviado para {topic} (partition: {record_metadata.partition}, offset: {record_metadata.offset})")
+        print(
+            f"  [KAFKA] Enviado para {topic} (partition: {record_metadata.partition}, offset: {record_metadata.offset})"
+        )
         return True
     except Exception as e:
         print(f"  [ERRO] Falha ao enviar para Kafka: {e}")
@@ -207,20 +203,24 @@ def main():
 
         if args.simulate or not KAFKA_AVAILABLE:
             print(f"   [SIMULAÇÃO] Intent ID: {intent_id}")
-            created.append({
-                "intent_id": intent_id,
-                "correlation_id": correlation_id,
-                "text": test_intent["text"],
-                "expected_decision": test_intent["expected_decision"]
-            })
-        else:
-            if send_intent_to_kafka(envelope):
-                created.append({
+            created.append(
+                {
                     "intent_id": intent_id,
                     "correlation_id": correlation_id,
                     "text": test_intent["text"],
-                    "expected_decision": test_intent["expected_decision"]
-                })
+                    "expected_decision": test_intent["expected_decision"],
+                }
+            )
+        else:
+            if send_intent_to_kafka(envelope):
+                created.append(
+                    {
+                        "intent_id": intent_id,
+                        "correlation_id": correlation_id,
+                        "text": test_intent["text"],
+                        "expected_decision": test_intent["expected_decision"],
+                    }
+                )
 
         time.sleep(0.5)  # Pequeno delay entre intenções
         print()

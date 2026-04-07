@@ -15,15 +15,14 @@ import asyncio
 # Test: Input Validation
 # =============================================================================
 
+
 class TestInputValidation:
     """Testes de validação de entrada."""
 
     @pytest.mark.asyncio
     async def test_validate_required_fields(self):
         """Deve validar campos obrigatórios."""
-        schema = {
-            "required_fields": ["name", "email", "age"]
-        }
+        schema = {"required_fields": ["name", "email", "age"]}
 
         valid_input = {"name": "John", "email": "john@example.com", "age": 30}
         invalid_input = {"name": "John", "email": "john@example.com"}  # Falta age
@@ -39,11 +38,7 @@ class TestInputValidation:
         """Deve validar tipos de dados."""
         input_data = {"name": "John", "age": "30", "active": "true"}
 
-        type_checks = {
-            "name": str,
-            "age": int,
-            "active": bool
-        }
+        type_checks = {"name": str, "age": int, "active": bool}
 
         valid = True
         if not isinstance(input_data.get("name"), type_checks["name"]):
@@ -60,7 +55,7 @@ class TestInputValidation:
         """Deve validar formato de email."""
         import re
 
-        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        email_pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
 
         valid_emails = ["user@example.com", "test.user@domain.co.uk"]
         invalid_emails = ["invalid", "@example.com", "user@"]
@@ -74,10 +69,7 @@ class TestInputValidation:
     @pytest.mark.asyncio
     async def test_validate_value_ranges(self):
         """Deve validar intervalos de valores."""
-        constraints = {
-            "age": {"min": 18, "max": 100},
-            "score": {"min": 0, "max": 10}
-        }
+        constraints = {"age": {"min": 18, "max": 100}, "score": {"min": 0, "max": 10}}
 
         valid_data = {"age": 25, "score": 8}
         invalid_data = {"age": 15, "score": 11}
@@ -85,13 +77,11 @@ class TestInputValidation:
         def is_in_range(value, constraint):
             return constraint["min"] <= value <= constraint["max"]
 
-        valid_check = (
-            is_in_range(valid_data["age"], constraints["age"]) and
-            is_in_range(valid_data["score"], constraints["score"])
+        valid_check = is_in_range(valid_data["age"], constraints["age"]) and is_in_range(
+            valid_data["score"], constraints["score"]
         )
-        invalid_check = (
-            is_in_range(invalid_data["age"], constraints["age"]) and
-            is_in_range(invalid_data["score"], constraints["score"])
+        invalid_check = is_in_range(invalid_data["age"], constraints["age"]) and is_in_range(
+            invalid_data["score"], constraints["score"]
         )
 
         assert valid_check is True
@@ -102,23 +92,16 @@ class TestInputValidation:
 # Test: Security Checks
 # =============================================================================
 
+
 class TestSecurityChecks:
     """Testes de verificações de segurança."""
 
     @pytest.mark.asyncio
     async def test_detect_sql_injection(self):
         """Deve detectar tentativa de SQL injection."""
-        safe_inputs = [
-            "John Doe",
-            "user@example.com",
-            "product-123"
-        ]
+        safe_inputs = ["John Doe", "user@example.com", "product-123"]
 
-        malicious_inputs = [
-            "'; DROP TABLE users; --",
-            "1' OR '1'='1",
-            "admin'--"
-        ]
+        malicious_inputs = ["'; DROP TABLE users; --", "1' OR '1'='1", "admin'--"]
 
         sql_patterns = ["'", ";", "--", "OR", "DROP"]
 
@@ -140,7 +123,7 @@ class TestSecurityChecks:
         malicious_inputs = [
             "<script>alert('XSS')</script>",
             "<img src=x onerror=alert('XSS')>",
-            "<svg onload=alert('XSS')>"
+            "<svg onload=alert('XSS')>",
         ]
 
         xss_patterns = ["<script", "onerror=", "onload="]
@@ -170,6 +153,7 @@ class TestSecurityChecks:
 # =============================================================================
 # Test: Access Control
 # =============================================================================
+
 
 class TestAccessControl:
     """Testes de controle de acesso."""
@@ -219,6 +203,7 @@ class TestAccessControl:
 # Test: Rate Limiting
 # =============================================================================
 
+
 class TestRateLimiting:
     """Testes de rate limiting."""
 
@@ -251,16 +236,10 @@ class TestRateLimiting:
     @pytest.mark.asyncio
     async def test_track_rate_limit_by_user(self):
         """Deve rastrear rate limit por usuário."""
-        user_limits = {
-            "user-1": {"count": 5, "limit": 10},
-            "user-2": {"count": 12, "limit": 10}
-        }
+        user_limits = {"user-1": {"count": 5, "limit": 10}, "user-2": {"count": 12, "limit": 10}}
 
         # Verificar quem excedeu
-        exceeded = {
-            user_id: data["count"] > data["limit"]
-            for user_id, data in user_limits.items()
-        }
+        exceeded = {user_id: data["count"] > data["limit"] for user_id, data in user_limits.items()}
 
         assert exceeded["user-1"] is False
         assert exceeded["user-2"] is True
@@ -270,26 +249,19 @@ class TestRateLimiting:
 # Test: Policy Evaluation
 # =============================================================================
 
+
 class TestPolicyEvaluation:
     """Testes de avaliação de políticas."""
 
     @pytest.mark.asyncio
     async def test_evaluate_allow_policy(self):
         """Deve avaliar política ALLOW."""
-        policy = {
-            "effect": "allow",
-            "action": "read",
-            "resource": "documents"
-        }
+        policy = {"effect": "allow", "action": "read", "resource": "documents"}
 
-        request = {
-            "action": "read",
-            "resource": "documents"
-        }
+        request = {"action": "read", "resource": "documents"}
 
         matches = (
-            policy["action"] == request["action"] and
-            policy["resource"] == request["resource"]
+            policy["action"] == request["action"] and policy["resource"] == request["resource"]
         )
 
         effect = policy["effect"] if matches else "deny"
@@ -299,20 +271,12 @@ class TestPolicyEvaluation:
     @pytest.mark.asyncio
     async def test_evaluate_deny_policy(self):
         """Deve avaliar política DENY."""
-        policy = {
-            "effect": "deny",
-            "action": "delete",
-            "resource": "documents"
-        }
+        policy = {"effect": "deny", "action": "delete", "resource": "documents"}
 
-        request = {
-            "action": "delete",
-            "resource": "documents"
-        }
+        request = {"action": "delete", "resource": "documents"}
 
         matches = (
-            policy["action"] == request["action"] and
-            policy["resource"] == request["resource"]
+            policy["action"] == request["action"] and policy["resource"] == request["resource"]
         )
 
         effect = policy["effect"] if matches else "allow"
@@ -325,16 +289,13 @@ class TestPolicyEvaluation:
         policies = [
             {"effect": "allow", "action": "read"},
             {"effect": "deny", "action": "read"},
-            {"effect": "allow", "action": "write"}
+            {"effect": "allow", "action": "write"},
         ]
 
         request = {"action": "read"}
 
         # DENY sempre tem precedência
-        applicable_effects = [
-            p["effect"] for p in policies
-            if p["action"] == request["action"]
-        ]
+        applicable_effects = [p["effect"] for p in policies if p["action"] == request["action"]]
 
         final_effect = "deny" if "deny" in applicable_effects else "allow"
 
@@ -344,6 +305,7 @@ class TestPolicyEvaluation:
 # =============================================================================
 # Test: Audit Logging
 # =============================================================================
+
 
 class TestAuditLogging:
     """Testes de logging de auditoria."""
@@ -356,7 +318,7 @@ class TestAuditLogging:
             "event_type": "access_denied",
             "user_id": "user-123",
             "resource": "/admin/settings",
-            "reason": "insufficient_permissions"
+            "reason": "insufficient_permissions",
         }
 
         assert event["event_type"] == "access_denied"
@@ -370,7 +332,7 @@ class TestAuditLogging:
             "what": "delete_document",
             "when": datetime.now(timezone.utc).isoformat(),
             "where": "/api/documents/doc-123",
-            "result": "success"
+            "result": "success",
         }
 
         required_fields = ["who", "what", "when"]
@@ -383,6 +345,7 @@ class TestAuditLogging:
 # Test: Guard Coordination
 # =============================================================================
 
+
 class TestGuardCoordination:
     """Testes de coordenação de guards."""
 
@@ -394,7 +357,7 @@ class TestGuardCoordination:
         validation_chain = [
             lambda r: "data" in r,  # Tem dados
             lambda r: r.get("user") is not None,  # Tem usuário
-            lambda r: len(r.get("data", "")) > 0  # Dados não vazios
+            lambda r: len(r.get("data", "")) > 0,  # Dados não vazios
         ]
 
         all_passed = all(validation(request) for validation in validation_chain)
@@ -409,7 +372,7 @@ class TestGuardCoordination:
         validations = [
             ("has_data", lambda r: len(r.get("data", "")) > 0),
             ("has_user", lambda r: r.get("user") is not None),
-            ("is_authorized", lambda r: r.get("authorized", False))
+            ("is_authorized", lambda r: r.get("authorized", False)),
         ]
 
         failed_at = None
@@ -425,6 +388,7 @@ class TestGuardCoordination:
 # Test: Threat Detection
 # =============================================================================
 
+
 class TestThreatDetection:
     """Testes de detecção de ameaças."""
 
@@ -436,14 +400,13 @@ class TestThreatDetection:
             {"user": "attacker", "success": False, "time": "10:01"},
             {"user": "attacker", "success": False, "time": "10:02"},
             {"user": "attacker", "success": False, "time": "10:03"},
-            {"user": "attacker", "success": False, "time": "10:04"}
+            {"user": "attacker", "success": False, "time": "10:04"},
         ]
 
         # Agrupar por usuário
         from collections import Counter
-        failed_by_user = Counter(
-            a["user"] for a in login_attempts if not a["success"]
-        )
+
+        failed_by_user = Counter(a["user"] for a in login_attempts if not a["success"])
 
         brute_force_threshold = 5
         is_brute_force = failed_by_user["attacker"] >= brute_force_threshold
@@ -453,10 +416,7 @@ class TestThreatDetection:
     @pytest.mark.asyncio
     async def test_detect_unusual_access_pattern(self):
         """Deve detectar padrão de acesso incomum."""
-        access_times = [
-            "02:00", "02:15", "02:30", "03:00",  # Madrugada
-            "14:00"  # Normal
-        ]
+        access_times = ["02:00", "02:15", "02:30", "03:00", "14:00"]  # Madrugada  # Normal
 
         # Acessos predominantemente fora do horário comercial
         business_hours_start = 9
@@ -476,6 +436,7 @@ class TestThreatDetection:
 # =============================================================================
 # Test: Data Encryption
 # =============================================================================
+
 
 class TestDataEncryption:
     """Testes de criptografia de dados."""
@@ -512,7 +473,7 @@ class TestDataEncryption:
             "user_id": "user-123",
             "password": "secret123",
             "credit_card": "4532-1234-5678-9010",
-            "action": "login"
+            "action": "login",
         }
 
         sensitive_fields = ["password", "credit_card"]
@@ -531,6 +492,7 @@ class TestDataEncryption:
 # Test: Compliance Checks
 # =============================================================================
 
+
 class TestComplianceChecks:
     """Testes de verificação de compliance."""
 
@@ -541,7 +503,7 @@ class TestComplianceChecks:
             "analytics": True,
             "marketing": False,
             "data_sharing": False,
-            "timestamp": "2026-03-29T10:00:00Z"
+            "timestamp": "2026-03-29T10:00:00Z",
         }
 
         # Consentimento explícito necessário
@@ -555,15 +517,14 @@ class TestComplianceChecks:
         records = [
             {"created_at": "2025-01-01", "type": "transaction"},
             {"created_at": "2026-01-01", "type": "transaction"},
-            {"created_at": "2026-03-01", "type": "transaction"}
+            {"created_at": "2026-03-01", "type": "transaction"},
         ]
 
         retention_days = 365
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
 
         expired_records = [
-            r for r in records
-            if datetime.fromisoformat(r["created_at"]) < cutoff_date
+            r for r in records if datetime.fromisoformat(r["created_at"]) < cutoff_date
         ]
 
         assert len(expired_records) == 1  # Registro de 2025 expirou

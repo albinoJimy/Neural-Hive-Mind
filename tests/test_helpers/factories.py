@@ -81,10 +81,7 @@ class TestCognitivePlanFactory:
         domain: str = "TECHNICAL",
     ) -> List[Dict[str, Any]]:
         """Cria múltiplos CognitivePlans para testes."""
-        return [
-            TestCognitivePlanFactory.create(status=status, domain=domain)
-            for _ in range(count)
-        ]
+        return [TestCognitivePlanFactory.create(status=status, domain=domain) for _ in range(count)]
 
 
 @dataclass
@@ -129,12 +126,14 @@ class TestSpecialistOpinionFactory:
             "confidence": max(0.0, min(1.0, confidence)),  # Clamp entre 0 e 1
             "domain": domain,
             "reasoning": reasoning or "Test reasoning for validation purposes",
-            "reasoning_factors": reasoning_factors or {
+            "reasoning_factors": reasoning_factors
+            or {
                 "complexity": 0.5,
                 "risk": 0.3,
                 "clarity": 0.8,
             },
-            "metadata": metadata or {
+            "metadata": metadata
+            or {
                 "processing_time_ms": random.randint(100, 500),
                 "model_version": "1.0.0",
             },
@@ -206,7 +205,8 @@ class TestConsolidatedDecisionFactory:
             "reject_count": reject_count,
             "domain": domain,
             "reasoning": reasoning or "Consolidated reasoning based on specialist opinions",
-            "hierarchical_weights": hierarchical_weights or {
+            "hierarchical_weights": hierarchical_weights
+            or {
                 "senior": 1.5,
                 "mid_level": 1.0,
                 "trainee": 0.7,
@@ -329,7 +329,8 @@ class TestSpecialistFeedbackFactory:
             "specialist_confidence": max(0.0, min(1.0, confidence)),
             "domain": domain,
             "intent_raw_text": intent_raw_text or "Test intent for ML training",
-            "reasoning_factors": reasoning_factors or {
+            "reasoning_factors": reasoning_factors
+            or {
                 "semantic_similarity": 0.75,
                 "complexity_score": 0.5,
                 "risk_assessment": 0.3,

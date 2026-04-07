@@ -31,9 +31,9 @@ def assert_avro_message_valid(message: bytes, schema_id: int) -> None:
     assert message[0] == 0x00, f"Magic byte inválido: {hex(message[0])}"
 
     actual_schema_id = int.from_bytes(message[1:5], byteorder="big")
-    assert actual_schema_id == schema_id, (
-        f"Schema ID não confere: esperado {schema_id}, recebido {actual_schema_id}"
-    )
+    assert (
+        actual_schema_id == schema_id
+    ), f"Schema ID não confere: esperado {schema_id}, recebido {actual_schema_id}"
 
 
 def assert_avro_magic_byte(message: bytes) -> int:
@@ -92,20 +92,24 @@ def assert_cognitive_plan_structure(plan: Dict) -> None:
         assert "description" in task, "Task sem description"
 
     # Validar enums
-    assert plan["risk_band"] in ["low", "medium", "high", "critical"], (
-        f"risk_band inválido: {plan['risk_band']}"
-    )
-    assert plan["status"] in ["draft", "validated", "approved", "rejected"], (
-        f"status inválido: {plan['status']}"
-    )
+    assert plan["risk_band"] in [
+        "low",
+        "medium",
+        "high",
+        "critical",
+    ], f"risk_band inválido: {plan['risk_band']}"
+    assert plan["status"] in [
+        "draft",
+        "validated",
+        "approved",
+        "rejected",
+    ], f"status inválido: {plan['status']}"
 
     # Validar ranges
-    assert 0.0 <= plan["risk_score"] <= 1.0, (
-        f"risk_score fora do range [0,1]: {plan['risk_score']}"
-    )
-    assert 0.0 <= plan["complexity_score"] <= 1.0, (
-        f"complexity_score fora do range [0,1]: {plan['complexity_score']}"
-    )
+    assert 0.0 <= plan["risk_score"] <= 1.0, f"risk_score fora do range [0,1]: {plan['risk_score']}"
+    assert (
+        0.0 <= plan["complexity_score"] <= 1.0
+    ), f"complexity_score fora do range [0,1]: {plan['complexity_score']}"
 
 
 def assert_consolidated_decision_structure(decision: Dict) -> None:
@@ -140,20 +144,26 @@ def assert_consolidated_decision_structure(decision: Dict) -> None:
         assert field in decision, f"Campo obrigatório ausente em ConsolidatedDecision: {field}"
 
     # Validar enums
-    assert decision["final_decision"] in ["approve", "reject", "review_required", "conditional"], (
-        f"final_decision inválido: {decision['final_decision']}"
-    )
-    assert decision["consensus_method"] in ["bayesian", "voting", "unanimous", "fallback"], (
-        f"consensus_method inválido: {decision['consensus_method']}"
-    )
+    assert decision["final_decision"] in [
+        "approve",
+        "reject",
+        "review_required",
+        "conditional",
+    ], f"final_decision inválido: {decision['final_decision']}"
+    assert decision["consensus_method"] in [
+        "bayesian",
+        "voting",
+        "unanimous",
+        "fallback",
+    ], f"consensus_method inválido: {decision['consensus_method']}"
 
     # Validar ranges
-    assert 0.0 <= decision["aggregated_confidence"] <= 1.0, (
-        f"aggregated_confidence fora do range [0,1]: {decision['aggregated_confidence']}"
-    )
-    assert 0.0 <= decision["aggregated_risk"] <= 1.0, (
-        f"aggregated_risk fora do range [0,1]: {decision['aggregated_risk']}"
-    )
+    assert (
+        0.0 <= decision["aggregated_confidence"] <= 1.0
+    ), f"aggregated_confidence fora do range [0,1]: {decision['aggregated_confidence']}"
+    assert (
+        0.0 <= decision["aggregated_risk"] <= 1.0
+    ), f"aggregated_risk fora do range [0,1]: {decision['aggregated_risk']}"
 
     # Validar specialist_votes
     assert isinstance(decision["specialist_votes"], list), "specialist_votes deve ser um array"
@@ -201,21 +211,40 @@ def assert_execution_ticket_structure(ticket: Dict) -> None:
         assert field in ticket, f"Campo obrigatório ausente em ExecutionTicket: {field}"
 
     # Validar enums
-    assert ticket["task_type"] in ["BUILD", "DEPLOY", "TEST", "VALIDATE", "EXECUTE", "COMPENSATE"], (
-        f"task_type inválido: {ticket['task_type']}"
-    )
-    assert ticket["status"] in ["PENDING", "RUNNING", "COMPLETED", "FAILED", "COMPENSATING", "COMPENSATED"], (
-        f"status inválido: {ticket['status']}"
-    )
-    assert ticket["priority"] in ["LOW", "NORMAL", "HIGH", "CRITICAL"], (
-        f"priority inválido: {ticket['priority']}"
-    )
-    assert ticket["risk_band"] in ["low", "medium", "high", "critical"], (
-        f"risk_band inválido: {ticket['risk_band']}"
-    )
-    assert ticket["security_level"] in ["PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED"], (
-        f"security_level inválido: {ticket['security_level']}"
-    )
+    assert ticket["task_type"] in [
+        "BUILD",
+        "DEPLOY",
+        "TEST",
+        "VALIDATE",
+        "EXECUTE",
+        "COMPENSATE",
+    ], f"task_type inválido: {ticket['task_type']}"
+    assert ticket["status"] in [
+        "PENDING",
+        "RUNNING",
+        "COMPLETED",
+        "FAILED",
+        "COMPENSATING",
+        "COMPENSATED",
+    ], f"status inválido: {ticket['status']}"
+    assert ticket["priority"] in [
+        "LOW",
+        "NORMAL",
+        "HIGH",
+        "CRITICAL",
+    ], f"priority inválido: {ticket['priority']}"
+    assert ticket["risk_band"] in [
+        "low",
+        "medium",
+        "high",
+        "critical",
+    ], f"risk_band inválido: {ticket['risk_band']}"
+    assert ticket["security_level"] in [
+        "PUBLIC",
+        "INTERNAL",
+        "CONFIDENTIAL",
+        "RESTRICTED",
+    ], f"security_level inválido: {ticket['security_level']}"
 
     # Validar SLA
     sla = ticket["sla"]
@@ -263,6 +292,4 @@ async def assert_specialist_invoked(
 
         await asyncio.sleep(2)
 
-    raise AssertionError(
-        f"Specialist {specialist_type} não foi invocado para plan {plan_id}"
-    )
+    raise AssertionError(f"Specialist {specialist_type} não foi invocado para plan {plan_id}")

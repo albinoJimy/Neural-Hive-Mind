@@ -17,7 +17,7 @@ from .config import get_config
 
 logger = logging.getLogger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 # Thread-local storage para contexto de correlação
 _correlation_context = threading.local()
@@ -190,7 +190,7 @@ def set_correlation_context(context: CorrelationContext):
 
 def get_correlation_context() -> Optional[CorrelationContext]:
     """Obtém contexto de correlação da thread atual."""
-    return getattr(_correlation_context, 'context', None)
+    return getattr(_correlation_context, "context", None)
 
 
 def get_current_correlation_context() -> Dict[str, str]:
@@ -201,8 +201,8 @@ def get_current_correlation_context() -> Dict[str, str]:
 
 def clear_correlation_context():
     """Limpa contexto de correlação da thread atual."""
-    if hasattr(_correlation_context, 'context'):
-        delattr(_correlation_context, 'context')
+    if hasattr(_correlation_context, "context"):
+        delattr(_correlation_context, "context")
     logger.debug("Contexto de correlação limpo")
 
 
@@ -296,15 +296,15 @@ def extract_correlation_from_request(request: Any) -> CorrelationContext:
     headers = {}
 
     # Tentar extrair headers de diferentes frameworks
-    if hasattr(request, 'headers'):
+    if hasattr(request, "headers"):
         # Flask/FastAPI style
         headers = dict(request.headers)
-    elif hasattr(request, 'META'):
+    elif hasattr(request, "META"):
         # Django style
         headers = {
-            key.replace('HTTP_', '').replace('_', '-').lower(): value
+            key.replace("HTTP_", "").replace("_", "-").lower(): value
             for key, value in request.META.items()
-            if key.startswith('HTTP_')
+            if key.startswith("HTTP_")
         }
 
     # Normalizar nomes dos headers (case-insensitive)
@@ -321,7 +321,9 @@ def extract_correlation_from_request(request: Any) -> CorrelationContext:
     return context
 
 
-def inject_correlation_into_request(headers: Dict[str, str], context: Optional[CorrelationContext] = None) -> Dict[str, str]:
+def inject_correlation_into_request(
+    headers: Dict[str, str], context: Optional[CorrelationContext] = None
+) -> Dict[str, str]:
     """
     Injeta correlação em headers de request.
 

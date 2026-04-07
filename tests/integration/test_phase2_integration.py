@@ -46,6 +46,7 @@ SERVICE_LABEL_KEY = os.getenv("SERVICE_LABEL_KEY", "app")
 @dataclass
 class ServiceStatus:
     """Status de um servico"""
+
     name: str
     ready: bool
     pod_count: int
@@ -65,12 +66,7 @@ def run_kubectl(args: List[str]) -> Dict[str, Any]:
     """
     try:
         cmd = ["kubectl"] + args
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=30
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 
         if result.returncode != 0:
             return {"error": result.stderr, "items": []}
@@ -98,19 +94,13 @@ def get_service_status(service: str) -> ServiceStatus:
     Returns:
         ServiceStatus com informacoes do servico
     """
-    result = run_kubectl([
-        "get", "pods", "-n", NAMESPACE,
-        "-l", f"{SERVICE_LABEL_KEY}={service}",
-        "-o", "json"
-    ])
+    result = run_kubectl(
+        ["get", "pods", "-n", NAMESPACE, "-l", f"{SERVICE_LABEL_KEY}={service}", "-o", "json"]
+    )
 
     if "error" in result and result.get("items") is None:
         return ServiceStatus(
-            name=service,
-            ready=False,
-            pod_count=0,
-            ready_count=0,
-            error=result.get("error")
+            name=service, ready=False, pod_count=0, ready_count=0, error=result.get("error")
         )
 
     items = result.get("items", [])
@@ -118,11 +108,7 @@ def get_service_status(service: str) -> ServiceStatus:
 
     if pod_count == 0:
         return ServiceStatus(
-            name=service,
-            ready=False,
-            pod_count=0,
-            ready_count=0,
-            error="Nenhum pod encontrado"
+            name=service, ready=False, pod_count=0, ready_count=0, error="Nenhum pod encontrado"
         )
 
     ready_count = 0
@@ -132,10 +118,7 @@ def get_service_status(service: str) -> ServiceStatus:
             ready_count += 1
 
     return ServiceStatus(
-        name=service,
-        ready=ready_count == pod_count,
-        pod_count=pod_count,
-        ready_count=ready_count
+        name=service, ready=ready_count == pod_count, pod_count=pod_count, ready_count=ready_count
     )
 
 
@@ -151,30 +134,44 @@ def check_http_endpoint(service: str, endpoint: str = "/health") -> Dict[str, An
         Dict com status e codigo HTTP
     """
     # Obter nome do pod
-    result = run_kubectl([
-        "get", "pods", "-n", NAMESPACE,
-        "-l", f"{SERVICE_LABEL_KEY}={service}",
-        "-o", "jsonpath={.items[0].metadata.name}"
-    ])
+    result = run_kubectl(
+        [
+            "get",
+            "pods",
+            "-n",
+            NAMESPACE,
+            "-l",
+            f"{SERVICE_LABEL_KEY}={service}",
+            "-o",
+            "jsonpath={.items[0].metadata.name}",
+        ]
+    )
 
     pod_name = result.get("output", "").strip()
     if not pod_name:
         return {"success": False, "error": "Pod nao encontrado"}
 
     # Executar curl no pod
-    curl_result = run_kubectl([
-        "exec", "-n", NAMESPACE, pod_name, "--",
-        "curl", "-s", "-o", "/dev/null", "-w", "%{http_code}",
-        f"http://localhost:8000{endpoint}"
-    ])
+    curl_result = run_kubectl(
+        [
+            "exec",
+            "-n",
+            NAMESPACE,
+            pod_name,
+            "--",
+            "curl",
+            "-s",
+            "-o",
+            "/dev/null",
+            "-w",
+            "%{http_code}",
+            f"http://localhost:8000{endpoint}",
+        ]
+    )
 
     http_code = curl_result.get("output", "000").strip()
 
-    return {
-        "success": http_code == "200",
-        "http_code": http_code,
-        "pod": pod_name
-    }
+    return {"success": http_code == "200", "http_code": http_code, "pod": pod_name}
 
 
 def check_grpc_port(service: str, port: int = 50051) -> Dict[str, Any]:
@@ -188,29 +185,40 @@ def check_grpc_port(service: str, port: int = 50051) -> Dict[str, Any]:
     Returns:
         Dict com status da porta
     """
-    result = run_kubectl([
-        "get", "pods", "-n", NAMESPACE,
-        "-l", f"{SERVICE_LABEL_KEY}={service}",
-        "-o", "jsonpath={.items[0].metadata.name}"
-    ])
+    result = run_kubectl(
+        [
+            "get",
+            "pods",
+            "-n",
+            NAMESPACE,
+            "-l",
+            f"{SERVICE_LABEL_KEY}={service}",
+            "-o",
+            "jsonpath={.items[0].metadata.name}",
+        ]
+    )
 
     pod_name = result.get("output", "").strip()
     if not pod_name:
         return {"success": False, "error": "Pod nao encontrado"}
 
     # Verificar porta
-    port_result = run_kubectl([
-        "exec", "-n", NAMESPACE, pod_name, "--",
-        "sh", "-c", f"ss -tlnp 2>/dev/null | grep :{port} || echo ''"
-    ])
+    port_result = run_kubectl(
+        [
+            "exec",
+            "-n",
+            NAMESPACE,
+            pod_name,
+            "--",
+            "sh",
+            "-c",
+            f"ss -tlnp 2>/dev/null | grep :{port} || echo ''",
+        ]
+    )
 
     port_open = bool(port_result.get("output", "").strip())
 
-    return {
-        "success": port_open,
-        "port": port,
-        "pod": pod_name
-    }
+    return {"success": port_open, "port": port, "pod": pod_name}
 
 
 # ==================== TESTES ====================
@@ -229,7 +237,9 @@ class TestPhase2PodStatus:
     def test_pod_ready(self, service: str):
         """Verifica se pod do servico esta pronto"""
         status = get_service_status(service)
-        assert status.ready, f"{service}: Pod nao esta pronto ({status.ready_count}/{status.pod_count})"
+        assert (
+            status.ready
+        ), f"{service}: Pod nao esta pronto ({status.ready_count}/{status.pod_count})"
 
 
 class TestPhase2HTTPEndpoints:
@@ -239,13 +249,17 @@ class TestPhase2HTTPEndpoints:
     def test_health_endpoint(self, service: str):
         """Verifica endpoint /health (liveness)"""
         result = check_http_endpoint(service, "/health")
-        assert result["success"], f"{service}: /health falhou (HTTP {result.get('http_code', 'N/A')})"
+        assert result[
+            "success"
+        ], f"{service}: /health falhou (HTTP {result.get('http_code', 'N/A')})"
 
     @pytest.mark.parametrize("service", PHASE2_SERVICES)
     def test_ready_endpoint(self, service: str):
         """Verifica endpoint /ready (readiness)"""
         result = check_http_endpoint(service, "/ready")
-        assert result["success"], f"{service}: /ready falhou (HTTP {result.get('http_code', 'N/A')})"
+        assert result[
+            "success"
+        ], f"{service}: /ready falhou (HTTP {result.get('http_code', 'N/A')})"
 
     @pytest.mark.parametrize("service", PHASE2_SERVICES)
     def test_metrics_endpoint(self, service: str):
@@ -273,9 +287,7 @@ class TestPhase2GRPCServices:
             pytest.skip("Script de validacao gRPC nao encontrado")
 
         result = subprocess.run(
-            ["python3", script_path, "--quiet"],
-            capture_output=True,
-            timeout=120
+            ["python3", script_path, "--quiet"], capture_output=True, timeout=120
         )
 
         # Se retornou 0, passou
@@ -300,7 +312,7 @@ class TestPhase2GRPCServices:
         result = subprocess.run(
             ["python3", script_path, "--quiet", "--service", service],
             capture_output=True,
-            timeout=60
+            timeout=60,
         )
 
         if result.returncode != 0:
@@ -324,9 +336,7 @@ class TestPhase2DatabaseConnectivity:
             pytest.skip("Script de validacao de banco de dados nao encontrado")
 
         result = subprocess.run(
-            ["python3", script_path, "--quiet"],
-            capture_output=True,
-            timeout=60
+            ["python3", script_path, "--quiet"], capture_output=True, timeout=60
         )
 
         # Se retornou 0, passou
@@ -348,11 +358,7 @@ class TestPhase2KafkaConsumers:
         if not os.path.exists(script_path):
             pytest.skip("Script de validacao de Kafka nao encontrado")
 
-        result = subprocess.run(
-            ["bash", script_path, "--quiet"],
-            capture_output=True,
-            timeout=120
-        )
+        result = subprocess.run(["bash", script_path, "--quiet"], capture_output=True, timeout=120)
 
         if result.returncode != 0:
             stderr = result.stderr.decode() if result.stderr else ""
@@ -427,11 +433,7 @@ class TestPhase2AllServicesHealthy:
 def kubectl_available():
     """Verifica se kubectl esta disponivel"""
     try:
-        result = subprocess.run(
-            ["kubectl", "cluster-info"],
-            capture_output=True,
-            timeout=10
-        )
+        result = subprocess.run(["kubectl", "cluster-info"], capture_output=True, timeout=10)
         return result.returncode == 0
     except Exception:
         return False

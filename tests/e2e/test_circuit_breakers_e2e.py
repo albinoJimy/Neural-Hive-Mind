@@ -48,7 +48,9 @@ CIRCUIT_BREAKER_RECOVERY_TIMEOUT = 30  # segundos
 # ============================================
 
 
-def _start_port_forward(namespace: str, service: str, local_port: int, remote_port: int) -> subprocess.Popen:
+def _start_port_forward(
+    namespace: str, service: str, local_port: int, remote_port: int
+) -> subprocess.Popen:
     """
     Inicia port-forward para um servico.
 
@@ -62,7 +64,8 @@ def _start_port_forward(namespace: str, service: str, local_port: int, remote_po
         Processo do port-forward
     """
     cmd = [
-        "kubectl", "port-forward",
+        "kubectl",
+        "port-forward",
         f"-n{namespace}",
         f"svc/{service}",
         f"{local_port}:{remote_port}",
@@ -336,7 +339,7 @@ async def test_mongodb_circuit_breaker_opens_on_failures(
                     "ticket_id": ticket_id,
                     "plan_id": f"plan-cb-{uuid.uuid4().hex[:8]}",
                     "task_type": "code_generation",
-                }
+                },
             )
             elapsed = time.time() - start_time
             request_times.append(elapsed)
@@ -385,16 +388,18 @@ async def test_mongodb_circuit_breaker_opens_on_failures(
                     "ticket_id": ticket_id,
                     "plan_id": f"plan-failfast-{uuid.uuid4().hex[:8]}",
                     "task_type": "code_generation",
-                }
+                },
             )
             elapsed = time.time() - start_time
             fail_fast_times.append(elapsed)
 
             # Com circuit open, requests devem falhar rapidamente (fail-fast)
             # ou retornar erro 503 Service Unavailable
-            assert response.status_code in [503, 500, 429], (
-                f"With circuit breaker open, expected 503/500/429, got {response.status_code}"
-            )
+            assert response.status_code in [
+                503,
+                500,
+                429,
+            ], f"With circuit breaker open, expected 503/500/429, got {response.status_code}"
         except Exception as e:
             elapsed = time.time() - start_time
             fail_fast_times.append(elapsed)
@@ -404,9 +409,9 @@ async def test_mongodb_circuit_breaker_opens_on_failures(
     if fail_fast_times:
         avg_fail_fast_time = sum(fail_fast_times) / len(fail_fast_times)
         logger.info(f"Average fail-fast time: {avg_fail_fast_time:.3f}s")
-        assert avg_fail_fast_time < 1.0, (
-            f"Fail-fast should be quick (<1s), but averaged {avg_fail_fast_time:.3f}s"
-        )
+        assert (
+            avg_fail_fast_time < 1.0
+        ), f"Fail-fast should be quick (<1s), but averaged {avg_fail_fast_time:.3f}s"
 
 
 @pytest.mark.e2e
@@ -439,8 +444,10 @@ async def test_mongodb_circuit_breaker_half_open_recovery(
         pytest.skip("Circuit breaker not in open state, skipping recovery test")
 
     # Pegar transicoes iniciais para verificar depois
-    initial_transitions_to_half_open = await circuit_breaker_validator.get_circuit_breaker_transitions(
-        circuit_name, "open", "half_open"
+    initial_transitions_to_half_open = (
+        await circuit_breaker_validator.get_circuit_breaker_transitions(
+            circuit_name, "open", "half_open"
+        )
     )
 
     # Aguardar recovery timeout
@@ -473,14 +480,15 @@ async def test_mongodb_circuit_breaker_half_open_recovery(
             "ticket_id": f"cb-recovery-{uuid.uuid4().hex[:8]}",
             "plan_id": f"plan-recovery-{uuid.uuid4().hex[:8]}",
             "task_type": "code_generation",
-        }
+        },
     )
     logger.info(f"Recovery request status: {response.status_code}")
 
     # Asserção: requisicao deve ter sucesso para fechar o circuit
-    assert response.status_code in [200, 201], (
-        f"Recovery request should succeed to close circuit, but got {response.status_code}"
-    )
+    assert response.status_code in [
+        200,
+        201,
+    ], f"Recovery request should succeed to close circuit, but got {response.status_code}"
 
     # Aguardar metricas atualizarem
     await asyncio.sleep(2)
@@ -499,9 +507,9 @@ async def test_mongodb_circuit_breaker_half_open_recovery(
     transitions_to_closed = await circuit_breaker_validator.get_circuit_breaker_transitions(
         circuit_name, "half_open", "closed"
     )
-    assert transitions_to_closed > 0, (
-        f"Expected half_open->closed transition to be recorded, but count is {transitions_to_closed}"
-    )
+    assert (
+        transitions_to_closed > 0
+    ), f"Expected half_open->closed transition to be recorded, but count is {transitions_to_closed}"
 
 
 # ============================================
@@ -543,7 +551,7 @@ async def test_opa_circuit_breaker_opens_on_failures(
                     "plan_id": f"plan-opa-{uuid.uuid4().hex[:8]}",
                     "task_type": "code_generation",
                     "risk_band": "medium",
-                }
+                },
             )
             responses.append(response.status_code)
             await asyncio.sleep(0.5)
@@ -590,7 +598,7 @@ async def test_opa_circuit_breaker_fail_closed_behavior(
             "plan_id": f"plan-fail-closed-{uuid.uuid4().hex[:8]}",
             "task_type": "code_generation",
             "risk_band": "high",  # Alto risco pode exigir validacao OPA
-        }
+        },
     )
 
     logger.info(f"Fail-closed test response: {response.status_code}")
@@ -644,7 +652,7 @@ async def test_service_registry_circuit_breaker_opens(
                     "ticket_id": f"ticket-sr-{uuid.uuid4().hex[:8]}",
                     "task_type": "code_generation",
                     "capabilities": ["python"],
-                }
+                },
             )
             responses.append(response.status_code)
 
@@ -704,8 +712,7 @@ async def test_cache_serves_during_circuit_breaker_open(
 
     # Fazer discovery para popular cache
     response = await orchestrator_client.get(
-        "/api/v1/agents/discover",
-        params={"capabilities": "python", "namespace": "default"}
+        "/api/v1/agents/discover", params={"capabilities": "python", "namespace": "default"}
     )
 
     if response.status_code != 200:
@@ -714,7 +721,9 @@ async def test_cache_serves_during_circuit_breaker_open(
 
     # Guardar dados originais para comparacao
     original_data = response.json()
-    original_agents = original_data if isinstance(original_data, list) else original_data.get("agents", [])
+    original_agents = (
+        original_data if isinstance(original_data, list) else original_data.get("agents", [])
+    )
     logger.info(f"Cache populated with {len(original_agents)} agents")
 
     # Matar port-forward para simular Service Registry indisponivel
@@ -726,8 +735,7 @@ async def test_cache_serves_during_circuit_breaker_open(
 
     # Fazer discovery novamente (deve usar cache)
     response = await orchestrator_client.get(
-        "/api/v1/agents/discover",
-        params={"capabilities": "python", "namespace": "default"}
+        "/api/v1/agents/discover", params={"capabilities": "python", "namespace": "default"}
     )
 
     logger.info(f"Discovery after Service Registry down: {response.status_code}")
@@ -748,8 +756,12 @@ async def test_cache_serves_during_circuit_breaker_open(
     # Verificar que os dados correspondem aos originais
     if original_agents:
         # Verificar que pelo menos os mesmos agent_ids estao presentes
-        original_ids = {a.get("agent_id") or a.get("id") for a in original_agents if isinstance(a, dict)}
-        cached_ids = {a.get("agent_id") or a.get("id") for a in cached_agents if isinstance(a, dict)}
+        original_ids = {
+            a.get("agent_id") or a.get("id") for a in original_agents if isinstance(a, dict)
+        }
+        cached_ids = {
+            a.get("agent_id") or a.get("id") for a in cached_agents if isinstance(a, dict)
+        }
         if original_ids and cached_ids:
             assert original_ids == cached_ids, (
                 f"Cached agents should match original agents. "

@@ -15,6 +15,7 @@ from typing import Dict, Any, List
 # Test: Approval Service Core
 # =============================================================================
 
+
 class TestApprovalService:
     """Testes do serviço de aprovação."""
 
@@ -27,7 +28,7 @@ class TestApprovalService:
             "approved": True,
             "approver": "admin",
             "reasoning": "Cumpre todos os requisitos",
-            "approved_at": datetime.now(timezone.utc).isoformat()
+            "approved_at": datetime.now(timezone.utc).isoformat(),
         }
 
         assert approval_data["approved"] is True
@@ -42,7 +43,7 @@ class TestApprovalService:
             "approved": False,
             "approver": "admin",
             "reasoning": "Riscos de segurança não mitigados",
-            "rejected_at": datetime.now(timezone.utc).isoformat()
+            "rejected_at": datetime.now(timezone.utc).isoformat(),
         }
 
         assert rejection_data["approved"] is False
@@ -57,7 +58,7 @@ class TestApprovalService:
             "approved": None,  # Deferred
             "status": "pending_review",
             "reasoning": "Requer análise adicional",
-            "deferred_at": datetime.now(timezone.utc).isoformat()
+            "deferred_at": datetime.now(timezone.utc).isoformat(),
         }
 
         assert defer_data["approved"] is None
@@ -67,6 +68,7 @@ class TestApprovalService:
 # =============================================================================
 # Test: Approval Request Processing
 # =============================================================================
+
 
 class TestApprovalRequestProcessing:
     """Testes de processamento de requisições de aprovação."""
@@ -78,16 +80,13 @@ class TestApprovalRequestProcessing:
             "plan_id": str(uuid4()),
             "intent_id": str(uuid4()),
             "risk_band": "high",
-            "consolidated_decision": {
-                "final_decision": "approve",
-                "confidence": 0.75
-            }
+            "consolidated_decision": {"final_decision": "approve", "confidence": 0.75},
         }
 
         # Regra: alta risco com confiança < 0.8 requer aprovação manual
         requires_manual = (
-            request["risk_band"] in ["high", "critical"] and
-            request["consolidated_decision"]["confidence"] < 0.8
+            request["risk_band"] in ["high", "critical"]
+            and request["consolidated_decision"]["confidence"] < 0.8
         )
 
         assert requires_manual is True
@@ -98,16 +97,12 @@ class TestApprovalRequestProcessing:
         request = {
             "plan_id": str(uuid4()),
             "risk_band": "low",
-            "consolidated_decision": {
-                "final_decision": "approve",
-                "confidence": 0.7
-            }
+            "consolidated_decision": {"final_decision": "approve", "confidence": 0.7},
         }
 
         # Regra: baixo risco pode ser auto-aprovado
         can_auto_approve = (
-            request["risk_band"] == "low" and
-            request["consolidated_decision"]["confidence"] > 0.5
+            request["risk_band"] == "low" and request["consolidated_decision"]["confidence"] > 0.5
         )
 
         assert can_auto_approve is True
@@ -118,10 +113,7 @@ class TestApprovalRequestProcessing:
         request = {
             "plan_id": str(uuid4()),
             "risk_band": "medium",
-            "consolidated_decision": {
-                "final_decision": "approve",
-                "confidence": 0.3
-            }
+            "consolidated_decision": {"final_decision": "approve", "confidence": 0.3},
         }
 
         # Regra: confiança muito baixa é auto-rejeitada
@@ -134,6 +126,7 @@ class TestApprovalRequestProcessing:
 # Test: Approval Queue Management
 # =============================================================================
 
+
 class TestApprovalQueue:
     """Testes de fila de aprovação."""
 
@@ -145,7 +138,7 @@ class TestApprovalQueue:
             "request_id": str(uuid4()),
             "plan_id": str(uuid4()),
             "priority": "high",
-            "enqueued_at": datetime.now(timezone.utc).isoformat()
+            "enqueued_at": datetime.now(timezone.utc).isoformat(),
         }
 
         queue.append(request)
@@ -159,7 +152,7 @@ class TestApprovalQueue:
         queue = [
             {"request_id": "1", "priority": "medium"},
             {"request_id": "2", "priority": "high"},
-            {"request_id": "3", "priority": "low"}
+            {"request_id": "3", "priority": "low"},
         ]
 
         priority_order = {"high": 0, "medium": 1, "low": 2}
@@ -171,11 +164,7 @@ class TestApprovalQueue:
     @pytest.mark.asyncio
     async def test_claim_approval_request(self):
         """Deve permitir claim de requisição."""
-        request = {
-            "request_id": str(uuid4()),
-            "status": "pending",
-            "claimed_by": None
-        }
+        request = {"request_id": str(uuid4()), "status": "pending", "claimed_by": None}
 
         # Claim requisição
         request["status"] = "claimed"
@@ -190,6 +179,7 @@ class TestApprovalQueue:
 # Test: Feedback Collection
 # =============================================================================
 
+
 class TestFeedbackCollection:
     """Testes de coleta de feedback."""
 
@@ -200,12 +190,8 @@ class TestFeedbackCollection:
             "plan_id": str(uuid4()),
             "decision": "approve",
             "approver": "admin",
-            "feedback": {
-                "correct": True,
-                "quality": "high",
-                "suggestions": None
-            },
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "feedback": {"correct": True, "quality": "high", "suggestions": None},
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         assert feedback["decision"] == "approve"
@@ -221,9 +207,9 @@ class TestFeedbackCollection:
             "feedback": {
                 "correct": True,
                 "reason": "Riscos de segurança identificados",
-                "suggestions": ["Adicionar validação de entrada", "Limitar permissões"]
+                "suggestions": ["Adicionar validação de entrada", "Limitar permissões"],
             },
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         assert feedback["decision"] == "reject"
@@ -239,9 +225,9 @@ class TestFeedbackCollection:
             "feedback": {
                 "correct": False,  # Decisão estava errada
                 "actual_outcome": "failed",
-                "reason": "O plano falhou em produção"
+                "reason": "O plano falhou em produção",
             },
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         assert feedback["feedback"]["correct"] is False
@@ -251,6 +237,7 @@ class TestFeedbackCollection:
 # =============================================================================
 # Test: Approval Metrics
 # =============================================================================
+
 
 class TestApprovalMetrics:
     """Testes de métricas de aprovação."""
@@ -263,7 +250,7 @@ class TestApprovalMetrics:
             {"approved": True},
             {"approved": False},
             {"approved": True},
-            {"approved": False}
+            {"approved": False},
         ]
 
         total = len(decisions)
@@ -279,7 +266,7 @@ class TestApprovalMetrics:
             300,  # 5 minutos
             600,  # 10 minutos
             450,  # 7.5 minutos
-            900   # 15 minutos
+            900,  # 15 minutos
         ]
 
         avg_time = sum(approval_times) / len(approval_times)
@@ -294,7 +281,7 @@ class TestApprovalMetrics:
             {"status": "deferred"},
             {"status": "rejected"},
             {"status": "deferred"},
-            {"status": "approved"}
+            {"status": "approved"},
         ]
 
         total = len(decisions)
@@ -308,6 +295,7 @@ class TestApprovalMetrics:
 # Test: Notification Handling
 # =============================================================================
 
+
 class TestNotificationHandling:
     """Testes de handle de notificações."""
 
@@ -320,9 +308,9 @@ class TestNotificationHandling:
             "request": {
                 "plan_id": str(uuid4()),
                 "risk_band": "high",
-                "url": f"/approvals/{uuid4()}"
+                "url": f"/approvals/{uuid4()}",
             },
-            "sent_at": datetime.now(timezone.utc).isoformat()
+            "sent_at": datetime.now(timezone.utc).isoformat(),
         }
 
         assert notification["type"] == "approval_required"
@@ -334,11 +322,8 @@ class TestNotificationHandling:
         notification = {
             "type": "decision_made",
             "recipient": "requester@neural-hive.com",
-            "decision": {
-                "approved": True,
-                "reasoning": "Plano aprovado após revisão"
-            },
-            "sent_at": datetime.now(timezone.utc).isoformat()
+            "decision": {"approved": True, "reasoning": "Plano aprovado após revisão"},
+            "sent_at": datetime.now(timezone.utc).isoformat(),
         }
 
         assert notification["type"] == "decision_made"
@@ -348,6 +333,7 @@ class TestNotificationHandling:
 # =============================================================================
 # Test: Approval History
 # =============================================================================
+
 
 class TestApprovalHistory:
     """Testes de histórico de aprovações."""
@@ -360,14 +346,14 @@ class TestApprovalHistory:
                 "decision_id": str(uuid4()),
                 "approved": True,
                 "approver": "admin",
-                "timestamp": (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+                "timestamp": (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat(),
             },
             {
                 "decision_id": str(uuid4()),
                 "approved": False,
                 "approver": "admin",
-                "timestamp": (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
-            }
+                "timestamp": (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat(),
+            },
         ]
 
         assert len(history) == 2
@@ -381,15 +367,12 @@ class TestApprovalHistory:
         history = [
             {"timestamp": (now - timedelta(days=2)).isoformat()},
             {"timestamp": (now - timedelta(days=1)).isoformat()},
-            {"timestamp": now.isoformat()}
+            {"timestamp": now.isoformat()},
         ]
 
         start_date = (now - timedelta(days=1)).isoformat()
 
-        filtered = [
-            h for h in history
-            if h["timestamp"] >= start_date
-        ]
+        filtered = [h for h in history if h["timestamp"] >= start_date]
 
         assert len(filtered) == 2
 
@@ -397,6 +380,7 @@ class TestApprovalHistory:
 # =============================================================================
 # Test: Bulk Approval Operations
 # =============================================================================
+
 
 class TestBulkApprovalOperations:
     """Testes de operações em lote."""
@@ -407,7 +391,7 @@ class TestBulkApprovalOperations:
         requests = [
             {"request_id": str(uuid4()), "approved": None},
             {"request_id": str(uuid4()), "approved": None},
-            {"request_id": str(uuid4()), "approved": None}
+            {"request_id": str(uuid4()), "approved": None},
         ]
 
         # Aprovar todas
@@ -423,7 +407,7 @@ class TestBulkApprovalOperations:
         requests = [
             {"request_id": "1", "risk_band": "low", "approved": None},
             {"request_id": "2", "risk_band": "medium", "approved": None},
-            {"request_id": "3", "risk_band": "low", "approved": None}
+            {"request_id": "3", "risk_band": "low", "approved": None},
         ]
 
         # Aprovar apenas low risk

@@ -15,6 +15,7 @@ import asyncio
 # Test: Signal Detection
 # =============================================================================
 
+
 class TestSignalDetection:
     """Testes de detecção de sinais."""
 
@@ -38,7 +39,13 @@ class TestSignalDetection:
         recent_values = [1, 2, 3, 4, 10]  # Padrão quebrou
 
         # Detectar mudança via desvio padrão
-        historical_std = (sum((x - sum(historical_pattern) / len(historical_pattern)) ** 2 for x in historical_pattern) / len(historical_pattern)) ** 0.5
+        historical_std = (
+            sum(
+                (x - sum(historical_pattern) / len(historical_pattern)) ** 2
+                for x in historical_pattern
+            )
+            / len(historical_pattern)
+        ) ** 0.5
         recent_mean = sum(recent_values) / len(recent_values)
         recent_deviation = abs(recent_values[-1] - historical_pattern[-1])
 
@@ -54,7 +61,7 @@ class TestSignalDetection:
             "type": "metric_spike",
             "severity": "warning",
             "value": 85.5,
-            "threshold": 70
+            "threshold": 70,
         }
 
         classification = "warning" if signal["value"] > signal["threshold"] else "normal"
@@ -66,16 +73,14 @@ class TestSignalDetection:
 # Test: Exploration Engine
 # =============================================================================
 
+
 class TestExplorationEngine:
     """Testes do motor de exploração."""
 
     @pytest.mark.asyncio
     async def test_explore_unknown_territory(self):
         """Deve explorar território desconhecido."""
-        knowledge_graph = {
-            "known_nodes": ["A", "B", "C"],
-            "connections": {"A": ["B"], "B": ["C"]}
-        }
+        knowledge_graph = {"known_nodes": ["A", "B", "C"], "connections": {"A": ["B"], "B": ["C"]}}
 
         unknown = "D"
         is_known = unknown in knowledge_graph["known_nodes"]
@@ -93,7 +98,7 @@ class TestExplorationEngine:
         new_discovery = {
             "entity": "service-X",
             "type": "microservice",
-            "endpoints": ["/api/v1/data"]
+            "endpoints": ["/api/v1/data"],
         }
 
         knowledge["entities"][new_discovery["entity"]] = new_discovery
@@ -107,11 +112,13 @@ class TestExplorationEngine:
         candidates = [
             {"id": "A", "potential_impact": 0.9, "effort": 5},
             {"id": "B", "potential_impact": 0.5, "effort": 2},
-            {"id": "C", "potential_impact": 0.7, "effort": 10}
+            {"id": "C", "potential_impact": 0.7, "effort": 10},
         ]
 
         # Priorizar por impacto/esforço
-        prioritized = sorted(candidates, key=lambda x: x["potential_impact"] / x["effort"], reverse=True)
+        prioritized = sorted(
+            candidates, key=lambda x: x["potential_impact"] / x["effort"], reverse=True
+        )
 
         assert prioritized[0]["id"] == "B"  # 0.25 (0.5/2) - maior ratio impacto/esforço
 
@@ -119,6 +126,7 @@ class TestExplorationEngine:
 # =============================================================================
 # Test: Source Registration
 # =============================================================================
+
 
 class TestSourceRegistration:
     """Testes de registro de fontes de dados."""
@@ -132,7 +140,7 @@ class TestSourceRegistration:
             "id": str(uuid4()),
             "type": "kafka",
             "topic": "events",
-            "config": {"bootstrap_servers": "localhost:9092"}
+            "config": {"bootstrap_servers": "localhost:9092"},
         }
 
         sources[source_config["id"]] = source_config
@@ -146,14 +154,14 @@ class TestSourceRegistration:
         source = {
             "type": "database",
             "connection_string": "mongodb://localhost:27017",
-            "collection": "events"
+            "collection": "events",
         }
 
         # Validação básica
         is_valid = (
-            "type" in source and
-            "connection_string" in source and
-            source["connection_string"].startswith("mongodb://")
+            "type" in source
+            and "connection_string" in source
+            and source["connection_string"].startswith("mongodb://")
         )
 
         assert is_valid is True
@@ -163,7 +171,7 @@ class TestSourceRegistration:
         """Deve remover registro de fonte."""
         sources = {
             "source-1": {"type": "kafka", "active": True},
-            "source-2": {"type": "postgres", "active": True}
+            "source-2": {"type": "postgres", "active": True},
         }
 
         source_id = "source-1"
@@ -178,6 +186,7 @@ class TestSourceRegistration:
 # Test: Data Collection
 # =============================================================================
 
+
 class TestDataCollection:
     """Testes de coleta de dados."""
 
@@ -185,12 +194,11 @@ class TestDataCollection:
     async def test_collect_from_kafka(self):
         """Deve coletar dados do Kafka."""
         mock_consumer = AsyncMock()
-        mock_consumer.poll = AsyncMock(return_value=MagicMock(
-            value=b'{"event": "data"}',
-            topic="events",
-            partition=0,
-            offset=100
-        ))
+        mock_consumer.poll = AsyncMock(
+            return_value=MagicMock(
+                value=b'{"event": "data"}', topic="events", partition=0, offset=100
+            )
+        )
 
         message = await mock_consumer.poll(timeout_ms=1000)
 
@@ -201,10 +209,9 @@ class TestDataCollection:
     async def test_collect_from_database(self):
         """Deve coletar dados do banco."""
         mock_db = AsyncMock()
-        mock_db.find = AsyncMock(return_value=[
-            {"id": 1, "name": "item1"},
-            {"id": 2, "name": "item2"}
-        ])
+        mock_db.find = AsyncMock(
+            return_value=[{"id": 1, "name": "item1"}, {"id": 2, "name": "item2"}]
+        )
 
         results = await mock_db.find("collection", {})
 
@@ -225,6 +232,7 @@ class TestDataCollection:
 # Test: Pattern Recognition
 # =============================================================================
 
+
 class TestPatternRecognition:
     """Testes de reconhecimento de padrões."""
 
@@ -234,11 +242,12 @@ class TestPatternRecognition:
         events = [
             {"timestamp": "T00:00", "event": "backup"},
             {"timestamp": "T01:00", "event": "backup"},
-            {"timestamp": "T02:00", "event": "backup"}
+            {"timestamp": "T02:00", "event": "backup"},
         ]
 
         # Agrupar por tipo de evento
         from collections import Counter
+
         event_counts = Counter(e["event"] for e in events)
 
         assert event_counts["backup"] == 3
@@ -254,11 +263,14 @@ class TestPatternRecognition:
             "thursday": 100,
             "friday": 50,  # Queda menor na sexta
             "saturday": 30,
-            "sunday": 25
+            "sunday": 25,
         }
 
         # Identificar padrão: dias úteis maiores que fim de semana
-        weekday_avg = sum(daily_values[k] for k in ["monday", "tuesday", "wednesday", "thursday", "friday"]) / 5
+        weekday_avg = (
+            sum(daily_values[k] for k in ["monday", "tuesday", "wednesday", "thursday", "friday"])
+            / 5
+        )
         weekend_avg = sum(daily_values[k] for k in ["saturday", "sunday"]) / 2
 
         is_seasonal = weekday_avg > weekend_avg * 2
@@ -270,6 +282,7 @@ class TestPatternRecognition:
 # Test: Anomaly Scoring
 # =============================================================================
 
+
 class TestAnomalyScoring:
     """Testes de pontuação de anomalias."""
 
@@ -280,16 +293,16 @@ class TestAnomalyScoring:
             "deviation_from_mean": 3.5,
             "rarity": 0.1,  # 10% das ocorrências
             "impact": 0.8,
-            "duration_minutes": 15
+            "duration_minutes": 15,
         }
 
         # Score ponderado
         # Score normalizado entre 0 e 1
         score = (
-            min(anomaly_features["deviation_from_mean"] / 5, 1) * 0.3 +
-            (1 - anomaly_features["rarity"]) * 0.3 +
-            anomaly_features["impact"] * 0.2 +
-            min(anomaly_features["duration_minutes"] / 60, 1) * 0.2
+            min(anomaly_features["deviation_from_mean"] / 5, 1) * 0.3
+            + (1 - anomaly_features["rarity"]) * 0.3
+            + anomaly_features["impact"] * 0.2
+            + min(anomaly_features["duration_minutes"] / 60, 1) * 0.2
         )
 
         assert 0 <= score <= 1
@@ -316,6 +329,7 @@ class TestAnomalyScoring:
 # Test: Alert Generation
 # =============================================================================
 
+
 class TestAlertGeneration:
     """Testes de geração de alertas."""
 
@@ -326,10 +340,7 @@ class TestAlertGeneration:
         threshold = 70
         alert_config = {"enabled": True}
 
-        should_alert = (
-            alert_config["enabled"] and
-            metric_value > threshold
-        )
+        should_alert = alert_config["enabled"] and metric_value > threshold
 
         assert should_alert is True
 
@@ -343,11 +354,7 @@ class TestAlertGeneration:
             "description": "Unusual traffic spike",
             "affected_services": ["api-gateway"],
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "metadata": {
-                "metric": "requests_per_second",
-                "value": 150,
-                "threshold": 100
-            }
+            "metadata": {"metric": "requests_per_second", "value": 150, "threshold": 100},
         }
 
         assert alert["severity"] == "high"
@@ -358,6 +365,7 @@ class TestAlertGeneration:
 # =============================================================================
 # Test: Scout Coordination
 # =============================================================================
+
 
 class TestScoutCoordination:
     """Testes de coordenação de scouts."""
@@ -385,7 +393,7 @@ class TestScoutCoordination:
         scout_results = {
             "scout-1": ["region-A", "region-B"],
             "scout-2": ["region-C"],
-            "scout-3": ["region-D", "region-E"]
+            "scout-3": ["region-D", "region-E"],
         }
 
         # Agregar todos os resultados
@@ -402,6 +410,7 @@ class TestScoutCoordination:
 # Test: Discovery History
 # =============================================================================
 
+
 class TestDiscoveryHistory:
     """Testes de histórico de descobertas."""
 
@@ -413,12 +422,12 @@ class TestDiscoveryHistory:
         discovery_1 = {
             "timestamp": (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat(),
             "entity": "service-X",
-            "state": "discovered"
+            "state": "discovered",
         }
         discovery_2 = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "entity": "service-Y",
-            "state": "discovered"
+            "state": "discovered",
         }
 
         history.append(discovery_1)
@@ -432,14 +441,14 @@ class TestDiscoveryHistory:
         """Deve mesclar descobertas duplicadas."""
         discoveries = [
             {"entity": "service-A", "discovered_at": "T10:00", "features": ["f1", "f2"]},
-            {"entity": "service-A", "discovered_at": "T11:00", "features": ["f3"]}
+            {"entity": "service-A", "discovered_at": "T11:00", "features": ["f3"]},
         ]
 
         # Mesclar - manter mais recente
         merged = {
             "entity": discoveries[0]["entity"],
             "features": discoveries[0]["features"] + discoveries[1]["features"],
-            "last_seen": discoveries[1]["discovered_at"]
+            "last_seen": discoveries[1]["discovered_at"],
         }
 
         assert len(merged["features"]) == 3
@@ -450,6 +459,7 @@ class TestDiscoveryHistory:
 # Test: Scout Health Monitoring
 # =============================================================================
 
+
 class TestScoutHealthMonitoring:
     """Testes de monitoramento de saúde dos scouts."""
 
@@ -458,7 +468,10 @@ class TestScoutHealthMonitoring:
         """Deve verificar heartbeat dos scouts."""
         scouts = {
             "scout-1": {"last_heartbeat": datetime.now(timezone.utc), "status": "active"},
-            "scout-2": {"last_heartbeat": datetime.now(timezone.utc) - timedelta(minutes=5), "status": "stale"}
+            "scout-2": {
+                "last_heartbeat": datetime.now(timezone.utc) - timedelta(minutes=5),
+                "status": "stale",
+            },
         }
 
         timeout_seconds = 60
@@ -475,11 +488,7 @@ class TestScoutHealthMonitoring:
     @pytest.mark.asyncio
     async def test_restart_inactive_scout(self):
         """Deve reiniciar scout inativo."""
-        scout = {
-            "id": "scout-1",
-            "status": "inactive",
-            "restart_count": 0
-        }
+        scout = {"id": "scout-1", "status": "inactive", "restart_count": 0}
 
         if scout["status"] == "inactive":
             scout["status"] = "restarting"

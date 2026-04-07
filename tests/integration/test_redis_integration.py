@@ -13,17 +13,13 @@ from uuid import uuid4
 # Test: Redis Connection
 # =============================================================================
 
+
 class TestRedisConnection:
     """Testes de conexão Redis."""
 
     def test_connect_to_redis(self):
         """Deve conectar ao Redis."""
-        config = {
-            "host": "localhost",
-            "port": 6379,
-            "db": 0,
-            "password": None
-        }
+        config = {"host": "localhost", "port": 6379, "db": 0, "password": None}
 
         connection_string = f"redis://{config['host']}:{config['port']}/{config['db']}"
 
@@ -31,11 +27,7 @@ class TestRedisConnection:
 
     def test_connect_with_auth(self):
         """Deve conectar com autenticação."""
-        config = {
-            "host": "localhost",
-            "port": 6379,
-            "password": "secret123"
-        }
+        config = {"host": "localhost", "port": 6379, "password": "secret123"}
 
         connection_string = f"redis://:{config['password']}@{config['host']}:{config['port']}"
 
@@ -43,10 +35,7 @@ class TestRedisConnection:
 
     def test_connection_pooling(self):
         """Deve usar pool de conexões."""
-        pool_config = {
-            "max_connections": 50,
-            "idle_timeout": 10
-        }
+        pool_config = {"max_connections": 50, "idle_timeout": 10}
 
         assert pool_config["max_connections"] == 50
 
@@ -54,6 +43,7 @@ class TestRedisConnection:
 # =============================================================================
 # Test: String Operations
 # =============================================================================
+
 
 class TestRedisStrings:
     """Testes de operações de string."""
@@ -94,6 +84,7 @@ class TestRedisStrings:
 # Test: Hash Operations
 # =============================================================================
 
+
 class TestRedisHashes:
     """Testes de operações de hash."""
 
@@ -122,11 +113,7 @@ class TestRedisHashes:
     def test_hash_get_all(self):
         """Deve obter todos os campos do hash."""
         key = "user:123"
-        stored_hash = {
-            "name": "John Doe",
-            "email": "john@example.com",
-            "age": "30"
-        }
+        stored_hash = {"name": "John Doe", "email": "john@example.com", "age": "30"}
 
         # Simular HGETALL
         retrieved = stored_hash
@@ -148,6 +135,7 @@ class TestRedisHashes:
 # =============================================================================
 # Test: List Operations
 # =============================================================================
+
 
 class TestRedisLists:
     """Testes de operações de lista."""
@@ -187,6 +175,7 @@ class TestRedisLists:
 # =============================================================================
 # Test: Set Operations
 # =============================================================================
+
 
 class TestRedisSets:
     """Testes de operações de set."""
@@ -236,6 +225,7 @@ class TestRedisSets:
 # Test: Sorted Set Operations
 # =============================================================================
 
+
 class TestRedisSortedSets:
     """Testes de sorted sets."""
 
@@ -245,7 +235,7 @@ class TestRedisSortedSets:
         members = [
             {"member": "player1", "score": 100},
             {"member": "player2", "score": 200},
-            {"member": "player3", "score": 150}
+            {"member": "player3", "score": 150},
         ]
 
         # Simular ZADD
@@ -259,17 +249,14 @@ class TestRedisSortedSets:
         stored_members = [
             {"member": "player1", "score": 100},
             {"member": "player2", "score": 200},
-            {"member": "player3", "score": 150}
+            {"member": "player3", "score": 150},
         ]
 
         # Simular ZRANGEBYSCORE 100 150
         min_score = 100
         max_score = 150
 
-        result = [
-            m for m in stored_members
-            if min_score <= m["score"] <= max_score
-        ]
+        result = [m for m in stored_members if min_score <= m["score"] <= max_score]
 
         assert len(result) == 2
 
@@ -279,7 +266,7 @@ class TestRedisSortedSets:
         stored_members = [
             {"member": "player1", "score": 100},
             {"member": "player2", "score": 200},
-            {"member": "player3", "score": 150}
+            {"member": "player3", "score": 150},
         ]
 
         # Ordenar por score
@@ -292,6 +279,7 @@ class TestRedisSortedSets:
 # =============================================================================
 # Test: TTL Operations
 # =============================================================================
+
 
 class TestRedisTTL:
     """Testes de operações TTL."""
@@ -332,6 +320,7 @@ class TestRedisTTL:
 # Test: Pub/Sub
 # =============================================================================
 
+
 class TestRedisPubSub:
     """Testes de pub/sub."""
 
@@ -370,16 +359,13 @@ class TestRedisPubSub:
 # Test: Transactions
 # =============================================================================
 
+
 class TestRedisTransactions:
     """Testes de transações Redis."""
 
     def test_multi_exec(self):
         """Deve executar transação MULTI/EXEC."""
-        operations = [
-            ("SET", "key1", "value1"),
-            ("SET", "key2", "value2"),
-            ("INCR", "counter")
-        ]
+        operations = [("SET", "key1", "value1"), ("SET", "key2", "value2"), ("INCR", "counter")]
 
         # Simular MULTI/EXEC
         executed = True
@@ -400,16 +386,13 @@ class TestRedisTransactions:
 # Test: Pipelining
 # =============================================================================
 
+
 class TestRedisPipelining:
     """Testes de pipelining."""
 
     def test_pipeline_commands(self):
         """Deve enviar comandos em pipeline."""
-        commands = [
-            ("GET", "key1"),
-            ("SET", "key2", "value2"),
-            ("INCR", "counter")
-        ]
+        commands = [("GET", "key1"), ("SET", "key2", "value2"), ("INCR", "counter")]
 
         # Simular pipeline
         results = ["value1", True, 1]
@@ -420,6 +403,7 @@ class TestRedisPipelining:
 # =============================================================================
 # Test: Cache Patterns
 # =============================================================================
+
 
 class TestRedisCachePatterns:
     """Testes de padrões de cache."""
@@ -466,6 +450,7 @@ class TestRedisCachePatterns:
 # Test: Distributed Lock
 # =============================================================================
 
+
 class TestRedisDistributedLock:
     """Testes de lock distribuído."""
 
@@ -505,6 +490,7 @@ class TestRedisDistributedLock:
 # =============================================================================
 # Test: Rate Limiting
 # =============================================================================
+
 
 class TestRedisRateLimiting:
     """Testes de rate limiting com Redis."""
@@ -547,6 +533,7 @@ class TestRedisRateLimiting:
 # =============================================================================
 # Test: Service Integration
 # =============================================================================
+
 
 class TestRedisServiceIntegration:
     """Testes de integração de serviços com Redis."""
@@ -591,6 +578,7 @@ class TestRedisServiceIntegration:
 # Test: Session Management
 # =============================================================================
 
+
 class TestRedisSessionManagement:
     """Testes de gerenciamento de sessão."""
 
@@ -601,7 +589,7 @@ class TestRedisSessionManagement:
         session_data = {
             "user_id": user_id,
             "created_at": datetime.now(timezone.utc).isoformat(),
-            "last_activity": datetime.now(timezone.utc).isoformat()
+            "last_activity": datetime.now(timezone.utc).isoformat(),
         }
 
         # Simular salvamento
@@ -624,7 +612,7 @@ class TestRedisSessionManagement:
         session_id = str(uuid4())
         session = {
             "user_id": "user-123",
-            "last_activity": (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
+            "last_activity": (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat(),
         }
 
         # Atualizar last_activity

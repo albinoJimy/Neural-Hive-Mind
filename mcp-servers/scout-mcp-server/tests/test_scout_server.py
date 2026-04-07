@@ -113,11 +113,7 @@ class TestCodeScanner:
         """Testa scan com exclusão de diretórios."""
         scanner = CodeScanner(base_path=temp_repo)
 
-        result = scanner.scan_directory(
-            path=".",
-            max_depth=5,
-            exclude_dirs=["tests", "docs"]
-        )
+        result = scanner.scan_directory(path=".", max_depth=5, exclude_dirs=["tests", "docs"])
 
         # Arquivos em tests/ não devem ser contados
         assert result.total_files > 0

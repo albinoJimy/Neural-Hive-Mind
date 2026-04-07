@@ -129,11 +129,13 @@ def validate_status_sequence(
         to_status = sequence[i + 1]
         result = validate_ticket_status_transition(from_status, to_status)
         if not result.valid:
-            invalid_transitions.append({
-                "index": i,
-                "from": from_status,
-                "to": to_status,
-            })
+            invalid_transitions.append(
+                {
+                    "index": i,
+                    "from": from_status,
+                    "to": to_status,
+                }
+            )
 
     if invalid_transitions:
         return ValidationResult(
@@ -289,12 +291,14 @@ def validate_sla_compliance(
 
     # Verificar timeout
     if timeout_ms and actual_duration_ms > timeout_ms:
-        violations.append({
-            "type": "timeout",
-            "limit_ms": timeout_ms,
-            "actual_ms": actual_duration_ms,
-            "exceeded_by_ms": actual_duration_ms - timeout_ms,
-        })
+        violations.append(
+            {
+                "type": "timeout",
+                "limit_ms": timeout_ms,
+                "actual_ms": actual_duration_ms,
+                "exceeded_by_ms": actual_duration_ms - timeout_ms,
+            }
+        )
 
     # Verificar deadline
     if deadline:
@@ -306,11 +310,13 @@ def validate_sla_compliance(
 
             now = datetime.now(timezone.utc)
             if now > deadline_dt:
-                violations.append({
-                    "type": "deadline",
-                    "deadline": deadline_dt.isoformat(),
-                    "completed_at": now.isoformat(),
-                })
+                violations.append(
+                    {
+                        "type": "deadline",
+                        "deadline": deadline_dt.isoformat(),
+                        "completed_at": now.isoformat(),
+                    }
+                )
         except (ValueError, TypeError) as e:
             logger.warning(f"Erro ao parsear deadline: {e}")
 
@@ -479,11 +485,13 @@ def validate_dependency_chain(
         # Verificar se todas as dependências foram completadas
         for dep in dependencies:
             if dep not in completed_tickets:
-                violations.append({
-                    "ticket_id": ticket_id,
-                    "dependency": dep,
-                    "issue": "Dependência não completada antes da execução",
-                })
+                violations.append(
+                    {
+                        "ticket_id": ticket_id,
+                        "dependency": dep,
+                        "issue": "Dependência não completada antes da execução",
+                    }
+                )
 
         # Marcar como completado se status é COMPLETED
         if ticket.get("status") == "COMPLETED":
@@ -534,18 +542,22 @@ def validate_trace_correlation(
         # Verificar correlação
         if telemetry_trace_id and result_trace_id:
             if result_trace_id != telemetry_trace_id:
-                mismatched.append({
-                    "ticket_id": result.get("ticket_id"),
-                    "expected_trace_id": telemetry_trace_id,
-                    "actual_trace_id": result_trace_id,
-                })
+                mismatched.append(
+                    {
+                        "ticket_id": result.get("ticket_id"),
+                        "expected_trace_id": telemetry_trace_id,
+                        "actual_trace_id": result_trace_id,
+                    }
+                )
         elif telemetry_correlation_id and result_correlation_id:
             if result_correlation_id != telemetry_correlation_id:
-                mismatched.append({
-                    "ticket_id": result.get("ticket_id"),
-                    "expected_correlation_id": telemetry_correlation_id,
-                    "actual_correlation_id": result_correlation_id,
-                })
+                mismatched.append(
+                    {
+                        "ticket_id": result.get("ticket_id"),
+                        "expected_correlation_id": telemetry_correlation_id,
+                        "actual_correlation_id": result_correlation_id,
+                    }
+                )
 
     if mismatched:
         return ValidationResult(

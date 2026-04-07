@@ -58,7 +58,12 @@ async def test_optimizer_to_queen_grpc():
 @pytest.mark.integration
 async def test_analyst_to_queen_grpc():
     """Testar comunicação Analyst -> Queen Agent"""
-    from services.analyst_agents.src.models.insight import AnalystInsight, InsightType, Priority, TimeWindow
+    from services.analyst_agents.src.models.insight import (
+        AnalystInsight,
+        InsightType,
+        Priority,
+        TimeWindow,
+    )
 
     client = QueenAgentGRPCClient(host="localhost", port=50051)
     await client.initialize()

@@ -15,6 +15,7 @@ import json
 # Test: Kafka Producer Initialization
 # =============================================================================
 
+
 class TestKafkaProducerInit:
     """Testes de inicialização do Kafka Producer."""
 
@@ -26,7 +27,7 @@ class TestKafkaProducerInit:
             "client_id": "test-producer",
             "acks": "all",
             "enable_idempotence": True,
-            "compression_type": "snappy"
+            "compression_type": "snappy",
         }
 
         assert config["bootstrap_servers"] == "localhost:9092"
@@ -39,7 +40,7 @@ class TestKafkaProducerInit:
         config = {
             "bootstrap_servers": "localhost:9092",
             "transactional_id": "test-txn-123",
-            "enable_idempotence": True
+            "enable_idempotence": True,
         }
 
         assert config["transactional_id"] == "test-txn-123"
@@ -50,6 +51,7 @@ class TestKafkaProducerInit:
 # Test: Kafka Producer Send
 # =============================================================================
 
+
 class TestKafkaProducerSend:
     """Testes de envio de mensagens Kafka."""
 
@@ -57,16 +59,11 @@ class TestKafkaProducerSend:
     async def test_send_message_to_topic(self):
         """Deve enviar mensagem para tópico."""
         mock_producer = AsyncMock()
-        mock_producer.send = AsyncMock(return_value=MagicMock(
-            topic="test-topic",
-            partition=0,
-            offset=100
-        ))
-
-        future = await mock_producer.send(
-            "test-topic",
-            value=b'{"test": "data"}'
+        mock_producer.send = AsyncMock(
+            return_value=MagicMock(topic="test-topic", partition=0, offset=100)
         )
+
+        future = await mock_producer.send("test-topic", value=b'{"test": "data"}')
 
         assert future.topic == "test-topic"
         assert future.offset == 100
@@ -78,9 +75,7 @@ class TestKafkaProducerSend:
         mock_producer.send = AsyncMock(return_value=MagicMock(offset=100))
 
         future = await mock_producer.send(
-            "test-topic",
-            key=b"user-123",
-            value=b'{"action": "test"}'
+            "test-topic", key=b"user-123", value=b'{"action": "test"}'
         )
 
         assert future.offset == 100
@@ -88,10 +83,7 @@ class TestKafkaProducerSend:
     @pytest.mark.asyncio
     async def test_send_message_with_headers(self):
         """Deve enviar mensagem com headers."""
-        headers = {
-            "correlation_id": str(uuid4()),
-            "content-type": "application/json"
-        }
+        headers = {"correlation_id": str(uuid4()), "content-type": "application/json"}
 
         mock_producer = AsyncMock()
         mock_producer.send = AsyncMock(return_value=MagicMock(offset=100))
@@ -99,7 +91,7 @@ class TestKafkaProducerSend:
         future = await mock_producer.send(
             "test-topic",
             value=b'{"test": "data"}',
-            headers=[(k, v.encode()) for k, v in headers.items()]
+            headers=[(k, v.encode()) for k, v in headers.items()],
         )
 
         assert future.offset == 100
@@ -109,17 +101,11 @@ class TestKafkaProducerSend:
     async def test_send_message_to_partition(self):
         """Deve enviar mensagem para partição específica."""
         mock_producer = AsyncMock()
-        mock_producer.send = AsyncMock(return_value=MagicMock(
-            topic="test-topic",
-            partition=2,
-            offset=100
-        ))
-
-        future = await mock_producer.send(
-            "test-topic",
-            value=b'{"test": "data"}',
-            partition=2
+        mock_producer.send = AsyncMock(
+            return_value=MagicMock(topic="test-topic", partition=2, offset=100)
         )
+
+        future = await mock_producer.send("test-topic", value=b'{"test": "data"}', partition=2)
 
         assert future.partition == 2
 
@@ -132,9 +118,7 @@ class TestKafkaProducerSend:
         mock_producer.send = AsyncMock(return_value=MagicMock(offset=100))
 
         future = await mock_producer.send(
-            "test-topic",
-            value=b'{"test": "data"}',
-            timestamp=timestamp_ms
+            "test-topic", value=b'{"test": "data"}', timestamp=timestamp_ms
         )
 
         assert future.offset == 100
@@ -143,6 +127,7 @@ class TestKafkaProducerSend:
 # =============================================================================
 # Test: Kafka Producer Batch Send
 # =============================================================================
+
 
 class TestKafkaProducerBatch:
     """Testes de envio em lote do Kafka Producer."""
@@ -153,17 +138,14 @@ class TestKafkaProducerBatch:
         messages = [
             {"id": 1, "data": "message-1"},
             {"id": 2, "data": "message-2"},
-            {"id": 3, "data": "message-3"}
+            {"id": 3, "data": "message-3"},
         ]
 
         mock_producer = AsyncMock()
         mock_producer.send = AsyncMock(return_value=MagicMock(offset=100))
 
         for msg in messages:
-            await mock_producer.send(
-                "test-topic",
-                value=json.dumps(msg).encode()
-            )
+            await mock_producer.send("test-topic", value=json.dumps(msg).encode())
 
         assert mock_producer.send.call_count == 3
 
@@ -182,6 +164,7 @@ class TestKafkaProducerBatch:
 # Test: Kafka Producer Serialization
 # =============================================================================
 
+
 class TestKafkaProducerSerialization:
     """Testes de serialização do Kafka Producer."""
 
@@ -191,7 +174,7 @@ class TestKafkaProducerSerialization:
         data = {
             "user_id": "123",
             "action": "test",
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         serialized = json.dumps(data).encode()
@@ -202,12 +185,15 @@ class TestKafkaProducerSerialization:
     @pytest.mark.asyncio
     async def test_serialize_with_custom_serializer(self):
         """Deve usar serializador customizado."""
+
         def custom_serializer(data):
-            return json.dumps({
-                "payload": data,
-                "version": "1.0",
-                "timestamp": datetime.now(timezone.utc).isoformat()
-            }).encode()
+            return json.dumps(
+                {
+                    "payload": data,
+                    "version": "1.0",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+            ).encode()
 
         data = {"test": "data"}
         serialized = custom_serializer(data)
@@ -219,6 +205,7 @@ class TestKafkaProducerSerialization:
 # =============================================================================
 # Test: Kafka Producer Transactions
 # =============================================================================
+
 
 class TestKafkaProducerTransactions:
     """Testes de transações do Kafka Producer."""
@@ -274,6 +261,7 @@ class TestKafkaProducerTransactions:
 # Test: Kafka Producer Error Handling
 # =============================================================================
 
+
 class TestKafkaProducerErrors:
     """Testes de tratamento de erros do Kafka Producer."""
 
@@ -283,9 +271,7 @@ class TestKafkaProducerErrors:
         from aiokafka.errors import KafkaConnectionError
 
         mock_producer = AsyncMock()
-        mock_producer.start = AsyncMock(
-            side_effect=KafkaConnectionError()
-        )
+        mock_producer.start = AsyncMock(side_effect=KafkaConnectionError())
 
         with pytest.raises(KafkaConnectionError):
             await mock_producer.start()
@@ -296,9 +282,7 @@ class TestKafkaProducerErrors:
         from aiokafka.errors import KafkaError
 
         mock_producer = AsyncMock()
-        mock_producer.send = AsyncMock(
-            side_effect=KafkaError("Timeout")
-        )
+        mock_producer.send = AsyncMock(side_effect=KafkaError("Timeout"))
 
         with pytest.raises(KafkaError):
             await mock_producer.send("test-topic", value=b"data")
@@ -306,6 +290,7 @@ class TestKafkaProducerErrors:
     @pytest.mark.asyncio
     async def test_handle_serialization_error(self):
         """Deve tratar erro de serialização."""
+
         class NonSerializableObject:
             pass
 
@@ -318,6 +303,7 @@ class TestKafkaProducerErrors:
 # =============================================================================
 # Test: Kafka Producer Retry
 # =============================================================================
+
 
 class TestKafkaProducerRetry:
     """Testes de retry do Kafka Producer."""
@@ -355,6 +341,7 @@ class TestKafkaProducerRetry:
 # =============================================================================
 # Test: Kafka Producer Metrics
 # =============================================================================
+
 
 class TestKafkaProducerMetrics:
     """Testes de métricas do Kafka Producer."""
@@ -394,6 +381,7 @@ class TestKafkaProducerMetrics:
 # Test: Kafka Producer Health Check
 # =============================================================================
 
+
 class TestKafkaProducerHealth:
     """Testes de health check do Kafka Producer."""
 
@@ -421,6 +409,7 @@ class TestKafkaProducerHealth:
 # =============================================================================
 # Test: Kafka Producer Graceful Shutdown
 # =============================================================================
+
 
 class TestKafkaProducerShutdown:
     """Testes de desligamento gracioso do Kafka Producer."""

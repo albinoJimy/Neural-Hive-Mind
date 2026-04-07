@@ -36,29 +36,29 @@ def _init_ensemble_prometheus_metrics():
         return
 
     ensemble_predictions_total = Counter(
-        'neural_hive_ensemble_predictions_total',
-        'Total de predições do ensemble',
-        ['specialist_type', 'strategy']
+        "neural_hive_ensemble_predictions_total",
+        "Total de predições do ensemble",
+        ["specialist_type", "strategy"],
     )
     ensemble_prediction_duration = Histogram(
-        'neural_hive_ensemble_prediction_duration_seconds',
-        'Duração de predições do ensemble',
-        ['specialist_type']
+        "neural_hive_ensemble_prediction_duration_seconds",
+        "Duração de predições do ensemble",
+        ["specialist_type"],
     )
     ensemble_batch_contribution = Gauge(
-        'neural_hive_ensemble_batch_contribution',
-        'Contribuição do modelo batch',
-        ['specialist_type']
+        "neural_hive_ensemble_batch_contribution",
+        "Contribuição do modelo batch",
+        ["specialist_type"],
     )
     ensemble_online_contribution = Gauge(
-        'neural_hive_ensemble_online_contribution',
-        'Contribuição do modelo online',
-        ['specialist_type']
+        "neural_hive_ensemble_online_contribution",
+        "Contribuição do modelo online",
+        ["specialist_type"],
     )
     ensemble_fallback_total = Counter(
-        'neural_hive_ensemble_fallback_total',
-        'Total de fallbacks para batch model',
-        ['specialist_type', 'reason']
+        "neural_hive_ensemble_fallback_total",
+        "Total de fallbacks para batch model",
+        ["specialist_type", "reason"],
     )
     _ensemble_metrics_initialized = True
 
@@ -78,7 +78,7 @@ class ModelEnsemble:
     - Cache de predições para reduzir latência
     """
 
-    STRATEGIES = ['weighted_average', 'stacking', 'dynamic_routing']
+    STRATEGIES = ["weighted_average", "stacking", "dynamic_routing"]
 
     def __init__(
         self,
@@ -86,7 +86,7 @@ class ModelEnsemble:
         specialist_type: str,
         batch_model: Any,
         online_learner: Optional[IncrementalLearner] = None,
-        meta_model: Optional[Any] = None
+        meta_model: Optional[Any] = None,
     ):
         """
         Inicializa ModelEnsemble.
@@ -128,7 +128,7 @@ class ModelEnsemble:
             specialist_type=specialist_type,
             strategy=config.ensemble_strategy,
             batch_weight=self._batch_weight,
-            online_weight=self._online_weight
+            online_weight=self._online_weight,
         )
 
     def _get_cache_key(self, X: np.ndarray) -> str:
@@ -155,8 +155,7 @@ class ModelEnsemble:
         if len(self._prediction_cache) > 10000:
             # Remover entradas mais antigas
             sorted_keys = sorted(
-                self._prediction_cache.keys(),
-                key=lambda k: self._prediction_cache[k][1]
+                self._prediction_cache.keys(), key=lambda k: self._prediction_cache[k][1]
             )
             for key in sorted_keys[:5000]:
                 del self._prediction_cache[key]
@@ -190,16 +189,12 @@ class ModelEnsemble:
             return probas, latency_ms
         except Exception as e:
             logger.warning(
-                "online_prediction_failed",
-                specialist_type=self.specialist_type,
-                error=str(e)
+                "online_prediction_failed", specialist_type=self.specialist_type, error=str(e)
             )
             return None, 0.0
 
     def _weighted_average(
-        self,
-        batch_probas: np.ndarray,
-        online_probas: Optional[np.ndarray]
+        self, batch_probas: np.ndarray, online_probas: Optional[np.ndarray]
     ) -> np.ndarray:
         """
         Combina predições via média ponderada.
@@ -214,20 +209,14 @@ class ModelEnsemble:
         if online_probas is None:
             return batch_probas
 
-        combined = (
-            self._batch_weight * batch_probas +
-            self._online_weight * online_probas
-        )
+        combined = self._batch_weight * batch_probas + self._online_weight * online_probas
 
         # Normalizar para garantir distribuição válida
         combined = combined / combined.sum(axis=1, keepdims=True)
         return combined
 
     def _dynamic_routing(
-        self,
-        X: np.ndarray,
-        batch_probas: np.ndarray,
-        online_probas: Optional[np.ndarray]
+        self, X: np.ndarray, batch_probas: np.ndarray, online_probas: Optional[np.ndarray]
     ) -> np.ndarray:
         """
         Roteamento dinâmico baseado em confiança.
@@ -254,19 +243,12 @@ class ModelEnsemble:
         use_online = online_confidence > batch_confidence
 
         # Combinar predições
-        combined = np.where(
-            use_online[:, np.newaxis],
-            online_probas,
-            batch_probas
-        )
+        combined = np.where(use_online[:, np.newaxis], online_probas, batch_probas)
 
         return combined
 
     def _stacking(
-        self,
-        X: np.ndarray,
-        batch_probas: np.ndarray,
-        online_probas: Optional[np.ndarray]
+        self, X: np.ndarray, batch_probas: np.ndarray, online_probas: Optional[np.ndarray]
     ) -> np.ndarray:
         """
         Combina predições via meta-modelo (stacking).
@@ -280,10 +262,7 @@ class ModelEnsemble:
             Probabilidades do meta-modelo
         """
         if self.meta_model is None:
-            logger.warning(
-                "stacking_no_meta_model",
-                specialist_type=self.specialist_type
-            )
+            logger.warning("stacking_no_meta_model", specialist_type=self.specialist_type)
             return self._weighted_average(batch_probas, online_probas)
 
         if online_probas is None:
@@ -297,17 +276,11 @@ class ModelEnsemble:
             return self.meta_model.predict_proba(meta_features)
         except Exception as e:
             logger.error(
-                "stacking_meta_model_failed",
-                specialist_type=self.specialist_type,
-                error=str(e)
+                "stacking_meta_model_failed", specialist_type=self.specialist_type, error=str(e)
             )
             return self._weighted_average(batch_probas, online_probas)
 
-    def predict_proba(
-        self,
-        X: np.ndarray,
-        use_cache: bool = True
-    ) -> np.ndarray:
+    def predict_proba(self, X: np.ndarray, use_cache: bool = True) -> np.ndarray:
         """
         Executa predição do ensemble.
 
@@ -338,7 +311,7 @@ class ModelEnsemble:
         use_fallback = False
         if online_probas is None:
             use_fallback = True
-            fallback_reason = 'online_unavailable'
+            fallback_reason = "online_unavailable"
         elif self.config.fallback_to_batch_on_online_failure:
             # Verificar qualidade do online
             online_confidence = np.mean(np.max(online_probas, axis=1))
@@ -346,24 +319,23 @@ class ModelEnsemble:
 
             if online_confidence < batch_confidence * 0.5:
                 use_fallback = True
-                fallback_reason = 'low_confidence'
+                fallback_reason = "low_confidence"
 
         # Combinar predições
         if use_fallback:
             combined = batch_probas
             self._fallback_count += 1
             ensemble_fallback_total.labels(
-                specialist_type=self.specialist_type,
-                reason=fallback_reason
+                specialist_type=self.specialist_type, reason=fallback_reason
             ).inc()
         else:
             strategy = self.config.ensemble_strategy
 
-            if strategy == 'weighted_average':
+            if strategy == "weighted_average":
                 combined = self._weighted_average(batch_probas, online_probas)
-            elif strategy == 'dynamic_routing':
+            elif strategy == "dynamic_routing":
                 combined = self._dynamic_routing(X, batch_probas, online_probas)
-            elif strategy == 'stacking':
+            elif strategy == "stacking":
                 combined = self._stacking(X, batch_probas, online_probas)
             else:
                 combined = self._weighted_average(batch_probas, online_probas)
@@ -377,12 +349,9 @@ class ModelEnsemble:
         self._prediction_count += 1
 
         ensemble_predictions_total.labels(
-            specialist_type=self.specialist_type,
-            strategy=self.config.ensemble_strategy
+            specialist_type=self.specialist_type, strategy=self.config.ensemble_strategy
         ).inc()
-        ensemble_prediction_duration.labels(
-            specialist_type=self.specialist_type
-        ).observe(duration)
+        ensemble_prediction_duration.labels(specialist_type=self.specialist_type).observe(duration)
 
         return combined
 
@@ -401,10 +370,7 @@ class ModelEnsemble:
         return np.argmax(probas, axis=1)
 
     def update_weights(
-        self,
-        batch_accuracy: float,
-        online_accuracy: float,
-        smoothing_factor: float = 0.1
+        self, batch_accuracy: float, online_accuracy: float, smoothing_factor: float = 0.1
     ):
         """
         Atualiza pesos do ensemble baseado em performance.
@@ -426,13 +392,11 @@ class ModelEnsemble:
 
         # Aplicar suavização
         self._batch_weight = (
-            (1 - smoothing_factor) * self._batch_weight +
-            smoothing_factor * new_batch_weight
-        )
+            1 - smoothing_factor
+        ) * self._batch_weight + smoothing_factor * new_batch_weight
         self._online_weight = (
-            (1 - smoothing_factor) * self._online_weight +
-            smoothing_factor * new_online_weight
-        )
+            1 - smoothing_factor
+        ) * self._online_weight + smoothing_factor * new_online_weight
 
         # Garantir que somam 1
         total = self._batch_weight + self._online_weight
@@ -440,12 +404,12 @@ class ModelEnsemble:
         self._online_weight /= total
 
         # Emitir métricas
-        ensemble_batch_contribution.labels(
-            specialist_type=self.specialist_type
-        ).set(self._batch_weight)
-        ensemble_online_contribution.labels(
-            specialist_type=self.specialist_type
-        ).set(self._online_weight)
+        ensemble_batch_contribution.labels(specialist_type=self.specialist_type).set(
+            self._batch_weight
+        )
+        ensemble_online_contribution.labels(specialist_type=self.specialist_type).set(
+            self._online_weight
+        )
 
         logger.info(
             "ensemble_weights_updated",
@@ -453,7 +417,7 @@ class ModelEnsemble:
             batch_weight=self._batch_weight,
             online_weight=self._online_weight,
             batch_accuracy=batch_accuracy,
-            online_accuracy=online_accuracy
+            online_accuracy=online_accuracy,
         )
 
     def record_performance(
@@ -461,7 +425,7 @@ class ModelEnsemble:
         model_type: str,
         accuracy: float,
         latency_ms: float,
-        timestamp: Optional[datetime] = None
+        timestamp: Optional[datetime] = None,
     ):
         """
         Registra performance de um modelo para cálculo de pesos dinâmicos.
@@ -473,12 +437,12 @@ class ModelEnsemble:
             timestamp: Timestamp (usa atual se não fornecido)
         """
         record = {
-            'accuracy': accuracy,
-            'latency_ms': latency_ms,
-            'timestamp': timestamp or datetime.now(timezone.utc)
+            "accuracy": accuracy,
+            "latency_ms": latency_ms,
+            "timestamp": timestamp or datetime.now(timezone.utc),
         }
 
-        if model_type == 'batch':
+        if model_type == "batch":
             self._batch_performance_history.append(record)
             if len(self._batch_performance_history) > 1000:
                 self._batch_performance_history = self._batch_performance_history[-1000:]
@@ -500,21 +464,15 @@ class ModelEnsemble:
         cutoff = datetime.now(timezone.utc) - timedelta(hours=window_hours)
 
         # Filtrar por janela de tempo
-        recent_batch = [
-            r for r in self._batch_performance_history
-            if r['timestamp'] > cutoff
-        ]
-        recent_online = [
-            r for r in self._online_performance_history
-            if r['timestamp'] > cutoff
-        ]
+        recent_batch = [r for r in self._batch_performance_history if r["timestamp"] > cutoff]
+        recent_online = [r for r in self._online_performance_history if r["timestamp"] > cutoff]
 
         if not recent_batch or not recent_online:
             return self._batch_weight, self._online_weight
 
         # Calcular accuracy média
-        batch_acc = np.mean([r['accuracy'] for r in recent_batch])
-        online_acc = np.mean([r['accuracy'] for r in recent_online])
+        batch_acc = np.mean([r["accuracy"] for r in recent_batch])
+        online_acc = np.mean([r["accuracy"] for r in recent_online])
 
         # Calcular pesos proporcionais
         total = batch_acc + online_acc
@@ -531,20 +489,16 @@ class ModelEnsemble:
             Dict com métricas de contribuição
         """
         return {
-            'batch_weight': self._batch_weight,
-            'online_weight': self._online_weight,
-            'total_predictions': self._prediction_count,
-            'fallback_count': self._fallback_count,
-            'fallback_rate': (
-                self._fallback_count / self._prediction_count
-                if self._prediction_count > 0 else 0.0
+            "batch_weight": self._batch_weight,
+            "online_weight": self._online_weight,
+            "total_predictions": self._prediction_count,
+            "fallback_count": self._fallback_count,
+            "fallback_rate": (
+                self._fallback_count / self._prediction_count if self._prediction_count > 0 else 0.0
             ),
-            'strategy': self.config.ensemble_strategy,
-            'online_available': (
-                self.online_learner is not None and
-                self.online_learner.is_fitted
-            ),
-            'cache_size': len(self._prediction_cache)
+            "strategy": self.config.ensemble_strategy,
+            "online_available": (self.online_learner is not None and self.online_learner.is_fitted),
+            "cache_size": len(self._prediction_cache),
         }
 
     def set_online_learner(self, learner: IncrementalLearner):
@@ -553,13 +507,10 @@ class ModelEnsemble:
         logger.info(
             "online_learner_set",
             specialist_type=self.specialist_type,
-            learner_version=learner.model_version
+            learner_version=learner.model_version,
         )
 
     def clear_cache(self):
         """Limpa cache de predições."""
         self._prediction_cache.clear()
-        logger.info(
-            "prediction_cache_cleared",
-            specialist_type=self.specialist_type
-        )
+        logger.info("prediction_cache_cleared", specialist_type=self.specialist_type)

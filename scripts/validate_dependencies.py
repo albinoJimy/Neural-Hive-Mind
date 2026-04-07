@@ -15,8 +15,11 @@ def test_fastapi():
     try:
         from fastapi import FastAPI
         from fastapi.middleware.cors import CORSMiddleware
+
         print("✅ FastAPI import OK")
-        print(f"   Versão: {FastAPI.__version__ if hasattr(FastAPI, '__version__') else '0.115.10'}")
+        print(
+            f"   Versão: {FastAPI.__version__ if hasattr(FastAPI, '__version__') else '0.115.10'}"
+        )
         return True
     except ImportError as e:
         print(f"❌ FastAPI import falhou: {e}")
@@ -27,6 +30,7 @@ def test_confluent_kafka():
     """Testa import do confluent-kafka."""
     try:
         from confluent_kafka import Producer, Consumer
+
         print("✅ confluent-kafka import OK")
         return True
     except ImportError as e:
@@ -40,16 +44,16 @@ def test_python_jose():
         from jose import jwt
         from datetime import datetime, timedelta, timezone
 
-        secret = 'test-secret'
-        payload = {'user': 'test', 'exp': datetime.now(timezone.utc) + timedelta(hours=1)}
+        secret = "test-secret"
+        payload = {"user": "test", "exp": datetime.now(timezone.utc) + timedelta(hours=1)}
 
         # Encode
-        token = jwt.encode(payload, secret, algorithm='HS256')
+        token = jwt.encode(payload, secret, algorithm="HS256")
         print(f"✅ python-jose import OK")
         print(f"   Token: {token[:50]}...")
 
         # Decode
-        decoded = jwt.decode(token, secret, algorithms=['HS256'])
+        decoded = jwt.decode(token, secret, algorithms=["HS256"])
         print(f"   Decoded: {decoded}")
         print("✅ python-jose JWT OK")
         return True
@@ -65,6 +69,7 @@ def test_avro_serialization():
     """Testa serialização Avro do confluent-kafka."""
     try:
         from confluent_kafka.schema_registry.avro import AvroSerializer
+
         print("✅ Avro serialization import OK")
         return True
     except ImportError as e:

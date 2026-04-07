@@ -41,43 +41,42 @@ def _init_deployment_prometheus_metrics():
         return
 
     deployment_cycles_total = Counter(
-        'neural_hive_deployment_cycles_total',
-        'Total de ciclos de deployment',
-        ['specialist_type', 'result']
+        "neural_hive_deployment_cycles_total",
+        "Total de ciclos de deployment",
+        ["specialist_type", "result"],
     )
     deployment_duration = Histogram(
-        'neural_hive_deployment_duration_seconds',
-        'Duração de ciclos de deployment',
-        ['specialist_type', 'stage']
+        "neural_hive_deployment_duration_seconds",
+        "Duração de ciclos de deployment",
+        ["specialist_type", "stage"],
     )
     current_rollout_percentage = Gauge(
-        'neural_hive_current_rollout_percentage',
-        'Percentual atual de rollout',
-        ['specialist_type']
+        "neural_hive_current_rollout_percentage", "Percentual atual de rollout", ["specialist_type"]
     )
     deployment_cooldown_active = Gauge(
-        'neural_hive_deployment_cooldown_active',
-        'Indicador de cooldown ativo (1=ativo)',
-        ['specialist_type']
+        "neural_hive_deployment_cooldown_active",
+        "Indicador de cooldown ativo (1=ativo)",
+        ["specialist_type"],
     )
     _deployment_metrics_initialized = True
 
 
 class DeploymentError(Exception):
     """Exceção para erros de deployment."""
+
     pass
 
 
 class DeploymentStage:
     """Representa um estágio de deployment."""
 
-    COLLECT = 'collect'
-    UPDATE = 'update'
-    VALIDATE = 'validate'
-    APPROVE = 'approve'
-    DEPLOY = 'deploy'
-    MONITOR = 'monitor'
-    ROLLBACK = 'rollback'
+    COLLECT = "collect"
+    UPDATE = "update"
+    VALIDATE = "validate"
+    APPROVE = "approve"
+    DEPLOY = "deploy"
+    MONITOR = "monitor"
+    ROLLBACK = "rollback"
 
 
 class OnlineDeploymentOrchestrator:
@@ -106,7 +105,7 @@ class OnlineDeploymentOrchestrator:
         specialist_type: str,
         batch_model: Any,
         feedback_collector: Optional[Any] = None,
-        feature_extractor: Optional[Callable] = None
+        feature_extractor: Optional[Callable] = None,
     ):
         """
         Inicializa OnlineDeploymentOrchestrator.
@@ -139,7 +138,7 @@ class OnlineDeploymentOrchestrator:
         # MongoDB para histórico
         self._client = MongoClient(config.mongodb_uri)
         self._db = self._client[config.mongodb_database]
-        self._deployments_collection = self._db['online_deployments']
+        self._deployments_collection = self._db["online_deployments"]
 
         # Estado
         self._last_deployment_time: Optional[datetime] = None
@@ -151,7 +150,7 @@ class OnlineDeploymentOrchestrator:
             "deployment_orchestrator_initialized",
             specialist_type=specialist_type,
             update_frequency_minutes=config.update_frequency_minutes,
-            rollout_stages=config.rollout_stages
+            rollout_stages=config.rollout_stages,
         )
 
     def _check_cooldown(self) -> bool:
@@ -170,9 +169,9 @@ class OnlineDeploymentOrchestrator:
 
         in_cooldown = datetime.now(timezone.utc) < cooldown_end
 
-        deployment_cooldown_active.labels(
-            specialist_type=self.specialist_type
-        ).set(1 if in_cooldown else 0)
+        deployment_cooldown_active.labels(specialist_type=self.specialist_type).set(
+            1 if in_cooldown else 0
+        )
 
         return in_cooldown
 
@@ -189,45 +188,37 @@ class OnlineDeploymentOrchestrator:
         start_time = time.time()
 
         if self.feedback_collector is None:
-            logger.warning(
-                "no_feedback_collector",
-                specialist_type=self.specialist_type
-            )
+            logger.warning("no_feedback_collector", specialist_type=self.specialist_type)
             return []
 
         try:
             # Buscar feedbacks recentes não processados
             feedbacks = self.feedback_collector.get_feedback_by_specialist(
-                specialist_type=self.specialist_type,
-                window_days=7
+                specialist_type=self.specialist_type, window_days=7
             )
 
             duration = time.time() - start_time
             deployment_duration.labels(
-                specialist_type=self.specialist_type,
-                stage=DeploymentStage.COLLECT
+                specialist_type=self.specialist_type, stage=DeploymentStage.COLLECT
             ).observe(duration)
 
             logger.info(
                 "feedback_collected",
                 specialist_type=self.specialist_type,
                 count=len(feedbacks),
-                duration_seconds=duration
+                duration_seconds=duration,
             )
 
-            return [f.model_dump() if hasattr(f, 'model_dump') else f for f in feedbacks]
+            return [f.model_dump() if hasattr(f, "model_dump") else f for f in feedbacks]
 
         except Exception as e:
             logger.error(
-                "feedback_collection_failed",
-                specialist_type=self.specialist_type,
-                error=str(e)
+                "feedback_collection_failed", specialist_type=self.specialist_type, error=str(e)
             )
             return []
 
     def _prepare_training_data(
-        self,
-        feedbacks: List[Dict[str, Any]]
+        self, feedbacks: List[Dict[str, Any]]
     ) -> tuple[np.ndarray, np.ndarray]:
         """
         Prepara dados de treinamento a partir de feedbacks.
@@ -254,13 +245,13 @@ class OnlineDeploymentOrchestrator:
                 X_list.append(features)
 
                 # Label é a recomendação humana
-                y_list.append(feedback.get('human_recommendation', 'review_required'))
+                y_list.append(feedback.get("human_recommendation", "review_required"))
 
             except Exception as e:
                 logger.warning(
                     "feature_extraction_failed",
-                    feedback_id=feedback.get('feedback_id'),
-                    error=str(e)
+                    feedback_id=feedback.get("feedback_id"),
+                    error=str(e),
                 )
                 continue
 
@@ -269,10 +260,7 @@ class OnlineDeploymentOrchestrator:
 
         return np.array(X_list), np.array(y_list)
 
-    async def _update_model(
-        self,
-        feedbacks: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+    async def _update_model(self, feedbacks: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Executa atualização incremental do modelo.
 
@@ -305,49 +293,42 @@ class OnlineDeploymentOrchestrator:
 
                 # Executar partial_fit
                 result = self.learner.partial_fit(X_batch, y_batch)
-                total_loss += result['loss_after']
+                total_loss += result["loss_after"]
                 updates_executed += 1
 
                 # Registrar no monitor
                 self.monitor.record_update(
-                    loss=result['loss_after'],
-                    duration_ms=result['duration_ms'],
-                    samples_count=len(y_batch)
+                    loss=result["loss_after"],
+                    duration_ms=result["duration_ms"],
+                    samples_count=len(y_batch),
                 )
 
             avg_loss = total_loss / updates_executed if updates_executed > 0 else 0.0
 
             duration = time.time() - start_time
             deployment_duration.labels(
-                specialist_type=self.specialist_type,
-                stage=DeploymentStage.UPDATE
+                specialist_type=self.specialist_type, stage=DeploymentStage.UPDATE
             ).observe(duration)
 
             metrics = {
-                'samples_processed': n_samples,
-                'batches_executed': n_batches,
-                'avg_loss': avg_loss,
-                'duration_seconds': duration,
-                'model_version': self.learner.model_version
+                "samples_processed": n_samples,
+                "batches_executed": n_batches,
+                "avg_loss": avg_loss,
+                "duration_seconds": duration,
+                "model_version": self.learner.model_version,
             }
 
-            logger.info(
-                "model_updated",
-                specialist_type=self.specialist_type,
-                **metrics
-            )
+            logger.info("model_updated", specialist_type=self.specialist_type, **metrics)
 
             return metrics
 
         except Exception as e:
-            logger.error(
-                "model_update_failed",
-                specialist_type=self.specialist_type,
-                error=str(e)
-            )
+            logger.error("model_update_failed", specialist_type=self.specialist_type, error=str(e))
             raise DeploymentError(f"Falha na atualização: {str(e)}") from e
 
-    async def _validate(self, X_validation: np.ndarray, y_validation: Optional[np.ndarray] = None) -> ShadowValidationResult:
+    async def _validate(
+        self, X_validation: np.ndarray, y_validation: Optional[np.ndarray] = None
+    ) -> ShadowValidationResult:
         """
         Executa shadow validation.
 
@@ -366,15 +347,14 @@ class OnlineDeploymentOrchestrator:
                 config=self.config,
                 specialist_type=self.specialist_type,
                 batch_model=self.batch_model,
-                online_learner=self.learner
+                online_learner=self.learner,
             )
 
         result = self.validator.validate(X_validation, y_validation)
 
         duration = time.time() - start_time
         deployment_duration.labels(
-            specialist_type=self.specialist_type,
-            stage=DeploymentStage.VALIDATE
+            specialist_type=self.specialist_type, stage=DeploymentStage.VALIDATE
         ).observe(duration)
 
         logger.info(
@@ -382,7 +362,7 @@ class OnlineDeploymentOrchestrator:
             specialist_type=self.specialist_type,
             passed=result.passed,
             validation_id=result.validation_id,
-            duration_seconds=duration
+            duration_seconds=duration,
         )
 
         return result
@@ -400,21 +380,21 @@ class OnlineDeploymentOrchestrator:
                 config=self.config,
                 specialist_type=self.specialist_type,
                 batch_model=self.batch_model,
-                online_learner=self.learner
+                online_learner=self.learner,
             )
         else:
             self.ensemble.set_online_learner(self.learner)
 
         for stage_percentage in self.config.rollout_stages:
             self._current_rollout_percentage = stage_percentage
-            current_rollout_percentage.labels(
-                specialist_type=self.specialist_type
-            ).set(stage_percentage)
+            current_rollout_percentage.labels(specialist_type=self.specialist_type).set(
+                stage_percentage
+            )
 
             logger.info(
                 "rollout_stage_started",
                 specialist_type=self.specialist_type,
-                percentage=stage_percentage
+                percentage=stage_percentage,
             )
 
             # Atualizar peso do modelo online baseado no estágio
@@ -431,12 +411,12 @@ class OnlineDeploymentOrchestrator:
                 # Verificar saúde
                 status = self.monitor.get_status()
 
-                if status['health'] == 'unhealthy':
+                if status["health"] == "unhealthy":
                     logger.error(
                         "rollout_aborted_unhealthy",
                         specialist_type=self.specialist_type,
                         stage=stage_percentage,
-                        alerts=status['active_alerts']
+                        alerts=status["active_alerts"],
                     )
                     return False
 
@@ -445,15 +425,13 @@ class OnlineDeploymentOrchestrator:
             logger.info(
                 "rollout_stage_completed",
                 specialist_type=self.specialist_type,
-                percentage=stage_percentage
+                percentage=stage_percentage,
             )
 
         return True
 
     async def run_deployment_cycle(
-        self,
-        force: bool = False,
-        validation_data: Optional[tuple] = None
+        self, force: bool = False, validation_data: Optional[tuple] = None
     ) -> Dict[str, Any]:
         """
         Executa um ciclo completo de deployment.
@@ -470,9 +448,9 @@ class OnlineDeploymentOrchestrator:
 
         if not force and self._check_cooldown():
             remaining = (
-                self._last_deployment_time +
-                timedelta(minutes=self.config.deployment_cooldown_minutes) -
-                datetime.now(timezone.utc)
+                self._last_deployment_time
+                + timedelta(minutes=self.config.deployment_cooldown_minutes)
+                - datetime.now(timezone.utc)
             ).seconds
             raise DeploymentError(f"Em cooldown. Aguarde {remaining} segundos.")
 
@@ -481,33 +459,31 @@ class OnlineDeploymentOrchestrator:
         cycle_start = time.time()
 
         deployment_record = {
-            'deployment_id': self._current_deployment_id,
-            'specialist_type': self.specialist_type,
-            'started_at': datetime.now(timezone.utc),
-            'stages': [],
-            'status': 'running'
+            "deployment_id": self._current_deployment_id,
+            "specialist_type": self.specialist_type,
+            "started_at": datetime.now(timezone.utc),
+            "stages": [],
+            "status": "running",
         }
 
         try:
             # Stage 1: Collect
             feedbacks = await self._collect_feedback()
             if len(feedbacks) < self.config.mini_batch_size:
-                deployment_record['status'] = 'skipped'
-                deployment_record['reason'] = 'insufficient_feedback'
+                deployment_record["status"] = "skipped"
+                deployment_record["reason"] = "insufficient_feedback"
                 self._persist_deployment(deployment_record)
-                return {'status': 'skipped', 'reason': 'Feedback insuficiente'}
+                return {"status": "skipped", "reason": "Feedback insuficiente"}
 
-            deployment_record['stages'].append({
-                'stage': DeploymentStage.COLLECT,
-                'feedback_count': len(feedbacks)
-            })
+            deployment_record["stages"].append(
+                {"stage": DeploymentStage.COLLECT, "feedback_count": len(feedbacks)}
+            )
 
             # Stage 2: Update
             update_metrics = await self._update_model(feedbacks)
-            deployment_record['stages'].append({
-                'stage': DeploymentStage.UPDATE,
-                'metrics': update_metrics
-            })
+            deployment_record["stages"].append(
+                {"stage": DeploymentStage.UPDATE, "metrics": update_metrics}
+            )
 
             # Stage 3: Validate
             if validation_data:
@@ -515,38 +491,36 @@ class OnlineDeploymentOrchestrator:
             else:
                 # Usar parte do feedback para validação
                 X_val, y_val = self._prepare_training_data(
-                    feedbacks[-self.config.shadow_sample_size:]
+                    feedbacks[-self.config.shadow_sample_size :]
                 )
 
             validation_result = await self._validate(X_val, y_val)
-            deployment_record['stages'].append({
-                'stage': DeploymentStage.VALIDATE,
-                'passed': validation_result.passed,
-                'metrics': validation_result.metrics
-            })
+            deployment_record["stages"].append(
+                {
+                    "stage": DeploymentStage.VALIDATE,
+                    "passed": validation_result.passed,
+                    "metrics": validation_result.metrics,
+                }
+            )
 
             # Stage 4: Approve
             if not validation_result.passed:
-                deployment_record['status'] = 'rejected'
-                deployment_record['reason'] = 'validation_failed'
-                deployment_record['failures'] = validation_result.failures
+                deployment_record["status"] = "rejected"
+                deployment_record["reason"] = "validation_failed"
+                deployment_record["failures"] = validation_result.failures
                 self._persist_deployment(deployment_record)
 
                 deployment_cycles_total.labels(
-                    specialist_type=self.specialist_type,
-                    result='rejected'
+                    specialist_type=self.specialist_type, result="rejected"
                 ).inc()
 
                 return {
-                    'status': 'rejected',
-                    'reason': 'Validação falhou',
-                    'failures': validation_result.failures
+                    "status": "rejected",
+                    "reason": "Validação falhou",
+                    "failures": validation_result.failures,
                 }
 
-            deployment_record['stages'].append({
-                'stage': DeploymentStage.APPROVE,
-                'approved': True
-            })
+            deployment_record["stages"].append({"stage": DeploymentStage.APPROVE, "approved": True})
 
             # Stage 5: Deploy (gradual rollout)
             if self.config.gradual_rollout_enabled:
@@ -555,20 +529,18 @@ class OnlineDeploymentOrchestrator:
                 if not rollout_success:
                     # Executar rollback
                     await self._execute_rollback("Rollout falhou durante monitoramento")
-                    deployment_record['status'] = 'rolled_back'
+                    deployment_record["status"] = "rolled_back"
                     self._persist_deployment(deployment_record)
 
                     deployment_cycles_total.labels(
-                        specialist_type=self.specialist_type,
-                        result='rolled_back'
+                        specialist_type=self.specialist_type, result="rolled_back"
                     ).inc()
 
-                    return {'status': 'rolled_back', 'reason': 'Rollout falhou'}
+                    return {"status": "rolled_back", "reason": "Rollout falhou"}
 
-            deployment_record['stages'].append({
-                'stage': DeploymentStage.DEPLOY,
-                'final_percentage': 100
-            })
+            deployment_record["stages"].append(
+                {"stage": DeploymentStage.DEPLOY, "final_percentage": 100}
+            )
 
             # Registrar versão como estável
             checkpoint_path = self.learner.save_checkpoint()
@@ -576,54 +548,52 @@ class OnlineDeploymentOrchestrator:
                 version_id=self.learner.model_version,
                 checkpoint_path=checkpoint_path,
                 metrics={
-                    'loss': update_metrics['avg_loss'],
-                    'validation_kl': validation_result.metrics.get('kl_divergence', 0)
+                    "loss": update_metrics["avg_loss"],
+                    "validation_kl": validation_result.metrics.get("kl_divergence", 0),
                 },
-                mark_stable=True
+                mark_stable=True,
             )
 
             # Finalizar
-            deployment_record['status'] = 'completed'
-            deployment_record['completed_at'] = datetime.now(timezone.utc)
-            deployment_record['duration_seconds'] = time.time() - cycle_start
+            deployment_record["status"] = "completed"
+            deployment_record["completed_at"] = datetime.now(timezone.utc)
+            deployment_record["duration_seconds"] = time.time() - cycle_start
 
             self._persist_deployment(deployment_record)
             self._last_deployment_time = datetime.now(timezone.utc)
 
             deployment_cycles_total.labels(
-                specialist_type=self.specialist_type,
-                result='success'
+                specialist_type=self.specialist_type, result="success"
             ).inc()
 
             logger.info(
                 "deployment_cycle_completed",
                 deployment_id=self._current_deployment_id,
                 specialist_type=self.specialist_type,
-                duration_seconds=deployment_record['duration_seconds']
+                duration_seconds=deployment_record["duration_seconds"],
             )
 
             return {
-                'status': 'completed',
-                'deployment_id': self._current_deployment_id,
-                'model_version': self.learner.model_version,
-                'duration_seconds': deployment_record['duration_seconds']
+                "status": "completed",
+                "deployment_id": self._current_deployment_id,
+                "model_version": self.learner.model_version,
+                "duration_seconds": deployment_record["duration_seconds"],
             }
 
         except Exception as e:
-            deployment_record['status'] = 'failed'
-            deployment_record['error'] = str(e)
+            deployment_record["status"] = "failed"
+            deployment_record["error"] = str(e)
             self._persist_deployment(deployment_record)
 
             deployment_cycles_total.labels(
-                specialist_type=self.specialist_type,
-                result='failed'
+                specialist_type=self.specialist_type, result="failed"
             ).inc()
 
             logger.error(
                 "deployment_cycle_failed",
                 deployment_id=self._current_deployment_id,
                 specialist_type=self.specialist_type,
-                error=str(e)
+                error=str(e),
             )
 
             raise
@@ -644,27 +614,18 @@ class OnlineDeploymentOrchestrator:
 
             # Resetar rollout
             self._current_rollout_percentage = 0
-            current_rollout_percentage.labels(
-                specialist_type=self.specialist_type
-            ).set(0)
+            current_rollout_percentage.labels(specialist_type=self.specialist_type).set(0)
 
             if self.ensemble:
                 self.ensemble._online_weight = 0
                 self.ensemble._batch_weight = 1.0
 
             logger.info(
-                "rollback_executed",
-                specialist_type=self.specialist_type,
-                reason=reason,
-                **result
+                "rollback_executed", specialist_type=self.specialist_type, reason=reason, **result
             )
 
         except Exception as e:
-            logger.error(
-                "rollback_failed",
-                specialist_type=self.specialist_type,
-                error=str(e)
-            )
+            logger.error("rollback_failed", specialist_type=self.specialist_type, error=str(e))
             raise
 
     def _persist_deployment(self, record: Dict[str, Any]):
@@ -676,17 +637,19 @@ class OnlineDeploymentOrchestrator:
 
     def get_deployment_history(self, limit: int = 10) -> List[Dict[str, Any]]:
         """Retorna histórico de deployments."""
-        docs = self._deployments_collection.find({
-            'specialist_type': self.specialist_type
-        }).sort('started_at', DESCENDING).limit(limit)
+        docs = (
+            self._deployments_collection.find({"specialist_type": self.specialist_type})
+            .sort("started_at", DESCENDING)
+            .limit(limit)
+        )
 
         history = []
         for doc in docs:
-            doc.pop('_id', None)
-            if 'started_at' in doc:
-                doc['started_at'] = doc['started_at'].isoformat()
-            if 'completed_at' in doc:
-                doc['completed_at'] = doc['completed_at'].isoformat()
+            doc.pop("_id", None)
+            if "started_at" in doc:
+                doc["started_at"] = doc["started_at"].isoformat()
+            if "completed_at" in doc:
+                doc["completed_at"] = doc["completed_at"].isoformat()
             history.append(doc)
 
         return history
@@ -694,14 +657,14 @@ class OnlineDeploymentOrchestrator:
     def get_status(self) -> Dict[str, Any]:
         """Retorna status atual do orchestrator."""
         return {
-            'specialist_type': self.specialist_type,
-            'is_running': self._is_running,
-            'current_deployment_id': self._current_deployment_id,
-            'current_rollout_percentage': self._current_rollout_percentage,
-            'in_cooldown': self._check_cooldown(),
-            'model_version': self.learner.model_version if self.learner.is_fitted else None,
-            'learner_state': self.learner.get_model_state(),
-            'monitor_status': self.monitor.get_status()
+            "specialist_type": self.specialist_type,
+            "is_running": self._is_running,
+            "current_deployment_id": self._current_deployment_id,
+            "current_rollout_percentage": self._current_rollout_percentage,
+            "in_cooldown": self._check_cooldown(),
+            "model_version": self.learner.model_version if self.learner.is_fitted else None,
+            "learner_state": self.learner.get_model_state(),
+            "monitor_status": self.monitor.get_status(),
         }
 
     def close(self):
@@ -716,10 +679,10 @@ async def main():
     """Ponto de entrada para execução via CLI."""
     import argparse
 
-    parser = argparse.ArgumentParser(description='Online Learning Deployment Orchestrator')
-    parser.add_argument('--specialist-type', required=True, help='Tipo do especialista')
-    parser.add_argument('--dry-run', action='store_true', help='Modo simulação')
-    parser.add_argument('--force', action='store_true', help='Ignorar cooldown')
+    parser = argparse.ArgumentParser(description="Online Learning Deployment Orchestrator")
+    parser.add_argument("--specialist-type", required=True, help="Tipo do especialista")
+    parser.add_argument("--dry-run", action="store_true", help="Modo simulação")
+    parser.add_argument("--force", action="store_true", help="Ignorar cooldown")
 
     args = parser.parse_args()
 
@@ -728,7 +691,7 @@ async def main():
     logger.info(
         "starting_deployment_orchestrator",
         specialist_type=args.specialist_type,
-        dry_run=args.dry_run
+        dry_run=args.dry_run,
     )
 
     # Nota: Em produção, batch_model seria carregado do MLflow
@@ -737,5 +700,5 @@ async def main():
     print("Em produção, executaria ciclo de deployment.")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     asyncio.run(main())

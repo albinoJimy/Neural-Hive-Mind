@@ -12,6 +12,7 @@ As regras são:
 
 import sys
 import subprocess
+
 subprocess.check_call([sys.executable, "-m", "pip", "install", "pymongo", "-q"])
 
 from pymongo import MongoClient
@@ -24,6 +25,7 @@ client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
 db = client.neural_hive
 opinions_col = db.specialist_opinions
 feedback_col = db.specialist_feedback
+
 
 def generate_auto_feedback(opinion):
     """Gera feedback automático baseado em heurísticas."""
@@ -55,6 +57,7 @@ def generate_auto_feedback(opinion):
     # Heurística 5: conditional → review_required
     else:
         return "review_required", 0.6
+
 
 def collect_batch(batch_size=50):
     """Coleta feedback em lote."""
@@ -90,7 +93,7 @@ def collect_batch(batch_size=50):
             "specialist_type": specialist,
             "auto_generated": True,
             "submitted_at": datetime.now(timezone.utc),
-            "trace_id": opinion.get("trace_id")
+            "trace_id": opinion.get("trace_id"),
         }
 
         try:
@@ -99,14 +102,18 @@ def collect_batch(batch_size=50):
 
             # Progresso a cada 10
             if i % 10 == 0:
-                print(f"  [{i}/{len(opinions)}] {specialist}: {rec} (conf: {confidence:.2f}→{rating:.2f})")
+                print(
+                    f"  [{i}/{len(opinions)}] {specialist}: {rec} (conf: {confidence:.2f}→{rating:.2f})"
+                )
         except Exception as e:
             print(f"  Erro ao processar {opinion_id}: {e}")
 
     return collected
 
+
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser(description="Coleta automática de feedback")
     parser.add_argument("--batch", type=int, default=50, help="Tamanho do lote (default: 50)")
     parser.add_argument("--target", type=int, default=100, help="Target total de feedbacks")

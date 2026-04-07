@@ -28,20 +28,24 @@ class MetricsConfig:
 
     # Configurações de correlação
     enable_correlation: bool = True
-    correlation_headers: Dict[str, str] = field(default_factory=lambda: {
-        "intent_id": "X-Neural-Hive-Intent-ID",
-        "plan_id": "X-Neural-Hive-Plan-ID",
-        "domain": "X-Neural-Hive-Domain",
-        "user_id": "X-Neural-Hive-User-ID",
-    })
+    correlation_headers: Dict[str, str] = field(
+        default_factory=lambda: {
+            "intent_id": "X-Neural-Hive-Intent-ID",
+            "plan_id": "X-Neural-Hive-Plan-ID",
+            "domain": "X-Neural-Hive-Domain",
+            "user_id": "X-Neural-Hive-User-ID",
+        }
+    )
 
     # Configurações de baggage para OpenTelemetry
-    baggage_keys: Dict[str, str] = field(default_factory=lambda: {
-        "intent_id": "neural.hive.intent.id",
-        "plan_id": "neural.hive.plan.id",
-        "domain": "neural.hive.domain",
-        "user_id": "neural.hive.user.id",
-    })
+    baggage_keys: Dict[str, str] = field(
+        default_factory=lambda: {
+            "intent_id": "neural.hive.intent.id",
+            "plan_id": "neural.hive.plan.id",
+            "domain": "neural.hive.domain",
+            "user_id": "neural.hive.user.id",
+        }
+    )
 
     # Endpoints de exportação
     prometheus_pushgateway_url: Optional[str] = None
@@ -58,23 +62,25 @@ class MetricsConfig:
     default_labels: Dict[str, str] = field(default_factory=dict)
 
     # Configurações específicas do Neural Hive-Mind
-    neural_hive_config: Dict[str, Any] = field(default_factory=lambda: {
-        "slo_targets": {
-            "barramento_latency_ms": 150,
-            "availability_percent": 99.9,
-            "plan_generation_ms": 120,
-            "capture_latency_ms": 200,
-        },
-        "error_budget": {
-            "burn_rate_fast": 14.4,  # 1 hour
-            "burn_rate_slow": 1.0,   # 6 hours
-        },
-        "sampling": {
-            "default_rate": 0.1,
-            "high_value_rate": 1.0,
-            "error_rate": 1.0,
+    neural_hive_config: Dict[str, Any] = field(
+        default_factory=lambda: {
+            "slo_targets": {
+                "barramento_latency_ms": 150,
+                "availability_percent": 99.9,
+                "plan_generation_ms": 120,
+                "capture_latency_ms": 200,
+            },
+            "error_budget": {
+                "burn_rate_fast": 14.4,  # 1 hour
+                "burn_rate_slow": 1.0,  # 6 hours
+            },
+            "sampling": {
+                "default_rate": 0.1,
+                "high_value_rate": 1.0,
+                "error_rate": 1.0,
+            },
         }
-    })
+    )
 
     def __post_init__(self):
         """Pós-processamento da configuração."""
@@ -101,7 +107,9 @@ class MetricsConfig:
         # Exemplars e correlação
         self.enable_exemplars = os.getenv("ENABLE_EXEMPLARS", "true").lower() == "true"
         self.enable_correlation = os.getenv("ENABLE_CORRELATION", "true").lower() == "true"
-        self.exemplar_sample_rate = float(os.getenv("EXEMPLAR_SAMPLE_RATE", self.exemplar_sample_rate))
+        self.exemplar_sample_rate = float(
+            os.getenv("EXEMPLAR_SAMPLE_RATE", self.exemplar_sample_rate)
+        )
 
         # Endpoints
         self.prometheus_pushgateway_url = os.getenv("PROMETHEUS_PUSHGATEWAY_URL")
@@ -141,11 +149,13 @@ class MetricsConfig:
 
     def _setup_default_labels(self):
         """Configura labels padrão."""
-        self.default_labels.update({
-            "service_name": self.service_name,
-            "service_version": self.service_version,
-            "environment": self.environment,
-        })
+        self.default_labels.update(
+            {
+                "service_name": self.service_name,
+                "service_version": self.service_version,
+                "environment": self.environment,
+            }
+        )
 
         # Adicionar labels específicos do Neural Hive-Mind
         if "neural_hive" not in self.service_name.lower():
@@ -190,6 +200,7 @@ class MetricsConfig:
     def should_sample_exemplar(self) -> bool:
         """Determina se deve criar exemplar baseado na taxa de amostragem."""
         import random
+
         return random.random() < self.exemplar_sample_rate
 
     def to_dict(self) -> Dict[str, Any]:
@@ -229,10 +240,10 @@ class MetricsConfig:
         if not path.exists():
             raise FileNotFoundError(f"Arquivo de configuração não encontrado: {config_path}")
 
-        with open(path, 'r', encoding='utf-8') as f:
-            if path.suffix.lower() in ['.yaml', '.yml']:
+        with open(path, "r", encoding="utf-8") as f:
+            if path.suffix.lower() in [".yaml", ".yml"]:
                 config_dict = yaml.safe_load(f)
-            elif path.suffix.lower() == '.json':
+            elif path.suffix.lower() == ".json":
                 config_dict = json.load(f)
             else:
                 raise ValueError(f"Formato de arquivo não suportado: {path.suffix}")

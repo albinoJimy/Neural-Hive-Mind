@@ -11,9 +11,18 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta, timezone
 from opentelemetry import trace
 from prometheus_client import Counter, Histogram, Gauge
-from tenacity import AsyncRetrying, stop_after_attempt, wait_fixed, retry_if_exception_type, RetryError
+from tenacity import (
+    AsyncRetrying,
+    stop_after_attempt,
+    wait_fixed,
+    retry_if_exception_type,
+    RetryError,
+)
 
-from neural_hive_integration.clients.orchestrator_client import OrchestratorClient, WorkflowTicketsNotReadyError
+from neural_hive_integration.clients.orchestrator_client import (
+    OrchestratorClient,
+    WorkflowTicketsNotReadyError,
+)
 from neural_hive_integration.clients.service_registry_client import ServiceRegistryClient, AgentInfo
 from neural_hive_integration.clients.execution_ticket_client import ExecutionTicketClient
 from neural_hive_integration.clients.worker_agent_client import WorkerAgentClient
@@ -41,7 +50,9 @@ flow_c_steps_duration = Histogram(
     ["step"],
 )
 flow_c_success = Counter("neural_hive_flow_c_success_total", "Flow C successful executions")
-flow_c_failures = Counter("neural_hive_flow_c_failures_total", "Flow C failed executions", ["reason"])
+flow_c_failures = Counter(
+    "neural_hive_flow_c_failures_total", "Flow C failed executions", ["reason"]
+)
 flow_c_sla_violations = Counter("neural_hive_flow_c_sla_violations_total", "Flow C SLA violations")
 flow_c_workflow_query_duration = Histogram(
     "neural_hive_flow_c_workflow_query_duration_seconds",
@@ -125,12 +136,11 @@ class FlowCOrchestrator:
         self.logger = logger.bind(service="flow_c_orchestrator")
         self.approval_producer: AIOKafkaProducer = None
         self.kafka_bootstrap_servers = os.getenv(
-            'KAFKA_BOOTSTRAP_SERVERS',
-            'neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092'
+            "KAFKA_BOOTSTRAP_SERVERS",
+            "neural-hive-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092",
         )
         self.approval_requests_topic = os.getenv(
-            'APPROVAL_REQUESTS_TOPIC',
-            'cognitive-plans-approval-requests'
+            "APPROVAL_REQUESTS_TOPIC", "cognitive-plans-approval-requests"
         )
 
         # Circuit breaker para status checks (C5)
@@ -147,7 +157,7 @@ class FlowCOrchestrator:
             worker_load_gauge = Gauge(
                 "neural_hive_flow_c_worker_load",
                 "Current number of tickets assigned to each worker",
-                ["worker_id"]
+                ["worker_id"],
             )
         self.worker_load_gauge = worker_load_gauge
 
@@ -158,15 +168,15 @@ class FlowCOrchestrator:
 
         # Initialize Kafka producer for approval requests
         producer_config = {
-            'bootstrap_servers': self.kafka_bootstrap_servers,
-            'value_serializer': lambda v: json.dumps(v).encode('utf-8'),
+            "bootstrap_servers": self.kafka_bootstrap_servers,
+            "value_serializer": lambda v: json.dumps(v).encode("utf-8"),
         }
         self.approval_producer = AIOKafkaProducer(**producer_config)
         await self.approval_producer.start()
         self.logger.info(
             "approval_producer_initialized",
             topic=self.approval_requests_topic,
-            bootstrap_servers=self.kafka_bootstrap_servers
+            bootstrap_servers=self.kafka_bootstrap_servers,
         )
 
     async def close(self):
@@ -202,25 +212,22 @@ class FlowCOrchestrator:
             "risk_matrix": consolidated_decision.get("risk_matrix"),
             "cognitive_plan": cognitive_plan,
             "requested_at": datetime.now(timezone.utc).isoformat(),
-            "status": "pending"
+            "status": "pending",
         }
 
         self.logger.info(
             "publishing_approval_request",
             plan_id=plan_id,
             intent_id=intent_id,
-            topic=self.approval_requests_topic
+            topic=self.approval_requests_topic,
         )
 
         await self.approval_producer.send_and_wait(
-            self.approval_requests_topic,
-            value=approval_request
+            self.approval_requests_topic, value=approval_request
         )
 
         self.logger.info(
-            "approval_request_published",
-            plan_id=plan_id,
-            topic=self.approval_requests_topic
+            "approval_request_published", plan_id=plan_id, topic=self.approval_requests_topic
         )
 
     @tracer.start_as_current_span("flow_c.execute")
@@ -266,7 +273,7 @@ class FlowCOrchestrator:
                 plan_id=plan_id,
                 decision_id=decision_id,
                 final_decision=final_decision,
-                action="Publishing to approval requests topic and awaiting approval"
+                action="Publishing to approval requests topic and awaiting approval",
             )
 
             # Publicar no tópico de approval requests
@@ -281,7 +288,7 @@ class FlowCOrchestrator:
                 plan_id=plan_id,
                 decision_id=decision_id,
                 duration_ms=total_duration,
-                note="Plan submitted for human approval - not executing tickets"
+                note="Plan submitted for human approval - not executing tickets",
             )
 
             return FlowCResult(
@@ -294,7 +301,7 @@ class FlowCOrchestrator:
                 telemetry_published=False,
                 sla_compliant=True,
                 sla_remaining_seconds=14400,  # 4 horas
-                awaiting_approval=True  # Novo campo
+                awaiting_approval=True,  # Novo campo
             )
 
         # Extract correlation_id with fallback chain FIRST (before context is used)
@@ -312,7 +319,7 @@ class FlowCOrchestrator:
                 intent_id=consolidated_decision.get("intent_id"),
                 plan_id=consolidated_decision.get("plan_id"),
                 decision_id=consolidated_decision.get("decision_id"),
-                message="correlation_id ausente na decisão e no plano - será gerado automaticamente"
+                message="correlation_id ausente na decisão e no plano - será gerado automaticamente",
             )
 
         # Create context - FlowCContext validará e gerará correlation_id se necessário
@@ -320,10 +327,12 @@ class FlowCOrchestrator:
         context = FlowCContext(
             intent_id=consolidated_decision["intent_id"],
             plan_id=consolidated_decision["plan_id"],
-            decision_id=consolidated_decision.get("decision_id"),  # Optional para plans diretos do STE
+            decision_id=consolidated_decision.get(
+                "decision_id"
+            ),  # Optional para plans diretos do STE
             correlation_id=correlation_id,  # Pode ser None - validator tratará
-            trace_id=format(trace.get_current_span().get_span_context().trace_id, '032x'),
-            span_id=format(trace.get_current_span().get_span_context().span_id, '016x'),
+            trace_id=format(trace.get_current_span().get_span_context().trace_id, "032x"),
+            span_id=format(trace.get_current_span().get_span_context().span_id, "016x"),
             started_at=start_time,
             sla_deadline=start_time + timedelta(hours=4),
             priority=consolidated_decision.get("priority", 5),
@@ -367,7 +376,9 @@ class FlowCOrchestrator:
             def log_sla_status(step_name: str, step_duration_ms: int):
                 """Loga status do SLA após cada step."""
                 sla_remaining_seconds = calculate_sla_remaining()
-                total_elapsed_ms = int((datetime.now(timezone.utc) - start_time).total_seconds() * 1000)
+                total_elapsed_ms = int(
+                    (datetime.now(timezone.utc) - start_time).total_seconds() * 1000
+                )
 
                 if sla_remaining_seconds < 0:
                     self.logger.error(
@@ -556,7 +567,9 @@ class FlowCOrchestrator:
                 tickets_failed=results["failed"],
                 telemetry_published=True,
                 sla_compliant=sla_remaining_seconds >= 0,
-                sla_remaining_seconds=int(sla_remaining_seconds) if sla_remaining_seconds >= 0 else int(sla_remaining_seconds),
+                sla_remaining_seconds=int(sla_remaining_seconds)
+                if sla_remaining_seconds >= 0
+                else int(sla_remaining_seconds),
             )
 
             flow_c_success.inc()
@@ -583,7 +596,9 @@ class FlowCOrchestrator:
                 telemetry_published=False,
                 error=str(e),
                 sla_compliant=sla_remaining_seconds >= 0,
-                sla_remaining_seconds=int(sla_remaining_seconds) if sla_remaining_seconds >= 0 else int(sla_remaining_seconds),
+                sla_remaining_seconds=int(sla_remaining_seconds)
+                if sla_remaining_seconds >= 0
+                else int(sla_remaining_seconds),
             )
 
     async def _execute_c1_validate(
@@ -602,7 +617,7 @@ class FlowCOrchestrator:
             # Detectar se é um plan direto do STE ou uma decisão consolidada
             # Plan direto do STE: tem 'tasks' diretamente no decision
             # Decisão consolidada: tem 'cognitive_plan' aninhado
-            is_direct_plan = 'tasks' in decision
+            is_direct_plan = "tasks" in decision
 
             if is_direct_plan:
                 # Plan direto do STE - validar campos do cognitive plan
@@ -611,7 +626,7 @@ class FlowCOrchestrator:
                 self.logger.info(
                     "c1_validating_direct_ste_plan",
                     plan_id=decision.get("plan_id"),
-                    tasks_count=len(decision.get("tasks", []))
+                    tasks_count=len(decision.get("tasks", [])),
                 )
             else:
                 # Decisão consolidada - validar campos padrão
@@ -656,7 +671,7 @@ class FlowCOrchestrator:
         """C2: Start workflow and generate execution tickets."""
 
         # Detectar se é um plan direto do STE ou uma decisão consolidada
-        is_direct_plan = 'tasks' in decision
+        is_direct_plan = "tasks" in decision
 
         if is_direct_plan:
             # Plan direto do STE - decision IS the cognitive plan
@@ -895,7 +910,9 @@ class FlowCOrchestrator:
                 "correlation_id": correlation_id,
                 "trace_id": task.get("trace_id"),
                 "span_id": task.get("span_id"),
-                "task_id": task.get("task_id", task.get("id", f"task_{task.get('type', 'unknown')}")),
+                "task_id": task.get(
+                    "task_id", task.get("id", f"task_{task.get('type', 'unknown')}")
+                ),
                 "task_type": normalized_task_type,
                 "description": task.get("description", ""),
                 "dependencies": task.get("dependencies", []),
@@ -913,7 +930,10 @@ class FlowCOrchestrator:
                     "durability": "PERSISTENT",
                 },
                 "parameters": task.get("parameters", {}),
-                "required_capabilities": task.get("required_capabilities", task.get("capabilities", ["python", "read", "write", "compute", "code"])),
+                "required_capabilities": task.get(
+                    "required_capabilities",
+                    task.get("capabilities", ["python", "read", "write", "compute", "code"]),
+                ),
                 "security_level": "INTERNAL",
                 "created_at": current_timestamp,
                 "started_at": None,
@@ -1007,7 +1027,14 @@ class FlowCOrchestrator:
                     task_type=task_type,
                 )
 
-        valid_statuses = ["PENDING", "RUNNING", "COMPLETED", "FAILED", "COMPENSATING", "COMPENSATED"]
+        valid_statuses = [
+            "PENDING",
+            "RUNNING",
+            "COMPLETED",
+            "FAILED",
+            "COMPENSATING",
+            "COMPENSATED",
+        ]
         status = ticket.get("status")
         if status and isinstance(status, str) and status.upper() not in valid_statuses:
             errors.append(f"Status inválido: {status}")
@@ -1094,7 +1121,9 @@ class FlowCOrchestrator:
                 schema_version=schema_version,
                 supported_versions=supported_versions,
             )
-            errors.append(f"schema_version não suportado: {schema_version} (suportados: {supported_versions})")
+            errors.append(
+                f"schema_version não suportado: {schema_version} (suportados: {supported_versions})"
+            )
 
         return (len(errors) == 0, errors)
 
@@ -1156,13 +1185,13 @@ class FlowCOrchestrator:
         """
         weights = {}
         for worker in workers:
-            telemetry = worker.metadata.get('telemetry', {})
+            telemetry = worker.metadata.get("telemetry", {})
 
             # Extrair métricas (com defaults conservadores)
-            success_rate = float(telemetry.get('success_rate', 0.8))
-            avg_duration = float(telemetry.get('avg_duration_ms', 1000))
-            current_load = int(telemetry.get('current_load', 0))
-            max_capacity = int(telemetry.get('max_capacity', 10))
+            success_rate = float(telemetry.get("success_rate", 0.8))
+            avg_duration = float(telemetry.get("avg_duration_ms", 1000))
+            current_load = int(telemetry.get("current_load", 0))
+            max_capacity = int(telemetry.get("max_capacity", 10))
 
             # Fator de duração: workers mais rápidos têm peso maior
             # Normalizado para evitar divisão por zero
@@ -1201,7 +1230,7 @@ class FlowCOrchestrator:
         """
         weight_sum = sum(weights.values())
         selected_worker = None
-        max_weight = -float('inf')
+        max_weight = -float("inf")
 
         for worker in workers:
             current_weights[worker.agent_id] += weights.get(worker.agent_id, 1.0)
@@ -1289,11 +1318,13 @@ class FlowCOrchestrator:
 
                     tickets_assigned_total.inc()  # P1-002: Métrica C4
 
-                    assignments.append({
-                        "ticket_id": ticket["ticket_id"],
-                        "worker_id": worker.agent_id,
-                        "task_id": task.task_id,
-                    })
+                    assignments.append(
+                        {
+                            "ticket_id": ticket["ticket_id"],
+                            "worker_id": worker.agent_id,
+                            "task_id": task.task_id,
+                        }
+                    )
 
                     self.logger.info(
                         "ticket_assigned",
@@ -1311,9 +1342,15 @@ class FlowCOrchestrator:
                             plan_id=context.plan_id,
                         )
                     except Exception as e:
-                        self.logger.warning("ticket_assigned_event_failed", ticket_id=ticket["ticket_id"], error=str(e))
+                        self.logger.warning(
+                            "ticket_assigned_event_failed",
+                            ticket_id=ticket["ticket_id"],
+                            error=str(e),
+                        )
                 except Exception as e:
-                    assignment_failures_total.labels(reason=type(e).__name__).inc()  # P1-002: Métrica C4
+                    assignment_failures_total.labels(
+                        reason=type(e).__name__
+                    ).inc()  # P1-002: Métrica C4
                     self.logger.error(
                         "failed_to_assign_ticket",
                         ticket_id=ticket["ticket_id"],
@@ -1372,7 +1409,9 @@ class FlowCOrchestrator:
 
         # Calcular deadline baseado no SLA (4h) menos tempo já decorrido
         remaining_time = (context.sla_deadline - datetime.now(timezone.utc)).total_seconds()
-        max_iterations = int(remaining_time / base_interval) if remaining_time > 0 else 1440  # Max 4h
+        max_iterations = (
+            int(remaining_time / base_interval) if remaining_time > 0 else 1440
+        )  # Max 4h
 
         self.logger.info(
             "step_c5_starting_monitor_execution",
@@ -1396,8 +1435,7 @@ class FlowCOrchestrator:
                     try:
                         # Usar circuit breaker para proteger chamadas de status
                         ticket_obj = await self.status_check_breaker.call_async(
-                            self.ticket_client.get_ticket,
-                            ticket["ticket_id"]
+                            self.ticket_client.get_ticket, ticket["ticket_id"]
                         )
                         statuses.append(ticket_obj.status)
                     except CircuitBreakerError:
@@ -1464,7 +1502,9 @@ class FlowCOrchestrator:
                         if status == "completed":
                             tickets_completed_total.inc()
                             task_type = ticket.get("task_type", "unknown")
-                            execution_duration.labels(status="completed", task_type=task_type).observe(0)
+                            execution_duration.labels(
+                                status="completed", task_type=task_type
+                            ).observe(0)
                         elif status == "failed":
                             tickets_failed_total.labels(reason="execution_failed").inc()
 
@@ -1532,7 +1572,7 @@ class FlowCOrchestrator:
                     failed_count=failed_count,
                     total_tickets=total_tickets,
                     ticket_ids_count=len([t["ticket_id"] for t in tickets]),
-                    message="Completed count does not match expected value"
+                    message="Completed count does not match expected value",
                 )
 
             # Garantir que tickets_completed está correto
@@ -1567,9 +1607,7 @@ class FlowCOrchestrator:
                 flow_completed=True,
             )
 
-    async def resume_flow_c_after_approval(
-        self, approval_response: Dict[str, Any]
-    ) -> FlowCResult:
+    async def resume_flow_c_after_approval(self, approval_response: Dict[str, Any]) -> FlowCResult:
         """
         Resume Flow C execution after human approval.
 
@@ -1621,14 +1659,16 @@ class FlowCOrchestrator:
                 import os
 
                 mongo_uri = os.getenv(
-                    'MONGODB_URI',
-                    'mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin'
+                    "MONGODB_URI",
+                    "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin",
                 )
-                mongo_db_name = os.getenv('MONGODB_DATABASE', 'neural_hive')
+                mongo_db_name = os.getenv("MONGODB_DATABASE", "neural_hive")
 
                 motor_client = AsyncIOMotorClient(mongo_uri, serverSelectionTimeoutMS=5000)
                 try:
-                    approval = await motor_client[mongo_db_name].plan_approvals.find_one({"plan_id": plan_id})
+                    approval = await motor_client[mongo_db_name].plan_approvals.find_one(
+                        {"plan_id": plan_id}
+                    )
                     if approval:
                         # Navegar estrutura aninhada
                         outer_cp = approval.get("cognitive_plan", {})
@@ -1640,25 +1680,22 @@ class FlowCOrchestrator:
                                     "cognitive_plan_retrieved_from_mongodb",
                                     plan_id=plan_id,
                                     tasks_count=len(cognitive_plan.get("tasks", [])),
-                                    source="plan_approvals.cognitive_plan.cognitive_plan"
+                                    source="plan_approvals.cognitive_plan.cognitive_plan",
                                 )
                             else:
                                 self.logger.warning(
                                     "cognitive_plan_not_found_in_nested_structure",
                                     plan_id=plan_id,
-                                    available_keys=list(outer_cp.keys()) if outer_cp else []
+                                    available_keys=list(outer_cp.keys()) if outer_cp else [],
                                 )
                         else:
                             self.logger.warning(
                                 "cognitive_plan_not_dict_in_approval",
                                 plan_id=plan_id,
-                                type=str(type(outer_cp))
+                                type=str(type(outer_cp)),
                             )
                     else:
-                        self.logger.warning(
-                            "approval_not_found_in_mongodb",
-                            plan_id=plan_id
-                        )
+                        self.logger.warning("approval_not_found_in_mongodb", plan_id=plan_id)
                 finally:
                     motor_client.close()
             except Exception as e:
@@ -1666,7 +1703,7 @@ class FlowCOrchestrator:
                     "failed_to_retrieve_cognitive_plan_from_mongodb",
                     plan_id=plan_id,
                     error=str(e),
-                    exc_info=True
+                    exc_info=True,
                 )
 
         self.logger.info(
@@ -1706,8 +1743,12 @@ class FlowCOrchestrator:
             "plan_id": plan_id,
             "tasks": cognitive_plan.get("tasks", []),
             "execution_order": cognitive_plan.get("execution_order", []),
-            "risk_score": cognitive_plan.get("risk_score", approval_response.get("risk_score", 0.5)),
-            "risk_band": cognitive_plan.get("risk_band", approval_response.get("risk_band", "medium")),
+            "risk_score": cognitive_plan.get(
+                "risk_score", approval_response.get("risk_score", 0.5)
+            ),
+            "risk_band": cognitive_plan.get(
+                "risk_band", approval_response.get("risk_band", "medium")
+            ),
             # Outros campos do cognitive_plan original
             "schema_version": cognitive_plan.get("schema_version", 1),
             "correlation_id": cognitive_plan.get("correlation_id"),
@@ -1715,10 +1756,23 @@ class FlowCOrchestrator:
             "valid_until": cognitive_plan.get("valid_until"),
             "metadata": cognitive_plan.get("metadata", {}),
             # Preservar campos adicionais que possam existir
-            **{k: v for k, v in cognitive_plan.items() if k not in [
-                "plan_id", "tasks", "execution_order", "risk_score", "risk_band",
-                "schema_version", "correlation_id", "priority", "valid_until", "metadata"
-            ]}
+            **{
+                k: v
+                for k, v in cognitive_plan.items()
+                if k
+                not in [
+                    "plan_id",
+                    "tasks",
+                    "execution_order",
+                    "risk_score",
+                    "risk_band",
+                    "schema_version",
+                    "correlation_id",
+                    "priority",
+                    "valid_until",
+                    "metadata",
+                ]
+            },
         }
 
         consolidated_decision = {

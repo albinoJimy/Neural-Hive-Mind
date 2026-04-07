@@ -17,12 +17,13 @@ tracer = trace.get_tracer(__name__)
 # Default URL - can be overridden via EXECUTION_TICKET_SERVICE_URL env var
 DEFAULT_EXECUTION_TICKET_URL = os.getenv(
     "EXECUTION_TICKET_SERVICE_URL",
-    "http://execution-ticket-service.neural-hive.svc.cluster.local:8000"
+    "http://execution-ticket-service.neural-hive.svc.cluster.local:8000",
 )
 
 
 class SLA(BaseModel):
     """SLA configuration for the ticket."""
+
     deadline: int
     timeout_ms: int
     max_retries: int
@@ -30,6 +31,7 @@ class SLA(BaseModel):
 
 class QoS(BaseModel):
     """Quality of Service settings."""
+
     delivery_mode: str
     consistency: str
     durability: str
@@ -37,6 +39,7 @@ class QoS(BaseModel):
 
 class AllocationMetadata(BaseModel):
     """Resource allocation metadata."""
+
     agent_id: str
     agent_type: str
     agent_score: float
@@ -53,6 +56,7 @@ class AllocationMetadata(BaseModel):
 
 class RejectionMetadata(BaseModel):
     """Ticket rejection information."""
+
     allocation_method: str
     namespace: str
     rejected_at: int
@@ -63,6 +67,7 @@ class RejectionMetadata(BaseModel):
 
 class Predictions(BaseModel):
     """ML predictions for ticket execution."""
+
     anomaly: Optional[Dict[str, Any]] = None
     duration_confidence: float
     duration_ms: float
@@ -71,6 +76,7 @@ class Predictions(BaseModel):
 
 class ExecutionTicket(BaseModel):
     """Execution ticket data structure - matches execution-ticket-service API schema."""
+
     ticket_id: str
     plan_id: str
     intent_id: str
@@ -148,6 +154,7 @@ class ExecutionTicketClient:
         # If ticket_id is not provided, generate a new one for each attempt
         if "ticket_id" not in ticket_data or not ticket_data["ticket_id"]:
             from uuid import uuid4
+
             ticket_data = ticket_data.copy()
             ticket_data["ticket_id"] = str(uuid4())
 
@@ -180,9 +187,7 @@ class ExecutionTicketClient:
         Returns:
             Ticket data
         """
-        response = await self.client.get(
-            f"{self.base_url}/api/v1/tickets/{ticket_id}"
-        )
+        response = await self.client.get(f"{self.base_url}/api/v1/tickets/{ticket_id}")
         response.raise_for_status()
 
         return ExecutionTicket(**response.json())
@@ -269,9 +274,7 @@ class ExecutionTicketClient:
         Returns:
             JWT token
         """
-        response = await self.client.post(
-            f"{self.base_url}/api/v1/tickets/{ticket_id}/token"
-        )
+        response = await self.client.post(f"{self.base_url}/api/v1/tickets/{ticket_id}/token")
         response.raise_for_status()
 
         return response.json()["token"]

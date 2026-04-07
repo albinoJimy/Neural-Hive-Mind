@@ -14,6 +14,7 @@ import numpy as np
 # Test: Feature Engineering
 # =============================================================================
 
+
 class TestFeatureEngineering:
     """Testes de engenharia de features."""
 
@@ -50,7 +51,7 @@ class TestFeatureEngineering:
             "day": date.day,
             "hour": date.hour,
             "day_of_week": date.weekday(),
-            "is_weekend": date.weekday() >= 5
+            "is_weekend": date.weekday() >= 5,
         }
 
         assert features["year"] == 2026
@@ -64,7 +65,7 @@ class TestFeatureEngineering:
 
         rolling_avg = []
         for i in range(len(values) - window + 1):
-            avg = sum(values[i:i + window]) / window
+            avg = sum(values[i : i + window]) / window
             rolling_avg.append(avg)
 
         assert rolling_avg[0] == 2.0  # (1+2+3)/3
@@ -74,6 +75,7 @@ class TestFeatureEngineering:
 # =============================================================================
 # Test: Model Training Pipeline
 # =============================================================================
+
 
 class TestModelTrainingPipeline:
     """Testes de pipeline de treino."""
@@ -137,6 +139,7 @@ class TestModelTrainingPipeline:
 # Test: Model Inference
 # =============================================================================
 
+
 class TestModelInference:
     """Testes de inferência de modelo."""
 
@@ -147,7 +150,7 @@ class TestModelInference:
         model = {
             "model_id": "approval_model",
             "version": "v2",
-            "loaded_at": datetime.now(timezone.utc).isoformat()
+            "loaded_at": datetime.now(timezone.utc).isoformat(),
         }
 
         assert model["version"] == "v2"
@@ -166,22 +169,17 @@ class TestModelInference:
         model = {"weights": [0.5, 0.5]}
         samples = [[1.0, 0.8], [0.5, 0.9], [1.0, 1.0]]
 
-        predictions = [
-            sum(w * f for w, f in zip(model["weights"], sample))
-            for sample in samples
-        ]
+        predictions = [sum(w * f for w, f in zip(model["weights"], sample)) for sample in samples]
 
         assert len(predictions) == 3
 
     def test_predict_with_proba(self):
         """Deve predizer com probabilidade."""
-        model_output = {
-            "logits": [2.0, 1.0, -1.0],
-            "classes": ["approve", "reject", "defer"]
-        }
+        model_output = {"logits": [2.0, 1.0, -1.0], "classes": ["approve", "reject", "defer"]}
 
         # Softmax
         import math
+
         exp_logits = [math.exp(l) for l in model_output["logits"]]
         sum_exp = sum(exp_logits)
         probabilities = [e / sum_exp for e in exp_logits]
@@ -193,6 +191,7 @@ class TestModelInference:
 # =============================================================================
 # Test: Drift Detection
 # =============================================================================
+
 
 class TestDriftDetection:
     """Testes de detecção de drift."""
@@ -243,6 +242,7 @@ class TestDriftDetection:
 # Test: Model Retraining
 # =============================================================================
 
+
 class TestModelRetraining:
     """Testes de retreino de modelo."""
 
@@ -281,19 +281,17 @@ class TestModelRetraining:
 # Test: Ensemble Methods
 # =============================================================================
 
+
 class TestEnsembleMethods:
     """Testes de métodos de ensemble."""
 
     def test_voting_classifier(self):
         """Deve implementar classificador de votação."""
-        models = {
-            "model1": "approve",
-            "model2": "approve",
-            "model3": "reject"
-        }
+        models = {"model1": "approve", "model2": "approve", "model3": "reject"}
 
         # Votação majoritária
         from collections import Counter
+
         votes = list(models.values())
         verdict = Counter(votes).most_common(1)[0][0]
 
@@ -304,22 +302,16 @@ class TestEnsembleMethods:
         models = {
             "model1": {"prediction": 0.8, "weight": 0.5},
             "model2": {"prediction": 0.6, "weight": 0.3},
-            "model3": {"prediction": 0.9, "weight": 0.2}
+            "model3": {"prediction": 0.9, "weight": 0.2},
         }
 
-        weighted_prediction = sum(
-            m["prediction"] * m["weight"] for m in models.values()
-        )
+        weighted_prediction = sum(m["prediction"] * m["weight"] for m in models.values())
 
         assert weighted_prediction == pytest.approx(0.76, rel=0.01)
 
     def test_stacking_ensemble(self):
         """Deve implementar stacking."""
-        base_models = {
-            "model1": 0.7,
-            "model2": 0.8,
-            "model3": 0.6
-        }
+        base_models = {"model1": 0.7, "model2": 0.8, "model3": 0.6}
 
         # Meta model (média simples)
         meta_prediction = sum(base_models.values()) / len(base_models)
@@ -331,6 +323,7 @@ class TestEnsembleMethods:
 # Test: Hyperparameter Tuning
 # =============================================================================
 
+
 class TestHyperparameterTuning:
     """Testes de sintonização de hiperparâmetros."""
 
@@ -339,14 +332,14 @@ class TestHyperparameterTuning:
         param_grid = {
             "learning_rate": [0.001, 0.01, 0.1],
             "max_depth": [3, 5, 7],
-            "n_estimators": [50, 100]
+            "n_estimators": [50, 100],
         }
 
         # Total combinações
         total_combinations = (
-            len(param_grid["learning_rate"]) *
-            len(param_grid["max_depth"]) *
-            len(param_grid["n_estimators"])
+            len(param_grid["learning_rate"])
+            * len(param_grid["max_depth"])
+            * len(param_grid["n_estimators"])
         )
 
         # Ajustar para os valores reais no dict
@@ -357,20 +350,21 @@ class TestHyperparameterTuning:
         param_ranges = {
             "learning_rate": (0.001, 0.1),
             "max_depth": (3, 10),
-            "n_estimators": (50, 200)
+            "n_estimators": (50, 200),
         }
 
         n_iterations = 10
 
         # Simular amostras aleatórias
         import random
+
         random.seed(42)
         samples = []
         for _ in range(n_iterations):
             sample = {
                 "learning_rate": random.uniform(*param_ranges["learning_rate"]),
                 "max_depth": random.randint(*param_ranges["max_depth"]),
-                "n_estimators": random.randint(*param_ranges["n_estimators"])
+                "n_estimators": random.randint(*param_ranges["n_estimators"]),
             }
             samples.append(sample)
 
@@ -383,7 +377,7 @@ class TestHyperparameterTuning:
             {"params": {"lr": 0.01}, "score": 0.75},
             {"params": {"lr": 0.05}, "score": 0.82},
             {"params": {"lr": 0.03}, "score": 0.85},
-            {"params": {"lr": 0.04}, "score": 0.83}
+            {"params": {"lr": 0.04}, "score": 0.83},
         ]
 
         best = max(iterations, key=lambda x: x["score"])
@@ -396,6 +390,7 @@ class TestHyperparameterTuning:
 # Test: Model Explainability
 # =============================================================================
 
+
 class TestModelExplainability:
     """Testes de explicabilidade de modelo."""
 
@@ -405,26 +400,18 @@ class TestModelExplainability:
             "amount": 0.4,
             "duration": 0.25,
             "user_age": 0.15,
-            "user_segment": 0.2
+            "user_segment": 0.2,
         }
 
         # Ordenar por importância
-        sorted_features = sorted(
-            feature_importance.items(),
-            key=lambda x: x[1],
-            reverse=True
-        )
+        sorted_features = sorted(feature_importance.items(), key=lambda x: x[1], reverse=True)
 
         assert sorted_features[0][0] == "amount"
 
     def test_shap_values(self):
         """Deve calcular valores SHAP."""
         # Simular valores SHAP
-        shap_values = {
-            "feature1": 0.5,
-            "feature2": -0.3,
-            "feature3": 0.1
-        }
+        shap_values = {"feature1": 0.5, "feature2": -0.3, "feature3": 0.1}
 
         # Contribuição total (sem bias)
         total_contribution = sum(shap_values.values())
@@ -437,7 +424,7 @@ class TestModelExplainability:
         pdp_values = [0.2, 0.4, 0.6, 0.7, 0.75]
 
         # PDP mostra relação monotônica crescente
-        is_increasing = all(pdp_values[i] < pdp_values[i+1] for i in range(len(pdp_values)-1))
+        is_increasing = all(pdp_values[i] < pdp_values[i + 1] for i in range(len(pdp_values) - 1))
 
         assert is_increasing is True
 
@@ -445,6 +432,7 @@ class TestModelExplainability:
 # =============================================================================
 # Test: Model Monitoring
 # =============================================================================
+
 
 class TestModelMonitoring:
     """Testes de monitoramento de modelo."""
@@ -490,6 +478,7 @@ class TestModelMonitoring:
 # Test: Data Preprocessing
 # =============================================================================
 
+
 class TestDataPreprocessing:
     """Testes de pré-processamento de dados."""
 
@@ -533,18 +522,16 @@ class TestDataPreprocessing:
 
     def test_scale_features(self):
         """Deve escalar features."""
-        features = [
-            [100, 0.5, 1000],
-            [200, 1.0, 2000],
-            [150, 0.75, 1500]
-        ]
+        features = [[100, 0.5, 1000], [200, 1.0, 2000], [150, 0.75, 1500]]
 
         # StandardScaler (z-score)
         # Calcular média e std para cada feature (coluna)
         feature_cols = [[100, 200, 150], [0.5, 1.0, 0.75], [1000, 2000, 1500]]
         means = [sum(col) / len(col) for col in feature_cols]
-        stds = [(sum((x - m) ** 2 for x in col) / len(col)) ** 0.5
-                for col, m in zip(feature_cols, means)]
+        stds = [
+            (sum((x - m) ** 2 for x in col) / len(col)) ** 0.5
+            for col, m in zip(feature_cols, means)
+        ]
 
         # Escalar cada feature
         scaled = [
@@ -560,6 +547,7 @@ class TestDataPreprocessing:
 # Test: Experiment Tracking
 # =============================================================================
 
+
 class TestExperimentTracking:
     """Testes de rastreamento de experimentos."""
 
@@ -570,7 +558,7 @@ class TestExperimentTracking:
             "name": "model_v2_with_new_features",
             "params": {"learning_rate": 0.01, "max_depth": 5},
             "metrics": {"accuracy": 0.85, "f1": 0.87},
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         assert "accuracy" in experiment["metrics"]
@@ -580,7 +568,7 @@ class TestExperimentTracking:
         experiments = [
             {"id": "exp1", "accuracy": 0.82},
             {"id": "exp2", "accuracy": 0.87},
-            {"id": "exp3", "accuracy": 0.80}
+            {"id": "exp3", "accuracy": 0.80},
         ]
 
         best = max(experiments, key=lambda x: x["accuracy"])
@@ -594,7 +582,7 @@ class TestExperimentTracking:
             "train_loss": 0.35,
             "val_loss": 0.42,
             "train_accuracy": 0.85,
-            "val_accuracy": 0.82
+            "val_accuracy": 0.82,
         }
 
         assert training_metrics["epoch"] == 10

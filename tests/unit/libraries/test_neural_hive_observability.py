@@ -15,6 +15,7 @@ import json
 # Test: Structured Logging
 # =============================================================================
 
+
 class TestStructuredLogging:
     """Testes de logging estruturado."""
 
@@ -27,8 +28,8 @@ class TestStructuredLogging:
             "context": {
                 "request_id": str(uuid4()),
                 "user_id": "user123",
-                "endpoint": "/api/v1/intent"
-            }
+                "endpoint": "/api/v1/intent",
+            },
         }
 
         assert "context" in log_entry
@@ -41,7 +42,7 @@ class TestStructuredLogging:
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "level": "INFO",
             "correlation_id": correlation_id,
-            "message": "Processing request"
+            "message": "Processing request",
         }
 
         assert log_entry["correlation_id"] == correlation_id
@@ -58,7 +59,7 @@ class TestStructuredLogging:
         sensitive_data = {
             "password": "secret123",
             "credit_card": "4532-1234-5678-9010",
-            "user_id": "user123"
+            "user_id": "user123",
         }
 
         sanitised = sensitive_data.copy()
@@ -75,6 +76,7 @@ class TestStructuredLogging:
 # =============================================================================
 # Test: Metrics Collection
 # =============================================================================
+
 
 class TestMetricsCollection:
     """Testes de coleta de métricas."""
@@ -98,10 +100,7 @@ class TestMetricsCollection:
 
     def test_histogram_metric_records_distribution(self):
         """Deve registrar distribuição em histograma."""
-        histogram = {
-            "buckets": [1, 5, 10, 25, 50, 100, 250, 500, 1000],
-            "counts": [0] * 9
-        }
+        histogram = {"buckets": [1, 5, 10, 25, 50, 100, 250, 500, 1000], "counts": [0] * 9}
 
         # Registrar valor de 75ms
         value = 75
@@ -118,11 +117,7 @@ class TestMetricsCollection:
         metric = {
             "name": "http_requests_total",
             "value": 123,
-            "labels": {
-                "method": "POST",
-                "endpoint": "/api/v1/intent",
-                "status": "200"
-            }
+            "labels": {"method": "POST", "endpoint": "/api/v1/intent", "status": "200"},
         }
 
         assert metric["labels"]["method"] == "POST"
@@ -132,6 +127,7 @@ class TestMetricsCollection:
 # =============================================================================
 # Test: Distributed Tracing
 # =============================================================================
+
 
 class TestDistributedTracing:
     """Testes de tracing distribuído."""
@@ -145,7 +141,7 @@ class TestDistributedTracing:
             "trace_id": trace_id,
             "parent_span_id": parent_span_id,
             "span_id": str(uuid4()),
-            "operation": "process_request"
+            "operation": "process_request",
         }
 
         assert child_span["trace_id"] == trace_id
@@ -159,7 +155,7 @@ class TestDistributedTracing:
         span = {
             "start_time": start_time.isoformat(),
             "end_time": end_time.isoformat(),
-            "duration_ms": 150
+            "duration_ms": 150,
         }
 
         assert span["duration_ms"] == 150
@@ -174,8 +170,8 @@ class TestDistributedTracing:
                 "http.method": "GET",
                 "http.url": "/api/v1/intent",
                 "http.status_code": "200",
-                "user.id": "user123"
-            }
+                "user.id": "user123",
+            },
         }
 
         assert span["tags"]["http.method"] == "GET"
@@ -183,17 +179,13 @@ class TestDistributedTracing:
 
     def test_propagate_trace_context(self):
         """Deve propagar contexto de trace."""
-        trace_context = {
-            "trace_id": str(uuid4()),
-            "span_id": str(uuid4()),
-            "sampled": True
-        }
+        trace_context = {"trace_id": str(uuid4()), "span_id": str(uuid4()), "sampled": True}
 
         # Adicionar ao header HTTP
         headers = {
             "X-Trace-ID": trace_context["trace_id"],
             "X-Span-ID": trace_context["span_id"],
-            "X-Sampled": "1" if trace_context["sampled"] else "0"
+            "X-Sampled": "1" if trace_context["sampled"] else "0",
         }
 
         assert "X-Trace-ID" in headers
@@ -204,6 +196,7 @@ class TestDistributedTracing:
 # Test: Performance Monitoring
 # =============================================================================
 
+
 class TestPerformanceMonitoring:
     """Testes de monitoramento de performance."""
 
@@ -213,6 +206,7 @@ class TestPerformanceMonitoring:
 
         # Simular processamento
         import time
+
         time.sleep(0.01)  # 10ms
 
         end = datetime.now(timezone.utc)
@@ -242,10 +236,7 @@ class TestPerformanceMonitoring:
         threshold_ms = 500
         request_durations = [100, 250, 750, 450, 1200]
 
-        slow_requests = [
-            d for d in request_durations
-            if d > threshold_ms
-        ]
+        slow_requests = [d for d in request_durations if d > threshold_ms]
 
         assert len(slow_requests) == 2
         assert 750 in slow_requests
@@ -255,6 +246,7 @@ class TestPerformanceMonitoring:
 # =============================================================================
 # Test: Alert Evaluation
 # =============================================================================
+
 
 class TestAlertEvaluation:
     """Testes de avaliação de alertas."""
@@ -297,6 +289,7 @@ class TestAlertEvaluation:
 # Test: Log Aggregation
 # =============================================================================
 
+
 class TestLogAggregation:
     """Testes de agregação de logs."""
 
@@ -306,7 +299,7 @@ class TestLogAggregation:
             {"correlation_id": "corr-1", "event": "start", "timestamp": "T10:00:00"},
             {"correlation_id": "corr-1", "event": "process", "timestamp": "T10:00:01"},
             {"correlation_id": "corr-1", "event": "end", "timestamp": "T10:00:02"},
-            {"correlation_id": "corr-2", "event": "start", "timestamp": "T10:00:05"}
+            {"correlation_id": "corr-2", "event": "start", "timestamp": "T10:00:05"},
         ]
 
         # Agrupar por correlation_id
@@ -325,17 +318,14 @@ class TestLogAggregation:
         logs = [
             {"timestamp": "2026-03-29T10:00:00", "level": "INFO"},
             {"timestamp": "2026-03-29T10:00:30", "level": "INFO"},
-            {"timestamp": "2026-03-29T10:01:30", "level": "ERROR"}
+            {"timestamp": "2026-03-29T10:01:30", "level": "ERROR"},
         ]
 
         # Janela de 1 minuto
         window_start = "2026-03-29T10:00:00"
         window_end = "2026-03-29T10:01:00"
 
-        in_window = [
-            log for log in logs
-            if window_start <= log["timestamp"] < window_end
-        ]
+        in_window = [log for log in logs if window_start <= log["timestamp"] < window_end]
 
         assert len(in_window) == 2
 
@@ -343,6 +333,7 @@ class TestLogAggregation:
 # =============================================================================
 # Test: Metric Export
 # =============================================================================
+
 
 class TestMetricExport:
     """Testes de exportação de métricas."""
@@ -353,7 +344,7 @@ class TestMetricExport:
             "name": "http_requests_total",
             "type": "counter",
             "value": 1234,
-            "labels": {"method": "GET", "status": "200"}
+            "labels": {"method": "GET", "status": "200"},
         }
 
         # Formato Prometheus
@@ -365,11 +356,7 @@ class TestMetricExport:
 
     def test_export_statsd_format(self):
         """Deve exportar métricas em formato StatsD."""
-        metric = {
-            "name": "request.duration",
-            "value": 150,
-            "type": "ms"
-        }
+        metric = {"name": "request.duration", "value": 150, "type": "ms"}
 
         # Formato StatsD
         statsd_line = f'{metric["name"]}:{metric["value"]}|{metric["type"]}'
@@ -381,6 +368,7 @@ class TestMetricExport:
 # Test: Context Propagation
 # =============================================================================
 
+
 class TestContextPropagation:
     """Testes de propagação de contexto."""
 
@@ -389,13 +377,13 @@ class TestContextPropagation:
         headers = {
             "X-Trace-ID": "trace-123",
             "X-Span-ID": "span-456",
-            "X-Parent-Span-ID": "parent-789"
+            "X-Parent-Span-ID": "parent-789",
         }
 
         trace_context = {
             "trace_id": headers.get("X-Trace-ID"),
             "span_id": headers.get("X-Span-ID"),
-            "parent_span_id": headers.get("X-Parent-Span-ID")
+            "parent_span_id": headers.get("X-Parent-Span-ID"),
         }
 
         assert trace_context["trace_id"] == "trace-123"
@@ -403,10 +391,7 @@ class TestContextPropagation:
 
     def test_inject_trace_into_headers(self):
         """Deve injetar trace nos headers."""
-        trace_context = {
-            "trace_id": "trace-123",
-            "span_id": "span-456"
-        }
+        trace_context = {"trace_id": "trace-123", "span_id": "span-456"}
 
         headers = {}
         headers["X-Trace-ID"] = trace_context["trace_id"]
@@ -420,6 +405,7 @@ class TestContextPropagation:
 # Test: Sampling Strategy
 # =============================================================================
 
+
 class TestSamplingStrategy:
     """Testes de estratégia de amostragem."""
 
@@ -428,6 +414,7 @@ class TestSamplingStrategy:
         sample_rate = 0.1  # 10%
 
         import random
+
         random.seed(42)
         traces = []
 

@@ -15,6 +15,7 @@ import asyncio
 # Test: Data Analysis
 # =============================================================================
 
+
 class TestDataAnalysis:
     """Testes de análise de dados."""
 
@@ -28,7 +29,7 @@ class TestDataAnalysis:
             "mean": sum(data) / len(data),
             "min": min(data),
             "max": max(data),
-            "median": sorted(data)[len(data) // 2]
+            "median": sorted(data)[len(data) // 2],
         }
 
         assert analysis["count"] == 10
@@ -60,7 +61,7 @@ class TestDataAnalysis:
             {"timestamp": "T00:00", "value": 10},
             {"timestamp": "T01:00", "value": 15},
             {"timestamp": "T02:00", "value": 20},
-            {"timestamp": "T03:00", "value": 25}
+            {"timestamp": "T03:00", "value": 25},
         ]
 
         values = [point["value"] for point in time_series]
@@ -75,6 +76,7 @@ class TestDataAnalysis:
 # Test: Insight Generation
 # =============================================================================
 
+
 class TestInsightGeneration:
     """Testes de geração de insights."""
 
@@ -84,14 +86,14 @@ class TestInsightGeneration:
         pattern = {
             "type": "seasonal_spike",
             "occurs_at": "Monday mornings",
-            "magnitude": "2x baseline"
+            "magnitude": "2x baseline",
         }
 
         insight = {
             "title": "Weekly Traffic Spike Detected",
             "description": f"Traffic increases {pattern['magnitude']} every {pattern['occurs_at']}",
             "confidence": 0.85,
-            "recommendation": "Scale up resources before Monday mornings"
+            "recommendation": "Scale up resources before Monday mornings",
         }
 
         assert "Monday" in insight["description"]
@@ -103,26 +105,18 @@ class TestInsightGeneration:
         insights = [
             {"id": "1", "impact": 0.3, "confidence": 0.9},
             {"id": "2", "impact": 0.8, "confidence": 0.7},
-            {"id": "3", "impact": 0.5, "confidence": 0.8}
+            {"id": "3", "impact": 0.5, "confidence": 0.8},
         ]
 
         # Priorizar por impacto * confiança
-        prioritized = sorted(
-            insights,
-            key=lambda x: x["impact"] * x["confidence"],
-            reverse=True
-        )
+        prioritized = sorted(insights, key=lambda x: x["impact"] * x["confidence"], reverse=True)
 
         assert prioritized[0]["id"] == "2"  # 0.8 * 0.7 = 0.56
 
     @pytest.mark.asyncio
     async def test_filter_insights_by_threshold(self):
         """Deve filtrar insights por threshold mínimo."""
-        insights = [
-            {"id": "1", "score": 0.4},
-            {"id": "2", "score": 0.7},
-            {"id": "3", "score": 0.6}
-        ]
+        insights = [{"id": "1", "score": 0.4}, {"id": "2", "score": 0.7}, {"id": "3", "score": 0.6}]
 
         threshold = 0.5
         filtered = [i for i in insights if i["score"] >= threshold]
@@ -134,6 +128,7 @@ class TestInsightGeneration:
 # =============================================================================
 # Test: Correlation Analysis
 # =============================================================================
+
 
 class TestCorrelationAnalysis:
     """Testes de análise de correlação."""
@@ -149,11 +144,11 @@ class TestCorrelationAnalysis:
         sum_x = sum(x)
         sum_y = sum(y)
         sum_xy = sum(xi * yi for xi, yi in zip(x, y))
-        sum_x2 = sum(xi ** 2 for xi in x)
-        sum_y2 = sum(yi ** 2 for yi in y)
+        sum_x2 = sum(xi**2 for xi in x)
+        sum_y2 = sum(yi**2 for yi in y)
 
         numerator = n * sum_xy - sum_x * sum_y
-        denominator = ((n * sum_x2 - sum_x ** 2) * (n * sum_y2 - sum_y ** 2)) ** 0.5
+        denominator = ((n * sum_x2 - sum_x**2) * (n * sum_y2 - sum_y**2)) ** 0.5
 
         correlation = numerator / denominator if denominator != 0 else 0
 
@@ -166,7 +161,7 @@ class TestCorrelationAnalysis:
             {"time": 1, "event": "A"},
             {"time": 2, "event": "B"},
             {"time": 3, "event": "A"},
-            {"time": 4, "event": "B"}
+            {"time": 4, "event": "B"},
         ]
 
         # A sempre precede B
@@ -174,10 +169,7 @@ class TestCorrelationAnalysis:
         b_times = [e["time"] for e in events if e["event"] == "B"]
 
         # B sempre ocorre após A
-        causality_candidate = all(
-            any(a_time < b_time for a_time in a_times)
-            for b_time in b_times
-        )
+        causality_candidate = all(any(a_time < b_time for a_time in a_times) for b_time in b_times)
 
         assert causality_candidate is True
 
@@ -185,6 +177,7 @@ class TestCorrelationAnalysis:
 # =============================================================================
 # Test: Forecasting
 # =============================================================================
+
 
 class TestForecasting:
     """Testes de previsão."""
@@ -197,7 +190,7 @@ class TestForecasting:
 
         sma = []
         for i in range(len(data) - window + 1):
-            window_avg = sum(data[i:i + window]) / window
+            window_avg = sum(data[i : i + window]) / window
             sma.append(window_avg)
 
         assert sma[-1] == 40  # (30 + 40 + 50) / 3
@@ -231,6 +224,7 @@ class TestForecasting:
 # Test: Anomaly Detection
 # =============================================================================
 
+
 class TestAnomalyDetection:
     """Testes de detecção de anomalias."""
 
@@ -256,10 +250,17 @@ class TestAnomalyDetection:
         anomalous_pattern = [10, 11, 50, 52, 48, 11]  # Pico no meio
 
         # Detectar desvio padrão anormal
-        normal_std = (sum((x - sum(normal_pattern) / len(normal_pattern)) ** 2
-                         for x in normal_pattern) / len(normal_pattern)) ** 0.5
-        anomalous_std = (sum((x - sum(anomalous_pattern) / len(anomalous_pattern)) ** 2
-                            for x in anomalous_pattern) / len(anomalous_pattern)) ** 0.5
+        normal_std = (
+            sum((x - sum(normal_pattern) / len(normal_pattern)) ** 2 for x in normal_pattern)
+            / len(normal_pattern)
+        ) ** 0.5
+        anomalous_std = (
+            sum(
+                (x - sum(anomalous_pattern) / len(anomalous_pattern)) ** 2
+                for x in anomalous_pattern
+            )
+            / len(anomalous_pattern)
+        ) ** 0.5
 
         is_collective_anomaly = anomalous_std > normal_std * 3
 
@@ -269,6 +270,7 @@ class TestAnomalyDetection:
 # =============================================================================
 # Test: Report Generation
 # =============================================================================
+
 
 class TestReportGeneration:
     """Testes de geração de relatórios."""
@@ -280,7 +282,7 @@ class TestReportGeneration:
             "total_records": 1000,
             "anomalies_found": 15,
             "insights_generated": 5,
-            "analysis_duration_ms": 250
+            "analysis_duration_ms": 250,
         }
 
         report = {
@@ -291,7 +293,7 @@ class TestReportGeneration:
                 f"Analyzed {analysis_results['total_records']} records, "
                 f"found {analysis_results['anomalies_found']} anomalies, "
                 f"generated {analysis_results['insights_generated']} insights"
-            )
+            ),
         }
 
         assert "1000" in report["summary"]
@@ -304,10 +306,11 @@ class TestReportGeneration:
             "id": str(uuid4()),
             "type": "analysis_report",
             "data": {"key": "value"},
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         import json
+
         json_str = json.dumps(report)
 
         assert "analysis_report" in json_str
@@ -317,6 +320,7 @@ class TestReportGeneration:
 # =============================================================================
 # Test: Recommendation Engine
 # =============================================================================
+
 
 class TestRecommendationEngine:
     """Testes do motor de recomendações."""
@@ -328,7 +332,7 @@ class TestRecommendationEngine:
             "type": "performance_degradation",
             "metric": "latency_p95",
             "current_value": 500,
-            "threshold": 200
+            "threshold": 200,
         }
 
         recommendation = {
@@ -336,7 +340,7 @@ class TestRecommendationEngine:
             "target": "api_servers",
             "reason": f"Latency {insight['metric']} is {insight['current_value']}ms, exceeding threshold of {insight['threshold']}ms",
             "expected_improvement": "60% reduction in latency",
-            "effort": "low"
+            "effort": "low",
         }
 
         assert recommendation["action"] == "scale_up"
@@ -345,16 +349,11 @@ class TestRecommendationEngine:
     @pytest.mark.asyncio
     async def test_estimate_recommendation_impact(self):
         """Deve estimar impacto da recomendação."""
-        recommendation = {
-            "type": "cache_addition",
-            "current_rps": 1000,
-            "expected_rps": 1500
-        }
+        recommendation = {"type": "cache_addition", "current_rps": 1000, "expected_rps": 1500}
 
         improvement_percentage = (
-            (recommendation["expected_rps"] - recommendation["current_rps"]) /
-            recommendation["current_rps"]
-        )
+            recommendation["expected_rps"] - recommendation["current_rps"]
+        ) / recommendation["current_rps"]
 
         assert improvement_percentage == 0.5  # 50% melhoria
 
@@ -362,6 +361,7 @@ class TestRecommendationEngine:
 # =============================================================================
 # Test: Data Quality Assessment
 # =============================================================================
+
 
 class TestDataQualityAssessment:
     """Testes de avaliação de qualidade de dados."""
@@ -372,12 +372,11 @@ class TestDataQualityAssessment:
         data = [
             {"id": 1, "name": "A", "value": 10},
             {"id": 2, "name": None, "value": 20},
-            {"id": 3, "name": "C", "value": None}
+            {"id": 3, "name": "C", "value": None},
         ]
 
         missing_count = sum(
-            1 for record in data
-            if record.get("name") is None or record.get("value") is None
+            1 for record in data if record.get("name") is None or record.get("value") is None
         )
 
         assert missing_count == 2
@@ -399,7 +398,7 @@ class TestDataQualityAssessment:
         records = [
             {"id": 1, "email": "user@example.com"},
             {"id": 2, "email": "user@example.com"},  # Duplicado
-            {"id": 3, "email": "other@example.com"}
+            {"id": 3, "email": "other@example.com"},
         ]
 
         seen_emails = set()
@@ -418,6 +417,7 @@ class TestDataQualityAssessment:
 # =============================================================================
 # Test: Analyst Coordination
 # =============================================================================
+
 
 class TestAnalystCoordination:
     """Testes de coordenação de analistas."""
@@ -443,11 +443,13 @@ class TestAnalystCoordination:
         analyst_results = {
             "analyst-1": {"insights": 5, "confidence": 0.8},
             "analyst-2": {"insights": 3, "confidence": 0.9},
-            "analyst-3": {"insights": 7, "confidence": 0.7}
+            "analyst-3": {"insights": 7, "confidence": 0.7},
         }
 
         total_insights = sum(r["insights"] for r in analyst_results.values())
-        avg_confidence = sum(r["confidence"] for r in analyst_results.values()) / len(analyst_results)
+        avg_confidence = sum(r["confidence"] for r in analyst_results.values()) / len(
+            analyst_results
+        )
 
         assert total_insights == 15
         assert 0.7 < avg_confidence < 0.9

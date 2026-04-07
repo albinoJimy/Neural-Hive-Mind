@@ -15,6 +15,7 @@ import asyncio
 # Test: Circuit Breaker
 # =============================================================================
 
+
 class TestCircuitBreaker:
     """Testes de Circuit Breaker."""
 
@@ -91,6 +92,7 @@ class TestCircuitBreaker:
 # Test: Retry Policy
 # =============================================================================
 
+
 class TestRetryPolicy:
     """Testes de política de retry."""
 
@@ -103,7 +105,7 @@ class TestRetryPolicy:
 
         delays = []
         for attempt in range(5):
-            delay = min(base_delay * (2 ** attempt), max_delay)
+            delay = min(base_delay * (2**attempt), max_delay)
             delays.append(delay)
 
         assert delays == [1, 2, 4, 8, 16]
@@ -145,6 +147,7 @@ class TestRetryPolicy:
         jitter_range = 0.5  # +/- 50%
 
         import random
+
         random.seed(42)
         jitter = random.uniform(-jitter_range, jitter_range)
         final_delay = base_delay * (1 + jitter)
@@ -155,6 +158,7 @@ class TestRetryPolicy:
 # =============================================================================
 # Test: Timeout Handling
 # =============================================================================
+
 
 class TestTimeoutHandling:
     """Testes de handle de timeout."""
@@ -191,19 +195,18 @@ class TestTimeoutHandling:
     @pytest.mark.asyncio
     async def test_per_operation_timeout(self):
         """Deve aplicar timeout por operação."""
-        operations = {
-            "fast": (0.1, "result1"),
-            "slow": (5.0, "result2")
-        }
+        operations = {"fast": (0.1, "result1"), "slow": (5.0, "result2")}
 
         timeout = 1
         results = {}
 
         for name, (duration, expected) in operations.items():
             try:
+
                 async def op():
                     await asyncio.sleep(duration / 10)  # Scale down for test
                     return expected
+
                 result = await asyncio.wait_for(op(), timeout=timeout)
                 results[name] = result
             except asyncio.TimeoutError:
@@ -216,6 +219,7 @@ class TestTimeoutHandling:
 # =============================================================================
 # Test: Bulkhead Pattern
 # =============================================================================
+
 
 class TestBulkheadPattern:
     """Testes do pattern Bulkhead."""
@@ -245,6 +249,7 @@ class TestBulkheadPattern:
     async def test_semaphore_limits_concurrent(self):
         """Semáforo deve limitar concorrência."""
         import asyncio
+
         max_concurrent = 3
         semaphore = asyncio.Semaphore(max_concurrent)
 
@@ -269,6 +274,7 @@ class TestBulkheadPattern:
 # =============================================================================
 # Test: Fallback Pattern
 # =============================================================================
+
 
 class TestFallbackPattern:
     """Testes do pattern Fallback."""
@@ -297,7 +303,7 @@ class TestFallbackPattern:
         fallbacks = [
             (lambda: asyncio.sleep(0.01) or "primary"),
             (lambda: asyncio.sleep(0.01) or "secondary"),
-            (lambda: asyncio.sleep(0.01) or "default")
+            (lambda: asyncio.sleep(0.01) or "default"),
         ]
 
         async def try_fallbacks():
@@ -315,6 +321,7 @@ class TestFallbackPattern:
 # Test: Health Check Integration
 # =============================================================================
 
+
 class TestHealthCheckIntegration:
     """Testes de integração de health check."""
 
@@ -331,16 +338,9 @@ class TestHealthCheckIntegration:
         """Health check deve incluir métricas."""
         health = {
             "status": "healthy",
-            "circuit": {
-                "state": "closed",
-                "failure_count": 2,
-                "success_count": 98
-            },
-            "retry": {
-                "attempts": 5,
-                "success_rate": 0.8
-            },
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "circuit": {"state": "closed", "failure_count": 2, "success_count": 98},
+            "retry": {"attempts": 5, "success_rate": 0.8},
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         assert health["status"] == "healthy"
@@ -351,6 +351,7 @@ class TestHealthCheckIntegration:
 # =============================================================================
 # Test: Rate Limiting Protection
 # =============================================================================
+
 
 class TestRateLimitingProtection:
     """Testes de proteção por rate limiting."""
@@ -401,6 +402,7 @@ class TestRateLimitingProtection:
 # Test: Request Adaptor
 # =============================================================================
 
+
 class TestRequestAdaptor:
     """Testes de adaptação de requisições."""
 
@@ -432,6 +434,7 @@ class TestRequestAdaptor:
 # =============================================================================
 # Test: Resilience Composition
 # =============================================================================
+
 
 class TestResilienceComposition:
     """Testes de composição de padrões de resiliência."""
@@ -486,6 +489,7 @@ class TestResilienceComposition:
 # =============================================================================
 # Test: Additional Bulkhead Scenarios
 # =============================================================================
+
 
 class TestBulkheadExtended:
     """Testes estendidos de Bulkhead."""
@@ -543,6 +547,7 @@ class TestBulkheadExtended:
 # =============================================================================
 # Test: Additional Retry Scenarios
 # =============================================================================
+
 
 class TestRetryExtended:
     """Testes estendidos de Retry."""
@@ -604,6 +609,7 @@ class TestRetryExtended:
 # Test: Circuit Breaker Extended
 # =============================================================================
 
+
 class TestCircuitBreakerExtended:
     """Testes estendidos de Circuit Breaker."""
 
@@ -651,7 +657,7 @@ class TestCircuitBreakerExtended:
             "state_transitions": [],
             "total_failures": 0,
             "total_successes": 0,
-            "last_state_change": None
+            "last_state_change": None,
         }
 
         # Transição closed -> open
@@ -666,17 +672,14 @@ class TestCircuitBreakerExtended:
 # Test: Timeout Extended
 # =============================================================================
 
+
 class TestTimeoutExtended:
     """Testes estendidos de Timeout."""
 
     @pytest.mark.asyncio
     async def test_timeout_per_operation(self):
         """Deve ter timeout por operação."""
-        timeouts = {
-            "read": 5,
-            "write": 10,
-            "delete": 3
-        }
+        timeouts = {"read": 5, "write": 10, "delete": 3}
 
         operation = "write"
         timeout = timeouts.get(operation, 5)
@@ -735,6 +738,7 @@ class TestTimeoutExtended:
 # Test: Fallback Extended
 # =============================================================================
 
+
 class TestFallbackExtended:
     """Testes estendidos de Fallback."""
 
@@ -754,11 +758,7 @@ class TestFallbackExtended:
     @pytest.mark.asyncio
     async def test_fallback_chain_execution(self):
         """Deve executar cadeia de fallbacks."""
-        fallbacks = [
-            lambda: None,  # Primary failed
-            lambda: "fallback1",
-            lambda: "fallback2"
-        ]
+        fallbacks = [lambda: None, lambda: "fallback1", lambda: "fallback2"]  # Primary failed
 
         result = None
         for fallback in fallbacks:
@@ -788,14 +788,13 @@ class TestFallbackExtended:
             "primary_calls": 100,
             "primary_failures": 10,
             "fallback_calls": 8,
-            "fallback_failures": 1
+            "fallback_failures": 1,
         }
 
         fallback_rate = metrics["fallback_calls"] / metrics["primary_calls"]
         fallback_success_rate = (
-            (metrics["fallback_calls"] - metrics["fallback_failures"]) /
-            metrics["fallback_calls"]
-        )
+            metrics["fallback_calls"] - metrics["fallback_failures"]
+        ) / metrics["fallback_calls"]
 
         assert fallback_rate == 0.08
         assert fallback_success_rate == 0.875
@@ -804,6 +803,7 @@ class TestFallbackExtended:
 # =============================================================================
 # Test: Rate Limiter Extended
 # =============================================================================
+
 
 class TestRateLimiterExtended:
     """Testes estendidos de Rate Limiter."""
@@ -819,10 +819,7 @@ class TestRateLimiterExtended:
             {"timestamp": now - timedelta(seconds=70)},  # Fora da janela
         ]
 
-        in_window = [
-            r for r in requests
-            if (now - r["timestamp"]).total_seconds() <= window
-        ]
+        in_window = [r for r in requests if (now - r["timestamp"]).total_seconds() <= window]
 
         assert len(in_window) == 2
 
@@ -868,6 +865,7 @@ class TestRateLimiterExtended:
 # Test: Registry Extended
 # =============================================================================
 
+
 class TestRegistryExtended:
     """Testes estendidos de Registry."""
 
@@ -876,14 +874,8 @@ class TestRegistryExtended:
         """Deve registrar múltiplas políticas."""
         registry = {}
 
-        registry["service_a"] = {
-            "circuit_breaker": {"threshold": 5},
-            "retry": {"max_attempts": 3}
-        }
-        registry["service_b"] = {
-            "timeout": {"duration": 10},
-            "bulkhead": {"max_concurrent": 5}
-        }
+        registry["service_a"] = {"circuit_breaker": {"threshold": 5}, "retry": {"max_attempts": 3}}
+        registry["service_b"] = {"timeout": {"duration": 10}, "bulkhead": {"max_concurrent": 5}}
 
         assert len(registry) == 2
         assert "circuit_breaker" in registry["service_a"]
@@ -892,10 +884,7 @@ class TestRegistryExtended:
     async def test_registry_get_policy(self):
         """Deve obter política específica."""
         registry = {
-            "service_a": {
-                "circuit_breaker": {"threshold": 5},
-                "retry": {"max_attempts": 3}
-            }
+            "service_a": {"circuit_breaker": {"threshold": 5}, "retry": {"max_attempts": 3}}
         }
 
         circuit_breaker_config = registry["service_a"]["circuit_breaker"]
@@ -905,11 +894,7 @@ class TestRegistryExtended:
     @pytest.mark.asyncio
     async def test_registry_update_policy(self):
         """Deve atualizar política existente."""
-        registry = {
-            "service_a": {
-                "retry": {"max_attempts": 3}
-            }
-        }
+        registry = {"service_a": {"retry": {"max_attempts": 3}}}
 
         registry["service_a"]["retry"]["max_attempts"] = 5
 
@@ -920,7 +905,7 @@ class TestRegistryExtended:
         """Deve deletar política."""
         registry = {
             "service_a": {"retry": {"max_attempts": 3}},
-            "service_b": {"timeout": {"duration": 10}}
+            "service_b": {"timeout": {"duration": 10}},
         }
 
         del registry["service_a"]
@@ -931,11 +916,7 @@ class TestRegistryExtended:
     @pytest.mark.asyncio
     async def test_registry_list_services(self):
         """Deve listar todos os serviços."""
-        registry = {
-            "service_a": {},
-            "service_b": {},
-            "service_c": {}
-        }
+        registry = {"service_a": {}, "service_b": {}, "service_c": {}}
 
         services = list(registry.keys())
 
@@ -947,12 +928,14 @@ class TestRegistryExtended:
 # Test: Exceptions Extended
 # =============================================================================
 
+
 class TestExceptionsExtended:
     """Testes estendidos de Exceções."""
 
     @pytest.mark.asyncio
     async def test_circuit_breaker_exception_attributes(self):
         """Exceção de circuit breaker deve ter atributos."""
+
         class CircuitBreakerError(Exception):
             def __init__(self, service, circuit):
                 self.service = service
@@ -967,6 +950,7 @@ class TestExceptionsExtended:
     @pytest.mark.asyncio
     async def test_retry_exhausted_exception(self):
         """Exceção de retry esgotado."""
+
         class RetryExhaustedError(Exception):
             def __init__(self, last_exception):
                 self.last_exception = last_exception
@@ -979,6 +963,7 @@ class TestExceptionsExtended:
     @pytest.mark.asyncio
     async def test_timeout_exception_with_elapsed(self):
         """Exceção de timeout com tempo decorrido."""
+
         class TimeoutError(Exception):
             def __init__(self, timeout, elapsed):
                 self.timeout = timeout
@@ -993,6 +978,7 @@ class TestExceptionsExtended:
     @pytest.mark.asyncio
     async def test_bulkhead_rejected_exception(self):
         """Exceção de bulkhead rejeitado."""
+
         class BulkheadRejectedError(Exception):
             def __init__(self, max_concurrent, current):
                 self.max_concurrent = max_concurrent
@@ -1007,6 +993,7 @@ class TestExceptionsExtended:
     @pytest.mark.asyncio
     async def test_rate_limit_exceeded_exception(self):
         """Exceção de rate limit excedido."""
+
         class RateLimitExceededError(Exception):
             def __init__(self, limit, window, retry_after):
                 self.limit = limit
