@@ -130,6 +130,32 @@ def mock_k8s_client():
 
 
 @pytest.fixture
+def mock_k8s_core_api():
+    """Mock do cliente Kubernetes CoreV1Api com async support."""
+    api = MagicMock()
+
+    async def mock_read_pod(name, namespace):
+        """Mock read_namespaced_pod que retorna pod default."""
+        pod_dict = {
+            "metadata": {"name": name, "namespace": namespace},
+            "status": {
+                "containerStatuses": [
+                    {
+                        "name": "main",
+                        "restartCount": 0,
+                        "state": {"running": {"startedAt": "2026-04-07T10:00:00Z"}},
+                        "lastState": {},
+                    }
+                ]
+            }
+        }
+        return pod_dict
+
+    api.read_namespaced_pod = AsyncMock(side_effect=mock_read_pod)
+    return api
+
+
+@pytest.fixture
 def mock_k8s_custom_api():
     """Mock do cliente Kubernetes CustomObjectsApi (Metrics API)."""
     with patch("kubernetes.client.CustomObjectsApi") as mock:

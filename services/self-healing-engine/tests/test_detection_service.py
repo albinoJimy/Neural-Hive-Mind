@@ -4,9 +4,11 @@ Testes para o Detection Service.
 Este módulo testa a detecção de problemas que requerem remediação:
 - detect_deadlocks: Detecta workflows sem progresso
 - detect_memory_leak: Detecta pods com uso excessivo de memória
+- detect_pod_crash_loop: Detecta pods em crash loop
 - trigger_remediation: Dispara remediação baseado em detecção
 """
 
+import asyncio
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 from datetime import datetime, timezone, timedelta
@@ -15,8 +17,21 @@ from src.services.detection_service import (
     DetectionService,
     DeadlockStatus,
     MemoryStatus,
+    PodCrashLoopStatus,
     RemediationTrigger,
 )
+
+
+@pytest.fixture
+def detection_service_with_k8s(mock_orchestrator_client, mock_k8s_core_api, mock_k8s_custom_api):
+    """Fixture do DetectionService com Core API para crash loop tests."""
+    return DetectionService(
+        orchestrator_client=mock_orchestrator_client,
+        k8s_core_v1=mock_k8s_core_api,
+        k8s_custom_api=mock_k8s_custom_api,
+        memory_threshold_percent=90.0,
+        workflow_timeout_seconds=1800,
+    )
 
 
 @pytest.fixture
@@ -261,3 +276,192 @@ class TestDetectionServiceIntegration:
                 )
 
             assert result["success"] is True
+
+
+# ===== Tests para detect_pod_crash_loop (FASE3-ANOMALY-002) =====
+
+
+@pytest.mark.asyncio
+async def test_detect_pod_crash_loop_no_crash(mock_k8s_core_api):
+    """Testa detecção quando pod está saudável."""
+    from unittest.mock import AsyncMock
+
+    # Criar service para este teste
+    service = DetectionService(
+        orchestrator_client=None,
+        k8s_core_v1=mock_k8s_core_api,
+        k8s_custom_api=None,
+    )
+
+    # Mock pod sem restarts
+    mock_pod_dict = {
+        "metadata": {"name": "test-pod", "namespace": "default"},
+        "status": {
+            "containerStatuses": [
+                {
+                    "name": "main",
+                    "restartCount": 0,
+                    "state": {"running": {"startedAt": "2026-04-07T10:00:00Z"}},
+                    "lastState": {},
+                }
+            ]
+        }
+    }
+
+    mock_k8s_core_api.read_namespaced_pod = AsyncMock(return_value=mock_pod_dict)
+
+    status = await service.detect_pod_crash_loop("test-pod", "default")
+
+    assert status.has_crash_loop is False
+    assert status.restart_count == 0
+    assert status.pod_name == "test-pod"
+    assert status.namespace == "default"
+
+
+@pytest.mark.asyncio
+async def test_detect_pod_crash_loop_with_restarts(detection_service_with_k8s, mock_k8s_core_api):
+    """Testa detecção quando pod tem múltiplos restarts."""
+    old_time = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
+
+    # Mock pod com 5 restarts recentes
+    mock_pod = MagicMock()
+    mock_pod.status = MagicMock()
+    mock_pod.status.containerStatuses = [
+        {
+            "name": "main",
+            "restartCount": 5,
+            "state": {"waiting": {"reason": "CrashLoopBackOff"}},
+            "lastState": {
+                "terminated": {
+                    "finishedAt": old_time,
+                    "reason": "Error",
+                }
+            },
+        }
+    ]
+    mock_k8s_core_api.read_namespaced_pod = AsyncMock(return_value=mock_pod)
+
+    status = await detection_service_with_k8s.detect_pod_crash_loop(
+        "crashy-pod", "default", restart_threshold=3, time_window_minutes=10
+    )
+
+    assert status.has_crash_loop is True
+    assert status.restart_count == 5
+    assert status.pod_name == "crashy-pod"
+    assert status.container_name == "main"
+
+
+@pytest.mark.asyncio
+async def test_detect_pod_crash_loop_below_threshold(detection_service_with_k8s, mock_k8s_core_api):
+    """Testa que pod com restarts abaixo do threshold não é considerado crash loop."""
+    old_time = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
+
+    # Mock pod com apenas 2 restarts
+    mock_pod = MagicMock()
+    mock_pod.status = MagicMock()
+    mock_pod.status.containerStatuses = [
+        {
+            "name": "main",
+            "restartCount": 2,
+            "state": {"running": {"startedAt": "2026-04-07T10:00:00Z"}},
+            "lastState": {
+                "terminated": {"finishedAt": old_time, "reason": "Error"}
+            },
+        }
+    ]
+    mock_k8s_core_api.read_namespaced_pod = AsyncMock(return_value=mock_pod)
+
+    status = await detection_service_with_k8s.detect_pod_crash_loop(
+        "test-pod", "default", restart_threshold=3, time_window_minutes=10
+    )
+
+    assert status.has_crash_loop is False
+    assert status.restart_count == 2
+
+
+@pytest.mark.asyncio
+async def test_detect_pod_crash_loop_old_restarts(detection_service_with_k8s, mock_k8s_core_api):
+    """Testa que restarts antigos (fora da janela) não são considerados."""
+    # Restart há 20 minutos (fora da janela de 10 minutos)
+    old_time = (datetime.now(timezone.utc) - timedelta(minutes=20)).isoformat()
+
+    mock_pod = MagicMock()
+    mock_pod.status = MagicMock()
+    mock_pod.status.containerStatuses = [
+        {
+            "name": "main",
+            "restartCount": 5,
+            "state": {"running": {"startedAt": "2026-04-07T10:00:00Z"}},
+            "lastState": {
+                "terminated": {"finishedAt": old_time, "reason": "Error"}
+            },
+        }
+    ]
+    mock_k8s_core_api.read_namespaced_pod = AsyncMock(return_value=mock_pod)
+
+    status = await detection_service_with_k8s.detect_pod_crash_loop(
+        "test-pod", "default", restart_threshold=3, time_window_minutes=10
+    )
+
+    # 5 restarts mas fora da janela temporal
+    assert status.has_crash_loop is False
+
+
+@pytest.mark.asyncio
+async def test_detect_pod_crash_loop_init_container(detection_service_with_k8s, mock_k8s_core_api):
+    """Testa detecção de crash loop em init container."""
+    old_time = (datetime.now(timezone.utc) - timedelta(minutes=3)).isoformat()
+
+    mock_pod = MagicMock()
+    mock_pod.status = MagicMock()
+    mock_pod.status.containerStatuses = []
+    mock_pod.status.initContainerStatuses = [
+        {
+            "name": "init-db",
+            "restartCount": 4,
+            "state": {"waiting": {"reason": "CrashLoopBackOff"}},
+            "lastState": {
+                "terminated": {"finishedAt": old_time, "reason": "Error"}
+            },
+        }
+    ]
+    mock_k8s_core_api.read_namespaced_pod = AsyncMock(return_value=mock_pod)
+
+    status = await detection_service_with_k8s.detect_pod_crash_loop(
+        "test-pod", "default", restart_threshold=3, time_window_minutes=10
+    )
+
+    assert status.has_crash_loop is True
+    assert status.restart_count == 4
+    assert status.container_name == "init-db"
+
+
+@pytest.mark.asyncio
+async def test_detect_pod_crash_loop_no_api(detection_service):
+    """Testa comportamento quando Kubernetes API não está disponível."""
+    # Criar service sem k8s_core_api
+    service = DetectionService(
+        orchestrator_client=None,
+        k8s_core_v1=None,
+        k8s_custom_api=None,
+    )
+
+    status = await service.detect_pod_crash_loop("test-pod", "default")
+
+    assert status.has_crash_loop is False
+    assert "error" in status.metadata
+
+
+@pytest.mark.asyncio
+async def test_detect_pod_crash_loop_pod_not_found(detection_service_with_k8s, mock_k8s_core_api):
+    """Testa comportamento quando pod não existe."""
+    from kubernetes.client.exceptions import ApiException
+
+    mock_k8s_core_api.read_namespaced_pod = AsyncMock(
+        side_effect= ApiException(status=404, reason="Not Found")
+    )
+
+    status = await detection_service_with_k8s.detect_pod_crash_loop("missing-pod", "default")
+
+    assert status.has_crash_loop is False
+    assert "error" in status.metadata

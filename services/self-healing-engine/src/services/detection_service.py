@@ -1,5 +1,3 @@
-from neural_hive_domain import UTC
-
 """
 Detection Service para Self-Healing Engine.
 
@@ -47,7 +45,7 @@ class DeadlockStatus:
     has_deadlock: bool
     stuck_duration_seconds: int = 0
     suspected_tickets: List[str] = field(default_factory=list)
-    detected_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    detected_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -73,7 +71,7 @@ class MemoryStatus:
     usage_percent: float
     limit_bytes: int
     duration_above_threshold_seconds: int = 0
-    detected_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    detected_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     container_name: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
 
@@ -94,6 +92,35 @@ class MemoryStatus:
 
 
 @dataclass
+class PodCrashLoopStatus:
+    """Resultado de detecção de pod crash loop."""
+
+    pod_name: str
+    namespace: str
+    has_crash_loop: bool
+    restart_count: int
+    last_restart_time: Optional[datetime]
+    time_since_last_restart_seconds: int = 0
+    container_name: Optional[str] = None
+    detected_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Converte para dicionário."""
+        return {
+            "pod_name": self.pod_name,
+            "namespace": self.namespace,
+            "has_crash_loop": self.has_crash_loop,
+            "restart_count": self.restart_count,
+            "last_restart_time": self.last_restart_time.isoformat() if self.last_restart_time else None,
+            "time_since_last_restart_seconds": self.time_since_last_restart_seconds,
+            "container_name": self.container_name,
+            "detected_at": self.detected_at.isoformat(),
+            "metadata": self.metadata,
+        }
+
+
+@dataclass
 class RemediationTrigger:
     """Trigger para execução de remediação."""
 
@@ -108,6 +135,8 @@ class RemediationTrigger:
     topic: Optional[str] = None
     connection_string: Optional[str] = None
     playbook_name: Optional[str] = None
+    playbook_validated: bool = False
+    skip_validation: bool = False
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -124,6 +153,8 @@ class RemediationTrigger:
             "topic": self.topic,
             "connection_string": self.connection_string,
             "playbook_name": self.playbook_name,
+            "playbook_validated": self.playbook_validated,
+            "skip_validation": self.skip_validation,
             "metadata": self.metadata,
         }
 
@@ -415,6 +446,173 @@ class DetectionService:
         # Sem sufixo = bytes
         return int(mem_str)
 
+    async def detect_pod_crash_loop(
+        self,
+        pod_name: str,
+        namespace: str,
+        restart_threshold: int = 3,
+        time_window_minutes: int = 10,
+    ) -> PodCrashLoopStatus:
+        """
+        Detecta se um pod está em crash loop.
+
+        Considera crash loop se:
+        - restartCount > restart_threshold em time_window_minutes
+
+        Args:
+            pod_name: Nome do pod
+            namespace: Namespace Kubernetes
+            restart_threshold: Número mínimo de restarts para considerar crash loop
+            time_window_minutes: Janela de tempo para verificar restarts
+
+        Returns:
+            PodCrashLoopStatus com resultado da detecção
+        """
+        try:
+            if not self.k8s_core_v1:
+                logger.warning("detection_service.no_k8s_core_api")
+                return PodCrashLoopStatus(
+                    pod_name=pod_name,
+                    namespace=namespace,
+                    has_crash_loop=False,
+                    restart_count=0,
+                    last_restart_time=None,
+                    metadata={"error": "Kubernetes CoreV1Api not available"},
+                )
+
+            # Obter estado do pod
+            pod = await self._get_pod(pod_name, namespace)
+            if not pod:
+                return PodCrashLoopStatus(
+                    pod_name=pod_name,
+                    namespace=namespace,
+                    has_crash_loop=False,
+                    restart_count=0,
+                    last_restart_time=None,
+                    metadata={"error": "Pod not found"},
+                )
+
+            # Verificar cada container status
+            worst_status = None
+            highest_restart_count = 0
+
+            for container_status in pod.get("status", {}).get("containerStatuses", []):
+                # Também verificar init containers
+                restart_count = container_status.get("restartCount", 0)
+                state = container_status.get("state", {})
+                last_state = container_status.get("lastState", {})
+
+                # Determinar último restart time
+                last_restart_time = None
+                time_since_restart = 0
+
+                # Verificar terminated state (último término)
+                if "terminated" in last_state:
+                    finished_at = last_state["terminated"].get("finishedAt")
+                    if finished_at:
+                        try:
+                            if isinstance(finished_at, str):
+                                last_restart_time = datetime.fromisoformat(
+                                    finished_at.replace("Z", "+00:00")
+                                )
+                            else:
+                                last_restart_time = finished_at
+                            time_since_restart = int(
+                                (datetime.now(timezone.utc) - last_restart_time).total_seconds()
+                            )
+                        except Exception:
+                            pass
+
+                # Verificar waiting state (pod pode estar em crash loop agora)
+                if "waiting" in state:
+                    waiting = state["waiting"]
+                    if waiting.get("reason") in ["CrashLoopBackOff", "Error"]:
+                        # Pod está atualmente em crash loop
+                        if time_since_restart == 0:
+                            time_since_restart = 60  # Valor default se não conseguirmos calcular
+
+                # Atualizar pior status
+                if restart_count > highest_restart_count:
+                    highest_restart_count = restart_count
+                    worst_status = {
+                        "restart_count": restart_count,
+                        "last_restart_time": last_restart_time,
+                        "time_since_restart": time_since_restart,
+                        "container_name": container_status.get("name"),
+                        "state": state.get("waiting", {}).get("reason", "Running"),
+                    }
+
+            # Verificar init containers também
+            for init_container_status in pod.get("status", {}).get("initContainerStatuses", []):
+                restart_count = init_container_status.get("restartCount", 0)
+                if restart_count > highest_restart_count:
+                    highest_restart_count = restart_count
+                    worst_status = {
+                        "restart_count": restart_count,
+                        "container_name": init_container_status.get("name"),
+                        "container_type": "init",
+                    }
+
+            # Determinar se há crash loop
+            has_crash_loop = False
+            if highest_restart_count > 0:
+                time_window_seconds = time_window_minutes * 60
+
+                if worst_status:
+                    time_since_restart = worst_status.get("time_since_restart", 0)
+
+                    # Se restartou recentemente e excede threshold
+                    if (
+                        highest_restart_count >= restart_threshold
+                        and time_since_restart <= time_window_seconds
+                    ):
+                        has_crash_loop = True
+                    # Se está em CrashLoopBackOff, é definitivamente crash loop
+                    elif worst_status.get("state") == "CrashLoopBackOff":
+                        has_crash_loop = True
+
+            return PodCrashLoopStatus(
+                pod_name=pod_name,
+                namespace=namespace,
+                has_crash_loop=has_crash_loop,
+                restart_count=highest_restart_count,
+                last_restart_time=worst_status.get("last_restart_time") if worst_status else None,
+                time_since_last_restart_seconds=worst_status.get("time_since_restart", 0) if worst_status else 0,
+                container_name=worst_status.get("container_name") if worst_status else None,
+                metadata={"worst_container": worst_status} if worst_status else {},
+            )
+
+        except Exception as e:
+            logger.error(
+                "detection_service.crash_loop_check_failed",
+                pod_name=pod_name,
+                namespace=namespace,
+                error=str(e),
+            )
+            return PodCrashLoopStatus(
+                pod_name=pod_name,
+                namespace=namespace,
+                has_crash_loop=False,
+                restart_count=0,
+                last_restart_time=None,
+                metadata={"error": str(e)},
+            )
+
+    async def _get_pod(self, pod_name: str, namespace: str) -> Optional[Dict[str, Any]]:
+        """Obtém informações de um pod via Kubernetes API."""
+        try:
+            if self.k8s_core_v1:
+                pod = await self.k8s_core_v1.read_namespaced_pod(
+                    name=pod_name,
+                    namespace=namespace,
+                )
+                # Converter objeto Kubernetes para dict
+                return pod.to_dict()
+            return None
+        except Exception as e:
+            logger.warning("detection_service.get_pod_failed", error=str(e))
+            return None
+
     async def trigger_remediation(
         self, trigger: RemediationTrigger, playbook_executor=None
     ) -> Dict[str, Any]:
@@ -443,6 +641,33 @@ class DetectionService:
             if not playbook_executor:
                 logger.warning("detection_service.no_playbook_executor")
                 return {"success": False, "error": "Playbook executor not available"}
+
+            # Validar playbook antes da execução (se não foi validado ou skip_validation=False)
+            if not trigger.skip_validation and not trigger.playbook_validated:
+                logger.info(
+                    "detection_service.validating_playbook",
+                    playbook=playbook_name,
+                )
+                validation = playbook_executor.validate_playbook_structure(playbook_name)
+
+                if not validation["valid"]:
+                    logger.error(
+                        "detection_service.playbook_validation_failed",
+                        playbook=playbook_name,
+                        errors=validation["errors"],
+                    )
+                    return {
+                        "success": False,
+                        "error": "Playbook validation failed",
+                        "validation_errors": validation["errors"],
+                    }
+
+                if validation["warnings"]:
+                    logger.warning(
+                        "detection_service.playbook_validation_warnings",
+                        playbook=playbook_name,
+                        warnings=validation["warnings"],
+                    )
 
             # Preparar contexto
             context = {
@@ -498,6 +723,7 @@ class DetectionService:
         self,
         workflows: List[str],
         pods: List[tuple[str, str]],  # (pod_name, namespace)
+        playbook_executor=None,
         interval_seconds: int = 60,
     ):
         """
@@ -506,6 +732,7 @@ class DetectionService:
         Args:
             workflows: Lista de workflow IDs para monitorar
             pods: Lista de tuplas (pod_name, namespace) para monitorar
+            playbook_executor: Executor de playbooks para remediação
             interval_seconds: Intervalo entre verificações
         """
         logger.info(
@@ -525,14 +752,12 @@ class DetectionService:
                             workflow_id=workflow_id,
                             metadata={"stuck_duration_seconds": status.stuck_duration_seconds},
                         )
-                        await self.trigger_remediation(trigger)
+                        await self.trigger_remediation(trigger, playbook_executor=playbook_executor)
 
                 # Verificar pods
                 for pod_name, namespace in pods:
-                    # Obter limit de memória do pod
-                    # (simplificado - na prática viria do pod spec)
+                    # Verificar memory leak
                     limit_bytes = 1073741824  # 1GB default
-
                     status = await self.detect_memory_leak(
                         pod_name=pod_name, namespace=namespace, memory_limit_bytes=limit_bytes
                     )
@@ -544,7 +769,23 @@ class DetectionService:
                             pod_name=pod_name,
                             namespace=namespace,
                         )
-                        await self.trigger_remediation(trigger)
+                        await self.trigger_remediation(trigger, playbook_executor=playbook_executor)
+
+                    # Verificar crash loop
+                    crash_status = await self.detect_pod_crash_loop(pod_name, namespace)
+                    if crash_status.has_crash_loop:
+                        trigger = RemediationTrigger(
+                            incident_type="pod_crash_loop",
+                            severity="high",
+                            detected_at=datetime.now(timezone.utc),
+                            pod_name=pod_name,
+                            namespace=namespace,
+                            metadata={
+                                "restart_count": crash_status.restart_count,
+                                "container_name": crash_status.container_name,
+                            },
+                        )
+                        await self.trigger_remediation(trigger, playbook_executor=playbook_executor)
 
                 await asyncio.sleep(interval_seconds)
 
