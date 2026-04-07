@@ -74,3 +74,59 @@ def test_cors_origins_default_removed():
     # Verifica que retorna origens configuradas automaticamente (sem wildcard)
     assert "*" not in settings.allowed_origins
     assert settings.allowed_origins == ["https://neural-hive.com"]
+
+
+def test_allowed_hosts_property_returns_production_hosts():
+    """Test que allowed_hosts_property retorna hosts especificos em production"""
+    settings = Settings(
+        environment="production",
+        jwt_secret_key="test-secret",
+        allowed_hosts=[],
+    )
+    hosts = settings.allowed_hosts_property
+    assert "*" not in hosts
+    assert "api.neural-hive.com" in hosts
+    assert "neural-hive.com" in hosts
+
+
+def test_allowed_hosts_property_allows_wildcard_in_dev():
+    """Test que allowed_hosts_property permite wildcard apenas em development"""
+    settings = Settings(
+        environment="dev",
+        jwt_secret_key="test-secret",
+        allowed_hosts=[],
+    )
+    hosts = settings.allowed_hosts_property
+    # Em dev, wildcard em subdominio local eh permitido
+    assert "*.neural-hive.local" in hosts
+
+
+def test_allowed_hosts_wildcard_blocked_in_production():
+    """Test que wildcard em allowed_hosts causa erro em production"""
+    with pytest.raises(ValueError, match="allowed_hosts nao pode ser wildcard"):
+        Settings(
+            environment="production",
+            jwt_secret_key="test-secret",
+            allowed_hosts=["*"],
+        )
+
+
+def test_allowed_hosts_empty_blocked_in_production():
+    """Test que lista vazia de allowed_hosts causa erro em production"""
+    with pytest.raises(ValueError, match="allowed_hosts nao pode ser wildcard ou vazio"):
+        Settings(
+            environment="production",
+            jwt_secret_key="test-secret",
+            allowed_hosts=[],
+        )
+
+
+def test_allowed_hosts_explicit_config_takes_priority():
+    """Test que configuracao explicita tem prioridade sobre defaults"""
+    explicit_hosts = ["api.custom.com", "gateway.custom.com"]
+    settings = Settings(
+        environment="production",
+        jwt_secret_key="test-secret",
+        allowed_hosts=explicit_hosts,
+    )
+    assert settings.allowed_hosts_property == explicit_hosts
