@@ -8,7 +8,6 @@ Implementa backups incrementais, compressão, e sincronização com storage exte
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta, timezone
 from pymongo import MongoClient
-from pymongo.errors import PyMongoError
 import structlog
 import json
 import gzip
