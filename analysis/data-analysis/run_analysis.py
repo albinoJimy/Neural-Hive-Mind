@@ -8,7 +8,6 @@ Generates charts and a consolidated markdown report.
 
 import json
 import os
-import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -20,7 +19,6 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from sklearn.metrics import classification_report, confusion_matrix
-from sklearn.model_selection import cross_val_score
 
 # ─── Configuration ───────────────────────────────────────────────────────────
 
@@ -431,7 +429,7 @@ def analyze_model_inference(all_dfs):
             cm_approx = np.zeros((n, n), dtype=int)
             per_class = total // n
             correct_per = int(per_class * acc)
-            remainder = total - per_class * n
+            _remainder = total - per_class * n
             for i in range(n):
                 cm_approx[i, i] = correct_per
                 wrong = per_class - correct_per
@@ -470,7 +468,7 @@ def analyze_model_inference(all_dfs):
         ax.set_title(f"{specialist.capitalize()}")
 
         # Classification report
-        report = classification_report(y, y_pred, labels=labels, output_dict=True, zero_division=0)
+        _report = classification_report(y, y_pred, labels=labels, output_dict=True, zero_division=0)
 
         total_correct = np.trace(cm)
         total = cm.sum()
@@ -559,7 +557,7 @@ def analyze_e2e_results():
     scenario_latency = e2e_df.groupby("scenario")["latency_ms"].agg(["mean", "std", "min", "max"])
     scenario_latency = scenario_latency.sort_values("mean", ascending=True)
     colors = sns.color_palette("Set2", len(scenario_latency))
-    bars = axes[1].barh(range(len(scenario_latency)), scenario_latency["mean"],
+    _bars = axes[1].barh(range(len(scenario_latency)), scenario_latency["mean"],
                         xerr=scenario_latency["std"], capsize=4,
                         color=colors, edgecolor="black", linewidth=0.5)
     axes[1].set_yticks(range(len(scenario_latency)))
@@ -751,8 +749,8 @@ def analyze_codebase():
     if lib_sizes:
         fig, ax = plt.subplots(figsize=(12, 5))
         sorted_libs = sorted(lib_sizes.items(), key=lambda x: x[1], reverse=True)
-        lib_names = [l[0].replace("neural_hive_", "").replace("_", " ").title() for l in sorted_libs]
-        lib_vals = [l[1] for l in sorted_libs]
+        lib_names = [lib[0].replace("neural_hive_", "").replace("_", " ").title() for lib in sorted_libs]
+        lib_vals = [lib[1] for lib in sorted_libs]
         colors = sns.color_palette("Set2", len(lib_names))
         bars = ax.bar(range(len(lib_names)), lib_vals, color=colors, edgecolor="black", linewidth=0.5)
         ax.set_xticks(range(len(lib_names)))
@@ -789,7 +787,7 @@ def analyze_codebase():
 **Top 5 Largest Libraries:**
 | Library | Lines of Code |
 |---------|--------------|
-{chr(10).join(f"| {l[0]} | {l[1]:,} |" for l in sorted(lib_sizes.items(), key=lambda x: x[1], reverse=True)[:5])}
+{chr(10).join(f"| {lib[0]} | {lib[1]:,} |" for lib in sorted(lib_sizes.items(), key=lambda x: x[1], reverse=True)[:5])}
 
 ![Codebase Metrics](charts/13_codebase_metrics.png)
 

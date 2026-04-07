@@ -9,24 +9,17 @@ defined in observability/metrics.py.
 
 import logging
 import threading
-from prometheus_client import start_http_server, Counter, Histogram, Gauge
-from typing import Optional
+
+from prometheus_client import start_http_server
 
 # Import existing metrics from observability module
-from observability.metrics import (
-    intent_counter as neural_hive_requests_total,
-    latency_histogram as neural_hive_request_duration_seconds,
-    confidence_histogram as neural_hive_intent_confidence,
-    active_connections as neural_hive_active_connections,
-    low_confidence_routed_counter,
-    record_too_large_counter,
-)
+# These metrics are exposed by the Prometheus HTTP server automatically
 
 logger = logging.getLogger(__name__)
 
 # Global variable to track if the server is running
 _metrics_server_started = False
-_metrics_server_thread: Optional[threading.Thread] = None
+_metrics_server_thread: threading.Thread | None = None
 
 
 def start_metrics_server(port: int = 8080, host: str = "0.0.0.0") -> None:
@@ -109,14 +102,14 @@ if __name__ == "__main__":
         level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
-    
+
     print("Starting standalone metrics server...")
     print("Metrics will be available at http://localhost:8080/metrics")
     print("Press Ctrl+C to stop")
-    
+
     try:
         start_metrics_server()
-        
+
         # Keep the main thread alive
         import time
         while True:
