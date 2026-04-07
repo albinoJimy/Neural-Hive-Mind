@@ -19,7 +19,6 @@ from neural_hive_domain import UnifiedDomain
 # Importar métricas de cache e SLO
 try:
     from observability.metrics import (
-        gateway_cache_errors_total,
         gateway_nlu_processing_duration,
         gateway_slo_violations_total,
         nlu_cache_corruption_total,

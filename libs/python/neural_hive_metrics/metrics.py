@@ -224,12 +224,10 @@ class BaseMetrics(ABC):
         """
         start_time = time.time()
         final_labels = self._merge_labels(labels)
-        error = None
 
         try:
             yield
-        except Exception as e:
-            error = e
+        except Exception:
             if record_success:
                 final_labels[success_label_key] = "error"
             raise

@@ -10,7 +10,7 @@ Suporta:
 
 import base64
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 UTC = timezone.utc  # type: ignore
 
 logger = logging.getLogger(__name__)
@@ -88,7 +88,7 @@ class ECRClient:
         self.token_ttl = token_ttl
 
         # Cache do token
-        self._cached_token: ECToken | None = None
+        self._cached_token: ECRToken | None = None
         self._boto3_session = None
 
     def _get_boto3_session(self):
@@ -183,7 +183,6 @@ class ECRClient:
             else:
                 # Default: 12 horas
                 expires_at = datetime.now(UTC).replace(microsecond=0)
-                import timedelta
                 expires_at += timedelta(hours=12)
 
             obtained_at = datetime.now(UTC)

@@ -435,7 +435,7 @@ class SLOValidator:
         """
         lines = ['## Conformidade com SLOs', '']
 
-        passed = [r for r in self.results if r.status == SLOStatus.PASS]
+        _passed = [r for r in self.results if r.status == SLOStatus.PASS]
         warnings = self.get_warnings()
         failures = self.get_failures()
 
