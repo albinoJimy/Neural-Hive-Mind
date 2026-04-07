@@ -14,7 +14,7 @@ from src.services.health_check_manager import HealthCheckManager
 
 
 @pytest.fixture
-def mock_etcd_client():
+def mock_redis_client():
     """Mock do EtcdClient."""
     client = AsyncMock()
     client.list_agents = AsyncMock(return_value=[])
@@ -25,10 +25,10 @@ def mock_etcd_client():
 
 
 @pytest.fixture
-def health_check_manager(mock_etcd_client):
+def health_check_manager(mock_redis_client):
     """Instância do HealthCheckManager para teste."""
     return HealthCheckManager(
-        etcd_client=mock_etcd_client, check_interval_seconds=1, heartbeat_timeout_seconds=10
+        redis_client=mock_redis_client, check_interval_seconds=1, heartbeat_timeout_seconds=10
     )
 
 
@@ -118,40 +118,40 @@ class TestHealthCheckLoop:
 
     @pytest.mark.asyncio
     async def test_health_check_loop_healthy_agents(
-        self, health_check_manager, mock_etcd_client, sample_agent
+        self, health_check_manager, mock_redis_client, sample_agent
     ):
         """Testa loop com agentes saudáveis."""
-        mock_etcd_client.list_agents = AsyncMock(return_value=[sample_agent])
+        mock_redis_client.list_agents = AsyncMock(return_value=[sample_agent])
 
         await health_check_manager._perform_health_checks()
 
         # Agente saudável não deve ser modificado
-        mock_etcd_client.put_agent.assert_not_called()
-        mock_etcd_client.delete_agent.assert_not_called()
+        mock_redis_client.put_agent.assert_not_called()
+        mock_redis_client.delete_agent.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_health_check_loop_with_expired(
-        self, health_check_manager, mock_etcd_client, expired_agent
+        self, health_check_manager, mock_redis_client, expired_agent
     ):
         """Testa loop com agente expirado."""
-        mock_etcd_client.list_agents = AsyncMock(return_value=[expired_agent])
+        mock_redis_client.list_agents = AsyncMock(return_value=[expired_agent])
 
         await health_check_manager._perform_health_checks()
 
         # Primeiro ciclo: marca como UNHEALTHY
         assert expired_agent.status == AgentStatus.UNHEALTHY
-        mock_etcd_client.put_agent.assert_called_once()
+        mock_redis_client.put_agent.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_health_check_loop_recover(
-        self, health_check_manager, mock_etcd_client, sample_agent
+        self, health_check_manager, mock_redis_client, sample_agent
     ):
         """Testa que agente recupera quando volta a enviar heartbeat."""
         # Marcar agente como previamente unhealthy
         agent_id_str = str(sample_agent.agent_id)
         health_check_manager._unhealthy_counts[agent_id_str] = 2
 
-        mock_etcd_client.list_agents = AsyncMock(return_value=[sample_agent])
+        mock_redis_client.list_agents = AsyncMock(return_value=[sample_agent])
 
         await health_check_manager._perform_health_checks()
 
@@ -160,7 +160,7 @@ class TestHealthCheckLoop:
 
     @pytest.mark.asyncio
     async def test_health_check_loop_multiple_agents(
-        self, health_check_manager, mock_etcd_client, sample_agent
+        self, health_check_manager, mock_redis_client, sample_agent
     ):
         """Testa loop com múltiplos agentes."""
         agent2 = AgentInfo(
@@ -173,19 +173,19 @@ class TestHealthCheckLoop:
             last_seen=int(datetime.now(timezone.utc).timestamp()),
         )
 
-        mock_etcd_client.list_agents = AsyncMock(return_value=[sample_agent, agent2])
+        mock_redis_client.list_agents = AsyncMock(return_value=[sample_agent, agent2])
 
         await health_check_manager._perform_health_checks()
 
         # Nenhum deve ter sido modificado (ambos saudáveis)
-        assert mock_etcd_client.list_agents.call_count == 1
+        assert mock_redis_client.list_agents.call_count == 1
 
     @pytest.mark.asyncio
     async def test_health_check_loop_exception_handling(
-        self, health_check_manager, mock_etcd_client
+        self, health_check_manager, mock_redis_client
     ):
         """Testa que exceções no loop são tratadas."""
-        mock_etcd_client.list_agents = AsyncMock(side_effect=ConnectionError("DB error"))
+        mock_redis_client.list_agents = AsyncMock(side_effect=ConnectionError("DB error"))
 
         # Não deve levantar exceção
         try:
@@ -200,7 +200,7 @@ class TestExpiredAgentHandling:
 
     @pytest.mark.asyncio
     async def test_handle_expired_agent_cycle_1_mark_unhealthy(
-        self, health_check_manager, mock_etcd_client, expired_agent
+        self, health_check_manager, mock_redis_client, expired_agent
     ):
         """Testa ciclo 1: marca como UNHEALTHY."""
         await health_check_manager._handle_expired_agent(expired_agent, 15)
@@ -208,11 +208,11 @@ class TestExpiredAgentHandling:
         assert expired_agent.status == AgentStatus.UNHEALTHY
         assert str(expired_agent.agent_id) in health_check_manager._unhealthy_counts
         assert health_check_manager._unhealthy_counts[str(expired_agent.agent_id)] == 1
-        mock_etcd_client.put_agent.assert_called_once_with(expired_agent)
+        mock_redis_client.put_agent.assert_called_once_with(expired_agent)
 
     @pytest.mark.asyncio
     async def test_handle_expired_agent_cycle_2_mark_degraded(
-        self, health_check_manager, mock_etcd_client, expired_agent
+        self, health_check_manager, mock_redis_client, expired_agent
     ):
         """Testa ciclo 2: marca como DEGRADED e notifica autocura."""
         # Simular que já está no ciclo 1
@@ -227,7 +227,7 @@ class TestExpiredAgentHandling:
 
     @pytest.mark.asyncio
     async def test_handle_expired_agent_cycle_5_remove(
-        self, health_check_manager, mock_etcd_client, expired_agent
+        self, health_check_manager, mock_redis_client, expired_agent
     ):
         """Testa ciclo 5+: remove do registry."""
         # Simular que já está no ciclo 4
@@ -236,11 +236,11 @@ class TestExpiredAgentHandling:
         await health_check_manager._handle_expired_agent(expired_agent, 30)
 
         # Agente deve ter sido removido
-        mock_etcd_client.delete_agent.assert_called_once_with(expired_agent.agent_id)
+        mock_redis_client.delete_agent.assert_called_once_with(expired_agent.agent_id)
         assert str(expired_agent.agent_id) not in health_check_manager._unhealthy_counts
 
     @pytest.mark.asyncio
-    async def test_handle_multiple_agents_expired(self, health_check_manager, mock_etcd_client):
+    async def test_handle_multiple_agents_expired(self, health_check_manager, mock_redis_client):
         """Testa múltiplos agentes expirando simultaneamente."""
         agent1 = AgentInfo(
             agent_id=uuid4(),
@@ -284,7 +284,7 @@ class TestAutocuraNotification:
 
     @pytest.mark.asyncio
     async def test_autocura_integration_on_degraded(
-        self, health_check_manager, mock_etcd_client, expired_agent
+        self, health_check_manager, mock_redis_client, expired_agent
     ):
         """Testa integração quando agente é marcado DEGRADED."""
         health_check_manager._unhealthy_counts[str(expired_agent.agent_id)] = 1
@@ -301,10 +301,10 @@ class TestCheckAgentHealth:
 
     @pytest.mark.asyncio
     async def test_check_agent_health_healthy(
-        self, health_check_manager, mock_etcd_client, sample_agent
+        self, health_check_manager, mock_redis_client, sample_agent
     ):
         """Testa verificação de agente saudável."""
-        mock_etcd_client.get_agent = AsyncMock(return_value=sample_agent)
+        mock_redis_client.get_agent = AsyncMock(return_value=sample_agent)
 
         result = await health_check_manager.check_agent_health(sample_agent.agent_id)
 
@@ -312,19 +312,19 @@ class TestCheckAgentHealth:
 
     @pytest.mark.asyncio
     async def test_check_agent_health_expired(
-        self, health_check_manager, mock_etcd_client, expired_agent
+        self, health_check_manager, mock_redis_client, expired_agent
     ):
         """Testa verificação de agente expirado."""
-        mock_etcd_client.get_agent = AsyncMock(return_value=expired_agent)
+        mock_redis_client.get_agent = AsyncMock(return_value=expired_agent)
 
         result = await health_check_manager.check_agent_health(expired_agent.agent_id)
 
         assert result == AgentStatus.UNHEALTHY
 
     @pytest.mark.asyncio
-    async def test_check_agent_health_not_found(self, health_check_manager, mock_etcd_client):
+    async def test_check_agent_health_not_found(self, health_check_manager, mock_redis_client):
         """Testa verificação de agente que não existe."""
-        mock_etcd_client.get_agent = AsyncMock(return_value=None)
+        mock_redis_client.get_agent = AsyncMock(return_value=None)
 
         result = await health_check_manager.check_agent_health(uuid4())
 
@@ -332,10 +332,10 @@ class TestCheckAgentHealth:
 
     @pytest.mark.asyncio
     async def test_check_agent_health_error(
-        self, health_check_manager, mock_etcd_client, sample_agent
+        self, health_check_manager, mock_redis_client, sample_agent
     ):
         """Testa tratamento de erro na verificação."""
-        mock_etcd_client.get_agent = AsyncMock(side_effect=ConnectionError("DB error"))
+        mock_redis_client.get_agent = AsyncMock(side_effect=ConnectionError("DB error"))
 
         result = await health_check_manager.check_agent_health(sample_agent.agent_id)
 
@@ -347,13 +347,13 @@ class TestPrometheusMetrics:
 
     @pytest.mark.asyncio
     async def test_health_checks_total_metric(
-        self, health_check_manager, mock_etcd_client, sample_agent
+        self, health_check_manager, mock_redis_client, sample_agent
     ):
         """Testa que métrica health_checks_total é incrementada."""
         from src.services.health_check_manager import health_checks_total
 
         initial_value = health_checks_total._value.get()
-        mock_etcd_client.list_agents = AsyncMock(return_value=[sample_agent])
+        mock_redis_client.list_agents = AsyncMock(return_value=[sample_agent])
 
         await health_check_manager._perform_health_checks()
 
@@ -363,11 +363,11 @@ class TestPrometheusMetrics:
 
     @pytest.mark.asyncio
     async def test_agents_marked_unhealthy_metric(
-        self, health_check_manager, mock_etcd_client, expired_agent
+        self, health_check_manager, mock_redis_client, expired_agent
     ):
         """Testa que métrica agents_marked_unhealthy_total é incrementada."""
 
-        mock_etcd_client.list_agents = AsyncMock(return_value=[expired_agent])
+        mock_redis_client.list_agents = AsyncMock(return_value=[expired_agent])
 
         await health_check_manager._perform_health_checks()
 
@@ -376,15 +376,15 @@ class TestPrometheusMetrics:
 
     @pytest.mark.asyncio
     async def test_agents_removed_metric(
-        self, health_check_manager, mock_etcd_client, expired_agent
+        self, health_check_manager, mock_redis_client, expired_agent
     ):
         """Testa que métrica agents_removed_total é incrementada após 5 ciclos."""
 
-        mock_etcd_client.list_agents = AsyncMock(return_value=[expired_agent])
+        mock_redis_client.list_agents = AsyncMock(return_value=[expired_agent])
 
         # Executar 5 ciclos para atingir remoção
         for _ in range(5):
             await health_check_manager._perform_health_checks()
 
         # Agente deve ter sido removido
-        mock_etcd_client.delete_agent.assert_called()
+        mock_redis_client.delete_agent.assert_called()

@@ -202,7 +202,8 @@ class AutocuraEventProducer:
         """Fecha o producer Kafka."""
         if self._producer:
             self._producer.flush(timeout=10)
-            self._producer.close()
+            # Nota: Producer do confluent_kafka não tem método close()
+            # O recurso é liberado automaticamente pelo garbage collector
             logger.info("autocura_producer_closed")
 
     def __enter__(self):

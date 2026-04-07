@@ -3,7 +3,7 @@ from typing import Dict, List, Optional
 import structlog
 from opentelemetry import trace
 from prometheus_client import REGISTRY, Counter, Histogram
-from src.clients import EtcdClient, PheromoneClient
+from src.clients import RedisRegistryClient, PheromoneClient
 from src.models import AgentInfo, AgentStatus, AgentType
 
 logger = structlog.get_logger()
@@ -47,8 +47,8 @@ agents_matched = _get_or_create_histogram(
 class MatchingEngine:
     """Motor de matching inteligente para descoberta de agentes"""
 
-    def __init__(self, etcd_client: EtcdClient, pheromone_client: PheromoneClient):
-        self.etcd_client = etcd_client
+    def __init__(self, redis_client: RedisRegistryClient, pheromone_client: PheromoneClient):
+        self.redis_client = redis_client
         self.pheromone_client = pheromone_client
 
         # Pesos para cálculo de score composto
@@ -88,7 +88,7 @@ class MatchingEngine:
                     discovery_requests_total.labels(agent_type="all").inc()
 
                 # 1. Listar agentes candidatos
-                all_agents = await self.etcd_client.list_agents(agent_type, filters)
+                all_agents = await self.redis_client.list_agents(agent_type, filters)
 
                 # 2. Filtrar por capabilities (set intersection)
                 candidates = self._filter_by_capabilities(all_agents, capabilities_required)

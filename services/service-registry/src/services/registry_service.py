@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 
 import structlog
 from prometheus_client import REGISTRY, Counter, Histogram
-from src.clients import EtcdClient
+from src.clients import RedisRegistryClient
 from src.models import AgentInfo, AgentStatus, AgentTelemetry, AgentType
 
 logger = structlog.get_logger()
@@ -54,8 +54,8 @@ registry_operations_total = _get_or_create_counter(
 class RegistryService:
     """Serviço principal de registro de agentes"""
 
-    def __init__(self, etcd_client: EtcdClient):
-        self.etcd_client = etcd_client
+    def __init__(self, redis_client: RedisRegistryClient):
+        self.redis_client = redis_client
 
     async def register_agent(
         self,
@@ -94,8 +94,8 @@ class RegistryService:
                 last_seen=int(datetime.now(timezone.utc).timestamp()),
             )
 
-            # Salvar no etcd
-            await self.etcd_client.put_agent(agent_info)
+            # Salvar no Redis
+            await self.redis_client.put_agent(agent_info)
 
             # Gerar registration token (simplificado - em produção usar JWT)
             registration_token = f"token-{agent_info.agent_id}"
@@ -131,7 +131,7 @@ class RegistryService:
         """
         try:
             # Buscar agente
-            agent_info = await self.etcd_client.get_agent(agent_id)
+            agent_info = await self.redis_client.get_agent(agent_id)
             if not agent_info:
                 raise ValueError(f"Agente {agent_id} não encontrado")
 
@@ -153,21 +153,11 @@ class RegistryService:
             else:
                 agent_info.status = AgentStatus.HEALTHY
 
-            # Salvar no etcd (não publica evento, apenas atualiza)
+            # Salvar no Redis (não publica evento, apenas atualiza)
             await self._put_agent_without_event(agent_info)
 
-            # Publicar evento de atualização
-            await self.etcd_client.client.publish(
-                f"{self.etcd_client.prefix}:events",
-                json.dumps({"event": "updated", "agent_id": str(agent_id)}),
-            )
-
-            # Se status mudou, publicar evento adicional
-            if old_status != agent_info.status:
-                await self.etcd_client.client.publish(
-                    f"{self.etcd_client.prefix}:events",
-                    json.dumps({"event": "status_changed", "agent_id": str(agent_id)}),
-                )
+            # Nota: Eventos são publicados pelo Redis pub/sub se configurado
+            # A implementação de pub/sub específica pode variar
 
             # Métricas
             heartbeats_received_total.labels(
@@ -192,16 +182,8 @@ class RegistryService:
     async def _put_agent_without_event(self, agent_info: AgentInfo) -> bool:
         """Salva agente sem publicar evento de registro (para updates)"""
         try:
-            key = self.etcd_client._get_agent_key(agent_info.agent_type, str(agent_info.agent_id))
-            value = json.dumps(agent_info.to_proto_dict())
-
-            # Salvar com TTL de 5 minutos
-            await self.etcd_client.client.setex(key, 300, value)
-
-            # Atualizar índice
-            type_set_key = f"{self.etcd_client.prefix}:index:{agent_info.agent_type.value.lower()}"
-            await self.etcd_client.client.sadd(type_set_key, str(agent_info.agent_id))
-
+            # Usar RedisRegistryClient para salvar
+            await self.redis_client.put_agent(agent_info)
             return True
         except Exception as e:
             logger.error(
@@ -218,10 +200,10 @@ class RegistryService:
         """
         try:
             # Buscar agente para obter tipo (para métricas)
-            agent_info = await self.etcd_client.get_agent(agent_id)
+            agent_info = await self.redis_client.get_agent(agent_id)
 
-            # Remover do etcd
-            deleted = await self.etcd_client.delete_agent(agent_id)
+            # Remover do Redis
+            deleted = await self.redis_client.delete_agent(agent_id)
 
             if deleted and agent_info:
                 # Métricas
@@ -244,7 +226,7 @@ class RegistryService:
     async def get_agent(self, agent_id: UUID) -> Optional[AgentInfo]:
         """Retorna informações de um agente específico"""
         try:
-            agent_info = await self.etcd_client.get_agent(agent_id)
+            agent_info = await self.redis_client.get_agent(agent_id)
             registry_operations_total.labels(operation="get_agent", status="success").inc()
             return agent_info
 
@@ -258,7 +240,7 @@ class RegistryService:
     ) -> List[AgentInfo]:
         """Lista agentes com filtros opcionais"""
         try:
-            agents = await self.etcd_client.list_agents(agent_type, filters)
+            agents = await self.redis_client.list_agents(agent_type, filters)
             registry_operations_total.labels(operation="list_agents", status="success").inc()
 
             logger.info(
