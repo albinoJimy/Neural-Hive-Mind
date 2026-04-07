@@ -1,4 +1,5 @@
 """Main signal detector orchestrating detection pipeline"""
+
 from datetime import datetime, timezone
 from typing import Any, Optional
 

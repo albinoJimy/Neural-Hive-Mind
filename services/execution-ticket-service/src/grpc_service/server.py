@@ -3,6 +3,7 @@ Gerenciador do servidor gRPC.
 
 NOTA: Será atualizado após compilação do proto.
 """
+
 import asyncio
 import socket
 import time

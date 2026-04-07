@@ -3,6 +3,7 @@ C/C++ AST Parser usando tree-sitter.
 
 Suporta parsing de código C/C++ com fallback regex.
 """
+
 import logging
 from typing import Any, Dict, Optional
 

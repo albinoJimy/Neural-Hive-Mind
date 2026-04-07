@@ -1,6 +1,7 @@
 """
 Testes para ReplanningCoordinator - foco em get_replanning_stats
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 

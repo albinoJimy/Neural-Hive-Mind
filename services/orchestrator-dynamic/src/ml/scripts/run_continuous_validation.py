@@ -4,6 +4,7 @@ Script para executar validação contínua via CronJob.
 Popula janelas do MongoDB, computa métricas, verifica thresholds
 e publica métricas no Prometheus Pushgateway.
 """
+
 import argparse
 import asyncio
 import os

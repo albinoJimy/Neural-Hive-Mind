@@ -1682,7 +1682,7 @@ class TestDriftDetectorAdditionalCoverage:
             return_value=[
                 {
                     "_id": None,
-                    "count": 50
+                    "count": 50,
                     # approve_rate e avg_confidence faltando
                 }
             ]

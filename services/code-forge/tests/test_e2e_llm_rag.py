@@ -1,4 +1,5 @@
 """Teste E2E para geração de código com LLM + RAG"""
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 import sys

@@ -8,6 +8,7 @@ Para executar:
         --data-binary @policies/rego/queen/ethical_guardrails.rego
     pytest services/queen-agent/tests/integration/test_opa_integration.py -v
 """
+
 import pytest
 import pytest_asyncio
 import httpx

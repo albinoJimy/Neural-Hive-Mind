@@ -1,4 +1,5 @@
 """Testes unitários para o modelo IntentEnvelope"""
+
 import pytest
 from datetime import datetime, timezone
 from typing import Dict, Any

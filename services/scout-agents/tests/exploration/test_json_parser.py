@@ -2,6 +2,7 @@
 Testes para JSONParser.
 Parsing de JSON para análise de configurações.
 """
+
 import pytest
 
 from src.exploration.parsers.json_parser import JSONParser

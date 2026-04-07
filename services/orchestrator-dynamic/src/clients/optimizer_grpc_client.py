@@ -211,12 +211,12 @@ class OptimizerGrpcClient:
                             "cpu_cores": point.resource_demand.cpu_cores,
                             "memory_mb": point.resource_demand.memory_mb,
                         },
-                        "confidence_lower": point.confidence_lower
-                        if include_confidence_intervals
-                        else None,
-                        "confidence_upper": point.confidence_upper
-                        if include_confidence_intervals
-                        else None,
+                        "confidence_lower": (
+                            point.confidence_lower if include_confidence_intervals else None
+                        ),
+                        "confidence_upper": (
+                            point.confidence_upper if include_confidence_intervals else None
+                        ),
                     }
                     for point in response.forecast
                 ],

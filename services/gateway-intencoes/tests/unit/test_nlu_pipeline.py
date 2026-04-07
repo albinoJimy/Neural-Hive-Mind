@@ -1,4 +1,5 @@
 """Testes unitários para NLUPipeline"""
+
 import pytest
 from unittest.mock import MagicMock, patch, AsyncMock
 from typing import Dict, Any

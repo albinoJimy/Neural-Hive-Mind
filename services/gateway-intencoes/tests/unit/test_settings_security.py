@@ -1,4 +1,5 @@
 """Unit tests for Settings security validation"""
+
 import pytest
 import os
 from unittest.mock import patch

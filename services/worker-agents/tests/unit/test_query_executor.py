@@ -3,6 +3,7 @@ Testes unitários para QueryExecutor.
 
 Testa cada tipo de query com mocks.
 """
+
 import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, Mock

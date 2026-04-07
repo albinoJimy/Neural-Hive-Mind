@@ -4,6 +4,7 @@ SLARePrioritizer - Re-prioritização baseada em eventos SLA.
 Monitora eventos de SLA e dispara re-prioritização de tickets
 quando deadlines se aproximam ou urgência aumenta.
 """
+
 from typing import Any
 
 import structlog

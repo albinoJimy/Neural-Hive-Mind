@@ -1,6 +1,7 @@
 """
 Temporal Worker para executar workflows e activities.
 """
+
 import structlog
 from temporalio.client import Client
 from temporalio.worker import Worker
@@ -406,9 +407,11 @@ class TemporalWorkerManager:
 
         # Injetar dependências em result_consolidation (fail-open)
         set_consolidation_deps(
-            scheduling_optimizer=getattr(self.intelligent_scheduler, "scheduling_optimizer", None)
-            if self.intelligent_scheduler
-            else None,
+            scheduling_optimizer=(
+                getattr(self.intelligent_scheduler, "scheduling_optimizer", None)
+                if self.intelligent_scheduler
+                else None
+            ),
             config=self.config,
             mongodb_client=self.mongodb_client,
             kafka_producer=self.kafka_producer,

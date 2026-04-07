@@ -87,6 +87,7 @@ class AgentInfo(_message.Message):
         key: str
         value: str
         def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+
     AGENT_ID_FIELD_NUMBER: _ClassVar[int]
     AGENT_TYPE_FIELD_NUMBER: _ClassVar[int]
     CAPABILITIES_FIELD_NUMBER: _ClassVar[int]
@@ -145,6 +146,7 @@ class RegisterRequest(_message.Message):
         key: str
         value: str
         def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+
     AGENT_TYPE_FIELD_NUMBER: _ClassVar[int]
     CAPABILITIES_FIELD_NUMBER: _ClassVar[int]
     METADATA_FIELD_NUMBER: _ClassVar[int]
@@ -229,6 +231,7 @@ class DiscoverRequest(_message.Message):
         key: str
         value: str
         def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+
     CAPABILITIES_FIELD_NUMBER: _ClassVar[int]
     FILTERS_FIELD_NUMBER: _ClassVar[int]
     MAX_RESULTS_FIELD_NUMBER: _ClassVar[int]
@@ -274,6 +277,7 @@ class ListAgentsRequest(_message.Message):
         key: str
         value: str
         def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+
     AGENT_TYPE_FIELD_NUMBER: _ClassVar[int]
     FILTERS_FIELD_NUMBER: _ClassVar[int]
     agent_type: AgentType
@@ -306,6 +310,7 @@ class AgentChangeEvent(_message.Message):
         UPDATED: _ClassVar[AgentChangeEvent.EventType]
         DEREGISTERED: _ClassVar[AgentChangeEvent.EventType]
         STATUS_CHANGED: _ClassVar[AgentChangeEvent.EventType]
+
     EVENT_TYPE_UNSPECIFIED: AgentChangeEvent.EventType
     REGISTERED: AgentChangeEvent.EventType
     UPDATED: AgentChangeEvent.EventType
@@ -334,6 +339,7 @@ class NotifyAgentRequest(_message.Message):
         key: str
         value: str
         def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+
     AGENT_ID_FIELD_NUMBER: _ClassVar[int]
     NOTIFICATION_TYPE_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]

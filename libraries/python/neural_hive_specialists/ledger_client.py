@@ -481,9 +481,11 @@ class LedgerClient:
                 trace_id=trace_id,
                 span_id=span_id,
                 evaluated_at=datetime.now(timezone.utc),
-                processing_time_ms=processing_time_ms
-                if processing_time_ms is not None
-                else int((time.time() - start_save_time) * 1000),
+                processing_time_ms=(
+                    processing_time_ms
+                    if processing_time_ms is not None
+                    else int((time.time() - start_save_time) * 1000)
+                ),
                 buffered=False,
                 content_hash="",  # Will be calculated by DigitalSigner
             )
@@ -641,9 +643,11 @@ class LedgerClient:
             "specialist_type": document["specialist_type"],
             "correlation_id": document["correlation_id"],
             "opinion_data": document["opinion_data"],
-            "timestamp": document["timestamp"].isoformat()
-            if isinstance(document["timestamp"], datetime)
-            else document["timestamp"],
+            "timestamp": (
+                document["timestamp"].isoformat()
+                if isinstance(document["timestamp"], datetime)
+                else document["timestamp"]
+            ),
         }
 
         # Serializar para JSON ordenado

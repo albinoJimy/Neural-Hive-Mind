@@ -100,12 +100,11 @@ class TestPIIDetectorInitialization:
     def test_initialization_success(self, mock_config):
         """Testa inicialização bem-sucedida com engines Presidio."""
         # Mock Presidio imports dentro do __init__
-        with patch("presidio_analyzer.AnalyzerEngine") as mock_analyzer, patch(
-            "presidio_analyzer.nlp_engine.NlpEngineProvider"
-        ) as mock_nlp_provider, patch(
-            "presidio_anonymizer.AnonymizerEngine"
-        ) as mock_anonymizer, patch(
-            "presidio_anonymizer.entities.OperatorConfig"
+        with (
+            patch("presidio_analyzer.AnalyzerEngine") as mock_analyzer,
+            patch("presidio_analyzer.nlp_engine.NlpEngineProvider") as mock_nlp_provider,
+            patch("presidio_anonymizer.AnonymizerEngine") as mock_anonymizer,
+            patch("presidio_anonymizer.entities.OperatorConfig"),
         ):
             mock_nlp_engine = Mock()
             mock_nlp_provider.return_value.create_engine.return_value = mock_nlp_engine
@@ -121,10 +120,11 @@ class TestPIIDetectorInitialization:
         """Testa que idiomas não suportados são ignorados."""
         mock_config.pii_detection_languages = ["pt", "fr", "en"]  # fr não suportado
 
-        with patch("presidio_analyzer.AnalyzerEngine"), patch(
-            "presidio_analyzer.nlp_engine.NlpEngineProvider"
-        ) as mock_nlp_provider, patch("presidio_anonymizer.AnonymizerEngine"), patch(
-            "presidio_anonymizer.entities.OperatorConfig"
+        with (
+            patch("presidio_analyzer.AnalyzerEngine"),
+            patch("presidio_analyzer.nlp_engine.NlpEngineProvider") as mock_nlp_provider,
+            patch("presidio_anonymizer.AnonymizerEngine"),
+            patch("presidio_anonymizer.entities.OperatorConfig"),
         ):
             mock_nlp_engine = Mock()
             mock_nlp_provider.return_value.create_engine.return_value = mock_nlp_engine
@@ -198,10 +198,11 @@ class TestDetectPII:
     @pytest.fixture
     def detector(self, mock_config):
         """Cria detector com Presidio mockado."""
-        with patch("presidio_analyzer.AnalyzerEngine") as mock_analyzer, patch(
-            "presidio_analyzer.nlp_engine.NlpEngineProvider"
-        ) as mock_nlp_provider, patch("presidio_anonymizer.AnonymizerEngine"), patch(
-            "presidio_anonymizer.entities.OperatorConfig"
+        with (
+            patch("presidio_analyzer.AnalyzerEngine") as mock_analyzer,
+            patch("presidio_analyzer.nlp_engine.NlpEngineProvider") as mock_nlp_provider,
+            patch("presidio_anonymizer.AnonymizerEngine"),
+            patch("presidio_anonymizer.entities.OperatorConfig"),
         ):
             mock_nlp_engine = Mock()
             mock_nlp_provider.return_value.create_engine.return_value = mock_nlp_engine
@@ -288,12 +289,11 @@ class TestAnonymizeText:
     @pytest.fixture
     def detector(self, mock_config):
         """Cria detector com Presidio mockado."""
-        with patch("presidio_analyzer.AnalyzerEngine") as mock_analyzer, patch(
-            "presidio_analyzer.nlp_engine.NlpEngineProvider"
-        ) as mock_nlp_provider, patch(
-            "presidio_anonymizer.AnonymizerEngine"
-        ) as mock_anonymizer, patch(
-            "presidio_anonymizer.entities.OperatorConfig"
+        with (
+            patch("presidio_analyzer.AnalyzerEngine") as mock_analyzer,
+            patch("presidio_analyzer.nlp_engine.NlpEngineProvider") as mock_nlp_provider,
+            patch("presidio_anonymizer.AnonymizerEngine") as mock_anonymizer,
+            patch("presidio_anonymizer.entities.OperatorConfig"),
         ):
             mock_nlp_engine = Mock()
             mock_nlp_provider.return_value.create_engine.return_value = mock_nlp_engine
@@ -387,12 +387,11 @@ class TestAnonymizeDict:
     @pytest.fixture
     def detector(self, mock_config):
         """Cria detector com Presidio mockado."""
-        with patch("presidio_analyzer.AnalyzerEngine") as mock_analyzer, patch(
-            "presidio_analyzer.nlp_engine.NlpEngineProvider"
-        ) as mock_nlp_provider, patch(
-            "presidio_anonymizer.AnonymizerEngine"
-        ) as mock_anonymizer, patch(
-            "presidio_anonymizer.entities.OperatorConfig"
+        with (
+            patch("presidio_analyzer.AnalyzerEngine") as mock_analyzer,
+            patch("presidio_analyzer.nlp_engine.NlpEngineProvider") as mock_nlp_provider,
+            patch("presidio_anonymizer.AnonymizerEngine") as mock_anonymizer,
+            patch("presidio_anonymizer.entities.OperatorConfig"),
         ):
             mock_nlp_engine = Mock()
             mock_nlp_provider.return_value.create_engine.return_value = mock_nlp_engine
@@ -471,10 +470,11 @@ class TestAnonymizationStrategies:
         """Testa estratégia replace (padrão)."""
         mock_config.pii_anonymization_strategy = "replace"
 
-        with patch("presidio_analyzer.AnalyzerEngine"), patch(
-            "presidio_analyzer.nlp_engine.NlpEngineProvider"
-        ) as mock_nlp_provider, patch("presidio_anonymizer.AnonymizerEngine"), patch(
-            "presidio_anonymizer.entities.OperatorConfig"
+        with (
+            patch("presidio_analyzer.AnalyzerEngine"),
+            patch("presidio_analyzer.nlp_engine.NlpEngineProvider") as mock_nlp_provider,
+            patch("presidio_anonymizer.AnonymizerEngine"),
+            patch("presidio_anonymizer.entities.OperatorConfig"),
         ):
             mock_nlp_engine = Mock()
             mock_nlp_provider.return_value.create_engine.return_value = mock_nlp_engine
@@ -489,11 +489,12 @@ class TestAnonymizationStrategies:
         """Testa estratégia mask."""
         mock_config.pii_anonymization_strategy = "mask"
 
-        with patch("presidio_analyzer.AnalyzerEngine"), patch(
-            "presidio_analyzer.nlp_engine.NlpEngineProvider"
-        ) as mock_nlp_provider, patch("presidio_anonymizer.AnonymizerEngine"), patch(
-            "presidio_anonymizer.entities.OperatorConfig"
-        ) as mock_op:
+        with (
+            patch("presidio_analyzer.AnalyzerEngine"),
+            patch("presidio_analyzer.nlp_engine.NlpEngineProvider") as mock_nlp_provider,
+            patch("presidio_anonymizer.AnonymizerEngine"),
+            patch("presidio_anonymizer.entities.OperatorConfig") as mock_op,
+        ):
             mock_nlp_engine = Mock()
             mock_nlp_provider.return_value.create_engine.return_value = mock_nlp_engine
 
@@ -509,11 +510,12 @@ class TestAnonymizationStrategies:
         """Testa estratégia redact."""
         mock_config.pii_anonymization_strategy = "redact"
 
-        with patch("presidio_analyzer.AnalyzerEngine"), patch(
-            "presidio_analyzer.nlp_engine.NlpEngineProvider"
-        ) as mock_nlp_provider, patch("presidio_anonymizer.AnonymizerEngine"), patch(
-            "presidio_anonymizer.entities.OperatorConfig"
-        ) as mock_op:
+        with (
+            patch("presidio_analyzer.AnalyzerEngine"),
+            patch("presidio_analyzer.nlp_engine.NlpEngineProvider") as mock_nlp_provider,
+            patch("presidio_anonymizer.AnonymizerEngine"),
+            patch("presidio_anonymizer.entities.OperatorConfig") as mock_op,
+        ):
             mock_nlp_engine = Mock()
             mock_nlp_provider.return_value.create_engine.return_value = mock_nlp_engine
 
@@ -528,11 +530,12 @@ class TestAnonymizationStrategies:
         """Testa estratégia hash."""
         mock_config.pii_anonymization_strategy = "hash"
 
-        with patch("presidio_analyzer.AnalyzerEngine"), patch(
-            "presidio_analyzer.nlp_engine.NlpEngineProvider"
-        ) as mock_nlp_provider, patch("presidio_anonymizer.AnonymizerEngine"), patch(
-            "presidio_anonymizer.entities.OperatorConfig"
-        ) as mock_op:
+        with (
+            patch("presidio_analyzer.AnalyzerEngine"),
+            patch("presidio_analyzer.nlp_engine.NlpEngineProvider") as mock_nlp_provider,
+            patch("presidio_anonymizer.AnonymizerEngine"),
+            patch("presidio_anonymizer.entities.OperatorConfig") as mock_op,
+        ):
             mock_nlp_engine = Mock()
             mock_nlp_provider.return_value.create_engine.return_value = mock_nlp_engine
 
@@ -547,10 +550,11 @@ class TestAnonymizationStrategies:
         """Testa que estratégia desconhecida usa replace como fallback."""
         mock_config.pii_anonymization_strategy = "unknown_strategy"
 
-        with patch("presidio_analyzer.AnalyzerEngine"), patch(
-            "presidio_analyzer.nlp_engine.NlpEngineProvider"
-        ) as mock_nlp_provider, patch("presidio_anonymizer.AnonymizerEngine"), patch(
-            "presidio_anonymizer.entities.OperatorConfig"
+        with (
+            patch("presidio_analyzer.AnalyzerEngine"),
+            patch("presidio_analyzer.nlp_engine.NlpEngineProvider") as mock_nlp_provider,
+            patch("presidio_anonymizer.AnonymizerEngine"),
+            patch("presidio_anonymizer.entities.OperatorConfig"),
         ):
             mock_nlp_engine = Mock()
             mock_nlp_provider.return_value.create_engine.return_value = mock_nlp_engine

@@ -4,6 +4,7 @@ Servicer gRPC para extensões de otimização de consenso.
 Implementa os métodos RPC definidos em consensus_engine_extensions.proto.
 Expõe APIs para que o Consensus Engine solicite otimizações de pesos.
 """
+
 import time
 
 import grpc

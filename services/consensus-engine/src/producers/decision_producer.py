@@ -193,9 +193,11 @@ class DecisionProducer:
                         plan_id=plan_id,
                         decision_id=decision.decision_id,
                         existing_timestamp=self._processed_plan_timestamps.get(plan_id),
-                        final_decision=decision.final_decision.value
-                        if hasattr(decision.final_decision, "value")
-                        else str(decision.final_decision),
+                        final_decision=(
+                            decision.final_decision.value
+                            if hasattr(decision.final_decision, "value")
+                            else str(decision.final_decision)
+                        ),
                     )
                     return  # Não republicar decisão duplicada
 
@@ -216,9 +218,11 @@ class DecisionProducer:
                 "plan-id": decision.plan_id,
                 "intent-id": decision.intent_id,
                 "correlation-id": decision.correlation_id,
-                "final-decision": decision.final_decision.value
-                if hasattr(decision.final_decision, "value")
-                else str(decision.final_decision),
+                "final-decision": (
+                    decision.final_decision.value
+                    if hasattr(decision.final_decision, "value")
+                    else str(decision.final_decision)
+                ),
             }
 
             # Injetar contexto OpenTelemetry W3C traceparent via ContextManager

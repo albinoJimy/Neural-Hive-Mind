@@ -46,10 +46,14 @@ def mock_channel():
 @pytest.mark.asyncio
 async def test_connect_initializes_stub(settings, mock_channel):
     mock_stub = MagicMock()
-    with patch("grpc.aio.insecure_channel", return_value=mock_channel), patch(
-        "src.clients.queen_agent_grpc_client.queen_agent_pb2_grpc.QueenAgentStub",
-        return_value=mock_stub,
-    ), patch("src.clients.queen_agent_grpc_client.get_settings", return_value=settings):
+    with (
+        patch("grpc.aio.insecure_channel", return_value=mock_channel),
+        patch(
+            "src.clients.queen_agent_grpc_client.queen_agent_pb2_grpc.QueenAgentStub",
+            return_value=mock_stub,
+        ),
+        patch("src.clients.queen_agent_grpc_client.get_settings", return_value=settings),
+    ):
         client = QueenAgentGrpcClient()
         await client.connect()
 

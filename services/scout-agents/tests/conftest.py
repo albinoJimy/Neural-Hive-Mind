@@ -3,6 +3,7 @@ Configuration file for pytest.
 
 Fixes import path for the src module.
 """
+
 import sys
 from pathlib import Path
 

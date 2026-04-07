@@ -4,6 +4,7 @@ Testes de integração para QueryExecutor.
 Testa queries reais contra MongoDB/Redis em docker-compose.
 Valida timeout e retry logic.
 """
+
 import pytest
 import asyncio
 from datetime import datetime

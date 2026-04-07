@@ -11,6 +11,7 @@ Cenários cobertos:
 - Security constraints
 - Servidor OPA real (quando disponível)
 """
+
 import os
 import pytest
 from datetime import datetime, timedelta

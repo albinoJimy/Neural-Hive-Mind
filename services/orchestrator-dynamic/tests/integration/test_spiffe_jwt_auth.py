@@ -101,9 +101,11 @@ async def test_jwt_svid_fetch_and_attach_metadata(mock_spiffe_manager, mock_sett
     # Importar cliente após mocks
     from src.clients.service_registry_client import ServiceRegistryClient
 
-    with patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2, patch(
-        "src.clients.service_registry_client.service_registry_pb2_grpc"
-    ) as mock_grpc, patch("grpc.aio.insecure_channel") as mock_channel:
+    with (
+        patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2,
+        patch("src.clients.service_registry_client.service_registry_pb2_grpc") as mock_grpc,
+        patch("grpc.aio.insecure_channel") as mock_channel,
+    ):
         # Setup mocks
         mock_pb2.DiscoverRequest = MagicMock(return_value=MagicMock())
         mock_stub = AsyncMock()
@@ -163,9 +165,11 @@ async def test_jwt_svid_cache_hit(mock_spiffe_manager, mock_settings):
     """
     from src.clients.service_registry_client import ServiceRegistryClient
 
-    with patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2, patch(
-        "src.clients.service_registry_client.service_registry_pb2_grpc"
-    ) as mock_grpc, patch("grpc.aio.insecure_channel") as mock_channel:
+    with (
+        patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2,
+        patch("src.clients.service_registry_client.service_registry_pb2_grpc") as mock_grpc,
+        patch("grpc.aio.insecure_channel") as mock_channel,
+    ):
         # Setup mocks
         mock_pb2.DiscoverRequest = MagicMock(return_value=MagicMock())
         mock_stub = AsyncMock()
@@ -207,9 +211,11 @@ async def test_jwt_auth_failure_invalid_token(mock_spiffe_manager, mock_settings
         expiry=datetime.now(timezone.utc) - timedelta(hours=1),  # Expirado
     )
 
-    with patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2, patch(
-        "src.clients.service_registry_client.service_registry_pb2_grpc"
-    ) as mock_grpc, patch("grpc.aio.insecure_channel") as mock_channel:
+    with (
+        patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2,
+        patch("src.clients.service_registry_client.service_registry_pb2_grpc") as mock_grpc,
+        patch("grpc.aio.insecure_channel") as mock_channel,
+    ):
         # Setup mocks
         mock_pb2.DiscoverRequest = MagicMock(return_value=MagicMock())
         mock_stub = AsyncMock()
@@ -256,9 +262,11 @@ async def test_jwt_auth_failure_unauthorized_spiffe_id(mock_spiffe_manager, mock
         expiry=datetime.now(timezone.utc) + timedelta(hours=1),
     )
 
-    with patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2, patch(
-        "src.clients.service_registry_client.service_registry_pb2_grpc"
-    ) as mock_grpc, patch("grpc.aio.insecure_channel") as mock_channel:
+    with (
+        patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2,
+        patch("src.clients.service_registry_client.service_registry_pb2_grpc") as mock_grpc,
+        patch("grpc.aio.insecure_channel") as mock_channel,
+    ):
         # Setup mocks
         mock_pb2.DiscoverRequest = MagicMock(return_value=MagicMock())
         mock_stub = AsyncMock()
@@ -301,9 +309,11 @@ async def test_fallback_no_auth_when_spiffe_disabled(mock_settings):
     # Desabilitar SPIFFE
     mock_settings.spiffe_enabled = False
 
-    with patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2, patch(
-        "src.clients.service_registry_client.service_registry_pb2_grpc"
-    ) as mock_grpc, patch("grpc.aio.insecure_channel") as mock_channel:
+    with (
+        patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2,
+        patch("src.clients.service_registry_client.service_registry_pb2_grpc") as mock_grpc,
+        patch("grpc.aio.insecure_channel") as mock_channel,
+    ):
         # Setup mocks
         mock_pb2.DiscoverRequest = MagicMock(return_value=MagicMock())
         mock_stub = AsyncMock()
@@ -347,9 +357,11 @@ async def test_spiffe_unavailable_fallback(mock_spiffe_manager, mock_settings, c
         "SPIRE agent unavailable"
     )
 
-    with patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2, patch(
-        "src.clients.service_registry_client.service_registry_pb2_grpc"
-    ) as mock_grpc, patch("grpc.aio.insecure_channel") as mock_channel:
+    with (
+        patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2,
+        patch("src.clients.service_registry_client.service_registry_pb2_grpc") as mock_grpc,
+        patch("grpc.aio.insecure_channel") as mock_channel,
+    ):
         # Setup mocks
         mock_pb2.DiscoverRequest = MagicMock(return_value=MagicMock())
         mock_stub = AsyncMock()
@@ -398,9 +410,11 @@ async def test_jwt_svid_with_custom_audience(mock_spiffe_manager, mock_settings)
     custom_audience = "custom-service.neural-hive.local"
     mock_settings.spiffe_jwt_audience = custom_audience
 
-    with patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2, patch(
-        "src.clients.service_registry_client.service_registry_pb2_grpc"
-    ) as mock_grpc, patch("grpc.aio.insecure_channel") as mock_channel:
+    with (
+        patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2,
+        patch("src.clients.service_registry_client.service_registry_pb2_grpc") as mock_grpc,
+        patch("grpc.aio.insecure_channel") as mock_channel,
+    ):
         # Setup mocks
         mock_pb2.DiscoverRequest = MagicMock(return_value=MagicMock())
         mock_stub = AsyncMock()
@@ -431,9 +445,11 @@ async def test_concurrent_discover_calls_with_jwt(mock_spiffe_manager, mock_sett
     """
     from src.clients.service_registry_client import ServiceRegistryClient
 
-    with patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2, patch(
-        "src.clients.service_registry_client.service_registry_pb2_grpc"
-    ) as mock_grpc, patch("grpc.aio.insecure_channel") as mock_channel:
+    with (
+        patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2,
+        patch("src.clients.service_registry_client.service_registry_pb2_grpc") as mock_grpc,
+        patch("grpc.aio.insecure_channel") as mock_channel,
+    ):
         # Setup mocks
         mock_pb2.DiscoverRequest = MagicMock(return_value=MagicMock())
         mock_stub = AsyncMock()

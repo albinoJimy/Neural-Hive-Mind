@@ -3,6 +3,7 @@
 This module provides a producer that publishes newly created tickets via HTTP
 to the Kafka topic so worker agents can consume them.
 """
+
 import asyncio
 import json
 from typing import Optional

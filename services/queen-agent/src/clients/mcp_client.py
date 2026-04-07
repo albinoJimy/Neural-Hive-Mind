@@ -4,6 +4,7 @@ Cliente MCP (Model Context Protocol) para comunicação com MCP Servers.
 Implementa cliente JSON-RPC 2.0 para comunicação com servidores MCP
 que seguem o protocolo da Anthropic.
 """
+
 import contextlib
 from dataclasses import dataclass
 from typing import Any

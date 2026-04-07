@@ -663,15 +663,21 @@ class ContinuousValidator:
                     # Determinar severidade com base no maior ratio
                     max_ratio = max(
                         [
-                            (mae_pct / baseline_mae_pct)
-                            if baseline_mae_pct and baseline_mae_pct > 0
-                            else 0,
-                            (mae / baseline_mae)
-                            if baseline_mae and mae and baseline_mae > 0
-                            else 0,
-                            (rmse / baseline_rmse)
-                            if baseline_rmse and rmse and baseline_rmse > 0
-                            else 0,
+                            (
+                                (mae_pct / baseline_mae_pct)
+                                if baseline_mae_pct and baseline_mae_pct > 0
+                                else 0
+                            ),
+                            (
+                                (mae / baseline_mae)
+                                if baseline_mae and mae and baseline_mae > 0
+                                else 0
+                            ),
+                            (
+                                (rmse / baseline_rmse)
+                                if baseline_rmse and rmse and baseline_rmse > 0
+                                else 0
+                            ),
                         ]
                     )
                     severity = "critical" if max_ratio > 2.0 else "warning"

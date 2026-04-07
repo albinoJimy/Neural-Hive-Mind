@@ -1,4 +1,5 @@
 """Testes de integração para GitClient"""
+
 import os
 import sys
 from unittest.mock import AsyncMock, MagicMock, patch

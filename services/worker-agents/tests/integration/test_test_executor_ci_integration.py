@@ -6,6 +6,7 @@ the various CI providers (GitHub Actions, GitLab CI, Jenkins).
 Note: These tests require environment variables or mocks for the
 actual CI provider APIs. In CI environments, they use mocked responses.
 """
+
 import pytest
 import os
 from unittest.mock import AsyncMock, MagicMock, patch

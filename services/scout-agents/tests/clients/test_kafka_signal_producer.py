@@ -3,6 +3,7 @@ Testes unitários abrangentes para KafkaSignalProducer.
 
 Cobertura: publicação de sinais, oportunidades, batch, tratamento de erros.
 """
+
 import pytest
 import json
 from unittest.mock import AsyncMock, MagicMock, patch

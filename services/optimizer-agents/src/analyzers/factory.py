@@ -1,4 +1,5 @@
 """Factory para criar analyzers apropriados."""
+
 from enum import Enum
 
 from .base import BaseAnalyzer

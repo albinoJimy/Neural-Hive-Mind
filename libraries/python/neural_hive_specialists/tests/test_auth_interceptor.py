@@ -1,6 +1,7 @@
 """
 Testes para AuthInterceptor.
 """
+
 import pytest
 import jwt
 import grpc

@@ -1,4 +1,5 @@
 """Modelo para eventos de canais digitais."""
+
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, Optional, Union

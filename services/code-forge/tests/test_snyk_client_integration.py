@@ -1,4 +1,5 @@
 """Testes de integração para SnykClient"""
+
 import os
 import subprocess
 import sys

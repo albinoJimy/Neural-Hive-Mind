@@ -1,4 +1,5 @@
 """Implementação do gRPC Servicer para Queen Agent"""
+
 import time
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -455,9 +456,9 @@ class QueenAgentServicer(queen_agent_pb2_grpc.QueenAgentServicer):
             context.set_details(str(e))
 
             metrics.insights_received_total.labels(
-                insight_type=request.insight_type
-                if hasattr(request, "insight_type")
-                else "unknown",
+                insight_type=(
+                    request.insight_type if hasattr(request, "insight_type") else "unknown"
+                ),
                 priority=request.priority if hasattr(request, "priority") else "unknown",
                 accepted="false",
             ).inc()

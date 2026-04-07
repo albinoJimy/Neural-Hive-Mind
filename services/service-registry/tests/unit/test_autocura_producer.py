@@ -1,6 +1,7 @@
 """
 Testes para AutocuraEventProducer.
 """
+
 from unittest.mock import MagicMock, patch, Mock
 
 import pytest
@@ -9,9 +10,10 @@ import pytest
 @pytest.fixture
 def mock_kafka():
     """Mock do módulo Kafka."""
-    with patch("src.clients.autocura_producer.KafkaError") as mock_kafka_error, patch(
-        "src.clients.autocura_producer.Producer"
-    ) as mock_producer:
+    with (
+        patch("src.clients.autocura_producer.KafkaError") as mock_kafka_error,
+        patch("src.clients.autocura_producer.Producer") as mock_producer,
+    ):
         # Configurar mock do Producer
         producer_instance = MagicMock()
         producer_instance.flush.return_value = 0  # Sem mensagens pendentes

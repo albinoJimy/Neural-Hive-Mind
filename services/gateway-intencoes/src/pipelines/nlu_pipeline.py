@@ -1,4 +1,5 @@
 """Pipeline NLU usando spaCy para análise de texto e classificação de intenções"""
+
 import asyncio
 import hashlib
 import json

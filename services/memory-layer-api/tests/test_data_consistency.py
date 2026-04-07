@@ -7,6 +7,7 @@ Testes abrangentes para verificar consistência entre camadas de memória:
 - Idempotência de eventos
 - Recuperação de falhas
 """
+
 import json
 import pytest
 import asyncio

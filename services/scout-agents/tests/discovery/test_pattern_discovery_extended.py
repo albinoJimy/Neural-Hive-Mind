@@ -2,6 +2,7 @@
 Testes expandidos para PatternDiscovery.
 Cobertura de identificação de padrões de design.
 """
+
 import pytest
 
 from src.discovery.pattern_discovery import PatternDiscovery

@@ -1,4 +1,5 @@
 """Cliente gRPC para Service Registry com suporte a mTLS via SPIFFE."""
+
 import time
 from typing import Any, Dict, List, Optional, Tuple
 

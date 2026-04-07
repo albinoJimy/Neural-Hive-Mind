@@ -1,4 +1,5 @@
 """Keycloak Admin Client for token revocation and user management"""
+
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 

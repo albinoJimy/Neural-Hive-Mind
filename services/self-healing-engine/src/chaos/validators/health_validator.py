@@ -359,18 +359,18 @@ class HealthValidator:
             "namespace": namespace,
             "overall_healthy": True,
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "service_health": results[0]
-            if not isinstance(results[0], Exception)
-            else {"error": str(results[0])},
-            "slo_compliance": results[1]
-            if not isinstance(results[1], Exception)
-            else {"error": str(results[1])},
-            "data_integrity": results[2]
-            if not isinstance(results[2], Exception)
-            else {"error": str(results[2])},
-            "observability": results[3]
-            if not isinstance(results[3], Exception)
-            else {"error": str(results[3])},
+            "service_health": (
+                results[0] if not isinstance(results[0], Exception) else {"error": str(results[0])}
+            ),
+            "slo_compliance": (
+                results[1] if not isinstance(results[1], Exception) else {"error": str(results[1])}
+            ),
+            "data_integrity": (
+                results[2] if not isinstance(results[2], Exception) else {"error": str(results[2])}
+            ),
+            "observability": (
+                results[3] if not isinstance(results[3], Exception) else {"error": str(results[3])}
+            ),
         }
 
         # Determinar saúde geral

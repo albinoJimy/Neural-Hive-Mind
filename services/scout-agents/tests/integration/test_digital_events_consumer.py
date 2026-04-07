@@ -4,6 +4,7 @@ Testes de integração para DigitalEventsConsumer.
 TDD: Testes escritos antes da implementação.
 Epic: CR-02 Implementar Scout Consumer Completo
 """
+
 import pytest
 import json
 from datetime import datetime, timezone

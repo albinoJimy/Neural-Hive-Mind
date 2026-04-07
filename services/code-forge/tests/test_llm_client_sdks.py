@@ -1,4 +1,5 @@
 """Testes unitários para LLM Client com SDKs oficiais."""
+
 import os
 import sys
 from unittest.mock import AsyncMock, MagicMock, patch

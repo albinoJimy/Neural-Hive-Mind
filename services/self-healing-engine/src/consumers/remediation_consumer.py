@@ -1,4 +1,5 @@
 """Kafka consumer for remediation actions"""
+
 import asyncio
 import json
 from typing import TYPE_CHECKING, Optional

@@ -1,4 +1,5 @@
 """Testes unitarios para o AnalystServicer (com mocks)."""
+
 import pytest
 import uuid
 from unittest.mock import AsyncMock, MagicMock

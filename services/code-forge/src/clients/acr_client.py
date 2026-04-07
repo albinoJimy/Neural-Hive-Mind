@@ -133,12 +133,15 @@ class ACRClient:
                 # Fazer requisição para IMDS
                 # Usar timeout curto (1 segundo) como requerido pelo IMDS
                 async def fetch_token():
-                    async with aiohttp.ClientSession() as session, session.get(
-                        AZURE_IMDS_ENDPOINT,
-                        params=params,
-                        headers=headers,
-                        timeout=aiohttp.ClientTimeout(total=1),
-                    ) as response:
+                    async with (
+                        aiohttp.ClientSession() as session,
+                        session.get(
+                            AZURE_IMDS_ENDPOINT,
+                            params=params,
+                            headers=headers,
+                            timeout=aiohttp.ClientTimeout(total=1),
+                        ) as response,
+                    ):
                         if response.status == 200:
                             data = await response.json()
                             return data.get("access_token")

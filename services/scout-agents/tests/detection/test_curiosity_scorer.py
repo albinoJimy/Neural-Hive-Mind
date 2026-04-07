@@ -3,6 +3,7 @@ Testes unitários abrangentes para CuriosityScorer.
 
 Cobertura: cálculo de curiosidade, novidade, relevância, ganho de informação.
 """
+
 import pytest
 import numpy as np
 from datetime import datetime, timezone

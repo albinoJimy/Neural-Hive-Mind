@@ -4,6 +4,7 @@ AffinityTracker - Rastreia alocações para affinity/anti-affinity de tickets.
 Mantém cache Redis de alocações por plan_id, intent_id e tickets críticos
 para permitir co-location inteligente e distribuição de fault tolerance.
 """
+
 import time
 
 import structlog

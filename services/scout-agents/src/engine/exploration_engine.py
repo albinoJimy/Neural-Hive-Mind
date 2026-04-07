@@ -1,4 +1,5 @@
 """Main exploration engine orchestrating the scout pipeline"""
+
 from collections import deque
 from datetime import datetime, timedelta, timezone
 from typing import Any, Deque, Dict, List, Optional
@@ -38,9 +39,11 @@ class ExplorationEngine:
 
         # Codebase exploration components
         self.curiosity_calculator = CuriosityCalculator(
-            decay_factor=self.settings.detection.curiosity_decay_factor
-            if hasattr(self.settings.detection, "curiosity_decay_factor")
-            else 0.8,
+            decay_factor=(
+                self.settings.detection.curiosity_decay_factor
+                if hasattr(self.settings.detection, "curiosity_decay_factor")
+                else 0.8
+            ),
             decay_hours=24,
         )
         self.file_signal_detector = FileSignalDetector(window_minutes=60)

@@ -1,6 +1,7 @@
 """
 Testes para TimeSeriesAnalyzer.
 """
+
 import pytest
 from datetime import datetime, timezone, timedelta
 import numpy as np

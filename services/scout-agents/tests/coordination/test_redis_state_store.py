@@ -2,6 +2,7 @@
 Testes para RedisStateStore.
 Compartilhamento de estado via Redis.
 """
+
 import pytest
 import json
 from unittest.mock import AsyncMock, MagicMock

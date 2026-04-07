@@ -30,10 +30,15 @@ class TestApprovalGateAutoApproval:
         gate = ApprovalGate(git_client=mock_git_client, auto_approval_threshold=0.9)
 
         # Mock methods usando patch na classe
-        with patch(
-            "src.models.pipeline_context.PipelineContext.calculate_quality_score", return_value=0.95
-        ), patch(
-            "src.models.pipeline_context.PipelineContext.has_critical_issues", return_value=False
+        with (
+            patch(
+                "src.models.pipeline_context.PipelineContext.calculate_quality_score",
+                return_value=0.95,
+            ),
+            patch(
+                "src.models.pipeline_context.PipelineContext.has_critical_issues",
+                return_value=False,
+            ),
         ):
             await gate.check_approval(sample_pipeline_context_with_validations)
 
@@ -50,10 +55,15 @@ class TestApprovalGateAutoApproval:
         gate = ApprovalGate(git_client=mock_git_client, auto_approval_threshold=0.9)
 
         # Mock methods usando patch na classe
-        with patch(
-            "src.models.pipeline_context.PipelineContext.calculate_quality_score", return_value=0.9
-        ), patch(
-            "src.models.pipeline_context.PipelineContext.has_critical_issues", return_value=False
+        with (
+            patch(
+                "src.models.pipeline_context.PipelineContext.calculate_quality_score",
+                return_value=0.9,
+            ),
+            patch(
+                "src.models.pipeline_context.PipelineContext.has_critical_issues",
+                return_value=False,
+            ),
         ):
             await gate.check_approval(sample_pipeline_context_with_validations)
 
@@ -73,10 +83,15 @@ class TestApprovalGateAutoRejection:
         gate = ApprovalGate(git_client=mock_git_client, min_quality_score=0.5)
 
         # Mock methods usando patch na classe
-        with patch(
-            "src.models.pipeline_context.PipelineContext.calculate_quality_score", return_value=0.3
-        ), patch(
-            "src.models.pipeline_context.PipelineContext.has_critical_issues", return_value=False
+        with (
+            patch(
+                "src.models.pipeline_context.PipelineContext.calculate_quality_score",
+                return_value=0.3,
+            ),
+            patch(
+                "src.models.pipeline_context.PipelineContext.has_critical_issues",
+                return_value=False,
+            ),
         ):
             await gate.check_approval(sample_pipeline_context_with_validations)
 
@@ -92,10 +107,14 @@ class TestApprovalGateAutoRejection:
         gate = ApprovalGate(git_client=mock_git_client)
 
         # Mock methods usando patch na classe
-        with patch(
-            "src.models.pipeline_context.PipelineContext.calculate_quality_score", return_value=0.85
-        ), patch(
-            "src.models.pipeline_context.PipelineContext.has_critical_issues", return_value=True
+        with (
+            patch(
+                "src.models.pipeline_context.PipelineContext.calculate_quality_score",
+                return_value=0.85,
+            ),
+            patch(
+                "src.models.pipeline_context.PipelineContext.has_critical_issues", return_value=True
+            ),
         ):
             await gate.check_approval(sample_pipeline_context_with_validations)
 
@@ -113,19 +132,24 @@ class TestApprovalGateManualReview:
         from src.services.approval_gate import ApprovalGate
 
         # Adicionar target_repo para permitir criacao de MR
-        sample_pipeline_context_with_validations.ticket.parameters[
-            "target_repo"
-        ] = "https://github.com/test/repo"
+        sample_pipeline_context_with_validations.ticket.parameters["target_repo"] = (
+            "https://github.com/test/repo"
+        )
 
         gate = ApprovalGate(
             git_client=mock_git_client, auto_approval_threshold=0.9, min_quality_score=0.5
         )
 
         # Mock methods usando patch na classe
-        with patch(
-            "src.models.pipeline_context.PipelineContext.calculate_quality_score", return_value=0.75
-        ), patch(
-            "src.models.pipeline_context.PipelineContext.has_critical_issues", return_value=False
+        with (
+            patch(
+                "src.models.pipeline_context.PipelineContext.calculate_quality_score",
+                return_value=0.75,
+            ),
+            patch(
+                "src.models.pipeline_context.PipelineContext.has_critical_issues",
+                return_value=False,
+            ),
         ):
             await gate.check_approval(sample_pipeline_context_with_validations)
 
@@ -140,19 +164,24 @@ class TestApprovalGateManualReview:
         from src.services.approval_gate import ApprovalGate
 
         # Adicionar target_repo para permitir criacao de MR
-        sample_pipeline_context_with_validations.ticket.parameters[
-            "target_repo"
-        ] = "https://github.com/test/repo"
+        sample_pipeline_context_with_validations.ticket.parameters["target_repo"] = (
+            "https://github.com/test/repo"
+        )
 
         gate = ApprovalGate(
             git_client=mock_git_client, auto_approval_threshold=0.9, min_quality_score=0.5
         )
 
         # Mock methods usando patch na classe
-        with patch(
-            "src.models.pipeline_context.PipelineContext.calculate_quality_score", return_value=0.7
-        ), patch(
-            "src.models.pipeline_context.PipelineContext.has_critical_issues", return_value=False
+        with (
+            patch(
+                "src.models.pipeline_context.PipelineContext.calculate_quality_score",
+                return_value=0.7,
+            ),
+            patch(
+                "src.models.pipeline_context.PipelineContext.has_critical_issues",
+                return_value=False,
+            ),
         ):
             await gate.check_approval(sample_pipeline_context_with_validations)
 
@@ -198,19 +227,24 @@ class TestApprovalGateMergeRequestContent:
         from src.services.approval_gate import ApprovalGate
 
         # Adicionar target_repo para permitir criacao de MR
-        sample_pipeline_context_with_validations.ticket.parameters[
-            "target_repo"
-        ] = "https://github.com/test/repo"
+        sample_pipeline_context_with_validations.ticket.parameters["target_repo"] = (
+            "https://github.com/test/repo"
+        )
 
         gate = ApprovalGate(
             git_client=mock_git_client, auto_approval_threshold=0.9, min_quality_score=0.5
         )
 
         # Mock methods usando patch na classe
-        with patch(
-            "src.models.pipeline_context.PipelineContext.calculate_quality_score", return_value=0.7
-        ), patch(
-            "src.models.pipeline_context.PipelineContext.has_critical_issues", return_value=False
+        with (
+            patch(
+                "src.models.pipeline_context.PipelineContext.calculate_quality_score",
+                return_value=0.7,
+            ),
+            patch(
+                "src.models.pipeline_context.PipelineContext.has_critical_issues",
+                return_value=False,
+            ),
         ):
             await gate.check_approval(sample_pipeline_context_with_validations)
 
@@ -228,19 +262,24 @@ class TestApprovalGateMergeRequestContent:
         from src.services.approval_gate import ApprovalGate
 
         # Adicionar target_repo para permitir criacao de MR
-        sample_pipeline_context_with_validations.ticket.parameters[
-            "target_repo"
-        ] = "https://github.com/test/repo"
+        sample_pipeline_context_with_validations.ticket.parameters["target_repo"] = (
+            "https://github.com/test/repo"
+        )
 
         gate = ApprovalGate(
             git_client=mock_git_client, auto_approval_threshold=0.9, min_quality_score=0.5
         )
 
         # Mock methods usando patch na classe
-        with patch(
-            "src.models.pipeline_context.PipelineContext.calculate_quality_score", return_value=0.75
-        ), patch(
-            "src.models.pipeline_context.PipelineContext.has_critical_issues", return_value=False
+        with (
+            patch(
+                "src.models.pipeline_context.PipelineContext.calculate_quality_score",
+                return_value=0.75,
+            ),
+            patch(
+                "src.models.pipeline_context.PipelineContext.has_critical_issues",
+                return_value=False,
+            ),
         ):
             await gate.check_approval(sample_pipeline_context_with_validations)
 
@@ -257,19 +296,24 @@ class TestApprovalGateMergeRequestContent:
         from src.services.approval_gate import ApprovalGate
 
         # Adicionar target_repo para permitir criacao de MR
-        sample_pipeline_context_with_validations.ticket.parameters[
-            "target_repo"
-        ] = "https://github.com/test/repo"
+        sample_pipeline_context_with_validations.ticket.parameters["target_repo"] = (
+            "https://github.com/test/repo"
+        )
 
         gate = ApprovalGate(
             git_client=mock_git_client, auto_approval_threshold=0.9, min_quality_score=0.5
         )
 
         # Mock methods usando patch na classe
-        with patch(
-            "src.models.pipeline_context.PipelineContext.calculate_quality_score", return_value=0.7
-        ), patch(
-            "src.models.pipeline_context.PipelineContext.has_critical_issues", return_value=False
+        with (
+            patch(
+                "src.models.pipeline_context.PipelineContext.calculate_quality_score",
+                return_value=0.7,
+            ),
+            patch(
+                "src.models.pipeline_context.PipelineContext.has_critical_issues",
+                return_value=False,
+            ),
         ):
             await gate.check_approval(sample_pipeline_context_with_validations)
 
@@ -294,9 +338,9 @@ class TestApprovalGateCommitAndPush:
         mock_mongodb_client.get_artifact_content = AsyncMock(return_value=mock_code)
 
         # Configurar ticket com target_repo
-        sample_pipeline_context_with_artifacts.ticket.parameters[
-            "target_repo"
-        ] = "https://github.com/test/repo"
+        sample_pipeline_context_with_artifacts.ticket.parameters["target_repo"] = (
+            "https://github.com/test/repo"
+        )
 
         gate = ApprovalGate(git_client=mock_git_client, mongodb_client=mock_mongodb_client)
 
@@ -388,9 +432,9 @@ class TestApprovalGateCommitAndPush:
         mock_code = "code"
         mock_mongodb_client.get_artifact_content = AsyncMock(return_value=mock_code)
         mock_git_client.commit_artifacts = AsyncMock(return_value="abc123def")
-        sample_pipeline_context_with_artifacts.ticket.parameters[
-            "target_repo"
-        ] = "https://github.com/test/repo"
+        sample_pipeline_context_with_artifacts.ticket.parameters["target_repo"] = (
+            "https://github.com/test/repo"
+        )
 
         gate = ApprovalGate(git_client=mock_git_client, mongodb_client=mock_mongodb_client)
 
@@ -478,17 +522,22 @@ class TestApprovalGateAutoApprovedCommit:
         sample_pipeline_context_with_validations.generated_artifacts.append(artifact)
 
         # Modificar ticket para incluir target_repo
-        sample_pipeline_context_with_validations.ticket.parameters[
-            "target_repo"
-        ] = "https://github.com/test/repo"
+        sample_pipeline_context_with_validations.ticket.parameters["target_repo"] = (
+            "https://github.com/test/repo"
+        )
 
         mock_mongodb_client.get_artifact_content = AsyncMock(return_value="def main(): pass")
 
         # Mock methods usando patch na classe
-        with patch(
-            "src.models.pipeline_context.PipelineContext.calculate_quality_score", return_value=0.95
-        ), patch(
-            "src.models.pipeline_context.PipelineContext.has_critical_issues", return_value=False
+        with (
+            patch(
+                "src.models.pipeline_context.PipelineContext.calculate_quality_score",
+                return_value=0.95,
+            ),
+            patch(
+                "src.models.pipeline_context.PipelineContext.has_critical_issues",
+                return_value=False,
+            ),
         ):
             await gate.check_approval(sample_pipeline_context_with_validations)
 

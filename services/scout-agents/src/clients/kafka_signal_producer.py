@@ -1,4 +1,5 @@
 """Kafka producer for publishing Scout Signals"""
+
 import asyncio
 import json
 from typing import List, Optional

@@ -1,6 +1,7 @@
 """
 Testes de integração para circuit breakers com serviços reais.
 """
+
 import pytest
 import asyncio
 import sys

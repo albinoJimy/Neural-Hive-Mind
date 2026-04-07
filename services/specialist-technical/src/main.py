@@ -1,6 +1,7 @@
 """
 Ponto de entrada do Technical Specialist.
 """
+
 import asyncio
 import logging
 import signal

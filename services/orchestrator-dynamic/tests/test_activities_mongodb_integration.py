@@ -1,6 +1,7 @@
 """
 Testes de integração das activities com MongoDB (mockado).
 """
+
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest

@@ -118,9 +118,11 @@ class BuildExecutor(BaseTaskExecutor):
                             "Build started",
                             f"Triggered pipeline {pipeline_id} for artifact {artifact_id}",
                             f"Pipeline status: {status.status} at stage {stage}",
-                            "Build completed successfully via Code Forge"
-                            if success
-                            else "Build failed via Code Forge",
+                            (
+                                "Build completed successfully via Code Forge"
+                                if success
+                                else "Build failed via Code Forge"
+                            ),
                         ],
                     }
 

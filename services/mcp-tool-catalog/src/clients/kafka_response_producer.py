@@ -1,4 +1,5 @@
 """Kafka producer for tool selection responses."""
+
 import asyncio
 from typing import Optional
 

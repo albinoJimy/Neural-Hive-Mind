@@ -1,4 +1,5 @@
 """Service Registry gRPC client for Worker Agents com suporte a mTLS via SPIFFE"""
+
 from typing import Any
 
 import grpc

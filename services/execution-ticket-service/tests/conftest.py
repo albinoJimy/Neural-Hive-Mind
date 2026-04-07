@@ -1,6 +1,7 @@
 """
 Configuração pytest para testes do Execution Ticket Service.
 """
+
 import sys
 from pathlib import Path
 

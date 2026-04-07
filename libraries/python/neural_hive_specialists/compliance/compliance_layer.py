@@ -1,6 +1,7 @@
 """
 Camada de compliance que orquestra PII detection, encryption e audit logging.
 """
+
 import structlog
 import time
 import copy

@@ -4,6 +4,7 @@ Testes de integração para re-prioritização dinâmica de tickets.
 Testa a integração entre RePrioritizer, SLARePrioritizer,
 PreemptionManager e AdaptivePriorityCalculator.
 """
+
 import pytest
 from unittest.mock import Mock, AsyncMock
 from datetime import datetime, timezone

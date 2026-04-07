@@ -1,6 +1,7 @@
 """
 Ponto de entrada do Behavior Specialist.
 """
+
 import asyncio
 import logging
 import signal

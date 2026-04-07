@@ -250,9 +250,11 @@ class SHAPExplainer:
                     "feature_name": feature_name,
                     "shap_value": shap_value,
                     "feature_value": feature_value,
-                    "contribution": "positive"
-                    if shap_value > 0
-                    else ("negative" if shap_value < 0 else "neutral"),
+                    "contribution": (
+                        "positive"
+                        if shap_value > 0
+                        else ("negative" if shap_value < 0 else "neutral")
+                    ),
                     "importance": abs(shap_value),
                 }
             )

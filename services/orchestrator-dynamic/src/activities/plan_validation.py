@@ -1,6 +1,7 @@
 """
 Activities Temporal para validação de planos cognitivos (Etapa C1).
 """
+
 from datetime import datetime
 from typing import Any
 

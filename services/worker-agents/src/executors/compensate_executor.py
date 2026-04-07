@@ -4,6 +4,7 @@ Executor para tarefas de compensacao (Saga Pattern).
 Responsavel por reverter operacoes de BUILD, DEPLOY, TEST, VALIDATE e EXECUTE
 quando ocorrem falhas em workflows distribuidos.
 """
+
 import asyncio
 import contextlib
 from typing import Any
@@ -230,9 +231,11 @@ class CompensateExecutor(BaseTaskExecutor):
             "logs": [
                 f"Compensation BUILD started: {len(artifact_ids)} artifacts",
                 f"Deleted: {len(deleted_artifacts)} artifacts",
-                f"Failed: {len(failed_artifacts)} artifacts"
-                if failed_artifacts
-                else "All artifacts deleted successfully",
+                (
+                    f"Failed: {len(failed_artifacts)} artifacts"
+                    if failed_artifacts
+                    else "All artifacts deleted successfully"
+                ),
             ],
         }
 
@@ -455,9 +458,11 @@ class CompensateExecutor(BaseTaskExecutor):
             "logs": [
                 f"Compensation TEST started: {test_id}",
                 f"Cleaned: {len(cleaned_resources)} resources",
-                f"Failed: {len(failed_resources)} resources"
-                if failed_resources
-                else "Cleanup completed successfully",
+                (
+                    f"Failed: {len(failed_resources)} resources"
+                    if failed_resources
+                    else "Cleanup completed successfully"
+                ),
             ],
         }
 
@@ -577,9 +582,9 @@ class CompensateExecutor(BaseTaskExecutor):
             },
             "metadata": {
                 "simulated": True,
-                "fallback_reason": "approval_service_url_not_configured"
-                if not error
-                else f"http_error: {error}",
+                "fallback_reason": (
+                    "approval_service_url_not_configured" if not error else f"http_error: {error}"
+                ),
             },
             "logs": [
                 f"F4: Compensation VALIDATE (simulated): {approval_id}",
@@ -665,12 +670,12 @@ class CompensateExecutor(BaseTaskExecutor):
                             "rollback_executed": True,
                             "cleanup_completed": cleanup_outputs,
                             "return_code": return_code,
-                            "stdout": stdout.decode("utf-8", errors="replace")[-1000:]
-                            if stdout
-                            else "",
-                            "stderr": stderr.decode("utf-8", errors="replace")[-1000:]
-                            if stderr
-                            else "",
+                            "stdout": (
+                                stdout.decode("utf-8", errors="replace")[-1000:] if stdout else ""
+                            ),
+                            "stderr": (
+                                stderr.decode("utf-8", errors="replace")[-1000:] if stderr else ""
+                            ),
                         },
                         "metadata": {"simulated": False, "script_executed": True},
                         "logs": [

@@ -1,4 +1,5 @@
 """Producer Kafka transacional para exactly-once delivery"""
+
 import asyncio
 import json
 import os
@@ -116,9 +117,9 @@ class KafkaIntentProducer:
                 security_config["ssl.ca.location"] = self.settings.kafka_ssl_ca_location
 
             if self.settings.kafka_ssl_certificate_location:
-                security_config[
-                    "ssl.certificate.location"
-                ] = self.settings.kafka_ssl_certificate_location
+                security_config["ssl.certificate.location"] = (
+                    self.settings.kafka_ssl_certificate_location
+                )
 
             if self.settings.kafka_ssl_key_location:
                 security_config["ssl.key.location"] = self.settings.kafka_ssl_key_location
@@ -204,9 +205,11 @@ class KafkaIntentProducer:
                         self._instrumented = True
                         logger.info(
                             "Instrumentação de Kafka habilitada para propagação de tracing",
-                            service_name=obs_config.service_name
-                            if hasattr(obs_config, "service_name")
-                            else "unknown",
+                            service_name=(
+                                obs_config.service_name
+                                if hasattr(obs_config, "service_name")
+                                else "unknown"
+                            ),
                         )
                 except ImportError:
                     logger.warning(
@@ -232,9 +235,11 @@ class KafkaIntentProducer:
                     self._fast_producer_ready = True
                     logger.info(
                         "Fast producer (non-transactional) inicializado",
-                        enabled_topics=list(self._fast_producer_allowed_topics)
-                        if self._fast_producer_allowed_topics
-                        else "all",
+                        enabled_topics=(
+                            list(self._fast_producer_allowed_topics)
+                            if self._fast_producer_allowed_topics
+                            else "all"
+                        ),
                     )
                 except Exception as e:
                     logger.warning(f"Não foi possível criar fast producer: {e}")

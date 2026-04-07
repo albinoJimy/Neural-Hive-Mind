@@ -1,4 +1,5 @@
 """MongoDB client for Guard Agents"""
+
 from typing import Any, Dict, Optional
 
 import structlog

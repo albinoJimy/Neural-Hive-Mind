@@ -2,6 +2,7 @@
 Testes unitarios para PheromoneClient - foco em get_success_trails
 Formato de chave Redis unificada: pheromone:{layer}:{domain}:{pheromone_type}:{id}
 """
+
 import pytest
 import time
 import structlog

@@ -1,4 +1,5 @@
 """Client for MCP Tool Catalog Service."""
+
 from typing import Dict, List, Optional
 
 import httpx

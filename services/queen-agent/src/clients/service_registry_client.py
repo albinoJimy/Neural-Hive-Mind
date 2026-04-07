@@ -1,4 +1,5 @@
 """Service Registry gRPC client for Queen Agent com suporte a mTLS via SPIFFE."""
+
 from typing import Any
 
 import grpc
@@ -222,15 +223,15 @@ class ServiceRegistryClient:
                             "status": "HEALTHY",
                             "metadata": dict(agent.metadata),
                             "telemetry": {
-                                "success_rate": agent.telemetry.success_rate
-                                if agent.telemetry
-                                else 0.0,
-                                "avg_duration_ms": agent.telemetry.avg_duration_ms
-                                if agent.telemetry
-                                else 0,
-                                "total_executions": agent.telemetry.total_executions
-                                if agent.telemetry
-                                else 0,
+                                "success_rate": (
+                                    agent.telemetry.success_rate if agent.telemetry else 0.0
+                                ),
+                                "avg_duration_ms": (
+                                    agent.telemetry.avg_duration_ms if agent.telemetry else 0
+                                ),
+                                "total_executions": (
+                                    agent.telemetry.total_executions if agent.telemetry else 0
+                                ),
                             },
                         }
                     )

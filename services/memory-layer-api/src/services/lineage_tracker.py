@@ -1,6 +1,7 @@
 """
 Lineage Tracker
 """
+
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List
@@ -299,13 +300,17 @@ class LineageTracker:
                     logger.warning(
                         "Violação de consistência temporal: source criada após entidade",
                         entity_id=entity_id,
-                        entity_timestamp=entity_timestamp.isoformat()
-                        if hasattr(entity_timestamp, "isoformat")
-                        else str(entity_timestamp),
+                        entity_timestamp=(
+                            entity_timestamp.isoformat()
+                            if hasattr(entity_timestamp, "isoformat")
+                            else str(entity_timestamp)
+                        ),
                         source_id=source_id,
-                        source_timestamp=source_timestamp.isoformat()
-                        if hasattr(source_timestamp, "isoformat")
-                        else str(source_timestamp),
+                        source_timestamp=(
+                            source_timestamp.isoformat()
+                            if hasattr(source_timestamp, "isoformat")
+                            else str(source_timestamp)
+                        ),
                     )
                     LINEAGE_INTEGRITY_CHECKS.labels(result="failed_timestamp").inc()
                     return False

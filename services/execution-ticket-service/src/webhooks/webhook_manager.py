@@ -1,6 +1,7 @@
 """
 Webhook Manager para notificações push de Worker Agents.
 """
+
 import asyncio
 import hashlib
 import hmac

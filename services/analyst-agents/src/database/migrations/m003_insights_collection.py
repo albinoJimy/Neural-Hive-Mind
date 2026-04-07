@@ -1,6 +1,7 @@
 """
 Migration m003: Create insights collections with indexes and TTL.
 """
+
 from datetime import datetime, timedelta
 from motor.motor_asyncio import AsyncIOMotorClient
 

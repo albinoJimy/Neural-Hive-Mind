@@ -177,18 +177,13 @@ class TestCircuitBreaker:
 
         plan_consumer.consumer.poll = poll_side_effect
 
-        with patch.object(
-            ConsensusMetrics, "set_circuit_breaker_state"
-        ) as mock_cb_state, patch.object(
-            ConsensusMetrics, "increment_circuit_breaker_trip"
-        ) as mock_cb_trip, patch.object(
-            ConsensusMetrics, "set_consecutive_errors"
-        ), patch.object(
-            ConsensusMetrics, "increment_consumer_error"
-        ), patch.object(
-            ConsensusMetrics, "increment_backoff_event"
-        ), patch.object(
-            ConsensusMetrics, "observe_backoff_duration"
+        with (
+            patch.object(ConsensusMetrics, "set_circuit_breaker_state") as mock_cb_state,
+            patch.object(ConsensusMetrics, "increment_circuit_breaker_trip") as mock_cb_trip,
+            patch.object(ConsensusMetrics, "set_consecutive_errors"),
+            patch.object(ConsensusMetrics, "increment_consumer_error"),
+            patch.object(ConsensusMetrics, "increment_backoff_event"),
+            patch.object(ConsensusMetrics, "observe_backoff_duration"),
         ):
             await plan_consumer.start()
 
@@ -230,22 +225,15 @@ class TestCircuitBreaker:
 
         plan_consumer._process_message = process_raise_systemic_error
 
-        with patch.object(
-            ConsensusMetrics, "set_circuit_breaker_state"
-        ) as mock_cb_state, patch.object(
-            ConsensusMetrics, "increment_circuit_breaker_trip"
-        ) as mock_cb_trip, patch.object(
-            ConsensusMetrics, "set_consecutive_errors"
-        ) as mock_set_errors, patch.object(
-            ConsensusMetrics, "increment_consumer_error"
-        ) as mock_inc_error, patch.object(
-            ConsensusMetrics, "increment_message_processed"
-        ), patch.object(
-            ConsensusMetrics, "observe_processing_duration"
-        ), patch.object(
-            ConsensusMetrics, "increment_backoff_event"
-        ), patch.object(
-            ConsensusMetrics, "observe_backoff_duration"
+        with (
+            patch.object(ConsensusMetrics, "set_circuit_breaker_state") as mock_cb_state,
+            patch.object(ConsensusMetrics, "increment_circuit_breaker_trip") as mock_cb_trip,
+            patch.object(ConsensusMetrics, "set_consecutive_errors") as mock_set_errors,
+            patch.object(ConsensusMetrics, "increment_consumer_error") as mock_inc_error,
+            patch.object(ConsensusMetrics, "increment_message_processed"),
+            patch.object(ConsensusMetrics, "observe_processing_duration"),
+            patch.object(ConsensusMetrics, "increment_backoff_event"),
+            patch.object(ConsensusMetrics, "observe_backoff_duration"),
         ):
             await plan_consumer.start()
 
@@ -294,20 +282,14 @@ class TestCircuitBreaker:
 
         plan_consumer._process_message = process_raise_business_error
 
-        with patch.object(
-            ConsensusMetrics, "set_circuit_breaker_state"
-        ) as mock_cb_state, patch.object(
-            ConsensusMetrics, "increment_circuit_breaker_trip"
-        ) as mock_cb_trip, patch.object(
-            ConsensusMetrics, "set_consecutive_errors"
-        ), patch.object(
-            ConsensusMetrics, "increment_consumer_error"
-        ), patch.object(
-            ConsensusMetrics, "increment_message_processed"
-        ), patch.object(
-            ConsensusMetrics, "observe_processing_duration"
-        ), patch.object(
-            ConsensusMetrics, "increment_offset_commit"
+        with (
+            patch.object(ConsensusMetrics, "set_circuit_breaker_state") as mock_cb_state,
+            patch.object(ConsensusMetrics, "increment_circuit_breaker_trip") as mock_cb_trip,
+            patch.object(ConsensusMetrics, "set_consecutive_errors"),
+            patch.object(ConsensusMetrics, "increment_consumer_error"),
+            patch.object(ConsensusMetrics, "increment_message_processed"),
+            patch.object(ConsensusMetrics, "observe_processing_duration"),
+            patch.object(ConsensusMetrics, "increment_offset_commit"),
         ):
             await plan_consumer.start()
 
@@ -400,14 +382,14 @@ class TestMessageProcessing:
         def capture_consecutive_errors(count):
             consecutive_errors_values.append(count)
 
-        with patch.object(
-            ConsensusMetrics, "set_consecutive_errors", side_effect=capture_consecutive_errors
-        ), patch.object(ConsensusMetrics, "set_circuit_breaker_state"), patch.object(
-            ConsensusMetrics, "increment_consumer_error"
-        ), patch.object(
-            ConsensusMetrics, "increment_backoff_event"
-        ), patch.object(
-            ConsensusMetrics, "observe_backoff_duration"
+        with (
+            patch.object(
+                ConsensusMetrics, "set_consecutive_errors", side_effect=capture_consecutive_errors
+            ),
+            patch.object(ConsensusMetrics, "set_circuit_breaker_state"),
+            patch.object(ConsensusMetrics, "increment_consumer_error"),
+            patch.object(ConsensusMetrics, "increment_backoff_event"),
+            patch.object(ConsensusMetrics, "observe_backoff_duration"),
         ):
             await plan_consumer.start()
 
@@ -455,16 +437,14 @@ class TestOffsetCommit:
 
         plan_consumer._process_message = process_raise_systemic_error
 
-        with patch.object(ConsensusMetrics, "set_consecutive_errors"), patch.object(
-            ConsensusMetrics, "set_circuit_breaker_state"
-        ), patch.object(ConsensusMetrics, "increment_consumer_error"), patch.object(
-            ConsensusMetrics, "increment_message_processed"
-        ), patch.object(
-            ConsensusMetrics, "observe_processing_duration"
-        ), patch.object(
-            ConsensusMetrics, "increment_backoff_event"
-        ), patch.object(
-            ConsensusMetrics, "observe_backoff_duration"
+        with (
+            patch.object(ConsensusMetrics, "set_consecutive_errors"),
+            patch.object(ConsensusMetrics, "set_circuit_breaker_state"),
+            patch.object(ConsensusMetrics, "increment_consumer_error"),
+            patch.object(ConsensusMetrics, "increment_message_processed"),
+            patch.object(ConsensusMetrics, "observe_processing_duration"),
+            patch.object(ConsensusMetrics, "increment_backoff_event"),
+            patch.object(ConsensusMetrics, "observe_backoff_duration"),
         ):
             await plan_consumer.start()
 
@@ -501,12 +481,12 @@ class TestOffsetCommit:
 
         plan_consumer._process_message = process_raise_business_error
 
-        with patch.object(ConsensusMetrics, "set_consecutive_errors"), patch.object(
-            ConsensusMetrics, "set_circuit_breaker_state"
-        ), patch.object(ConsensusMetrics, "increment_consumer_error"), patch.object(
-            ConsensusMetrics, "increment_message_processed"
-        ), patch.object(
-            ConsensusMetrics, "observe_processing_duration"
+        with (
+            patch.object(ConsensusMetrics, "set_consecutive_errors"),
+            patch.object(ConsensusMetrics, "set_circuit_breaker_state"),
+            patch.object(ConsensusMetrics, "increment_consumer_error"),
+            patch.object(ConsensusMetrics, "increment_message_processed"),
+            patch.object(ConsensusMetrics, "observe_processing_duration"),
         ):
             await plan_consumer.start()
 
@@ -554,17 +534,13 @@ class TestMetricsEmission:
 
         plan_consumer._process_message = process_success
 
-        with patch.object(
-            ConsensusMetrics, "set_consecutive_errors"
-        ) as mock_set_errors, patch.object(
-            ConsensusMetrics, "set_circuit_breaker_state"
-        ), patch.object(
-            ConsensusMetrics, "increment_message_processed"
-        ) as mock_inc_processed, patch.object(
-            ConsensusMetrics, "observe_processing_duration"
-        ) as mock_obs_duration, patch.object(
-            ConsensusMetrics, "increment_offset_commit"
-        ) as mock_inc_commit:
+        with (
+            patch.object(ConsensusMetrics, "set_consecutive_errors") as mock_set_errors,
+            patch.object(ConsensusMetrics, "set_circuit_breaker_state"),
+            patch.object(ConsensusMetrics, "increment_message_processed") as mock_inc_processed,
+            patch.object(ConsensusMetrics, "observe_processing_duration") as mock_obs_duration,
+            patch.object(ConsensusMetrics, "increment_offset_commit") as mock_inc_commit,
+        ):
             await plan_consumer.start()
 
             # Verificar métricas de sucesso
@@ -605,15 +581,13 @@ class TestMetricsEmission:
 
         plan_consumer._process_message = process_raise_business_error
 
-        with patch.object(ConsensusMetrics, "set_consecutive_errors"), patch.object(
-            ConsensusMetrics, "set_circuit_breaker_state"
-        ), patch.object(
-            ConsensusMetrics, "increment_consumer_error"
-        ) as mock_inc_error, patch.object(
-            ConsensusMetrics, "increment_message_processed"
-        ) as mock_inc_processed, patch.object(
-            ConsensusMetrics, "observe_processing_duration"
-        ) as mock_obs_duration:
+        with (
+            patch.object(ConsensusMetrics, "set_consecutive_errors"),
+            patch.object(ConsensusMetrics, "set_circuit_breaker_state"),
+            patch.object(ConsensusMetrics, "increment_consumer_error") as mock_inc_error,
+            patch.object(ConsensusMetrics, "increment_message_processed") as mock_inc_processed,
+            patch.object(ConsensusMetrics, "observe_processing_duration") as mock_obs_duration,
+        ):
             await plan_consumer.start()
 
             # Verificar métricas de falha
@@ -678,20 +652,17 @@ class TestTransientErrorRecovery:
         def capture_consecutive_errors(count):
             consecutive_errors_values.append(count)
 
-        with patch.object(
-            ConsensusMetrics, "set_consecutive_errors", side_effect=capture_consecutive_errors
-        ), patch.object(ConsensusMetrics, "set_circuit_breaker_state"), patch.object(
-            ConsensusMetrics, "increment_consumer_error"
-        ), patch.object(
-            ConsensusMetrics, "increment_backoff_event"
-        ), patch.object(
-            ConsensusMetrics, "observe_backoff_duration"
-        ), patch.object(
-            ConsensusMetrics, "increment_message_processed"
-        ), patch.object(
-            ConsensusMetrics, "observe_processing_duration"
-        ), patch.object(
-            ConsensusMetrics, "increment_offset_commit"
+        with (
+            patch.object(
+                ConsensusMetrics, "set_consecutive_errors", side_effect=capture_consecutive_errors
+            ),
+            patch.object(ConsensusMetrics, "set_circuit_breaker_state"),
+            patch.object(ConsensusMetrics, "increment_consumer_error"),
+            patch.object(ConsensusMetrics, "increment_backoff_event"),
+            patch.object(ConsensusMetrics, "observe_backoff_duration"),
+            patch.object(ConsensusMetrics, "increment_message_processed"),
+            patch.object(ConsensusMetrics, "observe_processing_duration"),
+            patch.object(ConsensusMetrics, "increment_offset_commit"),
         ):
             await plan_consumer.start()
 
@@ -725,8 +696,9 @@ class TestGracefulShutdown:
 
         plan_consumer.consumer.poll = poll_side_effect
 
-        with patch.object(ConsensusMetrics, "set_consecutive_errors"), patch.object(
-            ConsensusMetrics, "set_circuit_breaker_state"
+        with (
+            patch.object(ConsensusMetrics, "set_consecutive_errors"),
+            patch.object(ConsensusMetrics, "set_circuit_breaker_state"),
         ):
             await plan_consumer.start()
 

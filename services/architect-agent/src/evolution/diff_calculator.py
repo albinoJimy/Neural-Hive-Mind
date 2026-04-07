@@ -1,6 +1,5 @@
 """Calculador de diferenças entre versões de arquitetura."""
 
-
 from src.models.architecture import ArchitecturePlan
 from src.models.evolution import ArchitectureDiff
 

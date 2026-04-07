@@ -2,6 +2,7 @@
 MCP Client Integration for Analyst Agents.
 Integra com scout-mcp-server e optimizer-mcp-server.
 """
+
 import json
 from typing import Any, Dict, List, Optional
 

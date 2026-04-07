@@ -6,6 +6,7 @@ Este módulo valida:
 - Schema de output retornado por cada política
 - Casos edge (valores nulos, arrays vazios, campos opcionais)
 """
+
 import pytest
 import asyncio
 from datetime import datetime, timedelta

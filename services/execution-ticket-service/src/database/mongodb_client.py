@@ -1,4 +1,5 @@
 """Cliente MongoDB para audit trail de tickets."""
+
 import asyncio
 import logging
 from datetime import datetime, timezone
@@ -35,9 +36,11 @@ class MongoDBClient:
                 logger.info(
                     "connecting_to_mongodb",
                     extra={
-                        "uri": self.settings.mongodb_uri.split("@")[-1]
-                        if "@" in self.settings.mongodb_uri
-                        else self.settings.mongodb_uri,
+                        "uri": (
+                            self.settings.mongodb_uri.split("@")[-1]
+                            if "@" in self.settings.mongodb_uri
+                            else self.settings.mongodb_uri
+                        ),
                         "database": self.settings.mongodb_database,
                         "attempt": attempt + 1,
                         "max_retries": max_retries,

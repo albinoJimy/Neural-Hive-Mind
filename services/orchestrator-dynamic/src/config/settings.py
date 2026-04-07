@@ -5,6 +5,7 @@ NOTA: Este módulo usa Pydantic v2 com pydantic-settings.
 - model_config substitui class Config (Pydantic v2)
 - SettingsConfigDict para configuração de BaseSettings
 """
+
 from functools import lru_cache
 from typing import Any
 

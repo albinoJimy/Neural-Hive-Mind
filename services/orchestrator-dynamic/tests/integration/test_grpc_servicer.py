@@ -9,6 +9,7 @@ Valida implementação do servidor gRPC que recebe comandos estratégicos da Que
 - TriggerReplanning: acionar replanejamento
 - GetWorkflowStatus: obter status de workflow
 """
+
 import pytest
 import asyncio
 import socket

@@ -1,4 +1,5 @@
 """Testes para o playbook de recuperação de deadlock - TDD Approach."""
+
 import pytest
 import yaml
 from pathlib import Path

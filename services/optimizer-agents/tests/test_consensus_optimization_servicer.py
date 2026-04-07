@@ -3,6 +3,7 @@ Testes de integração para ConsensusOptimizationServicer.
 
 Testa os métodos gRPC para otimização de pesos de especialistas.
 """
+
 import pytest
 from unittest.mock import AsyncMock, Mock, patch
 import time

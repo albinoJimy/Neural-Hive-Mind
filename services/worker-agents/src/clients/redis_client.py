@@ -2,6 +2,7 @@
 Cliente Redis compartilhado para deduplicação de tickets no Worker Agent.
 Inclui circuit breaker para resiliência em caso de falhas de conexão.
 """
+
 import time
 
 import redis.asyncio as redis

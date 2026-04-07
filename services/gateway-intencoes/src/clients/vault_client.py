@@ -1,4 +1,5 @@
 """Vault client para obter secrets."""
+
 import os
 
 import hvac

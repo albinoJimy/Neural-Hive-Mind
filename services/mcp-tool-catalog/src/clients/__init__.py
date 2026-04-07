@@ -3,6 +3,7 @@
 ServiceRegistryClient é importado sob demanda (lazy) pois depende de
 neural_hive_integration que não está sempre disponível (ex: em testes unitários).
 """
+
 from .kafka_request_consumer import KafkaRequestConsumer
 from .kafka_response_producer import KafkaResponseProducer
 from .mcp_exceptions import (

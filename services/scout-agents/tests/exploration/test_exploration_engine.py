@@ -1,4 +1,5 @@
 """Testes para ExplorationEngine."""
+
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, timedelta

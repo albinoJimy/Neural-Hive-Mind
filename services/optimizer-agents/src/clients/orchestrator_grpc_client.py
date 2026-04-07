@@ -1,6 +1,5 @@
 """Cliente gRPC para Orchestrator Dynamic com suporte a mTLS via SPIFFE."""
 
-
 import grpc
 import structlog
 from neural_hive_observability import instrument_grpc_channel
@@ -215,9 +214,9 @@ class OrchestratorGrpcClient:
                     "target_latency_ms": slo_config.target_latency_ms,
                     "target_availability": slo_config.target_availability,
                     "target_error_rate": slo_config.target_error_rate,
-                    "min_throughput": slo_config.min_throughput
-                    if slo_config.HasField("min_throughput")
-                    else None,
+                    "min_throughput": (
+                        slo_config.min_throughput if slo_config.HasField("min_throughput") else None
+                    ),
                     "latency_percentile": slo_config.latency_percentile,
                     "time_window_seconds": slo_config.time_window_seconds,
                     "metadata": dict(slo_config.metadata),

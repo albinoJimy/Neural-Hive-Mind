@@ -1,6 +1,7 @@
 """
 Testes para persistência MongoDB no MongoDBClient com retry e fail-open.
 """
+
 import types
 from unittest.mock import AsyncMock, MagicMock, call, patch
 

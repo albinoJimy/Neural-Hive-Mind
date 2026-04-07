@@ -3,6 +3,7 @@
 Este módulo fornece fixtures para testes E2E usando Docker Compose.
 Os testes de integração utilizam serviços reais (MongoDB, Kafka, OPA) via containers.
 """
+
 import asyncio
 import os
 import pytest

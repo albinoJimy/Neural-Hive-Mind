@@ -3,6 +3,7 @@ Testes de validacao de configuracoes de seguranca.
 
 Valida que configuracoes inseguras sao rejeitadas em ambiente production.
 """
+
 import pytest
 from pydantic import ValidationError
 from src.config.settings import OrchestratorSettings

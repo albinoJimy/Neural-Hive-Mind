@@ -7,6 +7,7 @@ Testes para o módulo LineageTracker com foco em:
 - Detecção de ciclos
 - Métricas Prometheus
 """
+
 import pytest
 from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock

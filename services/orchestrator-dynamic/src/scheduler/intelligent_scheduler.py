@@ -464,9 +464,9 @@ class IntelligentScheduler:
                 cache_key=cache_key,
                 timeout_seconds=5.0,
                 reason="service_registry_discovery_exceeded_5s_timeout",
-                circuit_breaker_state=self.registry_breaker.state.name
-                if self.registry_breaker
-                else "not_configured",
+                circuit_breaker_state=(
+                    self.registry_breaker.state.name if self.registry_breaker else "not_configured"
+                ),
             )
             self.metrics.record_discovery_failure("timeout")
             return []

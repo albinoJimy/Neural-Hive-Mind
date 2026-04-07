@@ -1,4 +1,5 @@
 """Testes para migrations MongoDB."""
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 

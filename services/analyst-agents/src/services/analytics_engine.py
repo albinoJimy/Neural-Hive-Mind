@@ -96,9 +96,11 @@ class AnalyticsEngine:
                 data_sources=["telemetry", "kafka"],
                 metrics={
                     "anomaly_count": len(all_anomalies),
-                    "max_latency": critical_anomaly["value"]
-                    if critical_anomaly.get("metric") == "latency_ms"
-                    else 0,
+                    "max_latency": (
+                        critical_anomaly["value"]
+                        if critical_anomaly.get("metric") == "latency_ms"
+                        else 0
+                    ),
                     "max_value": critical_anomaly["value"],
                     "max_zscore": critical_anomaly.get("zscore", 0),
                 },

@@ -7,6 +7,7 @@ Testes que validam o fluxo completo de sincronização:
 - Idempotência
 - Dead Letter Queue
 """
+
 import json
 import pytest
 import asyncio

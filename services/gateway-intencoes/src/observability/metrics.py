@@ -5,6 +5,7 @@ IMPORTANT: All metrics use coarse-grained labels only to prevent high cardinalit
 intent_id and plan_id are NEVER used as metric labels.
 Use trace_id exemplars for correlation instead of high-cardinality labels.
 """
+
 from prometheus_client import Counter, Gauge, Histogram
 
 # Métricas de requisições - Schema padronizado

@@ -2,6 +2,7 @@
 Cliente Redis compartilhado para deduplicação de tickets no Execution Ticket Service.
 Inclui circuit breaker para resiliência em caso de falhas de conexão.
 """
+
 import time
 from typing import Optional
 

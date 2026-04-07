@@ -116,17 +116,15 @@ async def test_worker_agent_mtls_initialization(mock_spiffe_manager, mock_config
     """Testa inicializacao do Worker Agent com mTLS via X.509-SVID"""
     from src.clients.service_registry_client import ServiceRegistryClient
 
-    with patch("src.clients.service_registry_client.SECURITY_LIB_AVAILABLE", True), patch(
-        "src.clients.service_registry_client.SPIFFEManager"
-    ) as MockSPIFFEManagerClass, patch("src.clients.service_registry_client.SPIFFEConfig"), patch(
-        "grpc.ssl_channel_credentials"
-    ) as mock_ssl_creds, patch(
-        "grpc.aio.secure_channel"
-    ) as mock_secure_channel, patch(
-        "src.clients.service_registry_client.instrument_grpc_channel"
-    ) as mock_instrument, patch(
-        "src.clients.service_registry_client.service_registry_pb2_grpc"
-    ) as mock_grpc:
+    with (
+        patch("src.clients.service_registry_client.SECURITY_LIB_AVAILABLE", True),
+        patch("src.clients.service_registry_client.SPIFFEManager") as MockSPIFFEManagerClass,
+        patch("src.clients.service_registry_client.SPIFFEConfig"),
+        patch("grpc.ssl_channel_credentials") as mock_ssl_creds,
+        patch("grpc.aio.secure_channel") as mock_secure_channel,
+        patch("src.clients.service_registry_client.instrument_grpc_channel") as mock_instrument,
+        patch("src.clients.service_registry_client.service_registry_pb2_grpc") as mock_grpc,
+    ):
         # Setup mocks
         MockSPIFFEManagerClass.return_value = mock_spiffe_manager
         mock_credentials = MagicMock()
@@ -165,17 +163,15 @@ async def test_worker_agent_registration_with_jwt_metadata(mock_spiffe_manager, 
     from src.clients.service_registry_client import ServiceRegistryClient
     from neural_hive_integration.proto_stubs import service_registry_pb2
 
-    with patch("src.clients.service_registry_client.SECURITY_LIB_AVAILABLE", True), patch(
-        "src.clients.service_registry_client.SPIFFEManager"
-    ) as MockSPIFFEManagerClass, patch("src.clients.service_registry_client.SPIFFEConfig"), patch(
-        "grpc.ssl_channel_credentials"
-    ) as mock_ssl_creds, patch(
-        "grpc.aio.secure_channel"
-    ) as mock_secure_channel, patch(
-        "src.clients.service_registry_client.instrument_grpc_channel"
-    ) as mock_instrument, patch(
-        "src.clients.service_registry_client.service_registry_pb2_grpc"
-    ) as mock_grpc:
+    with (
+        patch("src.clients.service_registry_client.SECURITY_LIB_AVAILABLE", True),
+        patch("src.clients.service_registry_client.SPIFFEManager") as MockSPIFFEManagerClass,
+        patch("src.clients.service_registry_client.SPIFFEConfig"),
+        patch("grpc.ssl_channel_credentials") as mock_ssl_creds,
+        patch("grpc.aio.secure_channel") as mock_secure_channel,
+        patch("src.clients.service_registry_client.instrument_grpc_channel") as mock_instrument,
+        patch("src.clients.service_registry_client.service_registry_pb2_grpc") as mock_grpc,
+    ):
         # Setup mocks
         MockSPIFFEManagerClass.return_value = mock_spiffe_manager
         mock_credentials = MagicMock()
@@ -248,11 +244,11 @@ async def test_worker_agent_insecure_allowed_in_dev(mock_config):
     mock_config.spiffe_enabled = False
     mock_config.environment = "development"
 
-    with patch("grpc.aio.insecure_channel") as mock_insecure_channel, patch(
-        "src.clients.service_registry_client.instrument_grpc_channel"
-    ) as mock_instrument, patch(
-        "src.clients.service_registry_client.service_registry_pb2_grpc"
-    ) as mock_grpc:
+    with (
+        patch("grpc.aio.insecure_channel") as mock_insecure_channel,
+        patch("src.clients.service_registry_client.instrument_grpc_channel") as mock_instrument,
+        patch("src.clients.service_registry_client.service_registry_pb2_grpc") as mock_grpc,
+    ):
         mock_channel = AsyncMock()
         mock_insecure_channel.return_value = mock_channel
         mock_instrument.return_value = mock_channel
@@ -273,17 +269,15 @@ async def test_worker_agent_heartbeat_with_jwt_metadata(mock_spiffe_manager, moc
     from src.clients.service_registry_client import ServiceRegistryClient
     from neural_hive_integration.proto_stubs import service_registry_pb2
 
-    with patch("src.clients.service_registry_client.SECURITY_LIB_AVAILABLE", True), patch(
-        "src.clients.service_registry_client.SPIFFEManager"
-    ) as MockSPIFFEManagerClass, patch("src.clients.service_registry_client.SPIFFEConfig"), patch(
-        "grpc.ssl_channel_credentials"
-    ) as mock_ssl_creds, patch(
-        "grpc.aio.secure_channel"
-    ) as mock_secure_channel, patch(
-        "src.clients.service_registry_client.instrument_grpc_channel"
-    ) as mock_instrument, patch(
-        "src.clients.service_registry_client.service_registry_pb2_grpc"
-    ) as mock_grpc:
+    with (
+        patch("src.clients.service_registry_client.SECURITY_LIB_AVAILABLE", True),
+        patch("src.clients.service_registry_client.SPIFFEManager") as MockSPIFFEManagerClass,
+        patch("src.clients.service_registry_client.SPIFFEConfig"),
+        patch("grpc.ssl_channel_credentials") as mock_ssl_creds,
+        patch("grpc.aio.secure_channel") as mock_secure_channel,
+        patch("src.clients.service_registry_client.instrument_grpc_channel") as mock_instrument,
+        patch("src.clients.service_registry_client.service_registry_pb2_grpc") as mock_grpc,
+    ):
         # Setup mocks
         MockSPIFFEManagerClass.return_value = mock_spiffe_manager
         mock_credentials = MagicMock()
@@ -344,17 +338,15 @@ async def test_worker_agent_deregister_with_jwt_metadata(mock_spiffe_manager, mo
     """Testa deregister do Worker Agent com JWT-SVID em metadata"""
     from src.clients.service_registry_client import ServiceRegistryClient
 
-    with patch("src.clients.service_registry_client.SECURITY_LIB_AVAILABLE", True), patch(
-        "src.clients.service_registry_client.SPIFFEManager"
-    ) as MockSPIFFEManagerClass, patch("src.clients.service_registry_client.SPIFFEConfig"), patch(
-        "grpc.ssl_channel_credentials"
-    ) as mock_ssl_creds, patch(
-        "grpc.aio.secure_channel"
-    ) as mock_secure_channel, patch(
-        "src.clients.service_registry_client.instrument_grpc_channel"
-    ) as mock_instrument, patch(
-        "src.clients.service_registry_client.service_registry_pb2_grpc"
-    ) as mock_grpc:
+    with (
+        patch("src.clients.service_registry_client.SECURITY_LIB_AVAILABLE", True),
+        patch("src.clients.service_registry_client.SPIFFEManager") as MockSPIFFEManagerClass,
+        patch("src.clients.service_registry_client.SPIFFEConfig"),
+        patch("grpc.ssl_channel_credentials") as mock_ssl_creds,
+        patch("grpc.aio.secure_channel") as mock_secure_channel,
+        patch("src.clients.service_registry_client.instrument_grpc_channel") as mock_instrument,
+        patch("src.clients.service_registry_client.service_registry_pb2_grpc") as mock_grpc,
+    ):
         # Setup mocks
         MockSPIFFEManagerClass.return_value = mock_spiffe_manager
         mock_credentials = MagicMock()
@@ -414,17 +406,15 @@ async def test_jwt_svid_failure_continues_in_dev(mock_spiffe_manager, mock_confi
     # Configurar JWT fetch para falhar
     mock_spiffe_manager.fetch_jwt_svid.side_effect = Exception("SPIRE agent unavailable")
 
-    with patch("src.clients.service_registry_client.SECURITY_LIB_AVAILABLE", True), patch(
-        "src.clients.service_registry_client.SPIFFEManager"
-    ) as MockSPIFFEManagerClass, patch("src.clients.service_registry_client.SPIFFEConfig"), patch(
-        "grpc.ssl_channel_credentials"
-    ) as mock_ssl_creds, patch(
-        "grpc.aio.secure_channel"
-    ) as mock_secure_channel, patch(
-        "src.clients.service_registry_client.instrument_grpc_channel"
-    ) as mock_instrument, patch(
-        "src.clients.service_registry_client.service_registry_pb2_grpc"
-    ) as mock_grpc:
+    with (
+        patch("src.clients.service_registry_client.SECURITY_LIB_AVAILABLE", True),
+        patch("src.clients.service_registry_client.SPIFFEManager") as MockSPIFFEManagerClass,
+        patch("src.clients.service_registry_client.SPIFFEConfig"),
+        patch("grpc.ssl_channel_credentials") as mock_ssl_creds,
+        patch("grpc.aio.secure_channel") as mock_secure_channel,
+        patch("src.clients.service_registry_client.instrument_grpc_channel") as mock_instrument,
+        patch("src.clients.service_registry_client.service_registry_pb2_grpc") as mock_grpc,
+    ):
         # Setup mocks
         MockSPIFFEManagerClass.return_value = mock_spiffe_manager
         mock_credentials = MagicMock()
@@ -463,17 +453,15 @@ async def test_jwt_svid_failure_raises_in_production(mock_spiffe_manager, mock_c
     # Configurar JWT fetch para falhar
     mock_spiffe_manager.fetch_jwt_svid.side_effect = Exception("SPIRE agent unavailable")
 
-    with patch("src.clients.service_registry_client.SECURITY_LIB_AVAILABLE", True), patch(
-        "src.clients.service_registry_client.SPIFFEManager"
-    ) as MockSPIFFEManagerClass, patch("src.clients.service_registry_client.SPIFFEConfig"), patch(
-        "grpc.ssl_channel_credentials"
-    ) as mock_ssl_creds, patch(
-        "grpc.aio.secure_channel"
-    ) as mock_secure_channel, patch(
-        "src.clients.service_registry_client.instrument_grpc_channel"
-    ) as mock_instrument, patch(
-        "src.clients.service_registry_client.service_registry_pb2_grpc"
-    ) as mock_grpc:
+    with (
+        patch("src.clients.service_registry_client.SECURITY_LIB_AVAILABLE", True),
+        patch("src.clients.service_registry_client.SPIFFEManager") as MockSPIFFEManagerClass,
+        patch("src.clients.service_registry_client.SPIFFEConfig"),
+        patch("grpc.ssl_channel_credentials") as mock_ssl_creds,
+        patch("grpc.aio.secure_channel") as mock_secure_channel,
+        patch("src.clients.service_registry_client.instrument_grpc_channel") as mock_instrument,
+        patch("src.clients.service_registry_client.service_registry_pb2_grpc") as mock_grpc,
+    ):
         # Setup mocks
         MockSPIFFEManagerClass.return_value = mock_spiffe_manager
         mock_credentials = MagicMock()

@@ -1,6 +1,7 @@
 """
 Testes de validacao de configuracoes de seguranca do Service Registry.
 """
+
 import pytest
 from pydantic import ValidationError
 from src.config.settings import Settings

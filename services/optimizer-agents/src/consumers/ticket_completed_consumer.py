@@ -1,4 +1,5 @@
 """Consumer Kafka para eventos ticket.completed."""
+
 import asyncio
 import json
 from datetime import datetime, timezone

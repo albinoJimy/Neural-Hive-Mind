@@ -1,6 +1,7 @@
 """
 Wrapper para Temporal Client com Circuit Breaker.
 """
+
 import asyncio
 from typing import Any
 

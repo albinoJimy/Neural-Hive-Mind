@@ -1,4 +1,5 @@
 """Redis client for Guard Agents"""
+
 from typing import Optional
 
 import redis.asyncio as aioredis

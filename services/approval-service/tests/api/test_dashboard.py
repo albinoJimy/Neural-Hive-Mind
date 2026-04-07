@@ -3,6 +3,7 @@ Testes para Dashboard API
 
 Testa endpoints de dashboard com métricas e estatísticas.
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timezone, timedelta

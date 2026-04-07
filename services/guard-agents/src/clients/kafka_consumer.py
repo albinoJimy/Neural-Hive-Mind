@@ -1,4 +1,5 @@
 """Kafka consumer for Guard Agents"""
+
 import asyncio
 from typing import Callable, Optional
 

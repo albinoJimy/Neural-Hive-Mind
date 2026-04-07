@@ -1,4 +1,5 @@
 """Testes unitários para PostgresClient"""
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timezone
@@ -61,8 +62,9 @@ async def test_start_success(mock_engine, mock_session):
     mock_result.scalar = MagicMock(return_value=0)
     mock_session.execute.return_value = mock_result
 
-    with patch("src.clients.postgres_client.create_async_engine", return_value=mock_engine), patch(
-        "src.clients.postgres_client.async_sessionmaker", return_value=mock_session_maker
+    with (
+        patch("src.clients.postgres_client.create_async_engine", return_value=mock_engine),
+        patch("src.clients.postgres_client.async_sessionmaker", return_value=mock_session_maker),
     ):
         # Mock run_sync para criar tabelas
         mock_conn = AsyncMock()
@@ -88,8 +90,9 @@ async def test_stop_disposes_engine(mock_engine, mock_session):
     mock_result.scalar = MagicMock(return_value=0)
     mock_session.execute.return_value = mock_result
 
-    with patch("src.clients.postgres_client.create_async_engine", return_value=mock_engine), patch(
-        "src.clients.postgres_client.async_sessionmaker", return_value=mock_session_maker
+    with (
+        patch("src.clients.postgres_client.create_async_engine", return_value=mock_engine),
+        patch("src.clients.postgres_client.async_sessionmaker", return_value=mock_session_maker),
     ):
         mock_conn = AsyncMock()
         mock_conn.run_sync = AsyncMock()
@@ -116,8 +119,9 @@ async def test_save_pipeline_success(mock_engine, mock_session, sample_pipeline_
     mock_result.scalar = MagicMock(return_value=0)
     mock_session.execute.return_value = mock_result
 
-    with patch("src.clients.postgres_client.create_async_engine", return_value=mock_engine), patch(
-        "src.clients.postgres_client.async_sessionmaker", return_value=mock_session_maker
+    with (
+        patch("src.clients.postgres_client.create_async_engine", return_value=mock_engine),
+        patch("src.clients.postgres_client.async_sessionmaker", return_value=mock_session_maker),
     ):
         mock_conn = AsyncMock()
         mock_conn.run_sync = AsyncMock()
@@ -168,8 +172,9 @@ async def test_get_pipeline_found(mock_engine, mock_session):
     mock_result.scalar = MagicMock(return_value=0)
     mock_session.execute.return_value = mock_result
 
-    with patch("src.clients.postgres_client.create_async_engine", return_value=mock_engine), patch(
-        "src.clients.postgres_client.async_sessionmaker", return_value=mock_session_maker
+    with (
+        patch("src.clients.postgres_client.create_async_engine", return_value=mock_engine),
+        patch("src.clients.postgres_client.async_sessionmaker", return_value=mock_session_maker),
     ):
         mock_conn = AsyncMock()
         mock_conn.run_sync = AsyncMock()
@@ -197,8 +202,9 @@ async def test_get_pipeline_not_found(mock_engine, mock_session):
     mock_result.scalar = MagicMock(return_value=0)
     mock_session.execute.return_value = mock_result
 
-    with patch("src.clients.postgres_client.create_async_engine", return_value=mock_engine), patch(
-        "src.clients.postgres_client.async_sessionmaker", return_value=mock_session_maker
+    with (
+        patch("src.clients.postgres_client.create_async_engine", return_value=mock_engine),
+        patch("src.clients.postgres_client.async_sessionmaker", return_value=mock_session_maker),
     ):
         mock_conn = AsyncMock()
         mock_conn.run_sync = AsyncMock()
@@ -231,8 +237,9 @@ async def test_list_pipelines_with_filters(mock_engine, mock_session):
 
     mock_session.execute.side_effect = [mock_start_result, mock_list_result]
 
-    with patch("src.clients.postgres_client.create_async_engine", return_value=mock_engine), patch(
-        "src.clients.postgres_client.async_sessionmaker", return_value=mock_session_maker
+    with (
+        patch("src.clients.postgres_client.create_async_engine", return_value=mock_engine),
+        patch("src.clients.postgres_client.async_sessionmaker", return_value=mock_session_maker),
     ):
         mock_conn = AsyncMock()
         mock_conn.run_sync = AsyncMock()
@@ -262,8 +269,9 @@ async def test_update_pipeline_status(mock_engine, mock_session):
 
     mock_session.execute.side_effect = [mock_start_result, mock_update_result]
 
-    with patch("src.clients.postgres_client.create_async_engine", return_value=mock_engine), patch(
-        "src.clients.postgres_client.async_sessionmaker", return_value=mock_session_maker
+    with (
+        patch("src.clients.postgres_client.create_async_engine", return_value=mock_engine),
+        patch("src.clients.postgres_client.async_sessionmaker", return_value=mock_session_maker),
     ):
         mock_conn = AsyncMock()
         mock_conn.run_sync = AsyncMock()
@@ -291,8 +299,9 @@ async def test_health_check_success(mock_engine, mock_session):
     mock_result.scalar = MagicMock(return_value=0)
     mock_session.execute.return_value = mock_result
 
-    with patch("src.clients.postgres_client.create_async_engine", return_value=mock_engine), patch(
-        "src.clients.postgres_client.async_sessionmaker", return_value=mock_session_maker
+    with (
+        patch("src.clients.postgres_client.create_async_engine", return_value=mock_engine),
+        patch("src.clients.postgres_client.async_sessionmaker", return_value=mock_session_maker),
     ):
         mock_conn = AsyncMock()
         mock_conn.run_sync = AsyncMock()

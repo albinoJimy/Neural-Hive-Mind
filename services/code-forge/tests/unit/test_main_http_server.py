@@ -3,6 +3,7 @@ Testes para os endpoints HTTP principais do Code Forge.
 
 Cobre health, ready, metrics e outros endpoints fundamentais.
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime

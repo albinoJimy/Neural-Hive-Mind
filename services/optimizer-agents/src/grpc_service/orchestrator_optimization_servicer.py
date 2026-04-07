@@ -4,6 +4,7 @@ Servicer gRPC para extensões de otimização de SLOs.
 Implementa os métodos RPC definidos em orchestrator_extensions.proto.
 Expõe APIs para que o Orchestrator Dynamic solicite otimizações de SLOs.
 """
+
 import time
 
 import grpc

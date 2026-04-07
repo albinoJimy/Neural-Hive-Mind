@@ -394,9 +394,11 @@ class RiskExplainability:
                         "from": value1,
                         "to": value2,
                         "delta": delta,
-                        "direction": "increased"
-                        if delta > 0
-                        else ("decreased" if delta < 0 else "unchanged"),
+                        "direction": (
+                            "increased"
+                            if delta > 0
+                            else ("decreased" if delta < 0 else "unchanged")
+                        ),
                     }
                 )
 

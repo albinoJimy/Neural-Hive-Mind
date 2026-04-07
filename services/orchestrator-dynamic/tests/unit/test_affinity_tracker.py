@@ -7,6 +7,7 @@ Cobertura:
 - Tratamento de erros (fail-open)
 - Integração com métricas
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 

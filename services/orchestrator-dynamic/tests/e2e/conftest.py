@@ -3,6 +3,7 @@ Pytest configuration para testes E2E Vault+SPIFFE.
 
 Este arquivo configura hooks e fixtures globais para os testes E2E.
 """
+
 import os
 import sys
 import pytest

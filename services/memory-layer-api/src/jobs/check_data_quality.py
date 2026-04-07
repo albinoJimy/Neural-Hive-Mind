@@ -384,9 +384,11 @@ class DataQualityChecker:
             # Usa required_fields das regras carregadas como padrão
             default_required = self.required_fields
             collections_config = {
-                "operational_context": default_required + ["context"]
-                if "context" not in default_required
-                else default_required,
+                "operational_context": (
+                    default_required + ["context"]
+                    if "context" not in default_required
+                    else default_required
+                ),
                 "data_lineage": ["entity_id", "operation", "timestamp"],
                 "data_quality_metrics": ["collection", "metrics", "timestamp"],
             }

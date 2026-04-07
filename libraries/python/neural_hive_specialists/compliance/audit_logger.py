@@ -1,6 +1,7 @@
 """
 Audit logger para registrar eventos de compliance em MongoDB.
 """
+
 import structlog
 import uuid
 from datetime import datetime, timedelta, timezone

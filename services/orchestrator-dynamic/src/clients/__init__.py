@@ -1,6 +1,7 @@
 """
 Clientes para integração com MongoDB, Kafka, Redis e Service Registry.
 """
+
 from src.clients.execution_ticket_client import ExecutionTicketClient
 from src.clients.kafka_producer import KafkaProducerClient
 from src.clients.mongodb_client import MongoDBClient

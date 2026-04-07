@@ -97,9 +97,9 @@ class VaultClient:
                 base_url=self.config.address,
                 timeout=self.config.timeout_seconds,
                 verify=self.config.tls_verify,
-                headers={"X-Vault-Namespace": self.config.namespace}
-                if self.config.namespace
-                else {},
+                headers=(
+                    {"X-Vault-Namespace": self.config.namespace} if self.config.namespace else {}
+                ),
             )
 
             # Authenticate

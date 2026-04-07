@@ -1,4 +1,5 @@
 """Raw Event data model for incoming events"""
+
 from datetime import datetime
 from typing import Any, Dict, List
 

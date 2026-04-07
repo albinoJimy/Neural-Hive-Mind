@@ -134,12 +134,10 @@ class TestSanitizeCognitivePlan:
     @pytest.fixture
     def compliance(self, mock_config, mock_metrics):
         """Cria ComplianceLayer com componentes mockados."""
-        with patch(
-            "neural_hive_specialists.compliance.compliance_layer.PIIDetector"
-        ) as mock_pii, patch(
-            "neural_hive_specialists.compliance.compliance_layer.FieldEncryptor"
-        ), patch(
-            "neural_hive_specialists.compliance.compliance_layer.AuditLogger"
+        with (
+            patch("neural_hive_specialists.compliance.compliance_layer.PIIDetector") as mock_pii,
+            patch("neural_hive_specialists.compliance.compliance_layer.FieldEncryptor"),
+            patch("neural_hive_specialists.compliance.compliance_layer.AuditLogger"),
         ):
             compliance = ComplianceLayer(mock_config, "business", mock_metrics)
             compliance.pii_detector = Mock()
@@ -304,10 +302,12 @@ class TestEncryptOpinionFields:
     @pytest.fixture
     def compliance(self, mock_config, mock_metrics):
         """Cria ComplianceLayer com componentes mockados."""
-        with patch("neural_hive_specialists.compliance.compliance_layer.PIIDetector"), patch(
-            "neural_hive_specialists.compliance.compliance_layer.FieldEncryptor"
-        ) as mock_encryptor, patch(
-            "neural_hive_specialists.compliance.compliance_layer.AuditLogger"
+        with (
+            patch("neural_hive_specialists.compliance.compliance_layer.PIIDetector"),
+            patch(
+                "neural_hive_specialists.compliance.compliance_layer.FieldEncryptor"
+            ) as mock_encryptor,
+            patch("neural_hive_specialists.compliance.compliance_layer.AuditLogger"),
         ):
             compliance = ComplianceLayer(mock_config, "business", mock_metrics)
             compliance.field_encryptor = Mock()
@@ -395,10 +395,12 @@ class TestDecryptOpinionFields:
     @pytest.fixture
     def compliance(self, mock_config, mock_metrics):
         """Cria ComplianceLayer com componentes mockados."""
-        with patch("neural_hive_specialists.compliance.compliance_layer.PIIDetector"), patch(
-            "neural_hive_specialists.compliance.compliance_layer.FieldEncryptor"
-        ) as mock_encryptor, patch(
-            "neural_hive_specialists.compliance.compliance_layer.AuditLogger"
+        with (
+            patch("neural_hive_specialists.compliance.compliance_layer.PIIDetector"),
+            patch(
+                "neural_hive_specialists.compliance.compliance_layer.FieldEncryptor"
+            ) as mock_encryptor,
+            patch("neural_hive_specialists.compliance.compliance_layer.AuditLogger"),
         ):
             compliance = ComplianceLayer(mock_config, "business", mock_metrics)
             compliance.field_encryptor = Mock()

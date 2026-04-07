@@ -133,18 +133,17 @@ async def test_predict_duration_xgboost(
     mock_config, mock_registry, mock_metrics, sample_ticket, training_data
 ):
     """Testa predição de duração com XGBoost."""
-    with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-        "mlflow.create_experiment"
-    ), patch("mlflow.get_experiment_by_name", return_value=None), patch("mlflow.start_run"), patch(
-        "mlflow.log_param"
-    ), patch(
-        "mlflow.log_metric"
-    ), patch(
-        "mlflow.set_tag"
-    ), patch(
-        "mlflow.log_artifact"
-    ), patch(
-        "mlflow.xgboost.log_model"
+    with (
+        patch("mlflow.set_tracking_uri"),
+        patch("mlflow.set_experiment"),
+        patch("mlflow.create_experiment"),
+        patch("mlflow.get_experiment_by_name", return_value=None),
+        patch("mlflow.start_run"),
+        patch("mlflow.log_param"),
+        patch("mlflow.log_metric"),
+        patch("mlflow.set_tag"),
+        patch("mlflow.log_artifact"),
+        patch("mlflow.xgboost.log_model"),
     ):
         predictor = SchedulingPredictor(
             config=mock_config, model_registry=mock_registry, metrics=mock_metrics
@@ -177,18 +176,17 @@ async def test_predict_resources(
     mock_config, mock_registry, mock_metrics, sample_ticket, training_data
 ):
     """Testa predição de recursos (CPU/Memory)."""
-    with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-        "mlflow.create_experiment"
-    ), patch("mlflow.get_experiment_by_name", return_value=None), patch("mlflow.start_run"), patch(
-        "mlflow.log_param"
-    ), patch(
-        "mlflow.log_metric"
-    ), patch(
-        "mlflow.set_tag"
-    ), patch(
-        "mlflow.log_artifact"
-    ), patch(
-        "mlflow.xgboost.log_model"
+    with (
+        patch("mlflow.set_tracking_uri"),
+        patch("mlflow.set_experiment"),
+        patch("mlflow.create_experiment"),
+        patch("mlflow.get_experiment_by_name", return_value=None),
+        patch("mlflow.start_run"),
+        patch("mlflow.log_param"),
+        patch("mlflow.log_metric"),
+        patch("mlflow.set_tag"),
+        patch("mlflow.log_artifact"),
+        patch("mlflow.xgboost.log_model"),
     ):
         predictor = SchedulingPredictor(
             config=mock_config, model_registry=mock_registry, metrics=mock_metrics
@@ -215,20 +213,18 @@ async def test_predict_duration_ensemble(
     mock_config_ensemble, mock_registry, mock_metrics, sample_ticket, training_data
 ):
     """Testa predição de duração com ensemble."""
-    with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-        "mlflow.create_experiment"
-    ), patch("mlflow.get_experiment_by_name", return_value=None), patch("mlflow.start_run"), patch(
-        "mlflow.log_param"
-    ), patch(
-        "mlflow.log_metric"
-    ), patch(
-        "mlflow.set_tag"
-    ), patch(
-        "mlflow.log_artifact"
-    ), patch(
-        "mlflow.xgboost.log_model"
-    ), patch(
-        "mlflow.lightgbm.log_model"
+    with (
+        patch("mlflow.set_tracking_uri"),
+        patch("mlflow.set_experiment"),
+        patch("mlflow.create_experiment"),
+        patch("mlflow.get_experiment_by_name", return_value=None),
+        patch("mlflow.start_run"),
+        patch("mlflow.log_param"),
+        patch("mlflow.log_metric"),
+        patch("mlflow.set_tag"),
+        patch("mlflow.log_artifact"),
+        patch("mlflow.xgboost.log_model"),
+        patch("mlflow.lightgbm.log_model"),
     ):
         predictor = SchedulingPredictor(
             config=mock_config_ensemble, model_registry=mock_registry, metrics=mock_metrics
@@ -255,18 +251,17 @@ async def test_predict_duration_ensemble(
 @pytest.mark.asyncio
 async def test_train_model_metrics(mock_config, mock_registry, mock_metrics, training_data):
     """Valida que métricas de treinamento atendem os requisitos."""
-    with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-        "mlflow.create_experiment"
-    ), patch("mlflow.get_experiment_by_name", return_value=None), patch("mlflow.start_run"), patch(
-        "mlflow.log_param"
-    ), patch(
-        "mlflow.log_metric"
-    ), patch(
-        "mlflow.set_tag"
-    ), patch(
-        "mlflow.log_artifact"
-    ), patch(
-        "mlflow.xgboost.log_model"
+    with (
+        patch("mlflow.set_tracking_uri"),
+        patch("mlflow.set_experiment"),
+        patch("mlflow.create_experiment"),
+        patch("mlflow.get_experiment_by_name", return_value=None),
+        patch("mlflow.start_run"),
+        patch("mlflow.log_param"),
+        patch("mlflow.log_metric"),
+        patch("mlflow.set_tag"),
+        patch("mlflow.log_artifact"),
+        patch("mlflow.xgboost.log_model"),
     ):
         predictor = SchedulingPredictor(
             config=mock_config, model_registry=mock_registry, metrics=mock_metrics
@@ -287,21 +282,19 @@ async def test_hyperparameter_tuning(mock_config, mock_registry, mock_metrics, t
     """Testa tuning de hiperparâmetros."""
     mock_config["enable_tuning"] = True
 
-    with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-        "mlflow.create_experiment"
-    ), patch("mlflow.get_experiment_by_name", return_value=None), patch("mlflow.start_run"), patch(
-        "mlflow.log_param"
-    ), patch(
-        "mlflow.log_metric"
-    ), patch(
-        "mlflow.set_tag"
-    ), patch(
-        "mlflow.log_artifact"
-    ), patch(
-        "mlflow.xgboost.log_model"
-    ), patch(
-        "optuna.create_study"
-    ) as mock_optuna:
+    with (
+        patch("mlflow.set_tracking_uri"),
+        patch("mlflow.set_experiment"),
+        patch("mlflow.create_experiment"),
+        patch("mlflow.get_experiment_by_name", return_value=None),
+        patch("mlflow.start_run"),
+        patch("mlflow.log_param"),
+        patch("mlflow.log_metric"),
+        patch("mlflow.set_tag"),
+        patch("mlflow.log_artifact"),
+        patch("mlflow.xgboost.log_model"),
+        patch("optuna.create_study") as mock_optuna,
+    ):
         # Mock Optuna study
         mock_study = Mock()
         mock_study.best_params = {"max_depth": 6, "learning_rate": 0.1, "n_estimators": 100}
@@ -353,18 +346,17 @@ async def test_prediction_latency(
     mock_config, mock_registry, mock_metrics, sample_ticket, training_data
 ):
     """Valida que latência de predição < 100ms."""
-    with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-        "mlflow.create_experiment"
-    ), patch("mlflow.get_experiment_by_name", return_value=None), patch("mlflow.start_run"), patch(
-        "mlflow.log_param"
-    ), patch(
-        "mlflow.log_metric"
-    ), patch(
-        "mlflow.set_tag"
-    ), patch(
-        "mlflow.log_artifact"
-    ), patch(
-        "mlflow.xgboost.log_model"
+    with (
+        patch("mlflow.set_tracking_uri"),
+        patch("mlflow.set_experiment"),
+        patch("mlflow.create_experiment"),
+        patch("mlflow.get_experiment_by_name", return_value=None),
+        patch("mlflow.start_run"),
+        patch("mlflow.log_param"),
+        patch("mlflow.log_metric"),
+        patch("mlflow.set_tag"),
+        patch("mlflow.log_artifact"),
+        patch("mlflow.xgboost.log_model"),
     ):
         predictor = SchedulingPredictor(
             config=mock_config, model_registry=mock_registry, metrics=mock_metrics
@@ -395,20 +387,17 @@ async def test_model_persistence_and_reload(
 ):
     """Testa que modelo pode ser salvo e recarregado."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-            "mlflow.create_experiment"
-        ), patch("mlflow.get_experiment_by_name", return_value=None), patch(
-            "mlflow.start_run"
-        ), patch(
-            "mlflow.log_param"
-        ), patch(
-            "mlflow.log_metric"
-        ), patch(
-            "mlflow.set_tag"
-        ), patch(
-            "mlflow.log_artifact"
-        ), patch(
-            "mlflow.xgboost.log_model"
+        with (
+            patch("mlflow.set_tracking_uri"),
+            patch("mlflow.set_experiment"),
+            patch("mlflow.create_experiment"),
+            patch("mlflow.get_experiment_by_name", return_value=None),
+            patch("mlflow.start_run"),
+            patch("mlflow.log_param"),
+            patch("mlflow.log_metric"),
+            patch("mlflow.set_tag"),
+            patch("mlflow.log_artifact"),
+            patch("mlflow.xgboost.log_model"),
         ):
             # Treinar modelo original
             predictor1 = SchedulingPredictor(
@@ -657,18 +646,17 @@ async def test_batch_prediction(mock_config, sample_ticket):
 @pytest.mark.asyncio
 async def test_feature_importance_extraction(mock_config, mock_registry, training_data):
     """Testa extração de importância de features."""
-    with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-        "mlflow.create_experiment"
-    ), patch("mlflow.get_experiment_by_name", return_value=None), patch("mlflow.start_run"), patch(
-        "mlflow.log_param"
-    ), patch(
-        "mlflow.log_metric"
-    ), patch(
-        "mlflow.set_tag"
-    ), patch(
-        "mlflow.log_artifact"
-    ), patch(
-        "mlflow.xgboost.log_model"
+    with (
+        patch("mlflow.set_tracking_uri"),
+        patch("mlflow.set_experiment"),
+        patch("mlflow.create_experiment"),
+        patch("mlflow.get_experiment_by_name", return_value=None),
+        patch("mlflow.start_run"),
+        patch("mlflow.log_param"),
+        patch("mlflow.log_metric"),
+        patch("mlflow.set_tag"),
+        patch("mlflow.log_artifact"),
+        patch("mlflow.xgboost.log_model"),
     ):
         predictor = SchedulingPredictor(config=mock_config, model_registry=mock_registry)
 
@@ -758,18 +746,17 @@ async def test_confidence_interval_estimation(
     mock_config, mock_registry, mock_metrics, sample_ticket, training_data
 ):
     """Testa estimativa de intervalo de confiança."""
-    with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-        "mlflow.create_experiment"
-    ), patch("mlflow.get_experiment_by_name", return_value=None), patch("mlflow.start_run"), patch(
-        "mlflow.log_param"
-    ), patch(
-        "mlflow.log_metric"
-    ), patch(
-        "mlflow.set_tag"
-    ), patch(
-        "mlflow.log_artifact"
-    ), patch(
-        "mlflow.xgboost.log_model"
+    with (
+        patch("mlflow.set_tracking_uri"),
+        patch("mlflow.set_experiment"),
+        patch("mlflow.create_experiment"),
+        patch("mlflow.get_experiment_by_name", return_value=None),
+        patch("mlflow.start_run"),
+        patch("mlflow.log_param"),
+        patch("mlflow.log_metric"),
+        patch("mlflow.set_tag"),
+        patch("mlflow.log_artifact"),
+        patch("mlflow.xgboost.log_model"),
     ):
         predictor = SchedulingPredictor(
             config=mock_config, model_registry=mock_registry, metrics=mock_metrics
@@ -788,18 +775,17 @@ async def test_confidence_interval_estimation(
 @pytest.mark.asyncio
 async def test_model_versioning_tracking(mock_config, mock_registry, training_data):
     """Testa rastreamento de versão do modelo."""
-    with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-        "mlflow.create_experiment"
-    ), patch("mlflow.get_experiment_by_name", return_value=None), patch("mlflow.start_run"), patch(
-        "mlflow.log_param"
-    ), patch(
-        "mlflow.log_metric"
-    ), patch(
-        "mlflow.set_tag"
-    ), patch(
-        "mlflow.log_artifact"
-    ), patch(
-        "mlflow.xgboost.log_model"
+    with (
+        patch("mlflow.set_tracking_uri"),
+        patch("mlflow.set_experiment"),
+        patch("mlflow.create_experiment"),
+        patch("mlflow.get_experiment_by_name", return_value=None),
+        patch("mlflow.start_run"),
+        patch("mlflow.log_param"),
+        patch("mlflow.log_metric"),
+        patch("mlflow.set_tag"),
+        patch("mlflow.log_artifact"),
+        patch("mlflow.xgboost.log_model"),
     ):
         predictor = SchedulingPredictor(config=mock_config, model_registry=mock_registry)
 

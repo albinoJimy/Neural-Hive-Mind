@@ -247,12 +247,12 @@ class LoadPredictor:
                         "timestamp": row["ds"].isoformat(),
                         "ticket_count": max(0, int(row["yhat"])),  # Não negativo
                         "resource_demand": self._estimate_resource_demand(row["yhat"]),
-                        "confidence_lower": max(0, int(row["yhat_lower"]))
-                        if include_confidence_intervals
-                        else None,
-                        "confidence_upper": max(0, int(row["yhat_upper"]))
-                        if include_confidence_intervals
-                        else None,
+                        "confidence_lower": (
+                            max(0, int(row["yhat_lower"])) if include_confidence_intervals else None
+                        ),
+                        "confidence_upper": (
+                            max(0, int(row["yhat_upper"])) if include_confidence_intervals else None
+                        ),
                     }
                     for _, row in future_forecast.iterrows()
                 ],

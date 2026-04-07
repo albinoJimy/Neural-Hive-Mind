@@ -122,9 +122,10 @@ async def test_mongodb_client(test_config):
 @pytest_asyncio.fixture
 async def mock_mlflow():
     """Mock MLflow for model registry tests."""
-    with patch("src.ml.model_registry.mlflow") as mlflow_mock, patch(
-        "src.ml.model_registry.MlflowClient"
-    ) as client_mock:
+    with (
+        patch("src.ml.model_registry.mlflow") as mlflow_mock,
+        patch("src.ml.model_registry.MlflowClient") as client_mock,
+    ):
         # Mock client
         mock_client = MagicMock()
         client_mock.return_value = mock_client

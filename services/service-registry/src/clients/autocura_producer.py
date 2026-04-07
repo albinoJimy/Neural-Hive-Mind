@@ -1,6 +1,7 @@
 """
 Producer Kafka para publicação de eventos de autocura.
 """
+
 import json
 from typing import Any
 

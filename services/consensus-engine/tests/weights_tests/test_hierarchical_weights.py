@@ -118,7 +118,7 @@ class TestHierarchicalWeightCalculator:
         weight = calculator.calculate_hierarchical_weight(
             specialist_type="architecture",
             domain=UnifiedDomain.ARCHITECTURE,
-            pheromone_weight=0.6
+            pheromone_weight=0.6,
             # seniority=None deve usar config.specialist_seniority['architecture']
         )
         assert weight > 0

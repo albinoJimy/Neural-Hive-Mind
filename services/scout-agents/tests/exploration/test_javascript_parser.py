@@ -2,6 +2,7 @@
 Testes para JavaScriptParser.
 Parsing de JavaScript para análise estática.
 """
+
 import pytest
 
 from src.exploration.parsers.javascript_parser import JavaScriptParser

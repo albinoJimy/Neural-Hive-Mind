@@ -1,4 +1,5 @@
 """Testes de integração para trace IDs nas respostas da API"""
+
 import pytest
 import re
 from unittest.mock import patch, MagicMock, AsyncMock
@@ -30,9 +31,12 @@ def mock_pipelines_and_producer():
         processing_time_ms=80.0,
     )
 
-    with patch("main.nlu_pipeline") as mock_nlu, patch("main.kafka_producer") as mock_kafka, patch(
-        "main.redis_client"
-    ) as mock_redis, patch("main.health_manager") as mock_health:
+    with (
+        patch("main.nlu_pipeline") as mock_nlu,
+        patch("main.kafka_producer") as mock_kafka,
+        patch("main.redis_client") as mock_redis,
+        patch("main.health_manager") as mock_health,
+    ):
         mock_nlu.process = AsyncMock(return_value=nlu_result)
         mock_nlu.is_ready.return_value = True
         mock_nlu.confidence_threshold = 0.75
@@ -100,8 +104,9 @@ class TestTracingIntegration:
         mock_trace_id = "4bf92f3577b34da6a3ce929d0e0e4736"
         mock_span_id = "00f067aa0ba902b7"
 
-        with patch("main.get_current_trace_id", return_value=mock_trace_id), patch(
-            "main.get_current_span_id", return_value=mock_span_id
+        with (
+            patch("main.get_current_trace_id", return_value=mock_trace_id),
+            patch("main.get_current_span_id", return_value=mock_span_id),
         ):
             response = test_client.post(
                 "/intentions",
@@ -128,8 +133,9 @@ class TestTracingIntegration:
         self, test_client, mock_pipelines_and_producer
     ):
         """Verifica se traceId e spanId são null quando tracing está desabilitado"""
-        with patch("main.get_current_trace_id", return_value=None), patch(
-            "main.get_current_span_id", return_value=None
+        with (
+            patch("main.get_current_trace_id", return_value=None),
+            patch("main.get_current_span_id", return_value=None),
         ):
             response = test_client.post(
                 "/intentions",
@@ -155,8 +161,9 @@ class TestTracingIntegration:
         mock_trace_id = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6"
         mock_span_id = "1234567890abcdef"
 
-        with patch("main.get_current_trace_id", return_value=mock_trace_id), patch(
-            "main.get_current_span_id", return_value=mock_span_id
+        with (
+            patch("main.get_current_trace_id", return_value=mock_trace_id),
+            patch("main.get_current_span_id", return_value=mock_span_id),
         ):
             # Criar arquivo de áudio fake
             audio_content = b"fake-audio-content-for-test"
@@ -187,8 +194,9 @@ class TestTracingIntegration:
         self, test_client, mock_voice_pipelines
     ):
         """Verifica se traceId e spanId são null para voz quando tracing está desabilitado"""
-        with patch("main.get_current_trace_id", return_value=None), patch(
-            "main.get_current_span_id", return_value=None
+        with (
+            patch("main.get_current_trace_id", return_value=None),
+            patch("main.get_current_span_id", return_value=None),
         ):
             # Criar arquivo de áudio fake
             audio_content = b"fake-audio-content-for-test"
@@ -218,8 +226,9 @@ class TestTracingIntegration:
         # Span ID válido: 16 caracteres hexadecimais
         valid_span_id = "0123456789abcdef"
 
-        with patch("main.get_current_trace_id", return_value=valid_trace_id), patch(
-            "main.get_current_span_id", return_value=valid_span_id
+        with (
+            patch("main.get_current_trace_id", return_value=valid_trace_id),
+            patch("main.get_current_span_id", return_value=valid_span_id),
         ):
             response = test_client.post(
                 "/intentions", json={"text": "Teste de formato de trace", "language": "pt-BR"}
@@ -241,8 +250,9 @@ class TestTracingIntegration:
         mock_trace_id = "aaaabbbbccccddddeeeeffffgggghhhi"[:32]  # 32 chars
         mock_span_id = "1111222233334444"  # 16 chars
 
-        with patch("main.get_current_trace_id", return_value=mock_trace_id), patch(
-            "main.get_current_span_id", return_value=mock_span_id
+        with (
+            patch("main.get_current_trace_id", return_value=mock_trace_id),
+            patch("main.get_current_span_id", return_value=mock_span_id),
         ):
             response = test_client.post(
                 "/intentions", json={"text": "Verificar estrutura da resposta", "language": "pt-BR"}

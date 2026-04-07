@@ -9,6 +9,7 @@ Valida comunicação entre Queen Agent e Orchestrator Dynamic via gRPC:
 - TriggerReplanning: acionar replanejamento
 - GetWorkflowStatus: obter status de workflow
 """
+
 import pytest
 import pytest_asyncio
 import asyncio

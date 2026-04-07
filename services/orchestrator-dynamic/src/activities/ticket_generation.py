@@ -1,6 +1,7 @@
 """
 Activities Temporal para geração de Execution Tickets (Etapa C2).
 """
+
 import json
 import uuid
 from datetime import datetime
@@ -83,12 +84,14 @@ async def generate_execution_tickets(
         intent_id=cognitive_plan.get("intent_id", "MISSING"),
         has_tasks="tasks" in cognitive_plan,
         tasks_count=len(cognitive_plan.get("tasks", [])),
-        cognitive_plan_keys=list(cognitive_plan.keys())
-        if isinstance(cognitive_plan, dict)
-        else "NOT_A_DICT",
-        consolidated_decision_keys=list(consolidated_decision.keys())
-        if isinstance(consolidated_decision, dict)
-        else "NOT_A_DICT",
+        cognitive_plan_keys=(
+            list(cognitive_plan.keys()) if isinstance(cognitive_plan, dict) else "NOT_A_DICT"
+        ),
+        consolidated_decision_keys=(
+            list(consolidated_decision.keys())
+            if isinstance(consolidated_decision, dict)
+            else "NOT_A_DICT"
+        ),
     )
 
     # F1: Validar e garantir correlation_id no cognitive_plan

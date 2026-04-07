@@ -1,4 +1,5 @@
 """Tool Executor Service - Arquitetura híbrida com MCP Servers e adapters locais."""
+
 import asyncio
 import json
 import time

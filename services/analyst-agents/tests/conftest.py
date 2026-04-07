@@ -1,6 +1,7 @@
 """
 Conftest para testes do Analyst Agents.
 """
+
 import pytest
 import asyncio
 from datetime import datetime, timezone, timedelta

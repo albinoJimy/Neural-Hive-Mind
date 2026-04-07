@@ -533,9 +533,9 @@ class RetentionManager:
             status = {
                 "total_documents": total_documents,
                 "masked_documents": masked_documents,
-                "masked_percentage": (masked_documents / total_documents * 100)
-                if total_documents > 0
-                else 0.0,
+                "masked_percentage": (
+                    (masked_documents / total_documents * 100) if total_documents > 0 else 0.0
+                ),
                 "policies": policy_stats,
             }
 

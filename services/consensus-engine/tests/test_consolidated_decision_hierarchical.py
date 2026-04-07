@@ -346,7 +346,7 @@ class TestToAvroDictHierarchicalFields:
             risk_score=0.2,
             recommendation="approve",
             weight=1.0,
-            processing_time_ms=100
+            processing_time_ms=100,
             # Não incluir seniority_level ou seniority_multiplier
         )
 
@@ -357,7 +357,7 @@ class TestToAvroDictHierarchicalFields:
             fallback_used=False,
             pheromone_strength=0.9,
             bayesian_confidence=0.85,
-            voting_confidence=0.88
+            voting_confidence=0.88,
             # Não incluir campos hierárquicos
         )
 

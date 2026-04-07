@@ -214,9 +214,11 @@ class PlaybookValidator:
                 recovery_time_seconds=recovery_time,
                 availability_percent=availability,
                 error_rate_percent=error_rate,
-                latency_p95_ms=await self._measure_latency_p95(context)
-                if criteria.max_latency_p95_ms
-                else None,
+                latency_p95_ms=(
+                    await self._measure_latency_p95(context)
+                    if criteria.max_latency_p95_ms
+                    else None
+                ),
                 criteria_met=criteria_met,
                 observations=observations,
                 metrics_snapshot={

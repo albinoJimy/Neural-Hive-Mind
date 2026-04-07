@@ -55,9 +55,9 @@ class InjectionResult:
         return {
             "success": self.success,
             "injection_id": self.injection_id,
-            "fault_type": self.fault_type.value
-            if isinstance(self.fault_type, FaultType)
-            else self.fault_type,
+            "fault_type": (
+                self.fault_type.value if isinstance(self.fault_type, FaultType) else self.fault_type
+            ),
             "affected_resources": self.affected_resources,
             "blast_radius": self.blast_radius,
             "start_time": self.start_time.isoformat() if self.start_time else None,
@@ -217,9 +217,11 @@ class BaseFaultInjector(ABC):
                                     "deployment_name": injection.target.deployment_name,
                                     "percentage": injection.target.percentage,
                                 },
-                                "parameters": injection.parameters.model_dump()
-                                if hasattr(injection.parameters, "model_dump")
-                                else {},
+                                "parameters": (
+                                    injection.parameters.model_dump()
+                                    if hasattr(injection.parameters, "model_dump")
+                                    else {}
+                                ),
                                 "duration_seconds": injection.duration_seconds,
                             }
                         ],

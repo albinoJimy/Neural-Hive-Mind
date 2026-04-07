@@ -4,6 +4,7 @@ Unit tests para ExecutionResultConsumer.
 Testa o consumer que processa execution.results e envia signals
 para workflows Temporal, fechando o feedback loop de execução.
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime

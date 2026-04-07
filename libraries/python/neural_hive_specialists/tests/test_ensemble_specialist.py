@@ -82,9 +82,11 @@ def mock_mlflow_client():
 @pytest.fixture
 def ensemble_specialist(ensemble_config, mock_mlflow_client):
     """Instância de EnsembleSpecialist configurada."""
-    with patch("neural_hive_specialists.base_specialist.LedgerClient"), patch(
-        "neural_hive_specialists.base_specialist.OpinionCache"
-    ), patch("neural_hive_specialists.base_specialist.FeatureStore"):
+    with (
+        patch("neural_hive_specialists.base_specialist.LedgerClient"),
+        patch("neural_hive_specialists.base_specialist.OpinionCache"),
+        patch("neural_hive_specialists.base_specialist.FeatureStore"),
+    ):
         specialist = ConcreteEnsembleSpecialist(config=ensemble_config)
         specialist.mlflow_client = mock_mlflow_client
 
@@ -132,9 +134,11 @@ class TestEnsembleSpecialistLoading:
         assert len(ensemble_config.ensemble_stages) == 1
         assert len(ensemble_config.ensemble_models) == 3
 
-        with patch("neural_hive_specialists.base_specialist.LedgerClient"), patch(
-            "neural_hive_specialists.base_specialist.OpinionCache"
-        ), patch("neural_hive_specialists.base_specialist.FeatureStore"):
+        with (
+            patch("neural_hive_specialists.base_specialist.LedgerClient"),
+            patch("neural_hive_specialists.base_specialist.OpinionCache"),
+            patch("neural_hive_specialists.base_specialist.FeatureStore"),
+        ):
             specialist = ConcreteEnsembleSpecialist(config=ensemble_config)
             specialist.mlflow_client = mock_mlflow_client
 

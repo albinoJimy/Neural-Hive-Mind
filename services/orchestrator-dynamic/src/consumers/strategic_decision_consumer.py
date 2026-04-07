@@ -9,6 +9,7 @@ Consome decisões estratégicas publicadas pelo Queen Agent e:
 Author: Neural-Hive-Mind
 Created: 2026-03-30 (Epic J)
 """
+
 import json
 from datetime import datetime, timezone
 

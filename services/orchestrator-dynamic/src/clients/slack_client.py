@@ -3,6 +3,7 @@ Slack Client para envio de notificações ao Slack via webhook.
 
 Este cliente envia mensagens para canais Slack usando Incoming Webhooks.
 """
+
 import logging
 from typing import Any
 

@@ -2,6 +2,7 @@
 Testes unitários para Auth Middleware
 Testa autenticação OAuth2, validação de tokens e mTLS
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import Request, HTTPException
@@ -52,9 +53,10 @@ class TestAuthMiddleware:
     @pytest.fixture
     def auth_middleware(self, mock_app, mock_settings, mock_rate_limiter):
         """Fixture do middleware de autenticação"""
-        with patch("middleware.auth_middleware.get_settings", return_value=mock_settings), patch(
-            "middleware.auth_middleware.get_oauth2_validator"
-        ) as mock_validator:
+        with (
+            patch("middleware.auth_middleware.get_settings", return_value=mock_settings),
+            patch("middleware.auth_middleware.get_oauth2_validator") as mock_validator,
+        ):
             validator = MagicMock()
             validator.validate_token = AsyncMock(
                 return_value={
@@ -339,9 +341,10 @@ class TestAuthMiddleware:
         result.retry_after = 30
         rl.check_rate_limit = AsyncMock(return_value=result)
 
-        with patch("middleware.auth_middleware.get_settings", return_value=mock_settings), patch(
-            "middleware.auth_middleware.get_oauth2_validator"
-        ) as mock_validator:
+        with (
+            patch("middleware.auth_middleware.get_settings", return_value=mock_settings),
+            patch("middleware.auth_middleware.get_oauth2_validator") as mock_validator,
+        ):
             validator = MagicMock()
             validator.validate_token = AsyncMock(
                 return_value={
@@ -539,9 +542,10 @@ class TestMTLSValidation:
         mock_settings.token_validation_enabled = True
         mock_settings.keycloak_realm = "neural-hive"
 
-        with patch("middleware.auth_middleware.get_settings", return_value=mock_settings), patch(
-            "middleware.auth_middleware.get_oauth2_validator"
-        ) as mock_validator:
+        with (
+            patch("middleware.auth_middleware.get_settings", return_value=mock_settings),
+            patch("middleware.auth_middleware.get_oauth2_validator") as mock_validator,
+        ):
             validator = MagicMock()
             validator.validate_token = AsyncMock(
                 return_value={"sub": "user-123", "preferred_username": "testuser"}

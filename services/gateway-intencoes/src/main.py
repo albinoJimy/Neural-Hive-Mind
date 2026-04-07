@@ -464,21 +464,25 @@ async def health_check():
             # Production mode com neural_hive_observability
             for name, result in health_results.items():
                 component_statuses[name] = {
-                    "status": result.status.value
-                    if hasattr(result, "status")
-                    else result.get("status", "unknown"),
-                    "message": result.message
-                    if hasattr(result, "message")
-                    else result.get("message", ""),
-                    "duration_seconds": result.duration_seconds
-                    if hasattr(result, "duration_seconds")
-                    else 0,
-                    "timestamp": result.timestamp
-                    if hasattr(result, "timestamp")
-                    else datetime.now(UTC).isoformat(),
-                    "details": result.details
-                    if hasattr(result, "details")
-                    else result.get("details", {}),
+                    "status": (
+                        result.status.value
+                        if hasattr(result, "status")
+                        else result.get("status", "unknown")
+                    ),
+                    "message": (
+                        result.message if hasattr(result, "message") else result.get("message", "")
+                    ),
+                    "duration_seconds": (
+                        result.duration_seconds if hasattr(result, "duration_seconds") else 0
+                    ),
+                    "timestamp": (
+                        result.timestamp
+                        if hasattr(result, "timestamp")
+                        else datetime.now(UTC).isoformat()
+                    ),
+                    "details": (
+                        result.details if hasattr(result, "details") else result.get("details", {})
+                    ),
                 }
 
         # Overall status handling

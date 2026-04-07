@@ -11,6 +11,7 @@ Testes cobrem:
 - publish_ticket_to_kafka com tickets válidos e rejeitados
 - Persistência no MongoDB
 """
+
 import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch

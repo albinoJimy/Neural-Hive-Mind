@@ -54,7 +54,9 @@ class Settings(BaseSettings):
     )
 
     # MongoDB Config
-    mongodb_uri: str = "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin"
+    mongodb_uri: str = (
+        "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/neural_hive?authSource=admin"
+    )
     mongodb_database: str = "neural_hive"
     mongodb_incidents_collection: str = "security_incidents"
     mongodb_remediation_collection: str = "remediation_actions"

@@ -1,4 +1,5 @@
 """Métricas Prometheus para Execution Ticket Service."""
+
 from prometheus_client import Counter, Gauge, Histogram, Info
 
 

@@ -189,20 +189,24 @@ class CognitivePlan(BaseModel):
                     "dependencies": task.dependencies,
                     "estimated_duration_ms": task.estimated_duration_ms,
                     "required_capabilities": task.required_capabilities,
-                    "parameters": {k: str(v) for k, v in task.parameters.items()}
-                    if isinstance(task.parameters, dict)
-                    else {},
-                    "metadata": {k: str(v) for k, v in task.metadata.items()}
-                    if isinstance(task.metadata, dict)
-                    else {},
+                    "parameters": (
+                        {k: str(v) for k, v in task.parameters.items()}
+                        if isinstance(task.parameters, dict)
+                        else {}
+                    ),
+                    "metadata": (
+                        {k: str(v) for k, v in task.metadata.items()}
+                        if isinstance(task.metadata, dict)
+                        else {}
+                    ),
                 }
                 for task in self.tasks
             ],
             "execution_order": self.execution_order,
             "risk_score": self.risk_score,
-            "risk_band": self.risk_band.value
-            if hasattr(self.risk_band, "value")
-            else self.risk_band,
+            "risk_band": (
+                self.risk_band.value if hasattr(self.risk_band, "value") else self.risk_band
+            ),
             "risk_factors": self.risk_factors,
             "explainability_token": self.explainability_token,
             "reasoning_summary": self.reasoning_summary,
@@ -214,13 +218,17 @@ class CognitivePlan(BaseModel):
             "original_domain": self.original_domain,
             "original_priority": self.original_priority,
             "original_security_level": self.original_security_level,
-            "metadata": {k: str(v) for k, v in self.metadata.items()}
-            if isinstance(self.metadata, dict)
-            else {},
+            "metadata": (
+                {k: str(v) for k, v in self.metadata.items()}
+                if isinstance(self.metadata, dict)
+                else {}
+            ),
             "requires_approval": self.requires_approval,
-            "approval_status": self.approval_status.value
-            if self.approval_status and hasattr(self.approval_status, "value")
-            else self.approval_status,
+            "approval_status": (
+                self.approval_status.value
+                if self.approval_status and hasattr(self.approval_status, "value")
+                else self.approval_status
+            ),
             "approved_by": self.approved_by,
             "approved_at": int(self.approved_at.timestamp() * 1000) if self.approved_at else None,
             "is_destructive": self.is_destructive,
@@ -238,9 +246,9 @@ class CognitivePlan(BaseModel):
         return {
             "plan_id": self.plan_id,
             "intent_id": self.intent_id,
-            "risk_band": self.risk_band.value
-            if hasattr(self.risk_band, "value")
-            else self.risk_band,
+            "risk_band": (
+                self.risk_band.value if hasattr(self.risk_band, "value") else self.risk_band
+            ),
             "status": self.status.value if hasattr(self.status, "value") else self.status,
             "num_tasks": len(self.tasks),
             "created_at": self.created_at.isoformat(),

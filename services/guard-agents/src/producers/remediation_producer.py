@@ -1,4 +1,5 @@
 """Kafka producer para eventos de remediação"""
+
 import json
 from typing import Any, Dict, Optional
 

@@ -3,6 +3,7 @@ DLQ Alert Manager - Gerenciamento de alertas para mensagens no DLQ.
 
 Responsável por enviar alertas para SRE quando tickets falham definitivamente.
 """
+
 import json
 import uuid
 from datetime import datetime, timezone
@@ -51,9 +52,9 @@ class DLQAlertManager:
             if getattr(self.config, "kafka_ssl_ca_location", None):
                 security_config["ssl.ca.location"] = self.config.kafka_ssl_ca_location
             if getattr(self.config, "kafka_ssl_certificate_location", None):
-                security_config[
-                    "ssl.certificate.location"
-                ] = self.config.kafka_ssl_certificate_location
+                security_config["ssl.certificate.location"] = (
+                    self.config.kafka_ssl_certificate_location
+                )
             if getattr(self.config, "kafka_ssl_key_location", None):
                 security_config["ssl.key.location"] = self.config.kafka_ssl_key_location
 

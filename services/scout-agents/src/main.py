@@ -1,4 +1,5 @@
 """Main entry point for Scout Agents service"""
+
 import asyncio
 import os
 import signal

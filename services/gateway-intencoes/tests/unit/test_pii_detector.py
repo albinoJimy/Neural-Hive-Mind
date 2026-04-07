@@ -2,6 +2,7 @@
 Testes unitários para PII Detector e Masker
 Testa detecção e mascaramento de informações pessoais sensíveis
 """
+
 import pytest
 from unittest.mock import MagicMock, patch
 import re

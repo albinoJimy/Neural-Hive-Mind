@@ -3,6 +3,7 @@ Testes de integração com OPA Server real via Docker.
 
 Requer Docker instalado e acessível.
 """
+
 import pytest
 import asyncio
 import subprocess

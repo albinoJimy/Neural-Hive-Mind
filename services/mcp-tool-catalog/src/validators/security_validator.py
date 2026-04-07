@@ -465,9 +465,11 @@ class SecurityValidator:
                 risks.append(
                     SecurityRisk(
                         risk_type=f"sensitive_data_{risk_type}",
-                        level=RiskLevel.HIGH
-                        if risk_type in {"ssn", "credit_card"}
-                        else RiskLevel.MEDIUM,
+                        level=(
+                            RiskLevel.HIGH
+                            if risk_type in {"ssn", "credit_card"}
+                            else RiskLevel.MEDIUM
+                        ),
                         message=f"Dados podem conter {risk_type} sensível",
                         recommendation="Remover ou mascarar dados sensíveis antes de logar",
                     )

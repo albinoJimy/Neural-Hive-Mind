@@ -3,6 +3,7 @@ Unit tests para CORSConfig.
 
 Testa configuração centralizada de CORS por ambiente e validação de segurança.
 """
+
 import pytest
 
 from neural_hive_security.cors import CORSConfig, get_cors_origins

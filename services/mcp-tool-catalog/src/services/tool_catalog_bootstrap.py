@@ -1,4 +1,5 @@
 """Bootstrap service to populate catalog with 87 initial tools."""
+
 from typing import List
 
 from src.models.tool_descriptor import (

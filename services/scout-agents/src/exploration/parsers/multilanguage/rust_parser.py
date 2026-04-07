@@ -3,6 +3,7 @@ Rust AST Parser usando tree-sitter.
 
 Suporta parsing de código Rust com fallback regex.
 """
+
 import logging
 from typing import Any, Dict, Optional
 

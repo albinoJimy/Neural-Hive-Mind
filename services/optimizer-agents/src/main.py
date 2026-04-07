@@ -178,9 +178,11 @@ async def startup():
 
     if clickhouse_client:
         clickhouse_health_check = ClickHouseSchemaHealthCheck(
-            clickhouse_client=clickhouse_client.client
-            if hasattr(clickhouse_client, "client")
-            else clickhouse_client,
+            clickhouse_client=(
+                clickhouse_client.client
+                if hasattr(clickhouse_client, "client")
+                else clickhouse_client
+            ),
             expected_tables=[
                 "execution_logs",
                 "telemetry_metrics",

@@ -1,6 +1,7 @@
 """
 Testes para Analytics API V2 endpoints.
 """
+
 import pytest
 from httpx import AsyncClient, ASGITransport
 from datetime import datetime, timezone, timedelta

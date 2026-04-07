@@ -1,6 +1,7 @@
 """
 Modelos estendidos para Insights Analyst Agents.
 """
+
 import uuid
 from datetime import datetime
 from enum import Enum

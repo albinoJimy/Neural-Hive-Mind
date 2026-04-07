@@ -1,4 +1,5 @@
 """Threat detection service for identifying security anomalies (Fluxo E1)"""
+
 import time
 from datetime import datetime, timezone
 from enum import Enum

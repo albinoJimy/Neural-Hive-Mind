@@ -4,6 +4,7 @@ Unit tests para InsightsConsumer.
 Testa o consumer que processa insights.analyzed do Analyst Agents,
 enriquecendo Cognitive Plans e armazenando insights para histórico.
 """
+
 import pytest
 import json
 import asyncio

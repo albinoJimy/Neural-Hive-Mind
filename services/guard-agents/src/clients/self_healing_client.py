@@ -1,4 +1,5 @@
 """Cliente HTTP para integração com Self-Healing Engine"""
+
 from enum import Enum
 from typing import Any, Dict, Optional
 

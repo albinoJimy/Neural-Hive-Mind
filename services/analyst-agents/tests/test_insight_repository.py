@@ -1,6 +1,7 @@
 """
 Testes para InsightRepository.
 """
+
 import pytest
 from datetime import datetime, timezone, timedelta
 

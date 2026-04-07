@@ -3,6 +3,7 @@ Testes unitários simplificados para EmbeddingService.
 
 Focam na lógica de negócio sem mockar dependências externas complexas.
 """
+
 import sys
 import pytest
 from unittest.mock import AsyncMock, Mock, MagicMock, patch

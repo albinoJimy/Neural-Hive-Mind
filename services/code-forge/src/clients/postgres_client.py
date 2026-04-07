@@ -70,9 +70,9 @@ class PipelineResultORM(Base):
             correlation_id=result.correlation_id,
             trace_id=result.trace_id,
             span_id=result.span_id,
-            status=result.status.value
-            if isinstance(result.status, PipelineStatus)
-            else result.status,
+            status=(
+                result.status.value if isinstance(result.status, PipelineStatus) else result.status
+            ),
             artifacts=[a.dict() for a in result.artifacts],
             pipeline_stages=[s.dict() for s in result.pipeline_stages],
             total_duration_ms=result.total_duration_ms,
@@ -148,15 +148,19 @@ class ArtifactMetadataORM(Base):
             plan_id=artifact.plan_id,
             intent_id=artifact.intent_id,
             decision_id=artifact.decision_id,
-            artifact_type=artifact.artifact_type.value
-            if hasattr(artifact.artifact_type, "value")
-            else artifact.artifact_type,
+            artifact_type=(
+                artifact.artifact_type.value
+                if hasattr(artifact.artifact_type, "value")
+                else artifact.artifact_type
+            ),
             language=artifact.language,
             template_id=artifact.template_id,
             confidence_score=int(artifact.confidence_score * 100),
-            generation_method=artifact.generation_method.value
-            if hasattr(artifact.generation_method, "value")
-            else artifact.generation_method,
+            generation_method=(
+                artifact.generation_method.value
+                if hasattr(artifact.generation_method, "value")
+                else artifact.generation_method
+            ),
             content_uri=artifact.content_uri,
             content_hash=artifact.content_hash,
             sbom_uri=artifact.sbom_uri,

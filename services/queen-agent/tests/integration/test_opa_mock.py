@@ -4,6 +4,7 @@ Testes de integração OPA com mocks (sem servidor real)
 Estes testes simulam as respostas do OPA para validar a lógica
 de integração sem depender de um servidor externo.
 """
+
 import pytest
 import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock, patch

@@ -1,4 +1,5 @@
 """Worker MCP Server - Tests configuration."""
+
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock

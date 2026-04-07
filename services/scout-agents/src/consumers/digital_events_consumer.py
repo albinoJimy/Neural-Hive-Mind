@@ -7,6 +7,7 @@ processa através do ExplorationEngine para detecção de sinais.
 Author: Neural-Hive-Mind
 Created: 2026-03-31 (CR-02)
 """
+
 import json
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Dict, Optional

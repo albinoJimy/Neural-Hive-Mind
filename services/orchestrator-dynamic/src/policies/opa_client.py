@@ -614,9 +614,9 @@ class OPAClient:
             "enabled": True,
             "state": self._circuit_state,
             "failure_count": self._circuit_failure_count,
-            "last_failure_time": self._last_failure_time.isoformat()
-            if self._last_failure_time
-            else None,
+            "last_failure_time": (
+                self._last_failure_time.isoformat() if self._last_failure_time else None
+            ),
         }
 
     def get_cache_stats(self) -> dict:

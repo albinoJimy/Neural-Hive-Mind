@@ -400,17 +400,19 @@ class RetrainingScheduler:
             "is_running": self.is_running,
             "retrain_interval_hours": self._retrain_interval_hours,
             "drift_check_interval_minutes": self._drift_check_interval_minutes,
-            "last_schedule_run": self._last_schedule_run.isoformat()
-            if self._last_schedule_run
-            else None,
-            "last_drift_check": self._last_drift_check.isoformat()
-            if self._last_drift_check
-            else None,
+            "last_schedule_run": (
+                self._last_schedule_run.isoformat() if self._last_schedule_run else None
+            ),
+            "last_drift_check": (
+                self._last_drift_check.isoformat() if self._last_drift_check else None
+            ),
             "next_schedule_run": (
-                self._last_schedule_run + timedelta(hours=self._retrain_interval_hours)
-            ).isoformat()
-            if self._last_schedule_run
-            else None,
+                (
+                    self._last_schedule_run + timedelta(hours=self._retrain_interval_hours)
+                ).isoformat()
+                if self._last_schedule_run
+                else None
+            ),
             "validation_results": self._validation_results,
         }
 

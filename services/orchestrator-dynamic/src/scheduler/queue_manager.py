@@ -223,9 +223,9 @@ class QueueManager:
             "queues": {
                 "CRITICAL": {
                     "size": sizes.get("CRITICAL", 0),
-                    "percentage": round(sizes.get("CRITICAL", 0) / total * 100, 1)
-                    if total > 0
-                    else 0,
+                    "percentage": (
+                        round(sizes.get("CRITICAL", 0) / total * 100, 1) if total > 0 else 0
+                    ),
                 },
                 "HIGH": {
                     "size": sizes.get("HIGH", 0),
@@ -233,9 +233,9 @@ class QueueManager:
                 },
                 "NORMAL": {
                     "size": sizes.get("NORMAL", 0),
-                    "percentage": round(sizes.get("NORMAL", 0) / total * 100, 1)
-                    if total > 0
-                    else 0,
+                    "percentage": (
+                        round(sizes.get("NORMAL", 0) / total * 100, 1) if total > 0 else 0
+                    ),
                 },
                 "LOW": {
                     "size": sizes.get("LOW", 0),

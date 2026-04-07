@@ -276,9 +276,11 @@ class WebhookHandler:
                     total_duration_ms=payload.duration_ms,
                     approval_required=False,
                     approval_reason=None,
-                    error_message=None
-                    if payload.status == "completed"
-                    else payload.metadata.get("error_message"),
+                    error_message=(
+                        None
+                        if payload.status == "completed"
+                        else payload.metadata.get("error_message")
+                    ),
                     git_mr_url=payload.metadata.get("git_mr_url"),
                     metadata={k: str(v) for k, v in payload.metadata.items()},
                     created_at=datetime.now(timezone.utc),

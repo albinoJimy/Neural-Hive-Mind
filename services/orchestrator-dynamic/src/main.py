@@ -5,6 +5,7 @@ Implementa FastAPI para API REST e gerencia lifecycle do Temporal Worker e Kafka
 NOTA: Monkey patch removido (commit anterior) pois neural_hive_integration v1.1.5
 já contém FIX 2a, 2b, 2c, 3 nativamente em flow_c_orchestrator.py.
 """
+
 import asyncio
 import os
 from contextlib import asynccontextmanager, suppress
@@ -1689,9 +1690,11 @@ async def opa_health_check():
             "resource_limits": config.opa_policy_resource_limits,
             "sla_enforcement": config.opa_policy_sla_enforcement,
             "feature_flags": config.opa_policy_feature_flags,
-            "security_constraints": config.opa_policy_security_constraints
-            if config.opa_security_enabled
-            else "disabled",
+            "security_constraints": (
+                config.opa_policy_security_constraints
+                if config.opa_security_enabled
+                else "disabled"
+            ),
         }
 
         return JSONResponse(
@@ -1831,9 +1834,9 @@ async def temporal_activities_health_check():
     status = "healthy" if not missing_activities else "degraded"
 
     return JSONResponse(
-        status_code=200
-        if status == "healthy"
-        else 200,  # 200 mesmo degraded para não bloquear readiness
+        status_code=(
+            200 if status == "healthy" else 200
+        ),  # 200 mesmo degraded para não bloquear readiness
         content={
             "status": status,
             "component": "temporal_activities",
@@ -2662,9 +2665,9 @@ async def list_ml_models(model_type: str | None = None):
                 "metrics": metadata.get("metrics", {}),
                 "last_updated": metadata.get("creation_timestamp"),
                 "model_type": metadata.get("model_type", "unknown"),
-                "integration_status": "loaded"
-                if _is_predictor_loaded(model_base_name)
-                else "unloaded",
+                "integration_status": (
+                    "loaded" if _is_predictor_loaded(model_base_name) else "unloaded"
+                ),
             }
             models.append(model_info)
 
@@ -2984,24 +2987,32 @@ async def get_workflow_status(workflow_id: str):
 
             status_data = {
                 "workflow_id": workflow_id,
-                "status": workflow_info.status.name
-                if hasattr(workflow_info, "status")
-                else "UNKNOWN",
-                "start_time": workflow_info.start_time.isoformat()
-                if hasattr(workflow_info, "start_time") and workflow_info.start_time
-                else None,
-                "close_time": workflow_info.close_time.isoformat()
-                if hasattr(workflow_info, "close_time") and workflow_info.close_time
-                else None,
-                "execution_time": workflow_info.execution_time.isoformat()
-                if hasattr(workflow_info, "execution_time") and workflow_info.execution_time
-                else None,
-                "workflow_type": workflow_info.type.name
-                if hasattr(workflow_info, "type") and workflow_info.type
-                else None,
-                "task_queue": workflow_info.task_queue
-                if hasattr(workflow_info, "task_queue")
-                else None,
+                "status": (
+                    workflow_info.status.name if hasattr(workflow_info, "status") else "UNKNOWN"
+                ),
+                "start_time": (
+                    workflow_info.start_time.isoformat()
+                    if hasattr(workflow_info, "start_time") and workflow_info.start_time
+                    else None
+                ),
+                "close_time": (
+                    workflow_info.close_time.isoformat()
+                    if hasattr(workflow_info, "close_time") and workflow_info.close_time
+                    else None
+                ),
+                "execution_time": (
+                    workflow_info.execution_time.isoformat()
+                    if hasattr(workflow_info, "execution_time") and workflow_info.execution_time
+                    else None
+                ),
+                "workflow_type": (
+                    workflow_info.type.name
+                    if hasattr(workflow_info, "type") and workflow_info.type
+                    else None
+                ),
+                "task_queue": (
+                    workflow_info.task_queue if hasattr(workflow_info, "task_queue") else None
+                ),
                 "cached": False,
             }
 
@@ -3011,12 +3022,14 @@ async def get_workflow_status(workflow_id: str):
                     result = await handle.result()
                     if result:
                         status_data["result_summary"] = {
-                            "status": result.get("status")
-                            if isinstance(result, dict)
-                            else "completed",
-                            "tickets_generated": result.get("metrics", {}).get("total_tickets")
-                            if isinstance(result, dict)
-                            else None,
+                            "status": (
+                                result.get("status") if isinstance(result, dict) else "completed"
+                            ),
+                            "tickets_generated": (
+                                result.get("metrics", {}).get("total_tickets")
+                                if isinstance(result, dict)
+                                else None
+                            ),
                         }
                 except Exception as e:
                     logger.warning(

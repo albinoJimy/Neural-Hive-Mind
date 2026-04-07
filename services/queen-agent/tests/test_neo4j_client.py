@@ -1,6 +1,7 @@
 """
 Testes para Neo4jClient - foco em list_active_conflicts
 """
+
 import pytest
 import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -102,7 +103,7 @@ async def test_list_active_conflicts_partial_data(neo4j_client):
         },
         {
             "decision_id": "dec-002",
-            "conflicts_with": "dec-003"
+            "conflicts_with": "dec-003",
             # created_at está faltando
         },
     ]

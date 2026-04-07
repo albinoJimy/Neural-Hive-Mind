@@ -1,4 +1,5 @@
 """Analyzer para código Python."""
+
 import ast
 import logging
 from typing import Any

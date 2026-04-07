@@ -1,4 +1,5 @@
 """Service Registry client for Analyst Agents - uses canonical client from neural_hive_integration"""
+
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 

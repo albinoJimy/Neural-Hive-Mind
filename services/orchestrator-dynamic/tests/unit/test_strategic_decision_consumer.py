@@ -4,6 +4,7 @@ Unit tests para StrategicDecisionConsumer.
 Testa o consumer que processa strategic.decisions do Queen Agent,
 atualizando workflows e persistindo decisões para histórico.
 """
+
 import pytest
 import json
 import asyncio

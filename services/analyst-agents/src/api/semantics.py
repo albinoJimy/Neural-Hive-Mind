@@ -148,9 +148,9 @@ async def find_outliers(request: OutlierRequest, app_request: Request):
             "outliers": outliers,
             "total_texts": len(request.texts),
             "total_outliers": len(outliers),
-            "outlier_percentage": (len(outliers) / len(request.texts) * 100)
-            if request.texts
-            else 0,
+            "outlier_percentage": (
+                (len(outliers) / len(request.texts) * 100) if request.texts else 0
+            ),
         }
 
     except Exception as e:

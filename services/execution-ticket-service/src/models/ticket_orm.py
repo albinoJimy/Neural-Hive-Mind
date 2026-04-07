@@ -9,6 +9,7 @@ Imports:
     - ExecutionTicket, SLA, QoS: importados via importação relativa do __init__.py
       que carrega dinamicamente os modelos Pydantic compartilhados do orchestrator-dynamic
 """
+
 from datetime import datetime
 
 from sqlalchemy import TIMESTAMP, BigInteger, CheckConstraint, Column, Index, Integer, String, Text

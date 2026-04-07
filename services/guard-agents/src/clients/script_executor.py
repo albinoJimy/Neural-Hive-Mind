@@ -1,4 +1,5 @@
 """Script executor for running remediation scripts via Kubernetes Jobs"""
+
 import asyncio
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
@@ -381,9 +382,9 @@ class ScriptExecutor:
                 "succeeded": status.succeeded or 0,
                 "failed": status.failed or 0,
                 "start_time": status.start_time.isoformat() if status.start_time else None,
-                "completion_time": status.completion_time.isoformat()
-                if status.completion_time
-                else None,
+                "completion_time": (
+                    status.completion_time.isoformat() if status.completion_time else None
+                ),
             }
 
         except ApiException as e:

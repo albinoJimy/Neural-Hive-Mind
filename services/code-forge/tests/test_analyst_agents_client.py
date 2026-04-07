@@ -1,4 +1,5 @@
 """Testes unitários para AnalystAgentsClient"""
+
 import pytest
 from unittest.mock import AsyncMock, patch
 import httpx

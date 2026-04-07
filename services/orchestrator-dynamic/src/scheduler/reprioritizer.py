@@ -4,6 +4,7 @@ RePrioritizer - Reavaliação dinâmica de prioridade de tickets.
 Monitora tickets enfileirados e ajusta prioridade com base em mudanças
 de contexto (SLA, risk band, eventos externos).
 """
+
 from typing import Any
 
 import structlog

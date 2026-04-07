@@ -506,9 +506,11 @@ class LCOVParser:
                             "functions_hit": file_functions_hit,
                             "branches_found": file_branches_found,
                             "branches_hit": file_branches_hit,
-                            "line_rate": (file_lines_hit / file_lines_found * 100)
-                            if file_lines_found > 0
-                            else 0,
+                            "line_rate": (
+                                (file_lines_hit / file_lines_found * 100)
+                                if file_lines_found > 0
+                                else 0
+                            ),
                         }
                     )
                 current_file = line[3:]
@@ -579,9 +581,11 @@ class LCOVParser:
                             "functions_hit": file_functions_hit,
                             "branches_found": file_branches_found,
                             "branches_hit": file_branches_hit,
-                            "line_rate": (file_lines_hit / file_lines_found * 100)
-                            if file_lines_found > 0
-                            else 0,
+                            "line_rate": (
+                                (file_lines_hit / file_lines_found * 100)
+                                if file_lines_found > 0
+                                else 0
+                            ),
                         }
                     )
                     current_file = None

@@ -10,6 +10,7 @@ Eventos processados:
   - sla.risk_band_changed: Mudança de risk_band
   - sla.deadline_approaching: Deadline próximo
 """
+
 import contextlib
 import json
 from typing import Any

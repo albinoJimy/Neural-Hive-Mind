@@ -1,4 +1,5 @@
 """Message handler service for processing Kafka events"""
+
 import json
 from typing import TYPE_CHECKING
 

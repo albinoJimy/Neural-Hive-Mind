@@ -4,6 +4,7 @@ TypeScript Parser - Análise de código TypeScript.
 Usa esprima para parsing de JavaScript/TypeScript.
 Versão simplificada com regex patterns mais diretos.
 """
+
 import re
 from typing import Any, Dict, List, Optional
 

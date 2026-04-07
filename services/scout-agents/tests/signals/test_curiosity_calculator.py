@@ -2,6 +2,7 @@
 Testes para CuriosityCalculator.
 Calcula score de curiosidade para decidir áreas interessantes para exploração.
 """
+
 import pytest
 from src.signals.curiosity_calculator import CuriosityCalculator
 from src.exploration.codebase_explorer import CodebaseExplorer

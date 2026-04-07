@@ -194,9 +194,9 @@ class ExplainabilityGenerator:
                             "risk_score": evaluation_result.get("risk_score", 0.0),
                         },
                         "computation_time_ms": int((time.time() - start_time) * 1000),
-                        "background_dataset_hash": self._get_background_dataset_hash()
-                        if method == "shap"
-                        else None,
+                        "background_dataset_hash": (
+                            self._get_background_dataset_hash() if method == "shap" else None
+                        ),
                         "random_seed": None,
                         "num_samples": self.config.lime_num_samples if method == "lime" else None,
                     }
@@ -593,18 +593,20 @@ class ExplainabilityGenerator:
                 for col in sorted_columns:
                     col_stats = {
                         "count": int(df[col].count()),
-                        "mean": float(df[col].mean())
-                        if pd.api.types.is_numeric_dtype(df[col])
-                        else None,
-                        "std": float(df[col].std())
-                        if pd.api.types.is_numeric_dtype(df[col])
-                        else None,
-                        "min": float(df[col].min())
-                        if pd.api.types.is_numeric_dtype(df[col])
-                        else None,
-                        "max": float(df[col].max())
-                        if pd.api.types.is_numeric_dtype(df[col])
-                        else None,
+                        "mean": (
+                            float(df[col].mean())
+                            if pd.api.types.is_numeric_dtype(df[col])
+                            else None
+                        ),
+                        "std": (
+                            float(df[col].std()) if pd.api.types.is_numeric_dtype(df[col]) else None
+                        ),
+                        "min": (
+                            float(df[col].min()) if pd.api.types.is_numeric_dtype(df[col]) else None
+                        ),
+                        "max": (
+                            float(df[col].max()) if pd.api.types.is_numeric_dtype(df[col]) else None
+                        ),
                     }
                     # Remover None values para JSON estável
                     stats[col] = {k: v for k, v in col_stats.items() if v is not None}

@@ -392,9 +392,11 @@ class CheckovClient:
                 category=check.get("check_class", ""),
                 resource=check.get("resource", ""),
                 file_path=check.get("file_path", ""),
-                file_line_range=tuple(check.get("file_line_range", [0, 0]))
-                if "file_line_range" in check
-                else None,
+                file_line_range=(
+                    tuple(check.get("file_line_range", [0, 0]))
+                    if "file_line_range" in check
+                    else None
+                ),
                 description=check.get("check", {}).get("name", ""),
                 pass_or_fail="fail",
                 code=check.get("code", ""),

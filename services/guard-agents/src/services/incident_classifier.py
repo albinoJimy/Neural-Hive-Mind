@@ -1,4 +1,5 @@
 """Incident classification service for severity assessment (Fluxo E2)"""
+
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional

@@ -7,7 +7,6 @@ Suporta avaliação multi-domínio (BUSINESS, SECURITY, OPERATIONAL) com
 integração de detecção de operações destrutivas.
 """
 
-
 import structlog
 from src.config.settings import Settings
 from src.models.cognitive_plan import RiskBand, TaskNode

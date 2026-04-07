@@ -3,6 +3,7 @@ Testes unitários abrangentes para SignalDetector.
 
 Cobertura: detecção de sinais, tipos de sinal, confiança, risco, geolocalização.
 """
+
 import pytest
 import numpy as np
 from datetime import datetime, timezone

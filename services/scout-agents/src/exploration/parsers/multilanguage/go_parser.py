@@ -3,6 +3,7 @@ Go AST Parser usando tree-sitter.
 
 Suporta parsing de código Go com fallback regex.
 """
+
 import logging
 from typing import Any, Dict, List, Optional
 

@@ -1,4 +1,5 @@
 """Service Registry gRPC client for Guard Agents com suporte a mTLS via SPIFFE."""
+
 import asyncio
 import time
 from typing import List, Optional, Tuple

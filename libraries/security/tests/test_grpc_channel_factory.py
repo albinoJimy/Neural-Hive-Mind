@@ -8,6 +8,7 @@ Cobertura:
 - Reuso de SPIFFEManager existente
 - Propagacao de erros de fetch JWT em prod/staging
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 import grpc

@@ -1,6 +1,7 @@
 """
 Interceptor gRPC para autenticação JWT.
 """
+
 import grpc
 import jwt
 import structlog

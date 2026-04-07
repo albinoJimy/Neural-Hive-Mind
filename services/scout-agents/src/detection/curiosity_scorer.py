@@ -1,4 +1,5 @@
 """Adaptive curiosity scorer for signal prioritization"""
+
 from typing import Dict, List
 
 import numpy as np

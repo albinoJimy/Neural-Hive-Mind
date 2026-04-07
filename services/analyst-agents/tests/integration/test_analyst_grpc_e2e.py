@@ -4,6 +4,7 @@ Estes testes iniciam o AnalystGRPCServer real e exercitam os endpoints gRPC
 usando stubs sobre um canal gRPC. Requerem MongoDB e Redis (e opcionalmente Neo4j)
 disponiveis para execucao completa.
 """
+
 import pytest
 import asyncio
 import socket

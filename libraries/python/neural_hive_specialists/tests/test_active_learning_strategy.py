@@ -204,7 +204,7 @@ class TestActiveLearningStrategy:
             "class_distribution": {"approve": 0.5, "reject": 0.5},
             "domain_distribution": {
                 "technical": 0.5,
-                "business": 0.5
+                "business": 0.5,
                 # unknown_domain não está presente
             },
         }

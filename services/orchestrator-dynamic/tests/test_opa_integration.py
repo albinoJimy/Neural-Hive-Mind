@@ -1,6 +1,7 @@
 """
 Testes de integração para validação OPA no orchestrator-dynamic.
 """
+
 import pytest
 import pytest_asyncio
 import asyncio

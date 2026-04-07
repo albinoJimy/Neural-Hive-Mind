@@ -540,9 +540,7 @@ require github.com/gin-gonic/gin v1.9.1
             status_color = (
                 Colors.GREEN
                 if result.passed
-                else Colors.RED
-                if not result.skipped
-                else Colors.YELLOW
+                else Colors.RED if not result.skipped else Colors.YELLOW
             )
             status = "PASS" if result.passed else "SKIP" if result.skipped else "FAIL"
             print(f"{status_color}{status}{Colors.END} | {result.tc_id} | {result.name}")

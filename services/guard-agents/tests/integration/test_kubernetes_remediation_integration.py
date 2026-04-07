@@ -3,6 +3,7 @@ Testes de integracao para operacoes de remediacao Kubernetes
 
 Testa operacoes de restart de pods, scaling, rollback e NetworkPolicies
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from kubernetes.client.rest import ApiException

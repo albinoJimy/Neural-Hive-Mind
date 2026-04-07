@@ -1,6 +1,7 @@
 """
 Métricas Prometheus customizadas para o Orchestrator Dynamic.
 """
+
 from functools import lru_cache
 from typing import Any
 

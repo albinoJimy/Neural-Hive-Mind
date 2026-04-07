@@ -2,6 +2,7 @@
 Testes para GoParser.
 Parsing de Go para análise estática.
 """
+
 import pytest
 
 from src.exploration.parsers.multilanguage.go_parser import GoParser

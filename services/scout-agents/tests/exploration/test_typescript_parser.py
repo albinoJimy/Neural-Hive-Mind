@@ -2,6 +2,7 @@
 Testes para TypeScriptParser.
 Parsing de TypeScript para análise estática.
 """
+
 import pytest
 
 from src.exploration.parsers.typescript_parser import TypeScriptParser

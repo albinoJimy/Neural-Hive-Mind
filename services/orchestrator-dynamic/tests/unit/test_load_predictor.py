@@ -1,6 +1,7 @@
 """
 Testes unitários para LoadPredictor (preditor local de carga e queue time).
 """
+
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, timedelta

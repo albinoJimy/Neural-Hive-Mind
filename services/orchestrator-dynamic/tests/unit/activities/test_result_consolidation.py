@@ -10,6 +10,7 @@ Testes cobrem:
 - trigger_self_healing com diferentes tipos de incidentes
 - publish_telemetry e buffer_telemetry (fail-open)
 """
+
 import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch

@@ -798,9 +798,11 @@ class ExecutionEngine:
                 await self.ticket_client.update_ticket_status(
                     ticket_id,
                     status,
-                    error_message=f"Task {reason}: preempted by {preempted_by}"
-                    if preempted_by
-                    else f"Task {reason}",
+                    error_message=(
+                        f"Task {reason}: preempted by {preempted_by}"
+                        if preempted_by
+                        else f"Task {reason}"
+                    ),
                 )
             except Exception as status_error:
                 self.logger.exception(

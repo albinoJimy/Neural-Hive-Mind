@@ -99,9 +99,10 @@ async def test_server_creates_mtls_credentials(mock_spiffe_manager, mock_setting
     """Testa que servidor cria credenciais mTLS corretamente"""
     from src.main import ServiceRegistryServer
 
-    with patch("src.main.get_settings") as mock_get_settings, patch(
-        "grpc.ssl_server_credentials"
-    ) as mock_ssl_server_creds:
+    with (
+        patch("src.main.get_settings") as mock_get_settings,
+        patch("grpc.ssl_server_credentials") as mock_ssl_server_creds,
+    ):
         mock_get_settings.return_value = mock_settings
 
         mock_credentials = MagicMock()
@@ -222,9 +223,10 @@ async def test_server_logs_mtls_configuration(mock_spiffe_manager, mock_settings
     """Testa que servidor loga configuracao mTLS"""
     from src.main import ServiceRegistryServer
 
-    with patch("src.main.get_settings") as mock_get_settings, patch(
-        "grpc.ssl_server_credentials"
-    ) as mock_ssl_server_creds:
+    with (
+        patch("src.main.get_settings") as mock_get_settings,
+        patch("grpc.ssl_server_credentials") as mock_ssl_server_creds,
+    ):
         mock_get_settings.return_value = mock_settings
 
         mock_credentials = MagicMock()
@@ -253,9 +255,10 @@ async def test_server_certificate_expiry_info(mock_spiffe_manager, mock_settings
         expires_at=expires_at,
     )
 
-    with patch("src.main.get_settings") as mock_get_settings, patch(
-        "grpc.ssl_server_credentials"
-    ) as mock_ssl_server_creds:
+    with (
+        patch("src.main.get_settings") as mock_get_settings,
+        patch("grpc.ssl_server_credentials") as mock_ssl_server_creds,
+    ):
         mock_get_settings.return_value = mock_settings
 
         mock_credentials = MagicMock()

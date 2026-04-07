@@ -263,12 +263,16 @@ class ServiceRegistryClient:
                     "worker": service_registry_pb2.WORKER,
                     "scout": service_registry_pb2.SCOUT,
                     "guard": service_registry_pb2.GUARD,
-                    "analyst": service_registry_pb2.ANALYST
-                    if hasattr(service_registry_pb2, "ANALYST")
-                    else service_registry_pb2.WORKER,
-                    "specialist": service_registry_pb2.SPECIALIST
-                    if hasattr(service_registry_pb2, "SPECIALIST")
-                    else service_registry_pb2.WORKER,
+                    "analyst": (
+                        service_registry_pb2.ANALYST
+                        if hasattr(service_registry_pb2, "ANALYST")
+                        else service_registry_pb2.WORKER
+                    ),
+                    "specialist": (
+                        service_registry_pb2.SPECIALIST
+                        if hasattr(service_registry_pb2, "SPECIALIST")
+                        else service_registry_pb2.WORKER
+                    ),
                 }
                 agent_type_enum = agent_type_map.get(
                     agent_info.agent_type.lower(), service_registry_pb2.AGENT_TYPE_UNSPECIFIED

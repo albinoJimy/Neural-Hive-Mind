@@ -1,6 +1,7 @@
 """
 Activities Temporal para consolidação de resultados (Etapa C5).
 """
+
 import hashlib
 import json
 from datetime import datetime, timezone
@@ -587,9 +588,11 @@ async def consolidate_results(tickets: list[dict[str, Any]], workflow_id: str) -
                                     "sla_deadline": sla.get("deadline"),
                                     "actual_completion": actual_completion,
                                     "delay_ms": actual_duration_ms - timeout_ms,
-                                    "budget_remaining": budget_data.get("error_budget_remaining", 0)
-                                    if budget_data
-                                    else 0,
+                                    "budget_remaining": (
+                                        budget_data.get("error_budget_remaining", 0)
+                                        if budget_data
+                                        else 0
+                                    ),
                                     "severity": "CRITICAL",
                                     "metadata": {
                                         "status": ticket.get("status"),

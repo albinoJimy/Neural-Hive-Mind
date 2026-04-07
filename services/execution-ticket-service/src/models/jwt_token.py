@@ -1,6 +1,7 @@
 """
 Modelos Pydantic e funções para geração/validação de tokens JWT.
 """
+
 import time
 import uuid
 from typing import List

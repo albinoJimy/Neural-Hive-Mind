@@ -1,6 +1,7 @@
 """
 Criptografia de campos sensíveis usando Fernet (AES-128).
 """
+
 import os
 import structlog
 from typing import Dict, Any, Optional
@@ -47,9 +48,9 @@ class FieldEncryptor:
             logger.info(
                 "FieldEncryptor inicializado com sucesso",
                 algorithm=config.encryption_algorithm,
-                key_path=config.encryption_key_path
-                if config.encryption_key_path
-                else "auto-generated",
+                key_path=(
+                    config.encryption_key_path if config.encryption_key_path else "auto-generated"
+                ),
             )
 
         except Exception as e:

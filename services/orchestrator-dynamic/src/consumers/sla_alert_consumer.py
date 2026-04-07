@@ -4,6 +4,7 @@ Consumer Kafka para alertas SLA - Envia notificações para Slack/PagerDuty.
 Este consumer consome alertas vindos do sla-management-system e despacha
 notificações externas via Slack e PagerDuty.
 """
+
 import json
 import time
 from typing import Any

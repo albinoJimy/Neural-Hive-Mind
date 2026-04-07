@@ -1,4 +1,5 @@
 """Testes para o playbook de recuperação de conexão de base de dados - TDD Approach."""
+
 import pytest
 import yaml
 from pathlib import Path

@@ -11,6 +11,7 @@ Cobre:
 - Rollback de ajuste de SLO
 - Tratamento de erros
 """
+
 import pytest
 from unittest.mock import AsyncMock, Mock
 from datetime import datetime

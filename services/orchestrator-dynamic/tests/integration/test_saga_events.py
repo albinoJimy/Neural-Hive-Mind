@@ -1,4 +1,5 @@
 """Testes de integração para Saga Producer e Metrics."""
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timezone

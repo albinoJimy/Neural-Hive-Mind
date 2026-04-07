@@ -4,6 +4,7 @@ Unit tests para OptimizationFeedbackConsumer.
 Testa o consumer que processa optimization.applied do Optimizer Agents,
 implementando feedback loop para ajuste de estratégias de otimização.
 """
+
 import pytest
 import json
 import asyncio

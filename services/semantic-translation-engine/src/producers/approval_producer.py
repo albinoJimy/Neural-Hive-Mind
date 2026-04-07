@@ -92,9 +92,11 @@ class KafkaApprovalProducer:
         else:
             logger.warning(
                 "Schema Registry desabilitado para approval producer - usando JSON",
-                environment=self.settings.environment
-                if hasattr(self.settings, "environment")
-                else "unknown",
+                environment=(
+                    self.settings.environment
+                    if hasattr(self.settings, "environment")
+                    else "unknown"
+                ),
             )
 
         # Initialize transactions

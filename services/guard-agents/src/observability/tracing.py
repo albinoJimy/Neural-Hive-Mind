@@ -1,4 +1,5 @@
 """Helpers de tracing OpenTelemetry para Guard Agents"""
+
 from functools import wraps
 from typing import Callable
 

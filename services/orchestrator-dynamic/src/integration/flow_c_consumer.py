@@ -728,7 +728,7 @@ class FlowCApprovalResponseConsumer:
             self.logger.exception(
                 "approval_response_processing_error",
                 error=str(e),
-                plan_id=approval_response.get("plan_id")
-                if "approval_response" in locals()
-                else None,
+                plan_id=(
+                    approval_response.get("plan_id") if "approval_response" in locals() else None
+                ),
             )

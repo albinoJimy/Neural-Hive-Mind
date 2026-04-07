@@ -1,4 +1,5 @@
 """Orquestrador de incidentes que coordena todo o fluxo E1-E6"""
+
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 

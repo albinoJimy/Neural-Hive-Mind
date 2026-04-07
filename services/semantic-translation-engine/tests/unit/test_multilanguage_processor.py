@@ -3,6 +3,7 @@ Testes para Multi-Language Processor
 
 Testa detecção de idioma e tradução de intenções.
 """
+
 import pytest
 
 from src.services.multilanguage_processor import (

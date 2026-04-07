@@ -19,8 +19,9 @@ class TestMLflowClient:
     def mlflow_client(self, mock_config):
         """Cria cliente MLflow para testes."""
         # Patch MLflowClient para evitar conexão real
-        with patch("neural_hive_specialists.mlflow_client.mlflow"), patch(
-            "neural_hive_specialists.mlflow_client.MLflowTrackingClient"
+        with (
+            patch("neural_hive_specialists.mlflow_client.mlflow"),
+            patch("neural_hive_specialists.mlflow_client.MLflowTrackingClient"),
         ):
             client = MLflowClient(mock_config)
             # Desabilitar explicitamente para evitar tentativas de conexão
@@ -113,8 +114,9 @@ class TestLoadModel:
     @pytest.fixture
     def mlflow_client(self, mock_config):
         """Cria cliente MLflow para testes."""
-        with patch("neural_hive_specialists.mlflow_client.mlflow"), patch(
-            "neural_hive_specialists.mlflow_client.MLflowTrackingClient"
+        with (
+            patch("neural_hive_specialists.mlflow_client.mlflow"),
+            patch("neural_hive_specialists.mlflow_client.MLflowTrackingClient"),
         ):
             client = MLflowClient(mock_config)
             client._enabled = False
@@ -219,8 +221,9 @@ class TestLoadModelWithFallback:
     @pytest.fixture
     def mlflow_client(self, mock_config, mock_metrics):
         """Cria cliente MLflow com métricas para testes."""
-        with patch("neural_hive_specialists.mlflow_client.mlflow"), patch(
-            "neural_hive_specialists.mlflow_client.MLflowTrackingClient"
+        with (
+            patch("neural_hive_specialists.mlflow_client.mlflow"),
+            patch("neural_hive_specialists.mlflow_client.MLflowTrackingClient"),
         ):
             client = MLflowClient(mock_config, metrics=mock_metrics)
             client._enabled = False
@@ -295,8 +298,9 @@ class TestCircuitBreaker:
         mock_config.circuit_breaker_failure_threshold = 2
         mock_config.circuit_breaker_recovery_timeout = 1
 
-        with patch("neural_hive_specialists.mlflow_client.mlflow"), patch(
-            "neural_hive_specialists.mlflow_client.MLflowTrackingClient"
+        with (
+            patch("neural_hive_specialists.mlflow_client.mlflow"),
+            patch("neural_hive_specialists.mlflow_client.MLflowTrackingClient"),
         ):
             client = MLflowClient(mock_config, metrics=mock_metrics)
             client._enabled = False
@@ -326,8 +330,9 @@ class TestCacheManagement:
     @pytest.fixture
     def mlflow_client(self, mock_config):
         """Cria cliente para testes de cache."""
-        with patch("neural_hive_specialists.mlflow_client.mlflow"), patch(
-            "neural_hive_specialists.mlflow_client.MLflowTrackingClient"
+        with (
+            patch("neural_hive_specialists.mlflow_client.mlflow"),
+            patch("neural_hive_specialists.mlflow_client.MLflowTrackingClient"),
         ):
             client = MLflowClient(mock_config)
             client._enabled = False
@@ -378,8 +383,9 @@ class TestGetModelMetadata:
     @pytest.fixture
     def mlflow_client(self, mock_config):
         """Cria cliente MLflow para testes."""
-        with patch("neural_hive_specialists.mlflow_client.mlflow"), patch(
-            "neural_hive_specialists.mlflow_client.MLflowTrackingClient"
+        with (
+            patch("neural_hive_specialists.mlflow_client.mlflow"),
+            patch("neural_hive_specialists.mlflow_client.MLflowTrackingClient"),
         ):
             client = MLflowClient(mock_config)
             client._enabled = False
@@ -444,8 +450,9 @@ class TestIsConnected:
     @pytest.fixture
     def mlflow_client(self, mock_config):
         """Cria cliente MLflow para testes."""
-        with patch("neural_hive_specialists.mlflow_client.mlflow"), patch(
-            "neural_hive_specialists.mlflow_client.MLflowTrackingClient"
+        with (
+            patch("neural_hive_specialists.mlflow_client.mlflow"),
+            patch("neural_hive_specialists.mlflow_client.MLflowTrackingClient"),
         ):
             client = MLflowClient(mock_config)
             client._enabled = False

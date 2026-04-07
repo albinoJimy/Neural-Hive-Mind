@@ -1,6 +1,7 @@
 """
 Configuração pytest para testes do Queen Agent
 """
+
 import sys
 import pytest
 import pytest_asyncio

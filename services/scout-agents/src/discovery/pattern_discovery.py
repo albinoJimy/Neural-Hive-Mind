@@ -669,9 +669,9 @@ class PatternDiscovery:
             "pattern": pattern_name,
             "count": len(occurrences),
             "locations": occurrences,
-            "average_confidence": round(total_confidence / len(occurrences), 2)
-            if occurrences
-            else 0.0,
+            "average_confidence": (
+                round(total_confidence / len(occurrences), 2) if occurrences else 0.0
+            ),
         }
 
     def calculate_pattern_confidence(self, files: Dict[str, str], pattern_name: str) -> float:

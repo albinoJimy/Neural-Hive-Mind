@@ -1,4 +1,5 @@
 """Scout Signal data model based on Avro schema"""
+
 import uuid
 from datetime import datetime, timedelta, timezone
 from enum import Enum

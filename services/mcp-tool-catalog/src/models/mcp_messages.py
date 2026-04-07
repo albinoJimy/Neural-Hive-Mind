@@ -1,4 +1,5 @@
 """Modelos Pydantic para mensagens JSON-RPC 2.0 e protocolo MCP."""
+
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field, field_validator

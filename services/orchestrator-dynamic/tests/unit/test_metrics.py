@@ -3,6 +3,7 @@ Testes unitários para métricas do Orchestrator Dynamic.
 
 Testa os métodos de registro de métricas de compensação e segurança.
 """
+
 import pytest
 from unittest.mock import MagicMock, patch, call
 
@@ -12,9 +13,11 @@ class TestCompensationMetrics:
 
     def test_record_compensation_duration(self):
         """Testa registro de duração de compensação."""
-        with patch("observability.metrics.Histogram") as mock_histogram, patch(
-            "observability.metrics.Counter"
-        ), patch("observability.metrics.Gauge"):
+        with (
+            patch("observability.metrics.Histogram") as mock_histogram,
+            patch("observability.metrics.Counter"),
+            patch("observability.metrics.Gauge"),
+        ):
             from observability.metrics import OrchestratorMetrics
 
             metrics = OrchestratorMetrics(service_name="test", component="test")
@@ -36,9 +39,11 @@ class TestCompensationMetrics:
 
     def test_record_compensation_duration_failed(self):
         """Testa registro de compensação que falhou."""
-        with patch("observability.metrics.Histogram") as mock_histogram, patch(
-            "observability.metrics.Counter"
-        ), patch("observability.metrics.Gauge"):
+        with (
+            patch("observability.metrics.Histogram") as mock_histogram,
+            patch("observability.metrics.Counter"),
+            patch("observability.metrics.Gauge"),
+        ):
             from observability.metrics import OrchestratorMetrics
 
             metrics = OrchestratorMetrics(service_name="test", component="test")
@@ -61,9 +66,11 @@ class TestSecurityMetrics:
 
     def test_record_jwt_validation_failure(self):
         """Testa registro de falha de validação JWT."""
-        with patch("observability.metrics.Histogram"), patch(
-            "observability.metrics.Counter"
-        ), patch("observability.metrics.Gauge"):
+        with (
+            patch("observability.metrics.Histogram"),
+            patch("observability.metrics.Counter"),
+            patch("observability.metrics.Gauge"),
+        ):
             from observability.metrics import OrchestratorMetrics
 
             metrics = OrchestratorMetrics(service_name="test", component="test")
@@ -80,9 +87,11 @@ class TestSecurityMetrics:
 
     def test_record_jwt_validation_failure_invalid_signature(self):
         """Testa registro de JWT com assinatura inválida."""
-        with patch("observability.metrics.Histogram"), patch(
-            "observability.metrics.Counter"
-        ), patch("observability.metrics.Gauge"):
+        with (
+            patch("observability.metrics.Histogram"),
+            patch("observability.metrics.Counter"),
+            patch("observability.metrics.Gauge"),
+        ):
             from observability.metrics import OrchestratorMetrics
 
             metrics = OrchestratorMetrics(service_name="test", component="test")
@@ -101,9 +110,11 @@ class TestSecurityMetrics:
 
     def test_record_mtls_handshake_failure(self):
         """Testa registro de falha de handshake mTLS."""
-        with patch("observability.metrics.Histogram"), patch(
-            "observability.metrics.Counter"
-        ), patch("observability.metrics.Gauge"):
+        with (
+            patch("observability.metrics.Histogram"),
+            patch("observability.metrics.Counter"),
+            patch("observability.metrics.Gauge"),
+        ):
             from observability.metrics import OrchestratorMetrics
 
             metrics = OrchestratorMetrics(service_name="test", component="test")
@@ -120,9 +131,11 @@ class TestSecurityMetrics:
 
     def test_record_mtls_handshake_failure_expired_cert(self):
         """Testa registro de mTLS com certificado expirado."""
-        with patch("observability.metrics.Histogram"), patch(
-            "observability.metrics.Counter"
-        ), patch("observability.metrics.Gauge"):
+        with (
+            patch("observability.metrics.Histogram"),
+            patch("observability.metrics.Counter"),
+            patch("observability.metrics.Gauge"),
+        ):
             from observability.metrics import OrchestratorMetrics
 
             metrics = OrchestratorMetrics(service_name="test", component="test")
@@ -141,9 +154,11 @@ class TestSecurityMetrics:
 
     def test_record_mtls_handshake_failure_ca_mismatch(self):
         """Testa registro de mTLS com CA não confiável."""
-        with patch("observability.metrics.Histogram"), patch(
-            "observability.metrics.Counter"
-        ), patch("observability.metrics.Gauge"):
+        with (
+            patch("observability.metrics.Histogram"),
+            patch("observability.metrics.Counter"),
+            patch("observability.metrics.Gauge"),
+        ):
             from observability.metrics import OrchestratorMetrics
 
             metrics = OrchestratorMetrics(service_name="test", component="test")
@@ -164,9 +179,11 @@ class TestMetricsInitialization:
 
     def test_compensation_duration_histogram_initialized(self):
         """Verifica que histogram de compensação foi inicializado."""
-        with patch("observability.metrics.Histogram") as mock_histogram, patch(
-            "observability.metrics.Counter"
-        ), patch("observability.metrics.Gauge"):
+        with (
+            patch("observability.metrics.Histogram") as mock_histogram,
+            patch("observability.metrics.Counter"),
+            patch("observability.metrics.Gauge"),
+        ):
             from observability.metrics import OrchestratorMetrics
 
             metrics = OrchestratorMetrics(service_name="test", component="test")
@@ -181,9 +198,11 @@ class TestMetricsInitialization:
 
     def test_jwt_failures_counter_initialized(self):
         """Verifica que counter de JWT foi inicializado."""
-        with patch("observability.metrics.Histogram"), patch(
-            "observability.metrics.Counter"
-        ) as mock_counter, patch("observability.metrics.Gauge"):
+        with (
+            patch("observability.metrics.Histogram"),
+            patch("observability.metrics.Counter") as mock_counter,
+            patch("observability.metrics.Gauge"),
+        ):
             from observability.metrics import OrchestratorMetrics
 
             metrics = OrchestratorMetrics(service_name="test", component="test")
@@ -197,9 +216,11 @@ class TestMetricsInitialization:
 
     def test_mtls_failures_counter_initialized(self):
         """Verifica que counter de mTLS foi inicializado."""
-        with patch("observability.metrics.Histogram"), patch(
-            "observability.metrics.Counter"
-        ) as mock_counter, patch("observability.metrics.Gauge"):
+        with (
+            patch("observability.metrics.Histogram"),
+            patch("observability.metrics.Counter") as mock_counter,
+            patch("observability.metrics.Gauge"),
+        ):
             from observability.metrics import OrchestratorMetrics
 
             metrics = OrchestratorMetrics(service_name="test", component="test")

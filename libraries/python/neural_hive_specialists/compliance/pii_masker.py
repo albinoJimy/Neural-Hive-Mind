@@ -3,6 +3,7 @@ PII Masker - Mascaramento parcial de informações sensíveis.
 
 Aplica mascaramento parcial baseado em regras por tipo de PII.
 """
+
 import re
 import hashlib
 from typing import Dict, List, Tuple, Optional

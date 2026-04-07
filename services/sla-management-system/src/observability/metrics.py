@@ -2,7 +2,6 @@
 Métricas Prometheus para SLA Management System.
 """
 
-
 from prometheus_client import Counter, Gauge, Histogram
 
 from ..models.error_budget import ErrorBudget

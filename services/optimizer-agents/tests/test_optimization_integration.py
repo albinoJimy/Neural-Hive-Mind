@@ -1,4 +1,5 @@
 """Testes de integração para otimizações multi-database."""
+
 import pytest
 import asyncio
 from datetime import datetime

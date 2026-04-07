@@ -3,6 +3,7 @@ Testes de API REST para Leader Election
 
 Testa endpoints de consulta de estado da eleição.
 """
+
 import pytest
 from httpx import AsyncClient
 from unittest.mock import AsyncMock, MagicMock

@@ -165,9 +165,9 @@ def main() -> int:
         result = asyncio.run(
             training_pipeline.run_training_cycle(
                 window_days=config.ml_training_window_days,
-                backfill_errors=config.ml_backfill_errors
-                if hasattr(config, "ml_backfill_errors")
-                else False,
+                backfill_errors=(
+                    config.ml_backfill_errors if hasattr(config, "ml_backfill_errors") else False
+                ),
             )
         )
 

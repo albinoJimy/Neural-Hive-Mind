@@ -4,6 +4,7 @@ Protocolo de Eleição de Líder para Queen Agent
 Implementa eleição distribuída usando Redis para alta disponibilidade.
 Usa o padrão "Leader Election with Redis" baseado em locks distribuídos.
 """
+
 import asyncio
 from dataclasses import dataclass
 from datetime import datetime, timezone

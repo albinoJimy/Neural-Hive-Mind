@@ -1,6 +1,7 @@
 """
 Testes unitários para circuit breakers de Kafka, Temporal e Redis.
 """
+
 import pytest
 import asyncio
 import sys

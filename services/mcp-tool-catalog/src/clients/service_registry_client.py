@@ -1,4 +1,5 @@
 """Service Registry client for service discovery com suporte a mTLS via SPIFFE."""
+
 import asyncio
 import time
 from typing import Dict, List, Optional, Tuple

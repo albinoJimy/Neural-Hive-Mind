@@ -58,9 +58,11 @@ class CodeReviewClient:
     def _get_headers(self) -> Dict[str, str]:
         """Retorna headers HTTP para autenticação."""
         headers = {
-            "Accept": "application/vnd.github.v3+json"
-            if self.provider == GitProvider.GITHUB
-            else "application/json",
+            "Accept": (
+                "application/vnd.github.v3+json"
+                if self.provider == GitProvider.GITHUB
+                else "application/json"
+            ),
         }
 
         if self.provider == GitProvider.GITHUB:

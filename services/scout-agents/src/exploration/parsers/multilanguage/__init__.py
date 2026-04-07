@@ -3,6 +3,7 @@ Multi-language parsers usando tree-sitter.
 
 Suporta Java, C#, Go, C/C++, Rust.
 """
+
 from .cpp_parser import CppParser
 from .csharp_parser import CSharpParser
 from .go_parser import GoParser

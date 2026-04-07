@@ -1,4 +1,5 @@
 """Testes unitários para ASRPipeline"""
+
 import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -45,9 +46,10 @@ class TestASRPipeline:
         # Mock do processamento de áudio
         audio_data = b"fake-audio-data" * 1000  # 4KB
 
-        with patch("tempfile.NamedTemporaryFile") as mock_temp_file, patch(
-            "librosa.load"
-        ) as mock_librosa_load:
+        with (
+            patch("tempfile.NamedTemporaryFile") as mock_temp_file,
+            patch("librosa.load") as mock_librosa_load,
+        ):
             # Configure tempfile mock
             mock_temp_file.return_value.__enter__.return_value.name = "/tmp/test_audio.wav"
 
@@ -75,9 +77,10 @@ class TestASRPipeline:
 
         audio_data = b"fake-audio-data"
 
-        with patch("tempfile.NamedTemporaryFile") as mock_temp_file, patch(
-            "librosa.load"
-        ) as mock_librosa_load:
+        with (
+            patch("tempfile.NamedTemporaryFile") as mock_temp_file,
+            patch("librosa.load") as mock_librosa_load,
+        ):
             mock_temp_file.return_value.__enter__.return_value.name = "/tmp/test_audio.wav"
             mock_audio = np.random.random(16000)
             mock_librosa_load.return_value = (mock_audio, 16000)
@@ -119,9 +122,10 @@ class TestASRPipeline:
         asr_pipeline.model = mock_model
         asr_pipeline._ready = True
 
-        with patch("tempfile.NamedTemporaryFile") as mock_temp_file, patch(
-            "librosa.load"
-        ) as mock_librosa_load:
+        with (
+            patch("tempfile.NamedTemporaryFile") as mock_temp_file,
+            patch("librosa.load") as mock_librosa_load,
+        ):
             mock_temp_file.return_value.__enter__.return_value.name = "/tmp/test_audio.wav"
             # Very short audio (0.1 seconds)
             mock_audio = np.random.random(1600)
@@ -145,9 +149,10 @@ class TestASRPipeline:
 
         audio_data = b"fake-audio-data" * 100
 
-        with patch("tempfile.NamedTemporaryFile") as mock_temp_file, patch(
-            "librosa.load"
-        ) as mock_librosa_load:
+        with (
+            patch("tempfile.NamedTemporaryFile") as mock_temp_file,
+            patch("librosa.load") as mock_librosa_load,
+        ):
             mock_temp_file.return_value.__enter__.return_value.name = "/tmp/test_audio.wav"
             mock_audio = np.random.random(16000 * 2)
             mock_librosa_load.return_value = (mock_audio, 16000)
@@ -172,9 +177,10 @@ class TestASRPipeline:
         asr_pipeline.model = mock_model
         asr_pipeline._ready = True
 
-        with patch("tempfile.NamedTemporaryFile") as mock_temp_file, patch(
-            "librosa.load"
-        ) as mock_librosa_load:
+        with (
+            patch("tempfile.NamedTemporaryFile") as mock_temp_file,
+            patch("librosa.load") as mock_librosa_load,
+        ):
             mock_temp_file.return_value.__enter__.return_value.name = "/tmp/test_audio.wav"
             mock_audio = np.random.random(16000 * 2)
             mock_librosa_load.return_value = (mock_audio, 16000)
@@ -202,9 +208,10 @@ class TestASRPipeline:
         asr_pipeline._ready = True
         asr_pipeline.timeout_seconds = 1  # Set 1 second timeout
 
-        with patch("tempfile.NamedTemporaryFile") as mock_temp_file, patch(
-            "librosa.load"
-        ) as mock_librosa_load:
+        with (
+            patch("tempfile.NamedTemporaryFile") as mock_temp_file,
+            patch("librosa.load") as mock_librosa_load,
+        ):
             mock_temp_file.return_value.__enter__.return_value.name = "/tmp/test_audio.wav"
             mock_audio = np.random.random(16000)
             mock_librosa_load.return_value = (mock_audio, 16000)
@@ -262,9 +269,10 @@ class TestASRPipeline:
         # Áudio de 2 minutos (dentro do limite)
         audio_data = b"fake-audio-data" * 50000  # ~200KB
 
-        with patch("tempfile.NamedTemporaryFile") as mock_temp_file, patch(
-            "pipelines.asr_pipeline.ASRPipeline._validate_audio"
-        ) as mock_validate:
+        with (
+            patch("tempfile.NamedTemporaryFile") as mock_temp_file,
+            patch("pipelines.asr_pipeline.ASRPipeline._validate_audio") as mock_validate,
+        ):
             mock_validate.return_value = {
                 "valid": True,
                 "format": "wav",
@@ -371,9 +379,10 @@ class TestASRPipeline:
         asr_pipeline.model = mock_model
         asr_pipeline._ready = True
 
-        with patch("tempfile.NamedTemporaryFile") as mock_temp_file, patch.object(
-            asr_pipeline, "_validate_audio"
-        ) as mock_validate:
+        with (
+            patch("tempfile.NamedTemporaryFile") as mock_temp_file,
+            patch.object(asr_pipeline, "_validate_audio") as mock_validate,
+        ):
             mock_validate.return_value = {
                 "valid": True,
                 "format": "wav",
@@ -404,9 +413,10 @@ class TestASRPipeline:
         asr_pipeline.model = mock_model
         asr_pipeline._ready = True
 
-        with patch("tempfile.NamedTemporaryFile") as mock_temp_file, patch.object(
-            asr_pipeline, "_validate_audio"
-        ) as mock_validate:
+        with (
+            patch("tempfile.NamedTemporaryFile") as mock_temp_file,
+            patch.object(asr_pipeline, "_validate_audio") as mock_validate,
+        ):
             mock_validate.return_value = {
                 "valid": True,
                 "format": "wav",

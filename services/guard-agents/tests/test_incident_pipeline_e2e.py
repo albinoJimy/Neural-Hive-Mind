@@ -9,6 +9,7 @@ E4: Executar playbooks de autocura
 E5: Validar restauração de SLA
 E6: Documentar lições aprendidas
 """
+
 import pytest
 import asyncio
 from datetime import datetime, timezone

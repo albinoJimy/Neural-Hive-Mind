@@ -3,6 +3,7 @@
 TDD NOTE: Estes testes sao escritos ANTES da implementacao.
 Esperado que falhem inicialmente, servindo como contrato para a implementacao.
 """
+
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 import os

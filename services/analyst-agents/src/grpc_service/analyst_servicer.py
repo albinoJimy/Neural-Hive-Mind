@@ -256,9 +256,7 @@ class AnalystServicer(analyst_agent_pb2_grpc.AnalystAgentServiceServicer):
                                     "direction": float(
                                         1
                                         if trend.get("direction") == "up"
-                                        else -1
-                                        if trend.get("direction") == "down"
-                                        else 0
+                                        else -1 if trend.get("direction") == "down" else 0
                                     ),
                                 }
                                 confidence = trend.get("confidence", 0.8)
@@ -546,12 +544,16 @@ class AnalystServicer(analyst_agent_pb2_grpc.AnalystAgentServiceServicer):
             create_insight_query,
             {
                 "insight_id": insight.insight_id,
-                "insight_type": insight.insight_type.value
-                if hasattr(insight.insight_type, "value")
-                else str(insight.insight_type),
-                "priority": insight.priority.value
-                if hasattr(insight.priority, "value")
-                else str(insight.priority),
+                "insight_type": (
+                    insight.insight_type.value
+                    if hasattr(insight.insight_type, "value")
+                    else str(insight.insight_type)
+                ),
+                "priority": (
+                    insight.priority.value
+                    if hasattr(insight.priority, "value")
+                    else str(insight.priority)
+                ),
                 "title": insight.title,
                 "confidence_score": insight.confidence_score,
                 "impact_score": insight.impact_score,

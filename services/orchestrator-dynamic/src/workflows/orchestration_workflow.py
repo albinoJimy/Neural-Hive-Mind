@@ -2,6 +2,7 @@
 Workflow Temporal principal para orquestração de execução (Fluxo C).
 Implementa as etapas C1-C6 conforme documento-06.
 """
+
 from datetime import timedelta
 from typing import Any
 

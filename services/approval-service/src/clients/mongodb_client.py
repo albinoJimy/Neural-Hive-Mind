@@ -86,15 +86,17 @@ class MongoDBClient:
             "intent_id": approval.intent_id,
             "original_intent_text": approval.original_intent_text,
             "risk_score": approval.risk_score,
-            "risk_band": approval.risk_band.value
-            if hasattr(approval.risk_band, "value")
-            else approval.risk_band,
+            "risk_band": (
+                approval.risk_band.value
+                if hasattr(approval.risk_band, "value")
+                else approval.risk_band
+            ),
             "is_destructive": approval.is_destructive,
             "destructive_tasks": approval.destructive_tasks,
             "risk_matrix": approval.risk_matrix,
-            "status": approval.status.value
-            if hasattr(approval.status, "value")
-            else approval.status,
+            "status": (
+                approval.status.value if hasattr(approval.status, "value") else approval.status
+            ),
             "requested_at": approval.requested_at,
             "approved_by": approval.approved_by,
             "approved_at": approval.approved_at,

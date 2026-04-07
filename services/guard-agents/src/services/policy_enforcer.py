@@ -1,4 +1,5 @@
 """Policy enforcement service with OPA and Istio integration (Fluxo E3)"""
+
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List

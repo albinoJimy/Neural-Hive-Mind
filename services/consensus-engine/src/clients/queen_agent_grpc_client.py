@@ -1,4 +1,5 @@
 """Cliente gRPC para comunicação com Queen Agent"""
+
 import asyncio
 from typing import Any, Dict, List, Optional, Tuple
 

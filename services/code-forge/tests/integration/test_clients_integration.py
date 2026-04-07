@@ -9,6 +9,7 @@ Variáveis de ambiente necessárias:
 - POSTGRES_URL: URL de conexão PostgreSQL
 - REDIS_URL: URL de conexão Redis
 """
+
 import pytest
 import os
 import sys

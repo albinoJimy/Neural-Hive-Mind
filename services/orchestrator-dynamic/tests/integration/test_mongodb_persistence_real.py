@@ -6,6 +6,7 @@ Usa testcontainers-python para validar persistência real de execution tickets.
 NOTA: Estes testes requerem Docker disponível e podem ser lentos.
 Use markers para filtrar: pytest -m integration
 """
+
 import types
 from datetime import datetime
 from typing import Generator

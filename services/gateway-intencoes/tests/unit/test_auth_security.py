@@ -4,6 +4,7 @@ TDD NOTE: Este teste é escrito ANTES da implementação e é EXPECTED que falhe
 O teste servirá como contrato para a implementação na Task 2, onde auth.py
 será modificado para importar e usar settings.get_settings().
 """
+
 import pytest
 from unittest.mock import patch, Mock, PropertyMock
 from src.security.auth import verify_token, get_current_user

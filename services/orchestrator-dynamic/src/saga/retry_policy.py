@@ -4,6 +4,7 @@ Politica de retry para operacoes de Saga.
 Executor que aplica configuracao de retry com backoff exponencial
 a operacoes assincronas, com metricas e logging.
 """
+
 import asyncio
 from collections.abc import Callable
 from datetime import datetime, timezone

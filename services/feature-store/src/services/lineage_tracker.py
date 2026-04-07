@@ -492,9 +492,11 @@ class LineageTracker:
                     {
                         "feature_id": parent_lineage.feature_id,
                         "plan_id": parent_lineage.plan_id,
-                        "source_type": parent_lineage.source_type
-                        if isinstance(parent_lineage.source_type, str)
-                        else parent_lineage.source_type.value,
+                        "source_type": (
+                            parent_lineage.source_type
+                            if isinstance(parent_lineage.source_type, str)
+                            else parent_lineage.source_type.value
+                        ),
                     }
                 )
 
@@ -517,9 +519,11 @@ class LineageTracker:
                                 {
                                     "feature_id": grandparent_lineage.feature_id,
                                     "plan_id": grandparent_lineage.plan_id,
-                                    "source_type": grandparent_lineage.source_type
-                                    if isinstance(grandparent_lineage.source_type, str)
-                                    else grandparent_lineage.source_type.value,
+                                    "source_type": (
+                                        grandparent_lineage.source_type
+                                        if isinstance(grandparent_lineage.source_type, str)
+                                        else grandparent_lineage.source_type.value
+                                    ),
                                 }
                             )
 

@@ -4,6 +4,7 @@ Configuracao de retries para compensacao de Saga.
 Implementa backoff exponencial com jitter para evitar
 thundering herd quando multiplas sagas compensam simultaneamente.
 """
+
 import random
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator

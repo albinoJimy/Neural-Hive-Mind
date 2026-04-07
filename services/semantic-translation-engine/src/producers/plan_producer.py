@@ -112,9 +112,9 @@ class KafkaPlanProducer:
                     expected_location="/app/schemas/cognitive-plan/cognitive-plan.avsc",
                     current_directory=os.getcwd(),
                     schemas_directory_exists=os.path.exists("/app/schemas"),
-                    schemas_directory_contents=os.listdir("/app/schemas")
-                    if os.path.exists("/app/schemas")
-                    else [],
+                    schemas_directory_contents=(
+                        os.listdir("/app/schemas") if os.path.exists("/app/schemas") else []
+                    ),
                 )
                 self.schema_registry_client = None
                 self.avro_serializer = None
@@ -122,9 +122,11 @@ class KafkaPlanProducer:
             logger.warning(
                 "Schema Registry desabilitado - usando serialização JSON para dev",
                 schema_registry_url=self.settings.schema_registry_url,
-                environment=self.settings.environment
-                if hasattr(self.settings, "environment")
-                else "unknown",
+                environment=(
+                    self.settings.environment
+                    if hasattr(self.settings, "environment")
+                    else "unknown"
+                ),
             )
             self.schema_registry_client = None
             self.avro_serializer = None
@@ -171,9 +173,11 @@ class KafkaPlanProducer:
             headers = {
                 "plan-id": cognitive_plan.plan_id,
                 "intent-id": cognitive_plan.intent_id,
-                "risk-band": cognitive_plan.risk_band.value
-                if hasattr(cognitive_plan.risk_band, "value")
-                else cognitive_plan.risk_band,
+                "risk-band": (
+                    cognitive_plan.risk_band.value
+                    if hasattr(cognitive_plan.risk_band, "value")
+                    else cognitive_plan.risk_band
+                ),
                 "schema-version": "1",
                 "content-type": content_type,
             }
@@ -222,9 +226,11 @@ class KafkaPlanProducer:
                 plan_id=cognitive_plan.plan_id,
                 intent_id=cognitive_plan.intent_id,
                 topic=topic,
-                risk_band=cognitive_plan.risk_band.value
-                if hasattr(cognitive_plan.risk_band, "value")
-                else cognitive_plan.risk_band,
+                risk_band=(
+                    cognitive_plan.risk_band.value
+                    if hasattr(cognitive_plan.risk_band, "value")
+                    else cognitive_plan.risk_band
+                ),
                 size_bytes=len(value),
                 format=content_type,
             )
