@@ -1,5 +1,3 @@
-from neural_hive_domain import UTC
-
 """
 Detection Service para Self-Healing Engine.
 
@@ -47,7 +45,7 @@ class DeadlockStatus:
     has_deadlock: bool
     stuck_duration_seconds: int = 0
     suspected_tickets: List[str] = field(default_factory=list)
-    detected_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    detected_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -73,7 +71,7 @@ class MemoryStatus:
     usage_percent: float
     limit_bytes: int
     duration_above_threshold_seconds: int = 0
-    detected_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    detected_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     container_name: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
 
@@ -443,6 +441,28 @@ class DetectionService:
             if not playbook_executor:
                 logger.warning("detection_service.no_playbook_executor")
                 return {"success": False, "error": "Playbook executor not available"}
+
+            # Validar estrutura do playbook antes da execução
+            if hasattr(playbook_executor, "validate_playbook_structure"):
+                validation = playbook_executor.validate_playbook_structure(playbook_name)
+                if not validation.get("valid"):
+                    logger.error(
+                        "detection_service.playbook_validation_failed",
+                        playbook=playbook_name,
+                        errors=validation.get("errors"),
+                    )
+                    return {
+                        "success": False,
+                        "error": "Playbook structure validation failed",
+                        "playbook": playbook_name,
+                        "validation_errors": validation.get("errors"),
+                    }
+
+                logger.debug(
+                    "detection_service.playbook_validation_passed",
+                    playbook=playbook_name,
+                    action_count=validation.get("action_count"),
+                )
 
             # Preparar contexto
             context = {

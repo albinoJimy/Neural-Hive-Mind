@@ -133,6 +133,123 @@ class PlaybookExecutor:
         except Exception:
             return {"actions": []}
 
+    def validate_playbook_structure(
+        self, playbook_name: str, playbook_data: Optional[Dict] = None
+    ) -> Dict[str, Any]:
+        """
+        Valida estrutura de playbook usando Pydantic.
+
+        Args:
+            playbook_name: Nome do playbook a validar
+            playbook_data: Dados do playbook (opcional, lê do ficheiro se não fornecido)
+
+        Returns:
+            Dict com keys: valid (bool), errors (list), warnings (list)
+        """
+        from src.models.remediation_models import (
+            Playbook,
+            PlaybookValidationResult,
+        )
+
+        errors = []
+        warnings = []
+        parsed_actions = []
+
+        try:
+            # Carregar playbook do ficheiro se não fornecido
+            if playbook_data is None:
+                playbook_path = self.playbooks_dir / f"{playbook_name}.yaml"
+                logger.debug(
+                    "playbook_executor.validation_check_path",
+                    playbooks_dir=str(self.playbooks_dir),
+                    playbook_name=playbook_name,
+                    playbook_path=str(playbook_path),
+                    exists=playbook_path.exists(),
+                )
+                if not playbook_path.exists():
+                    return {
+                        "valid": False,
+                        "errors": [f"Playbook '{playbook_name}' não encontrado"],
+                        "warnings": [],
+                        "action_count": 0,
+                        "parsed_actions": [],
+                    }
+                with open(playbook_path) as f:
+                    playbook_data = yaml.safe_load(f) or {}
+
+            # Adicionar playbook_name se não presente
+            if "playbook_name" not in playbook_data:
+                playbook_data["playbook_name"] = playbook_name
+
+            # Validar com Pydantic
+            playbook = Playbook(**playbook_data)
+
+            # Extrair tipos de ação
+            parsed_actions = [action.type.value for action in playbook.actions]
+
+            # Calcular duração estimada
+            estimated_duration = 0
+            for action in playbook.actions:
+                if action.timeout_seconds:
+                    estimated_duration += action.timeout_seconds
+            if not estimated_duration:
+                estimated_duration = playbook.timeout_seconds
+
+            # Verificar avisos
+            if playbook.timeout_seconds > 600:
+                warnings.append(f"Timeout muito alto: {playbook.timeout_seconds}s")
+
+            if len(playbook.actions) > 20:
+                warnings.append(f"Playbook com muitas ações: {len(playbook.actions)}")
+
+            # Verificar se há ações sem descrição
+            actions_without_desc = sum(1 for a in playbook.actions if not a.description)
+            if actions_without_desc > 0:
+                warnings.append(
+                    f"{actions_without_desc} ações sem descrição"
+                )
+
+            result = PlaybookValidationResult(
+                valid=True,
+                playbook_name=playbook_name,
+                errors=[],
+                warnings=warnings,
+                action_count=len(playbook.actions),
+                parsed_actions=parsed_actions,
+                estimated_duration_seconds=estimated_duration,
+            )
+
+            logger.info(
+                "playbook_executor.validation_success",
+                playbook=playbook_name,
+                action_count= len(playbook.actions),
+            )
+
+            return result.model_dump()
+
+        except Exception as e:
+            error_msg = str(e)
+
+            # Parse erros Pydantic para formato legível
+            if "validation error" in error_msg:
+                errors.append(f"Erro de validação: {error_msg}")
+            else:
+                errors.append(error_msg)
+
+            logger.warning(
+                "playbook_executor.validation_failed",
+                playbook=playbook_name,
+                errors=errors,
+            )
+
+            return {
+                "valid": False,
+                "errors": errors,
+                "warnings": warnings,
+                "action_count": 0,
+                "parsed_actions": parsed_actions,
+            }
+
     async def execute_playbook(
         self,
         playbook_name: str,
@@ -140,6 +257,7 @@ class PlaybookExecutor:
         on_action_completed: Optional[Callable[[dict], Any]] = None,
         on_playbook_completed: Optional[Callable[[dict], Any]] = None,
         timeout_seconds: Optional[int] = None,
+        validate_before_exec: bool = True,
     ) -> dict:
         """Execute a remediation playbook com callbacks e timeout."""
         playbook_path = self.playbooks_dir / f"{playbook_name}.yaml"
@@ -147,6 +265,21 @@ class PlaybookExecutor:
         if not playbook_path.exists():
             logger.error("playbook_executor.playbook_not_found", playbook=playbook_name)
             return {"success": False, "error": "Playbook not found"}
+
+        # Validar estrutura antes de executar (opcional)
+        if validate_before_exec:
+            validation = self.validate_playbook_structure(playbook_name)
+            if not validation.get("valid"):
+                logger.error(
+                    "playbook_executor.validation_failed",
+                    playbook=playbook_name,
+                    errors=validation.get("errors"),
+                )
+                return {
+                    "success": False,
+                    "error": "Playbook structure validation failed",
+                    "validation_errors": validation.get("errors"),
+                }
 
         with open(playbook_path) as f:
             playbook = yaml.safe_load(f) or {}
