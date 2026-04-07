@@ -21,6 +21,7 @@ Conversões:
     - _pydantic_to_proto: converte ExecutionTicket (Pydantic) para ExecutionTicketProto
       Importante: created_at é int64 em milissegundos, não string ISO
 """
+
 import logging
 
 import grpc

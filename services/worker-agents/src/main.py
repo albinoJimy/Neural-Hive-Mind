@@ -666,9 +666,11 @@ async def startup():
             AgentInfo(
                 agent_id=agent_id,  # Usar agent_id retornado pelo Service Registry
                 agent_type="worker",
-                capabilities=config.capabilities
-                if hasattr(config, "capabilities")
-                else ["python", "terraform", "kubernetes"],
+                capabilities=(
+                    config.capabilities
+                    if hasattr(config, "capabilities")
+                    else ["python", "terraform", "kubernetes"]
+                ),
                 endpoint=f"http://{config.agent_id}.neural-hive:8080",
                 metadata={"version": "1.0.0"},
             )
@@ -873,11 +875,11 @@ async def heartbeat_loop(config, registry_client):
                 logger.debug(
                     "heartbeat_sent",
                     telemetry=telemetry,
-                    expected_status="HEALTHY"
-                    if success_rate >= 0.5
-                    else "DEGRADED"
-                    if success_rate >= 0.3
-                    else "UNHEALTHY",
+                    expected_status=(
+                        "HEALTHY"
+                        if success_rate >= 0.5
+                        else "DEGRADED" if success_rate >= 0.3 else "UNHEALTHY"
+                    ),
                 )
             else:
                 consecutive_failures += 1

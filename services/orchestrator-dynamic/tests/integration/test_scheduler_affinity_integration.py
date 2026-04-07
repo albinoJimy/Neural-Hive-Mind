@@ -7,6 +7,7 @@ Cobertura:
 - Interação com Redis real (quando disponível)
 - Validação de métricas
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 

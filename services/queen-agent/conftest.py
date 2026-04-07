@@ -2,6 +2,7 @@
 Root conftest.py - Configura mocks ANTES de qualquer import
 Este arquivo é carregado pelo pytest antes de começar a coletar testes.
 """
+
 import sys
 from enum import Enum
 from types import ModuleType

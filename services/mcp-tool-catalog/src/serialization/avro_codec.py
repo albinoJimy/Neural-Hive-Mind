@@ -1,4 +1,5 @@
 """Avro serialization/deserialization para mensagens Kafka."""
+
 import io
 import json
 import os

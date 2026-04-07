@@ -170,9 +170,11 @@ class ABTestResultsPersistent:
             "experiment_id": self.experiment_id,
             "experiment_name": self.experiment_name,
             "status": self.status,
-            "created_at": self.created_at.isoformat()
-            if isinstance(self.created_at, datetime)
-            else self.created_at,
+            "created_at": (
+                self.created_at.isoformat()
+                if isinstance(self.created_at, datetime)
+                else self.created_at
+            ),
             "recommendation": self.statistical_recommendation,
             "confidence": self.confidence_level,
             "control_size": self.control_size,

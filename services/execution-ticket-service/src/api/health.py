@@ -1,4 +1,5 @@
 """Health check endpoints."""
+
 from fastapi import APIRouter, Request, Response, status
 from fastapi.responses import JSONResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest

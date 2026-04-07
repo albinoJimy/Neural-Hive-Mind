@@ -1,6 +1,7 @@
 """
 Testes de integração para ML Scheduling (LoadPredictor + SchedulingOptimizer + ResourceAllocator).
 """
+
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, timezone, timedelta

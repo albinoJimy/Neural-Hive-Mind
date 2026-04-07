@@ -1,4 +1,5 @@
 """Activity para publicar eventos de Saga no Kafka."""
+
 import logging
 from typing import Any
 

@@ -3,6 +3,7 @@ Testes unitarios para activities de compensacao (Saga Pattern).
 
 Nota: Os testes usam mocks para evitar dependencias circulares de imports.
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime

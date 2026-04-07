@@ -1,6 +1,7 @@
 """
 Testes unitarios para Rate Limiter com Sliding Window e Burst Support
 """
+
 import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch

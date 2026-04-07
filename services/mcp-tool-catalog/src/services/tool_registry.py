@@ -1,4 +1,5 @@
 """Tool Registry service for managing 87 MCP tools."""
+
 from typing import Dict, List, Optional
 
 import structlog

@@ -1,6 +1,7 @@
 """
 Testes unitários para SchedulingOptimizer (orquestrador ML de scheduling).
 """
+
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
 

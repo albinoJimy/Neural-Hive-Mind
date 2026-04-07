@@ -7,6 +7,7 @@ Códigos de erro JSON-RPC 2.0 padrão:
     -32602: Invalid params - Parâmetros inválidos
     -32603: Internal error - Erro interno do servidor
 """
+
 from typing import Any, Optional
 
 

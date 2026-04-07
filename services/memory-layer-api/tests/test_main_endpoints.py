@@ -3,6 +3,7 @@ Testes para os endpoints principais do Memory Layer API.
 
 Cobre health, ready, metrics, query, lineage e quality.
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime

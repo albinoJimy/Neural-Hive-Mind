@@ -3,6 +3,7 @@ JSON Parser - Análise de arquivos JSON.
 
 Suporta package.json, tsconfig.json, configs genéricas.
 """
+
 import json
 import re
 from typing import Any, Dict, List, Optional

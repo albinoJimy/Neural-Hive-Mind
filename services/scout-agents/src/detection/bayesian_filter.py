@@ -1,4 +1,5 @@
 """Bayesian filter for noise reduction in signal detection"""
+
 from typing import Dict, Tuple
 
 import numpy as np

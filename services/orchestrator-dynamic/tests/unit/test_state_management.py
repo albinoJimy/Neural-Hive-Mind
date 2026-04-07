@@ -4,6 +4,7 @@ Unit tests para gestão de estado do workflow.
 Testa as transições de estado do OrchestrationWorkflow durante
 a execução: PENDING -> RUNNING -> COMPLETED/FAILED.
 """
+
 import pytest
 import sys
 from pathlib import Path

@@ -1,6 +1,7 @@
 """
 Detector e anonimizador de PII usando Presidio.
 """
+
 import structlog
 from typing import Dict, List, Any, Tuple, Optional
 from functools import lru_cache

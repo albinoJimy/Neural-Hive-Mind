@@ -3,6 +3,7 @@ API REST para Load Balancer
 
 Endpoints para gerenciar workers e atribuir tarefas.
 """
+
 from typing import Any
 
 import structlog

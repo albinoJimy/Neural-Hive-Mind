@@ -4,6 +4,7 @@ Testes unitarios para SagaRetryConfig e RetryPolicy.
 Testa configuracao de retry, calculo de backoff exponencial,
 jitter para evitar thundering herd e logica de retry.
 """
+
 import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch

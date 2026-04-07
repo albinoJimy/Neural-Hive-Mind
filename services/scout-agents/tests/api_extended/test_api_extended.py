@@ -2,6 +2,7 @@
 Testes para API endpoints estendidos.
 Nova funcionalidade de exploração e detecção de sinais.
 """
+
 import pytest
 from unittest.mock import Mock, MagicMock, AsyncMock, patch
 from datetime import datetime, timezone

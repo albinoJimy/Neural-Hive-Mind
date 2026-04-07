@@ -4,6 +4,7 @@ Modelos de estado para coordenacao de Saga.
 Define os modelos Pydantic para representar o estado de uma transacao
 Saga distribuida com compensacao automatica.
 """
+
 from datetime import datetime, timezone
 
 UTC = timezone.utc  # type: ignore

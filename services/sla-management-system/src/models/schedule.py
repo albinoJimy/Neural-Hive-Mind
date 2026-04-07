@@ -4,6 +4,7 @@ Modelos de dados para Schedule de Workflows.
 Define os modelos usados pelo scheduler de workflows do SLA Management System.
 Suporta schedules baseados em cron, eventos e triggers manuais.
 """
+
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, Optional

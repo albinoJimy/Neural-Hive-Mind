@@ -1,6 +1,7 @@
 """
 Data Quality Monitor
 """
+
 import statistics
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple

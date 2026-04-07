@@ -1,4 +1,5 @@
 """Unit tests for test report parsers."""
+
 import pytest
 from io import StringIO
 

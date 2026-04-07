@@ -1,6 +1,7 @@
 """
 Testes de integração da validação OPA (C3) na alocação de recursos.
 """
+
 import pytest
 from unittest.mock import AsyncMock, Mock
 

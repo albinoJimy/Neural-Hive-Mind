@@ -265,9 +265,10 @@ class TestChildContext:
         )
 
         # Mock attach/detach
-        with patch("neural_hive_observability.context.attach") as mock_attach, patch(
-            "neural_hive_observability.context.detach"
-        ) as mock_detach:
+        with (
+            patch("neural_hive_observability.context.attach") as mock_attach,
+            patch("neural_hive_observability.context.detach") as mock_detach,
+        ):
             mock_attach.return_value = "token"
 
             with child_ctx:

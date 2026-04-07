@@ -125,17 +125,18 @@ async def test_consolidate_results_calls_feedback_loop(
     kafka_producer_instance.initialize = AsyncMock()
     kafka_producer_instance.close = AsyncMock()
 
-    with patch("src.activities.result_consolidation.get_metrics", return_value=mock_metrics), patch(
-        "src.clients.redis_client.get_redis_client", AsyncMock(return_value=AsyncMock())
-    ), patch(
-        "src.clients.kafka_producer.KafkaProducerClient", return_value=kafka_producer_instance
-    ), patch(
-        "src.activities.result_consolidation.SLAMonitor", return_value=sla_monitor_instance
-    ), patch(
-        "src.activities.result_consolidation.AlertManager", return_value=alert_manager_instance
-    ), patch.object(
-        result_consolidation, "compute_and_record_ml_error"
-    ) as compute_mock:
+    with (
+        patch("src.activities.result_consolidation.get_metrics", return_value=mock_metrics),
+        patch("src.clients.redis_client.get_redis_client", AsyncMock(return_value=AsyncMock())),
+        patch(
+            "src.clients.kafka_producer.KafkaProducerClient", return_value=kafka_producer_instance
+        ),
+        patch("src.activities.result_consolidation.SLAMonitor", return_value=sla_monitor_instance),
+        patch(
+            "src.activities.result_consolidation.AlertManager", return_value=alert_manager_instance
+        ),
+        patch.object(result_consolidation, "compute_and_record_ml_error") as compute_mock,
+    ):
         result = await result_consolidation.consolidate_results(tickets, "workflow-123")
 
     compute_mock.assert_called_once_with(sample_ticket_completed, mock_metrics)
@@ -175,16 +176,17 @@ async def test_feedback_loop_disabled_by_config(
     kafka_producer_instance.initialize = AsyncMock()
     kafka_producer_instance.close = AsyncMock()
 
-    with patch("src.activities.result_consolidation.get_metrics", return_value=mock_metrics), patch(
-        "src.clients.redis_client.get_redis_client", AsyncMock(return_value=AsyncMock())
-    ), patch(
-        "src.clients.kafka_producer.KafkaProducerClient", return_value=kafka_producer_instance
-    ), patch(
-        "src.activities.result_consolidation.SLAMonitor", return_value=sla_monitor_instance
-    ), patch(
-        "src.activities.result_consolidation.AlertManager", return_value=alert_manager_instance
-    ), patch.object(
-        result_consolidation, "compute_and_record_ml_error"
+    with (
+        patch("src.activities.result_consolidation.get_metrics", return_value=mock_metrics),
+        patch("src.clients.redis_client.get_redis_client", AsyncMock(return_value=AsyncMock())),
+        patch(
+            "src.clients.kafka_producer.KafkaProducerClient", return_value=kafka_producer_instance
+        ),
+        patch("src.activities.result_consolidation.SLAMonitor", return_value=sla_monitor_instance),
+        patch(
+            "src.activities.result_consolidation.AlertManager", return_value=alert_manager_instance
+        ),
+        patch.object(result_consolidation, "compute_and_record_ml_error"),
     ):
         await result_consolidation.consolidate_results(tickets, "workflow-456")
 
@@ -224,16 +226,17 @@ async def test_feedback_loop_fail_open_on_error(
     kafka_producer_instance.initialize = AsyncMock()
     kafka_producer_instance.close = AsyncMock()
 
-    with patch("src.activities.result_consolidation.get_metrics", return_value=mock_metrics), patch(
-        "src.clients.redis_client.get_redis_client", AsyncMock(return_value=AsyncMock())
-    ), patch(
-        "src.clients.kafka_producer.KafkaProducerClient", return_value=kafka_producer_instance
-    ), patch(
-        "src.activities.result_consolidation.SLAMonitor", return_value=sla_monitor_instance
-    ), patch(
-        "src.activities.result_consolidation.AlertManager", return_value=alert_manager_instance
-    ), patch.object(
-        result_consolidation, "compute_and_record_ml_error"
+    with (
+        patch("src.activities.result_consolidation.get_metrics", return_value=mock_metrics),
+        patch("src.clients.redis_client.get_redis_client", AsyncMock(return_value=AsyncMock())),
+        patch(
+            "src.clients.kafka_producer.KafkaProducerClient", return_value=kafka_producer_instance
+        ),
+        patch("src.activities.result_consolidation.SLAMonitor", return_value=sla_monitor_instance),
+        patch(
+            "src.activities.result_consolidation.AlertManager", return_value=alert_manager_instance
+        ),
+        patch.object(result_consolidation, "compute_and_record_ml_error"),
     ):
         result = await result_consolidation.consolidate_results(tickets, "workflow-789")
 
@@ -252,9 +255,10 @@ async def test_ml_feedback_runs_without_sla(
         scheduling_optimizer=mock_scheduling_optimizer, config=mock_config
     )
 
-    with patch(
-        "src.activities.result_consolidation.get_metrics", return_value=mock_metrics
-    ), patch.object(result_consolidation, "compute_and_record_ml_error") as compute_mock:
+    with (
+        patch("src.activities.result_consolidation.get_metrics", return_value=mock_metrics),
+        patch.object(result_consolidation, "compute_and_record_ml_error") as compute_mock,
+    ):
         result = await result_consolidation.consolidate_results(tickets, "workflow-000")
 
     compute_mock.assert_called_once_with(sample_ticket_completed, mock_metrics)

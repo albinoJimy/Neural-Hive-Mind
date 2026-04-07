@@ -1,4 +1,5 @@
 """Testes de integração para TrivyClient"""
+
 import os
 import subprocess
 import sys

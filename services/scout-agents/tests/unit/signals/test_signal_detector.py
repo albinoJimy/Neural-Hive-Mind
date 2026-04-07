@@ -3,6 +3,7 @@ Unit tests for SignalDetector service (scout-agents).
 
 Tests signal detection, classification, and scoring.
 """
+
 import pytest
 import numpy as np
 from unittest.mock import AsyncMock, MagicMock, patch

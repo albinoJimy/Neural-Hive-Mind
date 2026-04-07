@@ -322,12 +322,14 @@ class SpecialistsGrpcClient:
                             has_nanos=hasattr(evaluated_at, "nanos"),
                             seconds_value=seconds_value,
                             nanos_value=nanos_value,
-                            seconds_type=type(seconds_value).__name__
-                            if seconds_value is not None
-                            else "None",
-                            nanos_type=type(nanos_value).__name__
-                            if nanos_value is not None
-                            else "None",
+                            seconds_type=(
+                                type(seconds_value).__name__
+                                if seconds_value is not None
+                                else "None"
+                            ),
+                            nanos_type=(
+                                type(nanos_value).__name__ if nanos_value is not None else "None"
+                            ),
                             error=str(e),
                             error_type=type(e).__name__,
                         )

@@ -2,6 +2,7 @@
 
 Requer LocalStack ou configuração S3 real para execução.
 """
+
 import pytest
 import os
 import sys

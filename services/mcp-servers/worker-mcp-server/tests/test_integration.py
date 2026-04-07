@@ -3,6 +3,7 @@ Testes de Integração do Worker MCP Server.
 
 Testam a integração entre componentes usando HTTP clients mockados.
 """
+
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch

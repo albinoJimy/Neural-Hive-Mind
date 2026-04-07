@@ -3,6 +3,7 @@ Testes para os endpoints principais do Self-Healing Engine.
 
 Cobre health, readiness, metrics e chaos endpoints.
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime

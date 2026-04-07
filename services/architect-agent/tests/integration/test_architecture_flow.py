@@ -3,6 +3,7 @@
 Este módulo testa o fluxo completo de criação e consulta de planos de arquitetura,
 incluindo integração com MongoDB e validação via API.
 """
+
 import pytest
 from datetime import datetime
 from fastapi.testclient import TestClient

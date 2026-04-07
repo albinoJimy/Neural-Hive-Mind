@@ -1,4 +1,5 @@
 """Optimizations API endpoints."""
+
 import logging
 from datetime import datetime, timezone
 

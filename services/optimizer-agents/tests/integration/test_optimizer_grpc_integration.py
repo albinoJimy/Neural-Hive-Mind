@@ -3,6 +3,7 @@ Testes de integracao gRPC para OptimizerServicer.
 
 Valida comunicacao gRPC end-to-end com servidor real.
 """
+
 import asyncio
 import pytest
 from unittest.mock import AsyncMock, Mock

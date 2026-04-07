@@ -4,6 +4,7 @@ Orchestrator de Saga para coordenacao de transaccoes distribuidas.
 Implementa a logica de coordenacao de Sagas com execucao sequencial
 de steps e compensacao automatica em caso de falha.
 """
+
 from datetime import datetime, timezone
 
 UTC = timezone.utc  # type: ignore

@@ -7,6 +7,7 @@ Implementa distribuição de tarefas usando múltiplas estratégias:
 - Weighted (baseado em capacidade)
 - Consistent Hashing
 """
+
 import asyncio
 import hashlib
 from dataclasses import dataclass, field
@@ -518,9 +519,9 @@ class LoadBalancer:
                     "avg_processing_time_ms": metrics.avg_processing_time_ms,
                     "capacity": metrics.capacity,
                     "is_healthy": metrics.is_healthy,
-                    "last_heartbeat": metrics.last_heartbeat.isoformat()
-                    if metrics.last_heartbeat
-                    else None,
+                    "last_heartbeat": (
+                        metrics.last_heartbeat.isoformat() if metrics.last_heartbeat else None
+                    ),
                 }
             return status
 

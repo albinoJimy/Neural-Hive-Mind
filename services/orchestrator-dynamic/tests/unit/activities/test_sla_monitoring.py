@@ -9,6 +9,7 @@ Testes cobrem:
 - Cleanup de SLAMonitor no finally block
 - Métricas Prometheus de duração de verificação
 """
+
 import pytest
 import time
 from datetime import datetime

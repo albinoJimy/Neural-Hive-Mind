@@ -567,9 +567,11 @@ class FlowCOrchestrator:
                 tickets_failed=results["failed"],
                 telemetry_published=True,
                 sla_compliant=sla_remaining_seconds >= 0,
-                sla_remaining_seconds=int(sla_remaining_seconds)
-                if sla_remaining_seconds >= 0
-                else int(sla_remaining_seconds),
+                sla_remaining_seconds=(
+                    int(sla_remaining_seconds)
+                    if sla_remaining_seconds >= 0
+                    else int(sla_remaining_seconds)
+                ),
             )
 
             flow_c_success.inc()
@@ -596,9 +598,11 @@ class FlowCOrchestrator:
                 telemetry_published=False,
                 error=str(e),
                 sla_compliant=sla_remaining_seconds >= 0,
-                sla_remaining_seconds=int(sla_remaining_seconds)
-                if sla_remaining_seconds >= 0
-                else int(sla_remaining_seconds),
+                sla_remaining_seconds=(
+                    int(sla_remaining_seconds)
+                    if sla_remaining_seconds >= 0
+                    else int(sla_remaining_seconds)
+                ),
             )
 
     async def _execute_c1_validate(

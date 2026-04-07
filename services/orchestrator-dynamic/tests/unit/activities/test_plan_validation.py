@@ -8,6 +8,7 @@ Tests cover:
 - audit_validation persistence (fail-open behavior)
 - optimize_dag cycle detection
 """
+
 import pytest
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -97,7 +98,7 @@ class TestValidateCognitivePlan:
         """Plan missing required fields should return errors."""
         incomplete_plan = {
             "plan_id": "incomplete-plan",
-            "tasks": []
+            "tasks": [],
             # Missing: execution_order, risk_score, risk_band
         }
         set_activity_dependencies(policy_validator=None, config=None, mongodb_client=None)

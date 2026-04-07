@@ -4,6 +4,7 @@ Este cliente implementa o protocolo Anthropic Model Context Protocol (MCP)
 para integração com servidores MCP externos. Suporta retry com exponential
 backoff, circuit breaker para resiliência e connection pooling.
 """
+
 import asyncio
 import json
 import time

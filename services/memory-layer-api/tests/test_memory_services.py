@@ -3,6 +3,7 @@ Testes para os serviços de memória do Memory Layer API.
 
 Cobre UnifiedMemoryClient, LineageTracker e DataQualityMonitor.
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timedelta

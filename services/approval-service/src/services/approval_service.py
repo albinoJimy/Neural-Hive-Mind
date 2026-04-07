@@ -100,9 +100,11 @@ class ApprovalService:
 
         self.active_learning_enabled = all(
             [
-                settings.enable_active_learning
-                if hasattr(settings, "enable_active_learning")
-                else False,
+                (
+                    settings.enable_active_learning
+                    if hasattr(settings, "enable_active_learning")
+                    else False
+                ),
                 HAS_ACTIVE_LEARNING,
                 balance_analyzer is not None,
                 learning_strategy is not None,
@@ -517,9 +519,9 @@ class ApprovalService:
                         "submitted_by": user_id,
                         "intent_raw_text": intent_raw_text,
                         "balanced_dataset": from_active_learning,
-                        "collection_method": "active_learning"
-                        if from_active_learning
-                        else "automatic",
+                        "collection_method": (
+                            "active_learning" if from_active_learning else "automatic"
+                        ),
                         "metadata": {
                             "source": "approval_service",
                             "specialist_recommendation": opinion.get("recommendation"),

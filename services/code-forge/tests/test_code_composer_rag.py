@@ -1,4 +1,5 @@
 """Testes unitários para métodos RAG do CodeComposer"""
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 import sys

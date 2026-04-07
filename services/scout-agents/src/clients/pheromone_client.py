@@ -1,4 +1,5 @@
 """Cliente para publicação de feromônios digitais"""
+
 import json
 from datetime import datetime, timezone
 from typing import Optional

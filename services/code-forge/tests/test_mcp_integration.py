@@ -1,4 +1,5 @@
 """Testes de integração MCP Tool Catalog"""
+
 import asyncio
 import os
 import sys

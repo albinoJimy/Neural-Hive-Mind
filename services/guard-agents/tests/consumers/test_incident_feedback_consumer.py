@@ -4,6 +4,7 @@ Unit tests para IncidentFeedbackConsumer.
 Testa o consumer que processa security-incidents do Guard Agents,
 implementando feedback loop para ajuste de políticas de segurança.
 """
+
 import pytest
 import json
 import asyncio

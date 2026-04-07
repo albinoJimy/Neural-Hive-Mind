@@ -4,6 +4,7 @@ Testes unitarios para SagaOrchestrator.
 Testa a coordenacao de Sagas incluindo criacao, execucao,
 tratamento de falhas e compensacao automatica.
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime

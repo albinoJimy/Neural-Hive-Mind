@@ -1,4 +1,5 @@
 """Kafka consumer for tool selection requests."""
+
 import asyncio
 from typing import AsyncGenerator, Optional
 

@@ -170,12 +170,16 @@ class SolutionSynthesizer:
                 {
                     "name": pattern_name,
                     "count": len(occurrences),
-                    "confidence": round(sum(all_confidences) / len(all_confidences), 2)
-                    if all_confidences
-                    else 0.5,
-                    "locations": list(all_locations)
-                    if all_locations
-                    else occurrences[0].get("locations", []),
+                    "confidence": (
+                        round(sum(all_confidences) / len(all_confidences), 2)
+                        if all_confidences
+                        else 0.5
+                    ),
+                    "locations": (
+                        list(all_locations)
+                        if all_locations
+                        else occurrences[0].get("locations", [])
+                    ),
                 }
             )
 

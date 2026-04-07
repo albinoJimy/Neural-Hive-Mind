@@ -3,6 +3,7 @@ Testes de integracao para KeycloakAdminClient
 
 Testa operacoes de revogacao de tokens e gerenciamento de usuarios
 """
+
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 from datetime import datetime, timezone

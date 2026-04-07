@@ -1,6 +1,7 @@
 """
 Cliente HTTP para integração com Self-Healing Engine (Fluxo E).
 """
+
 import asyncio
 import time
 from typing import Any

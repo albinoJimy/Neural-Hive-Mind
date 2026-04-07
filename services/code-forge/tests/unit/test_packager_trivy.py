@@ -355,7 +355,7 @@ class TestPackagerWithoutTrivy:
             sigstore_client=mock_sigstore_client,
             s3_artifact_client=mock_s3_client,
             artifact_registry_client=mock_registry_client,
-            postgres_client=mock_postgres_client
+            postgres_client=mock_postgres_client,
             # Sem trivy_client
         )
 

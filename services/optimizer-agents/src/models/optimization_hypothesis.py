@@ -62,9 +62,11 @@ class OptimizationHypothesis(BaseModel):
             "success_criteria": [
                 {
                     "metric_name": metric,
-                    "operator": "GTE"
-                    if self.target_metrics[metric] >= self.baseline_metrics.get(metric, 0)
-                    else "LTE",
+                    "operator": (
+                        "GTE"
+                        if self.target_metrics[metric] >= self.baseline_metrics.get(metric, 0)
+                        else "LTE"
+                    ),
                     "threshold": target_value,
                     "confidence_level": self.confidence_score,
                 }

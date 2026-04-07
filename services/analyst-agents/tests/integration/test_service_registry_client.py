@@ -1,4 +1,5 @@
 """Integration tests for Analyst Agent Service Registry client."""
+
 import pytest
 import socket
 

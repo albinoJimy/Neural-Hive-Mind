@@ -7,6 +7,7 @@ Testa os seguintes métodos:
 - GetSystemStatus: status agregado do sistema
 - GetActiveConflicts: conflitos ativos no Neo4j
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import grpc
@@ -303,7 +304,7 @@ async def test_get_strategic_decision_partial_data(servicer, mock_clients, mock_
     """Testa decisão com dados parciais (campos faltando)"""
     mock_decision = {
         "decision_id": "dec-456",
-        "decision_type": "ESCALATION"
+        "decision_type": "ESCALATION",
         # Campos faltando: confidence_score, risk_assessment, reasoning_summary, etc
     }
     mock_clients["mongodb"].get_strategic_decision.return_value = mock_decision
@@ -502,7 +503,7 @@ async def test_get_system_status_default_values(servicer, mock_clients, mock_con
     """Testa valores padrão quando TelemetryAggregator retorna dados parciais"""
     mock_health = {
         "system_score": 0.80,
-        "sla_compliance": 0.92
+        "sla_compliance": 0.92,
         # Campos faltando: error_rate, resource_saturation, active_incidents, timestamp
     }
     mock_clients["telemetry_aggregator"].aggregate_system_health.return_value = mock_health
@@ -635,7 +636,7 @@ async def test_get_active_conflicts_handles_partial_data(servicer, mock_clients,
         },
         {
             "decision_id": "dec-002",
-            "conflicts_with": "dec-003"
+            "conflicts_with": "dec-003",
             # created_at faltando
         },
     ]

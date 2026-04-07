@@ -1,6 +1,7 @@
 """
 Cliente Kafka Producer para publicação de Execution Tickets.
 """
+
 import asyncio
 import json
 from pathlib import Path
@@ -664,9 +665,9 @@ class KafkaProducerClient:
             if getattr(self.config, "kafka_ssl_ca_location", None):
                 security_config["ssl.ca.location"] = self.config.kafka_ssl_ca_location
             if getattr(self.config, "kafka_ssl_certificate_location", None):
-                security_config[
-                    "ssl.certificate.location"
-                ] = self.config.kafka_ssl_certificate_location
+                security_config["ssl.certificate.location"] = (
+                    self.config.kafka_ssl_certificate_location
+                )
             if getattr(self.config, "kafka_ssl_key_location", None):
                 security_config["ssl.key.location"] = self.config.kafka_ssl_key_location
 

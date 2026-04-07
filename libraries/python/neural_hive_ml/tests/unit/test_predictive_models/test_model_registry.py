@@ -19,9 +19,12 @@ def mock_mlflow_client():
 @pytest.fixture
 def model_registry(mock_mlflow_client):
     """Fixture para ModelRegistry."""
-    with patch("mlflow.set_tracking_uri"), patch(
-        "neural_hive_ml.predictive_models.model_registry.MlflowClient",
-        return_value=mock_mlflow_client,
+    with (
+        patch("mlflow.set_tracking_uri"),
+        patch(
+            "neural_hive_ml.predictive_models.model_registry.MlflowClient",
+            return_value=mock_mlflow_client,
+        ),
     ):
         registry = ModelRegistry(tracking_uri="http://localhost:5000", experiment_prefix="test")
         registry.client = mock_mlflow_client
@@ -72,11 +75,14 @@ class TestRegisterModel:
         mock_experiment = Mock()
         mock_experiment.experiment_id = "existing-exp-123"
 
-        with patch("mlflow.get_experiment_by_name", return_value=mock_experiment), patch(
-            "mlflow.start_run"
-        ), patch("mlflow.log_param"), patch("mlflow.log_metric"), patch("mlflow.set_tag"), patch(
-            "mlflow.sklearn.log_model"
-        ) as mock_log_model:
+        with (
+            patch("mlflow.get_experiment_by_name", return_value=mock_experiment),
+            patch("mlflow.start_run"),
+            patch("mlflow.log_param"),
+            patch("mlflow.log_metric"),
+            patch("mlflow.set_tag"),
+            patch("mlflow.sklearn.log_model") as mock_log_model,
+        ):
             mock_model_info = Mock()
             mock_model_info.registered_model_version = "v2"
             mock_log_model.return_value = mock_model_info
@@ -221,13 +227,15 @@ class TestUpdateModelStats:
         """Testa atualizar estatísticas salvando nova versão."""
         new_metrics = {"accuracy": 0.90, "f1_score": 0.88}
 
-        with patch("mlflow.get_experiment_by_name", return_value=None), patch(
-            "mlflow.create_experiment", return_value="exp-123"
-        ), patch("mlflow.start_run"), patch("mlflow.log_param"), patch("mlflow.log_metric"), patch(
-            "mlflow.set_tag"
-        ), patch(
-            "mlflow.sklearn.log_model"
-        ) as mock_log_model:
+        with (
+            patch("mlflow.get_experiment_by_name", return_value=None),
+            patch("mlflow.create_experiment", return_value="exp-123"),
+            patch("mlflow.start_run"),
+            patch("mlflow.log_param"),
+            patch("mlflow.log_metric"),
+            patch("mlflow.set_tag"),
+            patch("mlflow.sklearn.log_model") as mock_log_model,
+        ):
             mock_model_info = Mock()
             mock_model_info.registered_model_version = "v2"
             mock_log_model.return_value = mock_model_info

@@ -4,6 +4,7 @@ Testes de integração do OPAAuthorizationMiddleware.
 Estes testes validam que o middleware de autorização OPA está funcionando
 corretamente para proteger endpoints da API HTTP.
 """
+
 import pytest
 from httpx import AsyncClient, ASGITransport
 from unittest.mock import AsyncMock, patch

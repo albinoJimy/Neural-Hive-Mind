@@ -3,6 +3,7 @@ Testes para Leader Election
 
 Testa eleição distribuída, renovação de lease, e failover.
 """
+
 import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch

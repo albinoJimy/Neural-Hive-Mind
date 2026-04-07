@@ -156,9 +156,11 @@ class DriftDetector:
                         "metric": "avg_confidence",
                         "change": round(confidence_change, 3),
                         "threshold": self.confidence_threshold,
-                        "severity": "warning"
-                        if abs(confidence_change) < self.confidence_threshold * 1.5
-                        else "critical",
+                        "severity": (
+                            "warning"
+                            if abs(confidence_change) < self.confidence_threshold * 1.5
+                            else "critical"
+                        ),
                     }
                 )
                 drift_detected = True

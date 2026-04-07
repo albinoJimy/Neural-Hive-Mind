@@ -156,14 +156,16 @@ class ConditionalWorkflow(BaseModel):
             "branches": [
                 {
                     "name": b.name,
-                    "condition": {
-                        "field": b.condition.field,
-                        "operator": b.condition.operator.value,
-                        "value": b.condition.value,
-                        "description": b.condition.description,
-                    }
-                    if b.condition
-                    else None,
+                    "condition": (
+                        {
+                            "field": b.condition.field,
+                            "operator": b.condition.operator.value,
+                            "value": b.condition.value,
+                            "description": b.condition.description,
+                        }
+                        if b.condition
+                        else None
+                    ),
                     "activities": b.activities,
                     "description": b.description,
                 }

@@ -3,6 +3,7 @@ Retention Policy Manager
 
 Gerencia políticas de retenção e TTL nas camadas de memória.
 """
+
 from datetime import datetime, timedelta, timezone
 from typing import Dict
 

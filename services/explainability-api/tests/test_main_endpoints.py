@@ -3,6 +3,7 @@ Testes para os endpoints principais do Explainability API.
 
 Cobre health, ready, metrics, explainability e shap.
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from datetime import datetime

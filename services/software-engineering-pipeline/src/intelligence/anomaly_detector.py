@@ -140,9 +140,9 @@ class AnomalyDetector:
                     repo_url=run.get("repo_url", ""),
                     run_id=run.get("run_id"),
                     type=AnomalyType.PERFORMANCE_DEGRADATION,
-                    severity=Severity.HIGH
-                    if current_duration > avg_duration * 3
-                    else Severity.MEDIUM,
+                    severity=(
+                        Severity.HIGH if current_duration > avg_duration * 3 else Severity.MEDIUM
+                    ),
                     description=f"Pipeline duration increased from {avg_duration:.0f}s to {current_duration}s",
                     suggested_action="Review recent changes for performance issues",
                 )

@@ -2,6 +2,7 @@
 Cliente Redis compartilhado para cache de SLA budgets e deduplicação de alertas.
 Inclui circuit breaker para resiliência em caso de falhas de conexão.
 """
+
 import time
 
 import redis.asyncio as redis

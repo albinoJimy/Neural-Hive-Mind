@@ -21,6 +21,7 @@ NOTA DE PERFORMANCE:
     - Usar apenas monitoramento reativo em C5
     - Implementar singleton com connection pooling (requer cuidado com concorrência)
 """
+
 import time
 from typing import Any
 

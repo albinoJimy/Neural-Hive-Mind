@@ -1,4 +1,5 @@
 """Testes de integração para SonarQubeClient"""
+
 import os
 import subprocess
 import sys

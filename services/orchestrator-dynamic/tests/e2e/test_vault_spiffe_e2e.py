@@ -13,6 +13,7 @@ Ou execute dentro do container test-runner:
     docker-compose -f tests/e2e/docker-compose.e2e exec test-runner \
         pytest tests/e2e/test_vault_spiffe_e2e.py -v
 """
+
 import os
 import time
 import asyncio

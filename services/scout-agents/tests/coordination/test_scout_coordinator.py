@@ -2,6 +2,7 @@
 Testes para ScoutCoordinator.
 Coordenação entre múltiplos scouts.
 """
+
 import pytest
 import asyncio
 from src.coordination.scout_coordinator import ScoutCoordinator, Task

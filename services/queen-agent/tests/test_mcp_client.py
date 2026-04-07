@@ -1,6 +1,7 @@
 """
 Testes para MCPClient.
 """
+
 import pytest
 import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock, patch

@@ -1,4 +1,5 @@
 """Testes unitários para SigstoreClient"""
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 import sys
@@ -102,8 +103,9 @@ async def test_sign_artifact_no_cosign():
 @pytest.mark.asyncio
 async def test_sign_artifact_success(mock_subprocess_success):
     """Testar assinatura bem-sucedida"""
-    with patch("shutil.which") as mock_which, patch(
-        "asyncio.create_subprocess_exec", mock_subprocess_success
+    with (
+        patch("shutil.which") as mock_which,
+        patch("asyncio.create_subprocess_exec", mock_subprocess_success),
     ):
         mock_which.side_effect = lambda x: f"/usr/bin/{x}"
 
@@ -122,8 +124,9 @@ async def test_sign_artifact_success(mock_subprocess_success):
 @pytest.mark.asyncio
 async def test_sign_artifact_failure(mock_subprocess_failure):
     """Testar falha na assinatura"""
-    with patch("shutil.which") as mock_which, patch(
-        "asyncio.create_subprocess_exec", mock_subprocess_failure
+    with (
+        patch("shutil.which") as mock_which,
+        patch("asyncio.create_subprocess_exec", mock_subprocess_failure),
     ):
         mock_which.side_effect = lambda x: f"/usr/bin/{x}"
 
@@ -210,8 +213,9 @@ async def test_generate_sbom_success():
         proc.communicate = AsyncMock(return_value=(b'{"sbom": "data"}', b""))
         return proc
 
-    with patch("shutil.which") as mock_which, patch(
-        "asyncio.create_subprocess_exec", mock_subprocess
+    with (
+        patch("shutil.which") as mock_which,
+        patch("asyncio.create_subprocess_exec", mock_subprocess),
     ):
         mock_which.side_effect = lambda x: f"/usr/bin/{x}"
 
@@ -297,8 +301,9 @@ async def test_health_check_with_cosign():
         proc.communicate = AsyncMock(return_value=(b"cosign v2.0.0", b""))
         return proc
 
-    with patch("shutil.which") as mock_which, patch(
-        "asyncio.create_subprocess_exec", mock_subprocess
+    with (
+        patch("shutil.which") as mock_which,
+        patch("asyncio.create_subprocess_exec", mock_subprocess),
     ):
         mock_which.side_effect = lambda x: f"/usr/bin/{x}"
 
@@ -368,10 +373,10 @@ async def test_generate_sbom_with_s3_upload():
         proc.communicate = AsyncMock(return_value=(b'{"sbom": "data"}', b""))
         return proc
 
-    with patch("shutil.which") as mock_which, patch(
-        "asyncio.create_subprocess_exec", mock_subprocess
-    ), patch(
-        "os.unlink"
+    with (
+        patch("shutil.which") as mock_which,
+        patch("asyncio.create_subprocess_exec", mock_subprocess),
+        patch("os.unlink"),
     ):  # Mock unlink para não deletar arquivo inexistente
         mock_which.side_effect = lambda x: f"/usr/bin/{x}"
 
@@ -403,8 +408,9 @@ async def test_generate_sbom_s3_upload_failure_fallback():
         proc.communicate = AsyncMock(return_value=(b'{"sbom": "data"}', b""))
         return proc
 
-    with patch("shutil.which") as mock_which, patch(
-        "asyncio.create_subprocess_exec", mock_subprocess
+    with (
+        patch("shutil.which") as mock_which,
+        patch("asyncio.create_subprocess_exec", mock_subprocess),
     ):
         mock_which.side_effect = lambda x: f"/usr/bin/{x}"
 
@@ -433,8 +439,9 @@ async def test_generate_sbom_without_s3_client():
         proc.communicate = AsyncMock(return_value=(b'{"sbom": "data"}', b""))
         return proc
 
-    with patch("shutil.which") as mock_which, patch(
-        "asyncio.create_subprocess_exec", mock_subprocess
+    with (
+        patch("shutil.which") as mock_which,
+        patch("asyncio.create_subprocess_exec", mock_subprocess),
     ):
         mock_which.side_effect = lambda x: f"/usr/bin/{x}"
 
@@ -464,8 +471,9 @@ async def test_generate_sbom_without_ids():
         proc.communicate = AsyncMock(return_value=(b'{"sbom": "data"}', b""))
         return proc
 
-    with patch("shutil.which") as mock_which, patch(
-        "asyncio.create_subprocess_exec", mock_subprocess
+    with (
+        patch("shutil.which") as mock_which,
+        patch("asyncio.create_subprocess_exec", mock_subprocess),
     ):
         mock_which.side_effect = lambda x: f"/usr/bin/{x}"
 

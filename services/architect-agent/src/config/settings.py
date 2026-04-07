@@ -1,4 +1,5 @@
 """Configuration settings for Architect Agent using Pydantic"""
+
 from functools import lru_cache
 from typing import List, Optional
 

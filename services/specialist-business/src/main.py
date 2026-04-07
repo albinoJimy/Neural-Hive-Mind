@@ -1,6 +1,7 @@
 """
 Ponto de entrada do Business Specialist.
 """
+
 import asyncio
 import logging
 import signal

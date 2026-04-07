@@ -1,6 +1,7 @@
 """
 Testes para PostgreSQL Client.
 """
+
 import pytest
 import os
 from unittest.mock import AsyncMock, MagicMock, patch

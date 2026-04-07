@@ -474,9 +474,9 @@ class ABTestingSpecialist(BaseSpecialist):
                 except Exception as e:
                     logger.error("Erro ao calcular significância estatística", error=str(e))
             else:
-                stats[
-                    "recommendation"
-                ] = f"insufficient_data (need {min_samples} per variant, have {sample_a}/{sample_b})"
+                stats["recommendation"] = (
+                    f"insufficient_data (need {min_samples} per variant, have {sample_a}/{sample_b})"
+                )
 
             logger.info(
                 "Estatísticas de A/B test calculadas",

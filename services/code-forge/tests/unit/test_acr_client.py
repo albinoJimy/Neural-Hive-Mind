@@ -193,7 +193,7 @@ class TestGetServicePrincipalToken:
         """Testa que retorna None quando credenciais estão incompletas."""
         client = ACRClient(
             registry="myregistry.azurecr.io",
-            client_id="test-client-id"
+            client_id="test-client-id",
             # Falta client_secret e tenant_id
         )
 

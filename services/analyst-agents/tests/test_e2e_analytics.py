@@ -2,6 +2,7 @@
 Testes E2E para Analytics API V2.
 Usa mocks para evitar dependências externas.
 """
+
 import pytest
 import asyncio
 from datetime import datetime, timezone, timedelta
@@ -114,12 +115,12 @@ async def mock_app_state():
             return {
                 "insights_by_type": insights_by_type,
                 "anomalies_detected": 0,
-                "avg_processing_time_ms": sum(
-                    i.get("metrics", {}).get("processing_time_ms", 0) for i in items
-                )
-                / len(items)
-                if items
-                else 0,
+                "avg_processing_time_ms": (
+                    sum(i.get("metrics", {}).get("processing_time_ms", 0) for i in items)
+                    / len(items)
+                    if items
+                    else 0
+                ),
                 "confidence_distribution": {"high": 0, "medium": 0, "low": 0},
                 "top_sources": [],
                 "recent_insights": recent_responses,
@@ -232,9 +233,9 @@ async def test_e2e_dashboard_aggregation(mock_app_state):
     for i in range(3):
         insight = await repo.create(
             InsightCreate(
-                analysis_type=AnalysisType.TIMESERIES
-                if i % 2 == 0
-                else AnalysisType.ANOMALY_DETECTION,
+                analysis_type=(
+                    AnalysisType.TIMESERIES if i % 2 == 0 else AnalysisType.ANOMALY_DETECTION
+                ),
                 title=f"Dashboard Test {i}",
                 description="",
                 data={},
@@ -325,9 +326,9 @@ async def test_e2e_pagination_and_filters(mock_app_state):
     for i in range(5):
         await repo.create(
             InsightCreate(
-                analysis_type=AnalysisType.TIMESERIES
-                if i % 2 == 0
-                else AnalysisType.ANOMALY_DETECTION,
+                analysis_type=(
+                    AnalysisType.TIMESERIES if i % 2 == 0 else AnalysisType.ANOMALY_DETECTION
+                ),
                 title=f"Filter Test {i}",
                 description="",
                 data={},

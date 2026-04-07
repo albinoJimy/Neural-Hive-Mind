@@ -86,9 +86,9 @@ def _monkey_patch_sklearn_trees():
         logger.info(
             "Sklearn compatibility patch applied",
             patched_classes=len(tree_classes),
-            sklearn_version=sys.modules.get("sklearn").__version__
-            if "sklearn" in sys.modules
-            else "unknown",
+            sklearn_version=(
+                sys.modules.get("sklearn").__version__ if "sklearn" in sys.modules else "unknown"
+            ),
         )
 
     except ImportError as e:

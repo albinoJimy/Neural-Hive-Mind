@@ -5,6 +5,7 @@ NOTA: Motor 3.7+ requer parameter names em snake_case:
 - maxPoolSize -> max_pool_size
 - serverSelectionTimeoutMS -> server_selection_timeout_ms
 """
+
 import hashlib
 import json
 from datetime import datetime

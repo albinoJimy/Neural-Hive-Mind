@@ -1,4 +1,5 @@
 """Unit tests for RemediationCoordinator"""
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from src.services.remediation_coordinator import RemediationCoordinator, RemediationType

@@ -3,6 +3,7 @@ PII Patterns para detecção via regex.
 
 Contém patterns compilados para detecção de PII global, europeu e brasileiro.
 """
+
 import re
 import structlog
 from enum import Enum

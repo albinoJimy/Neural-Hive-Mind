@@ -1,4 +1,5 @@
 """Testes para o cliente gRPC do Queen Agent"""
+
 import sys
 import os
 

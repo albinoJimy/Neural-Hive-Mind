@@ -4,6 +4,7 @@ PagerDuty Client para envio de alertas via Events API v2.
 Este cliente envia alertas para o PagerDuty usando a Events API v2,
 permitindo trigger, acknowledge e resolve de incidentes.
 """
+
 import logging
 from typing import Any
 

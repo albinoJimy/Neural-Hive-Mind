@@ -1,4 +1,5 @@
 """Data models for Scout Agents"""
+
 from neural_hive_domain import UnifiedDomain
 
 from .digital_event import DigitalChannel, DigitalEvent, DigitalEventType

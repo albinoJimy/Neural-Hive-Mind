@@ -6,6 +6,7 @@ Estes testes garantem que:
 2. Credenciais com padrões suspeitos sejam detectados
 3. HTTPS seja obrigatório em produção
 """
+
 import pytest
 import os
 from datetime import datetime, timezone

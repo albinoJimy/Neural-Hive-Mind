@@ -737,15 +737,15 @@ class MongoDBClient:
                     mr = metric_result[0]
                     response["metric_breakdown"] = {
                         "metric_name": metric_name,
-                        "avg_effect_size": round(mr["avg_effect_size"], 4)
-                        if mr["avg_effect_size"]
-                        else 0.0,
+                        "avg_effect_size": (
+                            round(mr["avg_effect_size"], 4) if mr["avg_effect_size"] else 0.0
+                        ),
                         "avg_p_value": round(mr["avg_p_value"], 4) if mr["avg_p_value"] else 0.0,
-                        "significant_rate": round(
-                            mr["significant_count"] / mr["experiments_with_metric"], 4
-                        )
-                        if mr["experiments_with_metric"] > 0
-                        else 0.0,
+                        "significant_rate": (
+                            round(mr["significant_count"] / mr["experiments_with_metric"], 4)
+                            if mr["experiments_with_metric"] > 0
+                            else 0.0
+                        ),
                         "experiments": mr["experiments_with_metric"],
                     }
 
@@ -843,14 +843,16 @@ class MongoDBClient:
             metric_breakdown_dict = {}
             for mb in metrics_breakdown:
                 metric_breakdown_dict[mb["_id"]] = {
-                    "avg_effect_size": round(mb["avg_effect_size"], 4)
-                    if mb["avg_effect_size"]
-                    else 0.0,
+                    "avg_effect_size": (
+                        round(mb["avg_effect_size"], 4) if mb["avg_effect_size"] else 0.0
+                    ),
                     "avg_p_value": round(mb["avg_p_value"], 4) if mb["avg_p_value"] else 0.0,
                     "experiments": mb["experiments"],
-                    "significant_rate": round(mb["significant_count"] / mb["experiments"], 4)
-                    if mb["experiments"] > 0
-                    else 0.0,
+                    "significant_rate": (
+                        round(mb["significant_count"] / mb["experiments"], 4)
+                        if mb["experiments"] > 0
+                        else 0.0
+                    ),
                 }
 
             dashboard = {

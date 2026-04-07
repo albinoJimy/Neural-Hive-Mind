@@ -10,6 +10,7 @@ e implementa um feedback loop para:
 Author: Neural-Hive-Mind
 Created: 2026-03-30 (Epic J)
 """
+
 import json
 from collections import defaultdict
 from datetime import datetime, timezone

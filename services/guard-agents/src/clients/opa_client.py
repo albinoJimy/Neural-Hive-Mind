@@ -1,4 +1,5 @@
 """Cliente HTTP para integração com Open Policy Agent (OPA)"""
+
 from typing import Any, Dict, Optional
 
 import httpx

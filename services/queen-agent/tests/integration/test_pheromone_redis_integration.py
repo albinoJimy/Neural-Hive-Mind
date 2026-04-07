@@ -7,6 +7,7 @@ Marcados com pytest.mark.integration para execucao separada.
 Atualizado para usar formato unificado de chaves via DomainMapper:
 pheromone:{layer}:{domain}:{type}:{id?}
 """
+
 import pytest
 import os
 import json

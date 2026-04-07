@@ -1,4 +1,5 @@
 """Pipeline ASR usando Whisper para conversão de áudio em texto"""
+
 import asyncio
 import logging
 import os

@@ -3,6 +3,7 @@ Testes para injeção de chaos no Self-Healing Engine.
 
 Cobre pod kill, network delay, resource injection e recovery.
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime

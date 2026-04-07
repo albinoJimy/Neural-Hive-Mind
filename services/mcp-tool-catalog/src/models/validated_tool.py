@@ -189,9 +189,9 @@ class ValidatedTool(BaseModel):
             "tool_id": self.tool_id,
             "tool_name": self.tool_name,
             "validation_status": self.validation_status.value,
-            "validation_timestamp": self.validation_timestamp.isoformat()
-            if self.validation_timestamp
-            else None,
+            "validation_timestamp": (
+                self.validation_timestamp.isoformat() if self.validation_timestamp else None
+            ),
             "fully_validated": self.is_fully_validated(),
             "can_be_used_safely": self.can_be_used_safely(),
             "requires_approval": self.requires_human_approval(),
@@ -201,9 +201,9 @@ class ValidatedTool(BaseModel):
                 else None
             ),
             "security_safe": self.security_validation.is_safe if self.security_validation else None,
-            "connectivity_status": self.connectivity_validation.status.value
-            if self.connectivity_validation
-            else None,
+            "connectivity_status": (
+                self.connectivity_validation.status.value if self.connectivity_validation else None
+            ),
         }
 
     model_config = ConfigDict(use_enum_values=False)

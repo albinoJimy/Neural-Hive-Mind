@@ -266,9 +266,9 @@ class ClickHouseClient:
             for row in results:
                 data.append(
                     {
-                        "timestamp": row[0].isoformat()
-                        if hasattr(row[0], "isoformat")
-                        else str(row[0]),
+                        "timestamp": (
+                            row[0].isoformat() if hasattr(row[0], "isoformat") else str(row[0])
+                        ),
                         "avg_cpu": float(row[1] or 0.0),
                         "avg_memory": float(row[2] or 0.0),
                         "concurrent_tickets": int(row[3]),

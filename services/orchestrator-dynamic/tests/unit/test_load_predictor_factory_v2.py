@@ -3,6 +3,7 @@ Testes unitários para LoadPredictorFactory.
 
 Valida criação e inicialização do LoadPredictor centralizado.
 """
+
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, timedelta

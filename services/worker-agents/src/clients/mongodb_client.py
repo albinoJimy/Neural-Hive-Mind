@@ -3,6 +3,7 @@ Cliente MongoDB simples para persistência de DLQ no Worker Agents.
 
 Responsável por armazenar tickets falhos para análise forense.
 """
+
 from datetime import datetime
 from typing import Any
 

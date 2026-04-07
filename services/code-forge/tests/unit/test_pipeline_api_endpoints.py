@@ -3,6 +3,7 @@ Testes para os endpoints da Pipeline API do Code Forge.
 
 Cobre trigger_pipeline, get_pipeline e estados de pipeline.
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime

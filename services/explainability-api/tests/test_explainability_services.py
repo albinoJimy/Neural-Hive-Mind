@@ -3,6 +3,7 @@ Testes para os serviços de explicabilidade do Explainability API.
 
 Cobre ShapCalculator, QualityScorer e HierarchicalExplainer.
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime

@@ -1,4 +1,5 @@
 """Testes E2E para fluxo completo de otimização."""
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timezone

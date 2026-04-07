@@ -2,6 +2,7 @@
 Testes para YAMLParser.
 Parsing de YAML para análise de configurações.
 """
+
 import pytest
 
 from src.exploration.parsers.yaml_parser import YAMLParser

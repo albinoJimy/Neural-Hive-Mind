@@ -4,6 +4,7 @@ Event Store para eventos de Saga.
 Persiste eventos de Saga no MongoDB para auditoria e reconstrucao
 do historico de transaccoes.
 """
+
 import asyncio
 from typing import Any
 

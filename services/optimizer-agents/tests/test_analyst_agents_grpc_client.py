@@ -46,10 +46,14 @@ def mock_channel():
 @pytest.mark.asyncio
 async def test_connect_creates_stub(settings, mock_channel):
     mock_stub = MagicMock()
-    with patch("grpc.aio.insecure_channel", return_value=mock_channel), patch(
-        "src.clients.analyst_agents_grpc_client.analyst_agent_pb2_grpc.AnalystAgentServiceStub",
-        return_value=mock_stub,
-    ), patch("src.clients.analyst_agents_grpc_client.get_settings", return_value=settings):
+    with (
+        patch("grpc.aio.insecure_channel", return_value=mock_channel),
+        patch(
+            "src.clients.analyst_agents_grpc_client.analyst_agent_pb2_grpc.AnalystAgentServiceStub",
+            return_value=mock_stub,
+        ),
+        patch("src.clients.analyst_agents_grpc_client.get_settings", return_value=settings),
+    ):
         client = AnalystAgentsGrpcClient()
         await client.connect()
 
@@ -90,8 +94,9 @@ async def test_get_historical_insights_uses_query_insights(settings):
 
     fixed_time = 1_700_000_000  # seconds epoch
 
-    with patch("time.time", return_value=fixed_time), patch(
-        "src.clients.analyst_agents_grpc_client.get_settings", return_value=settings
+    with (
+        patch("time.time", return_value=fixed_time),
+        patch("src.clients.analyst_agents_grpc_client.get_settings", return_value=settings),
     ):
         client = AnalystAgentsGrpcClient()
         client.stub = mock_stub

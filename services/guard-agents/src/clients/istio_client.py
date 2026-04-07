@@ -1,4 +1,5 @@
 """Cliente para integração com Istio via Kubernetes API"""
+
 from typing import Any, Dict, List, Optional
 
 import structlog

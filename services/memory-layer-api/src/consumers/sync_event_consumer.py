@@ -4,6 +4,7 @@ Consumer Kafka para eventos de sincronização de memória
 Consome eventos do Kafka e insere dados no ClickHouse.
 Suporta deserialização Avro e JSON (fallback).
 """
+
 import asyncio
 import io
 import json

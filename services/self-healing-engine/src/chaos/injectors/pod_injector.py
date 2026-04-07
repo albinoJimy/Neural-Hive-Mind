@@ -123,9 +123,11 @@ class PodFaultInjector(BaseFaultInjector):
                 pod = self.k8s_core_v1.read_namespaced_pod(pod_name, injection.target.namespace)
                 original_state[pod_name] = {
                     "labels": pod.metadata.labels,
-                    "deployment": pod.metadata.owner_references[0].name
-                    if pod.metadata.owner_references
-                    else None,
+                    "deployment": (
+                        pod.metadata.owner_references[0].name
+                        if pod.metadata.owner_references
+                        else None
+                    ),
                 }
 
                 # Deletar pod com grace period curto

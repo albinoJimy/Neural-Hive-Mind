@@ -1,6 +1,5 @@
 """Cliente gRPC para Consensus Engine com suporte a mTLS via SPIFFE."""
 
-
 import grpc
 import structlog
 from neural_hive_observability import instrument_grpc_channel

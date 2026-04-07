@@ -20,6 +20,7 @@ Uso:
     # Com variáveis de ambiente customizadas
     SLA_MANAGEMENT_HOST=sla-system.local pytest -m real_integration
 """
+
 import asyncio
 import os
 import uuid

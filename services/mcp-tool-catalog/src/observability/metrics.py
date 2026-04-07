@@ -1,4 +1,5 @@
 """Prometheus metrics for MCP Tool Catalog."""
+
 from prometheus_client import Counter, Gauge, Histogram
 
 

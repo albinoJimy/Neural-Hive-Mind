@@ -1,4 +1,5 @@
 """Migrations MongoDB para optimizer-agents."""
+
 from .m001_optimization_recommendations import (
     downgrade,
     run_migration,

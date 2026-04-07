@@ -2,6 +2,7 @@
 Testes para JavaParser.
 Parsing de Java para análise estática.
 """
+
 import pytest
 
 from src.exploration.parsers.multilanguage.java_parser import JavaParser

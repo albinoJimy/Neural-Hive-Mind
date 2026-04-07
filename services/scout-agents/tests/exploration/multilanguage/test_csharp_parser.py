@@ -2,6 +2,7 @@
 Testes para CSharpParser.
 Parsing de C# para análise estática.
 """
+
 import pytest
 
 from src.exploration.parsers.multilanguage.csharp_parser import CSharpParser

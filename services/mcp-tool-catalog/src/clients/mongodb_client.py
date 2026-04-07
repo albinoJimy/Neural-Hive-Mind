@@ -1,4 +1,5 @@
 """MongoDB client for tool catalog persistence."""
+
 import asyncio
 from datetime import datetime, timezone
 from typing import Dict, List, Optional

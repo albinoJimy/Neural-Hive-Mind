@@ -155,20 +155,17 @@ async def test_isolation_forest_persistence(
     Valida que scaler e modelo são salvos e restaurados corretamente.
     """
     with tempfile.TemporaryDirectory() as tmpdir:
-        with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-            "mlflow.create_experiment"
-        ), patch("mlflow.get_experiment_by_name", return_value=None), patch(
-            "mlflow.start_run"
-        ), patch(
-            "mlflow.log_param"
-        ), patch(
-            "mlflow.log_metric"
-        ), patch(
-            "mlflow.set_tag"
-        ), patch(
-            "mlflow.log_artifact"
-        ), patch(
-            "mlflow.sklearn.log_model"
+        with (
+            patch("mlflow.set_tracking_uri"),
+            patch("mlflow.set_experiment"),
+            patch("mlflow.create_experiment"),
+            patch("mlflow.get_experiment_by_name", return_value=None),
+            patch("mlflow.start_run"),
+            patch("mlflow.log_param"),
+            patch("mlflow.log_metric"),
+            patch("mlflow.set_tag"),
+            patch("mlflow.log_artifact"),
+            patch("mlflow.sklearn.log_model"),
         ):
             # Treina modelo
             detector = AnomalyDetector(
@@ -195,9 +192,10 @@ async def test_isolation_forest_persistence(
             )
 
             # Mock do MLflow para carregar modelo
-            with patch("mlflow.sklearn.load_model", return_value=detector.model), patch(
-                "mlflow.tracking.MlflowClient"
-            ) as mock_client_class:
+            with (
+                patch("mlflow.sklearn.load_model", return_value=detector.model),
+                patch("mlflow.tracking.MlflowClient") as mock_client_class,
+            ):
                 # Mock do client e métodos
                 mock_client = Mock()
                 mock_version = Mock()
@@ -245,20 +243,17 @@ async def test_autoencoder_persistence(
     Valida que scaler e threshold são salvos e restaurados corretamente.
     """
     with tempfile.TemporaryDirectory() as tmpdir:
-        with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-            "mlflow.create_experiment"
-        ), patch("mlflow.get_experiment_by_name", return_value=None), patch(
-            "mlflow.start_run"
-        ), patch(
-            "mlflow.log_param"
-        ), patch(
-            "mlflow.log_metric"
-        ), patch(
-            "mlflow.set_tag"
-        ), patch(
-            "mlflow.log_artifact"
-        ), patch(
-            "mlflow.keras.log_model"
+        with (
+            patch("mlflow.set_tracking_uri"),
+            patch("mlflow.set_experiment"),
+            patch("mlflow.create_experiment"),
+            patch("mlflow.get_experiment_by_name", return_value=None),
+            patch("mlflow.start_run"),
+            patch("mlflow.log_param"),
+            patch("mlflow.log_metric"),
+            patch("mlflow.set_tag"),
+            patch("mlflow.log_artifact"),
+            patch("mlflow.keras.log_model"),
         ):
             # Treina modelo
             detector = AnomalyDetector(
@@ -288,9 +283,10 @@ async def test_autoencoder_persistence(
             )
 
             # Mock do MLflow para carregar modelo
-            with patch("mlflow.keras.load_model", return_value=detector.model), patch(
-                "mlflow.tracking.MlflowClient"
-            ) as mock_client_class:
+            with (
+                patch("mlflow.keras.load_model", return_value=detector.model),
+                patch("mlflow.tracking.MlflowClient") as mock_client_class,
+            ):
                 # Mock do client e métodos
                 mock_client = Mock()
                 mock_version = Mock()
@@ -349,9 +345,10 @@ async def test_artifact_download_failure_fallback(mock_config, mock_registry, mo
     )
 
     # Mock do MLflow com falha no download de artifacts
-    with patch("mlflow.sklearn.load_model", return_value=Mock()), patch(
-        "mlflow.tracking.MlflowClient"
-    ) as mock_client_class:
+    with (
+        patch("mlflow.sklearn.load_model", return_value=Mock()),
+        patch("mlflow.tracking.MlflowClient") as mock_client_class,
+    ):
         mock_client = Mock()
         mock_version = Mock()
         mock_version.run_id = "test_run_id"
@@ -396,21 +393,19 @@ async def test_mlflow_api_correctness(
     e mlflow.keras.log_model é usado para Autoencoder.
     """
     # Teste IsolationForest
-    with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-        "mlflow.create_experiment"
-    ), patch("mlflow.get_experiment_by_name", return_value=None), patch("mlflow.start_run"), patch(
-        "mlflow.log_param"
-    ), patch(
-        "mlflow.log_metric"
-    ), patch(
-        "mlflow.set_tag"
-    ), patch(
-        "mlflow.log_artifact"
-    ), patch(
-        "mlflow.sklearn.log_model"
-    ) as mock_sklearn_log, patch(
-        "mlflow.keras.log_model"
-    ) as mock_keras_log:
+    with (
+        patch("mlflow.set_tracking_uri"),
+        patch("mlflow.set_experiment"),
+        patch("mlflow.create_experiment"),
+        patch("mlflow.get_experiment_by_name", return_value=None),
+        patch("mlflow.start_run"),
+        patch("mlflow.log_param"),
+        patch("mlflow.log_metric"),
+        patch("mlflow.set_tag"),
+        patch("mlflow.log_artifact"),
+        patch("mlflow.sklearn.log_model") as mock_sklearn_log,
+        patch("mlflow.keras.log_model") as mock_keras_log,
+    ):
         detector_if = AnomalyDetector(
             config=mock_config, model_registry=mock_registry, metrics=mock_metrics
         )
@@ -422,21 +417,19 @@ async def test_mlflow_api_correctness(
         assert not mock_keras_log.called
 
     # Teste Autoencoder
-    with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-        "mlflow.create_experiment"
-    ), patch("mlflow.get_experiment_by_name", return_value=None), patch("mlflow.start_run"), patch(
-        "mlflow.log_param"
-    ), patch(
-        "mlflow.log_metric"
-    ), patch(
-        "mlflow.set_tag"
-    ), patch(
-        "mlflow.log_artifact"
-    ), patch(
-        "mlflow.sklearn.log_model"
-    ) as mock_sklearn_log, patch(
-        "mlflow.keras.log_model"
-    ) as mock_keras_log:
+    with (
+        patch("mlflow.set_tracking_uri"),
+        patch("mlflow.set_experiment"),
+        patch("mlflow.create_experiment"),
+        patch("mlflow.get_experiment_by_name", return_value=None),
+        patch("mlflow.start_run"),
+        patch("mlflow.log_param"),
+        patch("mlflow.log_metric"),
+        patch("mlflow.set_tag"),
+        patch("mlflow.log_artifact"),
+        patch("mlflow.sklearn.log_model") as mock_sklearn_log,
+        patch("mlflow.keras.log_model") as mock_keras_log,
+    ):
         detector_ae = AnomalyDetector(
             config=mock_config_autoencoder, model_registry=mock_registry, metrics=mock_metrics
         )
@@ -462,20 +455,17 @@ async def test_precision_recall_after_reload(
     Valida que precision/recall permanecem > 0.6 após reload.
     """
     with tempfile.TemporaryDirectory() as tmpdir:
-        with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-            "mlflow.create_experiment"
-        ), patch("mlflow.get_experiment_by_name", return_value=None), patch(
-            "mlflow.start_run"
-        ), patch(
-            "mlflow.log_param"
-        ), patch(
-            "mlflow.log_metric"
-        ), patch(
-            "mlflow.set_tag"
-        ), patch(
-            "mlflow.log_artifact"
-        ), patch(
-            "mlflow.sklearn.log_model"
+        with (
+            patch("mlflow.set_tracking_uri"),
+            patch("mlflow.set_experiment"),
+            patch("mlflow.create_experiment"),
+            patch("mlflow.get_experiment_by_name", return_value=None),
+            patch("mlflow.start_run"),
+            patch("mlflow.log_param"),
+            patch("mlflow.log_metric"),
+            patch("mlflow.set_tag"),
+            patch("mlflow.log_artifact"),
+            patch("mlflow.sklearn.log_model"),
         ):
             # Treina modelo
             detector = AnomalyDetector(
@@ -500,9 +490,10 @@ async def test_precision_recall_after_reload(
                 config=mock_config, model_registry=mock_registry, metrics=mock_metrics
             )
 
-            with patch("mlflow.sklearn.load_model", return_value=detector.model), patch(
-                "mlflow.tracking.MlflowClient"
-            ) as mock_client_class:
+            with (
+                patch("mlflow.sklearn.load_model", return_value=detector.model),
+                patch("mlflow.tracking.MlflowClient") as mock_client_class,
+            ):
                 mock_client = Mock()
                 mock_version = Mock()
                 mock_version.run_id = "test_run_id"
@@ -544,18 +535,17 @@ async def test_integration_with_scheduler(
     Valida que anomalias são detectadas e refletidas no scheduling.
     """
     # Treina detector
-    with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-        "mlflow.create_experiment"
-    ), patch("mlflow.get_experiment_by_name", return_value=None), patch("mlflow.start_run"), patch(
-        "mlflow.log_param"
-    ), patch(
-        "mlflow.log_metric"
-    ), patch(
-        "mlflow.set_tag"
-    ), patch(
-        "mlflow.log_artifact"
-    ), patch(
-        "mlflow.sklearn.log_model"
+    with (
+        patch("mlflow.set_tracking_uri"),
+        patch("mlflow.set_experiment"),
+        patch("mlflow.create_experiment"),
+        patch("mlflow.get_experiment_by_name", return_value=None),
+        patch("mlflow.start_run"),
+        patch("mlflow.log_param"),
+        patch("mlflow.log_metric"),
+        patch("mlflow.set_tag"),
+        patch("mlflow.log_artifact"),
+        patch("mlflow.sklearn.log_model"),
     ):
         detector = AnomalyDetector(
             config=mock_config, model_registry=mock_registry, metrics=mock_metrics
@@ -660,18 +650,17 @@ async def test_anomaly_priority_adjustment(
     Simula scheduler ajustando prioridade baseado em anomalia.
     """
     # Treina detector
-    with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-        "mlflow.create_experiment"
-    ), patch("mlflow.get_experiment_by_name", return_value=None), patch("mlflow.start_run"), patch(
-        "mlflow.log_param"
-    ), patch(
-        "mlflow.log_metric"
-    ), patch(
-        "mlflow.set_tag"
-    ), patch(
-        "mlflow.log_artifact"
-    ), patch(
-        "mlflow.sklearn.log_model"
+    with (
+        patch("mlflow.set_tracking_uri"),
+        patch("mlflow.set_experiment"),
+        patch("mlflow.create_experiment"),
+        patch("mlflow.get_experiment_by_name", return_value=None),
+        patch("mlflow.start_run"),
+        patch("mlflow.log_param"),
+        patch("mlflow.log_metric"),
+        patch("mlflow.set_tag"),
+        patch("mlflow.log_artifact"),
+        patch("mlflow.sklearn.log_model"),
     ):
         detector = AnomalyDetector(
             config=mock_config, model_registry=mock_registry, metrics=mock_metrics
@@ -719,18 +708,17 @@ async def test_detect_with_window_size(
     mock_config, mock_registry, mock_metrics, training_data_with_anomalies, labels_with_anomalies
 ):
     """Testa detecção de anomalias com diferentes tamanhos de janela."""
-    with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-        "mlflow.create_experiment"
-    ), patch("mlflow.get_experiment_by_name", return_value=None), patch("mlflow.start_run"), patch(
-        "mlflow.log_param"
-    ), patch(
-        "mlflow.log_metric"
-    ), patch(
-        "mlflow.set_tag"
-    ), patch(
-        "mlflow.log_artifact"
-    ), patch(
-        "mlflow.sklearn.log_model"
+    with (
+        patch("mlflow.set_tracking_uri"),
+        patch("mlflow.set_experiment"),
+        patch("mlflow.create_experiment"),
+        patch("mlflow.get_experiment_by_name", return_value=None),
+        patch("mlflow.start_run"),
+        patch("mlflow.log_param"),
+        patch("mlflow.log_metric"),
+        patch("mlflow.set_tag"),
+        patch("mlflow.log_artifact"),
+        patch("mlflow.sklearn.log_model"),
     ):
         detector = AnomalyDetector(
             config=mock_config, model_registry=mock_registry, metrics=mock_metrics
@@ -764,18 +752,17 @@ async def test_detect_with_custom_threshold(
     config_high = mock_config.copy()
     config_high["contamination"] = 0.15
 
-    with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-        "mlflow.create_experiment"
-    ), patch("mlflow.get_experiment_by_name", return_value=None), patch("mlflow.start_run"), patch(
-        "mlflow.log_param"
-    ), patch(
-        "mlflow.log_metric"
-    ), patch(
-        "mlflow.set_tag"
-    ), patch(
-        "mlflow.log_artifact"
-    ), patch(
-        "mlflow.sklearn.log_model"
+    with (
+        patch("mlflow.set_tracking_uri"),
+        patch("mlflow.set_experiment"),
+        patch("mlflow.create_experiment"),
+        patch("mlflow.get_experiment_by_name", return_value=None),
+        patch("mlflow.start_run"),
+        patch("mlflow.log_param"),
+        patch("mlflow.log_metric"),
+        patch("mlflow.set_tag"),
+        patch("mlflow.log_artifact"),
+        patch("mlflow.sklearn.log_model"),
     ):
         detector = AnomalyDetector(
             config=config_high, model_registry=mock_registry, metrics=mock_metrics
@@ -817,18 +804,17 @@ async def test_feature_importance_anomaly(
     mock_config, mock_registry, mock_metrics, training_data_with_anomalies, labels_with_anomalies
 ):
     """Testa cálculo de importância de features para modelos com feature_importances_."""
-    with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-        "mlflow.create_experiment"
-    ), patch("mlflow.get_experiment_by_name", return_value=None), patch("mlflow.start_run"), patch(
-        "mlflow.log_param"
-    ), patch(
-        "mlflow.log_metric"
-    ), patch(
-        "mlflow.set_tag"
-    ), patch(
-        "mlflow.log_artifact"
-    ), patch(
-        "mlflow.sklearn.log_model"
+    with (
+        patch("mlflow.set_tracking_uri"),
+        patch("mlflow.set_experiment"),
+        patch("mlflow.create_experiment"),
+        patch("mlflow.get_experiment_by_name", return_value=None),
+        patch("mlflow.start_run"),
+        patch("mlflow.log_param"),
+        patch("mlflow.log_metric"),
+        patch("mlflow.set_tag"),
+        patch("mlflow.log_artifact"),
+        patch("mlflow.sklearn.log_model"),
     ):
         detector = AnomalyDetector(
             config=mock_config, model_registry=mock_registry, metrics=mock_metrics
@@ -861,18 +847,17 @@ async def test_batch_detect(
     mock_config, mock_registry, mock_metrics, training_data_with_anomalies, labels_with_anomalies
 ):
     """Testa detecção em lote de múltiplos tickets."""
-    with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-        "mlflow.create_experiment"
-    ), patch("mlflow.get_experiment_by_name", return_value=None), patch("mlflow.start_run"), patch(
-        "mlflow.log_param"
-    ), patch(
-        "mlflow.log_metric"
-    ), patch(
-        "mlflow.set_tag"
-    ), patch(
-        "mlflow.log_artifact"
-    ), patch(
-        "mlflow.sklearn.log_model"
+    with (
+        patch("mlflow.set_tracking_uri"),
+        patch("mlflow.set_experiment"),
+        patch("mlflow.create_experiment"),
+        patch("mlflow.get_experiment_by_name", return_value=None),
+        patch("mlflow.start_run"),
+        patch("mlflow.log_param"),
+        patch("mlflow.log_metric"),
+        patch("mlflow.set_tag"),
+        patch("mlflow.log_artifact"),
+        patch("mlflow.sklearn.log_model"),
     ):
         detector = AnomalyDetector(
             config=mock_config, model_registry=mock_registry, metrics=mock_metrics
@@ -909,18 +894,17 @@ async def test_batch_detect(
 @pytest.mark.asyncio
 async def test_update_baseline(mock_config, mock_registry, mock_metrics, training_data_normal):
     """Testa atualização do baseline de detecção."""
-    with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-        "mlflow.create_experiment"
-    ), patch("mlflow.get_experiment_by_name", return_value=None), patch("mlflow.start_run"), patch(
-        "mlflow.log_param"
-    ), patch(
-        "mlflow.log_metric"
-    ), patch(
-        "mlflow.set_tag"
-    ), patch(
-        "mlflow.log_artifact"
-    ), patch(
-        "mlflow.sklearn.log_model"
+    with (
+        patch("mlflow.set_tracking_uri"),
+        patch("mlflow.set_experiment"),
+        patch("mlflow.create_experiment"),
+        patch("mlflow.get_experiment_by_name", return_value=None),
+        patch("mlflow.start_run"),
+        patch("mlflow.log_param"),
+        patch("mlflow.log_metric"),
+        patch("mlflow.set_tag"),
+        patch("mlflow.log_artifact"),
+        patch("mlflow.sklearn.log_model"),
     ):
         detector = AnomalyDetector(
             config=mock_config, model_registry=mock_registry, metrics=mock_metrics
@@ -946,18 +930,17 @@ async def test_get_anomaly_report(
     mock_config, mock_registry, mock_metrics, training_data_with_anomalies, labels_with_anomalies
 ):
     """Testa geração de relatório de anomalias."""
-    with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-        "mlflow.create_experiment"
-    ), patch("mlflow.get_experiment_by_name", return_value=None), patch("mlflow.start_run"), patch(
-        "mlflow.log_param"
-    ), patch(
-        "mlflow.log_metric"
-    ), patch(
-        "mlflow.set_tag"
-    ), patch(
-        "mlflow.log_artifact"
-    ), patch(
-        "mlflow.sklearn.log_model"
+    with (
+        patch("mlflow.set_tracking_uri"),
+        patch("mlflow.set_experiment"),
+        patch("mlflow.create_experiment"),
+        patch("mlflow.get_experiment_by_name", return_value=None),
+        patch("mlflow.start_run"),
+        patch("mlflow.log_param"),
+        patch("mlflow.log_metric"),
+        patch("mlflow.set_tag"),
+        patch("mlflow.log_artifact"),
+        patch("mlflow.sklearn.log_model"),
     ):
         detector = AnomalyDetector(
             config=mock_config, model_registry=mock_registry, metrics=mock_metrics
@@ -983,18 +966,17 @@ async def test_threshold_sensitivity(
     config_low = mock_config.copy()
     config_low["contamination"] = 0.01
 
-    with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-        "mlflow.create_experiment"
-    ), patch("mlflow.get_experiment_by_name", return_value=None), patch("mlflow.start_run"), patch(
-        "mlflow.log_param"
-    ), patch(
-        "mlflow.log_metric"
-    ), patch(
-        "mlflow.set_tag"
-    ), patch(
-        "mlflow.log_artifact"
-    ), patch(
-        "mlflow.sklearn.log_model"
+    with (
+        patch("mlflow.set_tracking_uri"),
+        patch("mlflow.set_experiment"),
+        patch("mlflow.create_experiment"),
+        patch("mlflow.get_experiment_by_name", return_value=None),
+        patch("mlflow.start_run"),
+        patch("mlflow.log_param"),
+        patch("mlflow.log_metric"),
+        patch("mlflow.set_tag"),
+        patch("mlflow.log_artifact"),
+        patch("mlflow.sklearn.log_model"),
     ):
         detector_low = AnomalyDetector(
             config=config_low, model_registry=mock_registry, metrics=mock_metrics
@@ -1011,18 +993,17 @@ async def test_anomaly_persisting(
     mock_config, mock_registry, mock_metrics, training_data_with_anomalies, labels_with_anomalies
 ):
     """Testa que anomalias persistentes são detectadas consistentemente."""
-    with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-        "mlflow.create_experiment"
-    ), patch("mlflow.get_experiment_by_name", return_value=None), patch("mlflow.start_run"), patch(
-        "mlflow.log_param"
-    ), patch(
-        "mlflow.log_metric"
-    ), patch(
-        "mlflow.set_tag"
-    ), patch(
-        "mlflow.log_artifact"
-    ), patch(
-        "mlflow.sklearn.log_model"
+    with (
+        patch("mlflow.set_tracking_uri"),
+        patch("mlflow.set_experiment"),
+        patch("mlflow.create_experiment"),
+        patch("mlflow.get_experiment_by_name", return_value=None),
+        patch("mlflow.start_run"),
+        patch("mlflow.log_param"),
+        patch("mlflow.log_metric"),
+        patch("mlflow.set_tag"),
+        patch("mlflow.log_artifact"),
+        patch("mlflow.sklearn.log_model"),
     ):
         detector = AnomalyDetector(
             config=mock_config, model_registry=mock_registry, metrics=mock_metrics

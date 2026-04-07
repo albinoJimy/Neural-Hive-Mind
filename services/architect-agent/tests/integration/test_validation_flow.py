@@ -3,6 +3,7 @@
 Este módulo testa o fluxo completo de validação de repositórios,
 incluindo integração com MongoDB, OPA e Scout Agents.
 """
+
 import pytest
 from fastapi.testclient import TestClient
 

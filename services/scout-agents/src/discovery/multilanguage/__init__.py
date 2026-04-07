@@ -7,6 +7,7 @@ Suporta:
 - YAML (configurações estruturais)
 - JSON (configurações estruturais)
 """
+
 import ast
 import re
 from enum import Enum

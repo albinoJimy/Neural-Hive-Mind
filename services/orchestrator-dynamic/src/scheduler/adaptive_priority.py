@@ -6,6 +6,7 @@ Ajusta prioridade de tickets considerando histórico de execução:
 - Taxa de falha
 - Consumo de recursos
 """
+
 from collections import defaultdict
 from datetime import datetime, timezone
 

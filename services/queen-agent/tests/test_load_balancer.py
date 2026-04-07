@@ -3,6 +3,7 @@ Testes para Load Balancer
 
 Testa registro de workers, atribuição de tarefas, e estratégias de balanceamento.
 """
+
 import asyncio
 import pytest
 from unittest.mock import AsyncMock, MagicMock

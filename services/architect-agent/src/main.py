@@ -1,4 +1,5 @@
 """Main entry point for Architect Agent service"""
+
 import asyncio
 import signal
 

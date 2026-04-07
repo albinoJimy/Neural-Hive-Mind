@@ -9,6 +9,7 @@ Cobre:
 - Integração com OptimizationEngine e ExperimentManager
 - Tratamento de erros
 """
+
 import pytest
 import json
 import asyncio

@@ -1,4 +1,5 @@
 """FastAPI HTTP server for MCP Tool Catalog."""
+
 from contextlib import asynccontextmanager
 from typing import Optional
 

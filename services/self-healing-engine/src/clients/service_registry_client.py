@@ -1,4 +1,5 @@
 """Service Registry gRPC client for Self-Healing Engine (fail-open) com suporte a mTLS via SPIFFE."""
+
 from typing import Dict, List, Optional, Tuple
 
 import grpc
@@ -185,15 +186,15 @@ class ServiceRegistryClient:
                 "cluster": response.agent.cluster,
                 "version": response.agent.version,
                 "telemetry": {
-                    "success_rate": response.agent.telemetry.success_rate
-                    if response.agent.telemetry
-                    else 0.0,
-                    "avg_duration_ms": response.agent.telemetry.avg_duration_ms
-                    if response.agent.telemetry
-                    else 0,
-                    "total_executions": response.agent.telemetry.total_executions
-                    if response.agent.telemetry
-                    else 0,
+                    "success_rate": (
+                        response.agent.telemetry.success_rate if response.agent.telemetry else 0.0
+                    ),
+                    "avg_duration_ms": (
+                        response.agent.telemetry.avg_duration_ms if response.agent.telemetry else 0
+                    ),
+                    "total_executions": (
+                        response.agent.telemetry.total_executions if response.agent.telemetry else 0
+                    ),
                 },
             }
         except grpc.RpcError as e:

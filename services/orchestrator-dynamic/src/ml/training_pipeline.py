@@ -664,15 +664,15 @@ class TrainingPipeline:
                 "total_tickets": len(df),
                 "mean_error_ms": float(errors_series.mean()) if len(errors_series) > 0 else 0.0,
                 "median_error_ms": float(errors_series.median()) if len(errors_series) > 0 else 0.0,
-                "p50_error_ms": float(errors_series.quantile(0.50))
-                if len(errors_series) > 0
-                else 0.0,
-                "p95_error_ms": float(errors_series.quantile(0.95))
-                if len(errors_series) > 0
-                else 0.0,
-                "p99_error_ms": float(errors_series.quantile(0.99))
-                if len(errors_series) > 0
-                else 0.0,
+                "p50_error_ms": (
+                    float(errors_series.quantile(0.50)) if len(errors_series) > 0 else 0.0
+                ),
+                "p95_error_ms": (
+                    float(errors_series.quantile(0.95)) if len(errors_series) > 0 else 0.0
+                ),
+                "p99_error_ms": (
+                    float(errors_series.quantile(0.99)) if len(errors_series) > 0 else 0.0
+                ),
                 "extreme_errors_count": len(extreme_errors),
                 "extreme_errors": extreme_errors[:10],  # Limitar para não sobrecarregar logs
             }

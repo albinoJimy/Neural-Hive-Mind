@@ -1,4 +1,5 @@
 """Testes unitários para MCPServerClient."""
+
 import asyncio
 import json
 from datetime import datetime, timedelta

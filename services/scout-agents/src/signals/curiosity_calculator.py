@@ -7,6 +7,7 @@ Responsável por:
 - Aplicar decaimento para arquivos já visitados
 - Agregar scores por diretório
 """
+
 import ast
 import re
 from collections import defaultdict

@@ -3,6 +3,7 @@ Testes unitários abrangentes para RawEvent.
 
 Cobertura: extração de features, normalização, validação, cálculo de anomalia.
 """
+
 import pytest
 import numpy as np
 from datetime import datetime, timezone

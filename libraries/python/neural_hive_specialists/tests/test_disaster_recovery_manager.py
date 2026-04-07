@@ -98,23 +98,19 @@ class TestBackupSuccessPath:
         """Test complete backup flow creates manifest, tar.gz, and uploads."""
         backup_dir = real_tempfile.mkdtemp()
         try:
-            with patch.object(dr_manager, "_backup_model") as mock_model, patch.object(
-                dr_manager, "_backup_config"
-            ) as mock_config, patch.object(
-                dr_manager, "_backup_ledger"
-            ) as mock_ledger, patch.object(
-                dr_manager, "_backup_cache"
-            ) as mock_cache, patch.object(
-                dr_manager, "_backup_feature_store"
-            ) as mock_features, patch.object(
-                dr_manager, "_backup_metrics"
-            ) as mock_metrics, patch(
-                "neural_hive_specialists.disaster_recovery.disaster_recovery_manager.tempfile.mkdtemp",
-                return_value=backup_dir,
-            ), patch(
-                "shutil.rmtree"
-            ) as mock_rmtree, patch(
-                "os.remove"
+            with (
+                patch.object(dr_manager, "_backup_model") as mock_model,
+                patch.object(dr_manager, "_backup_config") as mock_config,
+                patch.object(dr_manager, "_backup_ledger") as mock_ledger,
+                patch.object(dr_manager, "_backup_cache") as mock_cache,
+                patch.object(dr_manager, "_backup_feature_store") as mock_features,
+                patch.object(dr_manager, "_backup_metrics") as mock_metrics,
+                patch(
+                    "neural_hive_specialists.disaster_recovery.disaster_recovery_manager.tempfile.mkdtemp",
+                    return_value=backup_dir,
+                ),
+                patch("shutil.rmtree") as mock_rmtree,
+                patch("os.remove"),
             ):
                 # Setup mocks
                 mock_model.return_value = {
@@ -168,19 +164,17 @@ class TestBackupSuccessPath:
         """Test that backup creates manifest with correct structure."""
         backup_dir = real_tempfile.mkdtemp()
         try:
-            with patch.object(dr_manager, "_backup_model") as mock_model, patch.object(
-                dr_manager, "_backup_config"
-            ) as mock_config, patch.object(
-                dr_manager, "_backup_ledger"
-            ) as mock_ledger, patch.object(
-                dr_manager.storage_client, "upload_backup", return_value=True
-            ), patch(
-                "neural_hive_specialists.disaster_recovery.disaster_recovery_manager.tempfile.mkdtemp",
-                return_value=backup_dir,
-            ), patch(
-                "shutil.rmtree"
-            ), patch(
-                "os.remove"
+            with (
+                patch.object(dr_manager, "_backup_model") as mock_model,
+                patch.object(dr_manager, "_backup_config") as mock_config,
+                patch.object(dr_manager, "_backup_ledger") as mock_ledger,
+                patch.object(dr_manager.storage_client, "upload_backup", return_value=True),
+                patch(
+                    "neural_hive_specialists.disaster_recovery.disaster_recovery_manager.tempfile.mkdtemp",
+                    return_value=backup_dir,
+                ),
+                patch("shutil.rmtree"),
+                patch("os.remove"),
             ):
                 mock_model.return_value = {
                     "success": True,
@@ -225,23 +219,24 @@ class TestBackupSuccessPath:
         """Test that backup generates tar.gz with correct compression."""
         backup_dir = real_tempfile.mkdtemp()
         try:
-            with patch.object(
-                dr_manager,
-                "_backup_model",
-                return_value={"success": True, "duration_seconds": 1.0},
-            ), patch.object(
-                dr_manager,
-                "_backup_config",
-                return_value={"success": True, "duration_seconds": 0.5},
-            ), patch.object(
-                dr_manager.storage_client, "upload_backup", return_value=True
-            ), patch(
-                "neural_hive_specialists.disaster_recovery.disaster_recovery_manager.tempfile.mkdtemp",
-                return_value=backup_dir,
-            ), patch(
-                "shutil.rmtree"
-            ), patch(
-                "os.remove"
+            with (
+                patch.object(
+                    dr_manager,
+                    "_backup_model",
+                    return_value={"success": True, "duration_seconds": 1.0},
+                ),
+                patch.object(
+                    dr_manager,
+                    "_backup_config",
+                    return_value={"success": True, "duration_seconds": 0.5},
+                ),
+                patch.object(dr_manager.storage_client, "upload_backup", return_value=True),
+                patch(
+                    "neural_hive_specialists.disaster_recovery.disaster_recovery_manager.tempfile.mkdtemp",
+                    return_value=backup_dir,
+                ),
+                patch("shutil.rmtree"),
+                patch("os.remove"),
             ):
                 # Create test data
                 os.makedirs(os.path.join(backup_dir, "model"), exist_ok=True)
@@ -269,15 +264,16 @@ class TestPartialComponentFailure:
         """Test that backup continues when some components fail."""
         backup_dir = real_tempfile.mkdtemp()
         try:
-            with patch.object(dr_manager, "_backup_model") as mock_model, patch.object(
-                dr_manager, "_backup_config"
-            ) as mock_config, patch.object(dr_manager, "_backup_ledger") as mock_ledger, patch(
-                "neural_hive_specialists.disaster_recovery.disaster_recovery_manager.tempfile.mkdtemp",
-                return_value=backup_dir,
-            ), patch(
-                "shutil.rmtree"
-            ), patch(
-                "os.remove"
+            with (
+                patch.object(dr_manager, "_backup_model") as mock_model,
+                patch.object(dr_manager, "_backup_config") as mock_config,
+                patch.object(dr_manager, "_backup_ledger") as mock_ledger,
+                patch(
+                    "neural_hive_specialists.disaster_recovery.disaster_recovery_manager.tempfile.mkdtemp",
+                    return_value=backup_dir,
+                ),
+                patch("shutil.rmtree"),
+                patch("os.remove"),
             ):
                 # Model succeeds
                 mock_model.return_value = {
@@ -422,14 +418,13 @@ class TestRestoreModel:
             artifacts_dir = os.path.join(component_dir, "artifacts")
             os.makedirs(artifacts_dir)
 
-            with patch("mlflow.set_tracking_uri"), patch(
-                "mlflow.tracking.MlflowClient"
-            ) as mock_client_class, patch("mlflow.start_run") as mock_start_run, patch(
-                "mlflow.pyfunc.load_model"
-            ) as mock_load, patch(
-                "mlflow.pyfunc.log_model"
-            ), patch(
-                "mlflow.log_param"
+            with (
+                patch("mlflow.set_tracking_uri"),
+                patch("mlflow.tracking.MlflowClient") as mock_client_class,
+                patch("mlflow.start_run") as mock_start_run,
+                patch("mlflow.pyfunc.load_model") as mock_load,
+                patch("mlflow.pyfunc.log_model"),
+                patch("mlflow.log_param"),
             ):
                 mock_client = Mock()
                 mock_client_class.return_value = mock_client
@@ -637,23 +632,24 @@ class TestMetricsRecording:
         """Test that backup operations record metrics."""
         backup_dir = real_tempfile.mkdtemp()
         try:
-            with patch.object(
-                dr_manager,
-                "_backup_model",
-                return_value={"success": True, "duration_seconds": 1.0},
-            ), patch.object(
-                dr_manager,
-                "_backup_config",
-                return_value={"success": True, "duration_seconds": 0.5},
-            ), patch.object(
-                dr_manager.storage_client, "upload_backup", return_value=True
-            ), patch(
-                "neural_hive_specialists.disaster_recovery.disaster_recovery_manager.tempfile.mkdtemp",
-                return_value=backup_dir,
-            ), patch(
-                "shutil.rmtree"
-            ), patch(
-                "os.remove"
+            with (
+                patch.object(
+                    dr_manager,
+                    "_backup_model",
+                    return_value={"success": True, "duration_seconds": 1.0},
+                ),
+                patch.object(
+                    dr_manager,
+                    "_backup_config",
+                    return_value={"success": True, "duration_seconds": 0.5},
+                ),
+                patch.object(dr_manager.storage_client, "upload_backup", return_value=True),
+                patch(
+                    "neural_hive_specialists.disaster_recovery.disaster_recovery_manager.tempfile.mkdtemp",
+                    return_value=backup_dir,
+                ),
+                patch("shutil.rmtree"),
+                patch("os.remove"),
             ):
                 os.makedirs(os.path.join(backup_dir, "model"), exist_ok=True)
                 with open(os.path.join(backup_dir, "model", "test.txt"), "w") as f:
@@ -684,17 +680,18 @@ class TestErrorHandling:
 
         backup_dir = real_tempfile.mkdtemp()
         try:
-            with patch.object(
-                dr_manager,
-                "_backup_model",
-                return_value={"success": True, "duration_seconds": 1.0},
-            ), patch(
-                "neural_hive_specialists.disaster_recovery.disaster_recovery_manager.tempfile.mkdtemp",
-                return_value=backup_dir,
-            ), patch(
-                "shutil.rmtree"
-            ), patch(
-                "os.remove"
+            with (
+                patch.object(
+                    dr_manager,
+                    "_backup_model",
+                    return_value={"success": True, "duration_seconds": 1.0},
+                ),
+                patch(
+                    "neural_hive_specialists.disaster_recovery.disaster_recovery_manager.tempfile.mkdtemp",
+                    return_value=backup_dir,
+                ),
+                patch("shutil.rmtree"),
+                patch("os.remove"),
             ):
                 os.makedirs(os.path.join(backup_dir, "model"), exist_ok=True)
                 with open(os.path.join(backup_dir, "model", "test.txt"), "w") as f:
@@ -745,33 +742,35 @@ class TestIncrementalBackup:
 
         backup_dir = real_tempfile.mkdtemp()
         try:
-            with patch.object(
-                dr_manager_incremental,
-                "_backup_model",
-                return_value={"success": True, "duration_seconds": 1.0},
-            ), patch.object(
-                dr_manager_incremental,
-                "_backup_config",
-                return_value={"success": True, "duration_seconds": 0.5},
-            ), patch.object(
-                dr_manager_incremental,
-                "_backup_ledger",
-                return_value={"success": True, "duration_seconds": 1.5},
-            ), patch.object(
-                dr_manager_incremental,
-                "_calculate_file_checksum",
-                return_value="abc123def456",
-            ), patch(
-                "neural_hive_specialists.disaster_recovery.disaster_recovery_manager.tempfile.mkdtemp",
-                return_value=backup_dir,
-            ), patch(
-                "tarfile.open"
-            ) as mock_tarfile, patch(
-                "shutil.rmtree"
-            ), patch(
-                "os.remove"
-            ), patch(
-                "os.path.getsize", return_value=1024
+            with (
+                patch.object(
+                    dr_manager_incremental,
+                    "_backup_model",
+                    return_value={"success": True, "duration_seconds": 1.0},
+                ),
+                patch.object(
+                    dr_manager_incremental,
+                    "_backup_config",
+                    return_value={"success": True, "duration_seconds": 0.5},
+                ),
+                patch.object(
+                    dr_manager_incremental,
+                    "_backup_ledger",
+                    return_value={"success": True, "duration_seconds": 1.5},
+                ),
+                patch.object(
+                    dr_manager_incremental,
+                    "_calculate_file_checksum",
+                    return_value="abc123def456",
+                ),
+                patch(
+                    "neural_hive_specialists.disaster_recovery.disaster_recovery_manager.tempfile.mkdtemp",
+                    return_value=backup_dir,
+                ),
+                patch("tarfile.open") as mock_tarfile,
+                patch("shutil.rmtree"),
+                patch("os.remove"),
+                patch("os.path.getsize", return_value=1024),
             ):
                 # Criar diretórios de componentes
                 for component in ["model", "config", "ledger"]:
@@ -816,27 +815,26 @@ class TestIncrementalBackup:
 
         backup_dir = real_tempfile.mkdtemp()
         try:
-            with patch.object(
-                dr_manager_incremental,
-                "_backup_model",
-                return_value={"success": True, "duration_seconds": 1.0},
-            ), patch.object(
-                dr_manager_incremental,
-                "_backup_config",
-                return_value={"success": True, "duration_seconds": 0.5},
-            ), patch.object(
-                dr_manager_incremental, "_calculate_file_checksum"
-            ) as mock_checksum, patch(
-                "neural_hive_specialists.disaster_recovery.disaster_recovery_manager.tempfile.mkdtemp",
-                return_value=backup_dir,
-            ), patch(
-                "tarfile.open"
-            ) as mock_tarfile, patch(
-                "shutil.rmtree"
-            ), patch(
-                "os.remove"
-            ), patch(
-                "os.path.getsize", return_value=2048
+            with (
+                patch.object(
+                    dr_manager_incremental,
+                    "_backup_model",
+                    return_value={"success": True, "duration_seconds": 1.0},
+                ),
+                patch.object(
+                    dr_manager_incremental,
+                    "_backup_config",
+                    return_value={"success": True, "duration_seconds": 0.5},
+                ),
+                patch.object(dr_manager_incremental, "_calculate_file_checksum") as mock_checksum,
+                patch(
+                    "neural_hive_specialists.disaster_recovery.disaster_recovery_manager.tempfile.mkdtemp",
+                    return_value=backup_dir,
+                ),
+                patch("tarfile.open") as mock_tarfile,
+                patch("shutil.rmtree"),
+                patch("os.remove"),
+                patch("os.path.getsize", return_value=2048),
             ):
                 # SHA-256 diferente para cada componente
                 sha256_values = {"model": "sha256_model_new", "config": "sha256_config_new"}
@@ -923,19 +921,24 @@ class TestIncrementalBackup:
                         return expected_checksums[comp]
                 return "default"
 
-            with patch.object(dr_manager_incremental, "_restore_model"), patch.object(
-                dr_manager_incremental, "_restore_config"
-            ), patch.object(dr_manager_incremental, "_restore_ledger"), patch.object(
-                dr_manager_incremental, "_run_smoke_tests", return_value={"passed": True}
-            ), patch.object(
-                dr_manager_incremental, "_calculate_file_checksum", side_effect=mock_checksum_func
-            ), patch(
-                "neural_hive_specialists.disaster_recovery.disaster_recovery_manager.tempfile.mkdtemp",
-                return_value=restore_dir,
-            ), patch(
-                "shutil.rmtree"
-            ), patch(
-                "os.remove"
+            with (
+                patch.object(dr_manager_incremental, "_restore_model"),
+                patch.object(dr_manager_incremental, "_restore_config"),
+                patch.object(dr_manager_incremental, "_restore_ledger"),
+                patch.object(
+                    dr_manager_incremental, "_run_smoke_tests", return_value={"passed": True}
+                ),
+                patch.object(
+                    dr_manager_incremental,
+                    "_calculate_file_checksum",
+                    side_effect=mock_checksum_func,
+                ),
+                patch(
+                    "neural_hive_specialists.disaster_recovery.disaster_recovery_manager.tempfile.mkdtemp",
+                    return_value=restore_dir,
+                ),
+                patch("shutil.rmtree"),
+                patch("os.remove"),
             ):
                 result = dr_manager_incremental.restore_specialist_state("snapshot-20250211-120000")
 
@@ -1051,47 +1054,53 @@ class TestBackwardCompatibility:
 
         backup_dir = real_tempfile.mkdtemp()
         try:
-            with patch.object(
-                dr_manager,
-                "_backup_model",
-                return_value={"success": True, "duration_seconds": 1.0},
-            ), patch.object(
-                dr_manager,
-                "_backup_config",
-                return_value={"success": True, "duration_seconds": 0.5},
-            ), patch.object(
-                dr_manager,
-                "_backup_ledger",
-                return_value={"success": True, "duration_seconds": 0.5},
-            ), patch.object(
-                dr_manager,
-                "_backup_cache",
-                return_value={"success": True, "duration_seconds": 0.3},
-            ), patch.object(
-                dr_manager,
-                "_backup_feature_store",
-                return_value={"success": True, "duration_seconds": 0.4},
-            ), patch.object(
-                dr_manager,
-                "_backup_metrics",
-                return_value={"success": True, "duration_seconds": 0.2},
-            ), patch(
-                "neural_hive_specialists.disaster_recovery.disaster_recovery_manager.tempfile.mkdtemp",
-                return_value=backup_dir,
-            ), patch(
-                "neural_hive_specialists.disaster_recovery.disaster_recovery_manager.tarfile.open"
-            ) as mock_tarfile, patch.object(
-                dr_manager,
-                "_calculate_file_checksum",
-                return_value="abc123def456",
-            ), patch(
-                "shutil.rmtree"
-            ), patch(
-                "os.remove"
-            ), patch(
-                "os.path.getsize", return_value=5000
-            ), patch(
-                "builtins.open", mock_open(read_data=b"dummy data")
+            with (
+                patch.object(
+                    dr_manager,
+                    "_backup_model",
+                    return_value={"success": True, "duration_seconds": 1.0},
+                ),
+                patch.object(
+                    dr_manager,
+                    "_backup_config",
+                    return_value={"success": True, "duration_seconds": 0.5},
+                ),
+                patch.object(
+                    dr_manager,
+                    "_backup_ledger",
+                    return_value={"success": True, "duration_seconds": 0.5},
+                ),
+                patch.object(
+                    dr_manager,
+                    "_backup_cache",
+                    return_value={"success": True, "duration_seconds": 0.3},
+                ),
+                patch.object(
+                    dr_manager,
+                    "_backup_feature_store",
+                    return_value={"success": True, "duration_seconds": 0.4},
+                ),
+                patch.object(
+                    dr_manager,
+                    "_backup_metrics",
+                    return_value={"success": True, "duration_seconds": 0.2},
+                ),
+                patch(
+                    "neural_hive_specialists.disaster_recovery.disaster_recovery_manager.tempfile.mkdtemp",
+                    return_value=backup_dir,
+                ),
+                patch(
+                    "neural_hive_specialists.disaster_recovery.disaster_recovery_manager.tarfile.open"
+                ) as mock_tarfile,
+                patch.object(
+                    dr_manager,
+                    "_calculate_file_checksum",
+                    return_value="abc123def456",
+                ),
+                patch("shutil.rmtree"),
+                patch("os.remove"),
+                patch("os.path.getsize", return_value=5000),
+                patch("builtins.open", mock_open(read_data=b"dummy data")),
             ):
                 os.makedirs(os.path.join(backup_dir, "model"), exist_ok=True)
                 with open(os.path.join(backup_dir, "model", "test.txt"), "w") as f:
@@ -1148,13 +1157,16 @@ class TestBackwardCompatibility:
             )
             manifest_data.save_to_file(os.path.join(restore_dir, "metadata.json"))
 
-            with patch("tarfile.open") as mock_tarfile, patch(
-                "neural_hive_specialists.disaster_recovery.disaster_recovery_manager.tempfile.mkdtemp",
-                return_value=restore_dir,
-            ), patch("shutil.rmtree"), patch("os.remove"), patch.object(
-                dr_manager, "_run_smoke_tests", return_value={"passed": True}
-            ), patch.object(
-                BackupManifest, "from_file", return_value=manifest_data
+            with (
+                patch("tarfile.open") as mock_tarfile,
+                patch(
+                    "neural_hive_specialists.disaster_recovery.disaster_recovery_manager.tempfile.mkdtemp",
+                    return_value=restore_dir,
+                ),
+                patch("shutil.rmtree"),
+                patch("os.remove"),
+                patch.object(dr_manager, "_run_smoke_tests", return_value={"passed": True}),
+                patch.object(BackupManifest, "from_file", return_value=manifest_data),
             ):
                 # Restore de backup full deve funcionar
                 result = dr_manager.restore_specialist_state(

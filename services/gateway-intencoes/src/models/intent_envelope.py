@@ -257,45 +257,57 @@ class IntentEnvelope(BaseModel):
                 "keywords": self.intent.keywords,
             },
             "confidence": self.confidence,
-            "context": {
-                "sessionId": self.context.session_id if self.context else None,
-                "userId": self.context.user_id if self.context else None,
-                "tenantId": self.context.tenant_id if self.context else None,
-                "channel": convert_enum(self.context.channel)
-                if self.context and self.context.channel
-                else None,
-                "userAgent": self.context.user_agent if self.context else None,
-                "clientIp": self.context.client_ip if self.context else None,
-                "geolocation": {
-                    "country": self.context.geolocation.country,
-                    "region": self.context.geolocation.region,
-                    "city": self.context.geolocation.city,
-                    "timezone": self.context.geolocation.timezone,
+            "context": (
+                {
+                    "sessionId": self.context.session_id if self.context else None,
+                    "userId": self.context.user_id if self.context else None,
+                    "tenantId": self.context.tenant_id if self.context else None,
+                    "channel": (
+                        convert_enum(self.context.channel)
+                        if self.context and self.context.channel
+                        else None
+                    ),
+                    "userAgent": self.context.user_agent if self.context else None,
+                    "clientIp": self.context.client_ip if self.context else None,
+                    "geolocation": (
+                        {
+                            "country": self.context.geolocation.country,
+                            "region": self.context.geolocation.region,
+                            "city": self.context.geolocation.city,
+                            "timezone": self.context.geolocation.timezone,
+                        }
+                        if self.context and self.context.geolocation
+                        else None
+                    ),
                 }
-                if self.context and self.context.geolocation
-                else None,
-            }
-            if self.context
-            else None,
-            "constraints": {
-                "priority": convert_enum(self.constraints.priority),
-                "deadline": int(self.constraints.deadline.timestamp() * 1000)
-                if self.constraints.deadline
-                else None,
-                "maxRetries": self.constraints.max_retries,
-                "timeoutMs": self.constraints.timeout_ms,
-                "requiredCapabilities": self.constraints.required_capabilities,
-                "securityLevel": convert_enum(self.constraints.security_level),
-            }
-            if self.constraints
-            else None,
-            "qos": {
-                "deliveryMode": convert_enum(self.qos.delivery_mode),
-                "durability": convert_enum(self.qos.durability),
-                "consistency": convert_enum(self.qos.consistency),
-            }
-            if self.qos
-            else None,
+                if self.context
+                else None
+            ),
+            "constraints": (
+                {
+                    "priority": convert_enum(self.constraints.priority),
+                    "deadline": (
+                        int(self.constraints.deadline.timestamp() * 1000)
+                        if self.constraints.deadline
+                        else None
+                    ),
+                    "maxRetries": self.constraints.max_retries,
+                    "timeoutMs": self.constraints.timeout_ms,
+                    "requiredCapabilities": self.constraints.required_capabilities,
+                    "securityLevel": convert_enum(self.constraints.security_level),
+                }
+                if self.constraints
+                else None
+            ),
+            "qos": (
+                {
+                    "deliveryMode": convert_enum(self.qos.delivery_mode),
+                    "durability": convert_enum(self.qos.durability),
+                    "consistency": convert_enum(self.qos.consistency),
+                }
+                if self.qos
+                else None
+            ),
             "timestamp": int(self.timestamp.timestamp() * 1000),
             "schemaVersion": 1,
             "metadata": {},
@@ -320,9 +332,9 @@ class IntentEnvelope(BaseModel):
                 "name": self.actor.name,
             },
             "intent": {
-                "text": self.intent.text[:500]
-                if len(self.intent.text) > 500
-                else self.intent.text,  # Truncar texto longo
+                "text": (
+                    self.intent.text[:500] if len(self.intent.text) > 500 else self.intent.text
+                ),  # Truncar texto longo
                 "domain": self.intent.domain.value,
                 "classification": self.intent.classification,
                 "original_language": self.intent.original_language,

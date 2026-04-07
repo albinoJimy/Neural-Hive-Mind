@@ -1,4 +1,5 @@
 """Métricas para eventos de Saga."""
+
 from collections import defaultdict
 from datetime import datetime, timezone
 

@@ -1,4 +1,5 @@
 """Cliente HTTP para consultas ao Prometheus"""
+
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 

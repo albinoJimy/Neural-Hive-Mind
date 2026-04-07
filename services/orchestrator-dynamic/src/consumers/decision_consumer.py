@@ -5,6 +5,7 @@ Consome decisões consolidadas e inicia workflows Temporal.
 Suporta deserialização Avro (Confluent wire format) e JSON fallback.
 Implementa deduplicação baseada em Redis para idempotência.
 """
+
 import io
 import json
 import os

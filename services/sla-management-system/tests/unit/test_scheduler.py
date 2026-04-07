@@ -3,6 +3,7 @@ Unit tests para ScheduleManager.
 
 Testa gerenciamento de schedules de workflows Temporal.
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timezone, timedelta

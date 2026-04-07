@@ -1,4 +1,5 @@
 """Settings configuration using Pydantic BaseSettings."""
+
 from functools import lru_cache
 from typing import Dict, List, Optional
 

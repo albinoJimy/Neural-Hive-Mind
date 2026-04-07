@@ -1,6 +1,7 @@
 """
 Ponto de entrada do Architecture Specialist.
 """
+
 import asyncio
 import logging
 import signal

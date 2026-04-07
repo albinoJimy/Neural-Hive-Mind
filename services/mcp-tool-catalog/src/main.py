@@ -1,4 +1,5 @@
 """Main entry point for MCP Tool Catalog Service."""
+
 import asyncio
 import signal
 import sys

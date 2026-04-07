@@ -1,4 +1,5 @@
 """Pytest configuration and fixtures for Architect Agent tests"""
+
 import asyncio
 import pytest
 from unittest.mock import MagicMock, AsyncMock

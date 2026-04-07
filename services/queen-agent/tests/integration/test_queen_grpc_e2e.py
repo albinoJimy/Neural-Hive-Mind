@@ -8,6 +8,7 @@ Valida fluxo completo dos métodos gRPC com servidor real:
 - GetActiveConflicts: consulta conflitos no Neo4j
 - MakeStrategicDecision: cria nova decisão estratégica
 """
+
 import pytest
 import pytest_asyncio
 import asyncio

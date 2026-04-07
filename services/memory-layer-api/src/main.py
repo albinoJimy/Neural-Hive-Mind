@@ -1,6 +1,7 @@
 """
 Memory Layer API - Unified access to multicamadas memory
 """
+
 from contextlib import asynccontextmanager
 from typing import Any, Dict
 

@@ -338,9 +338,9 @@ class ClickHouseClient:
                     "metric_name": row[1],
                     "metric_value": row[2],
                     "service": row[3],
-                    "bottleneck_type": "queue_saturation"
-                    if row[1] == "queue_depth"
-                    else "worker_saturation",
+                    "bottleneck_type": (
+                        "queue_saturation" if row[1] == "queue_depth" else "worker_saturation"
+                    ),
                 }
                 for row in results
             ]

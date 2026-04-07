@@ -7,6 +7,7 @@ Valida comportamento em cenários de falha real:
 - Credenciais inválidas
 - Config corrompido
 """
+
 import pytest
 import asyncio
 from unittest.mock import patch, MagicMock

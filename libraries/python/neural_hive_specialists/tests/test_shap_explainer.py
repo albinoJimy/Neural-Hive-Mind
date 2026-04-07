@@ -1,4 +1,5 @@
 """Testes para SHAPExplainer."""
+
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 import pandas as pd

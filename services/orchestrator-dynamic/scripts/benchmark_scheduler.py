@@ -217,11 +217,11 @@ async def run_benchmark_iteration(
         latency_mean_ms=statistics.mean(latencies) if latencies else 0,
         latency_p50_ms=sorted_latencies[int(len(sorted_latencies) * 0.50)] if latencies else 0,
         latency_p95_ms=sorted_latencies[int(len(sorted_latencies) * 0.95)] if latencies else 0,
-        latency_p99_ms=sorted_latencies[
-            min(int(len(sorted_latencies) * 0.99), len(sorted_latencies) - 1)
-        ]
-        if latencies
-        else 0,
+        latency_p99_ms=(
+            sorted_latencies[min(int(len(sorted_latencies) * 0.99), len(sorted_latencies) - 1)]
+            if latencies
+            else 0
+        ),
         latency_min_ms=min(latencies) if latencies else 0,
         latency_max_ms=max(latencies) if latencies else 0,
         success_count=success_count,

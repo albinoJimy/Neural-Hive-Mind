@@ -1,4 +1,5 @@
 """Integration tests for Guard Agent Service Registry client."""
+
 import pytest
 import asyncio
 import grpc

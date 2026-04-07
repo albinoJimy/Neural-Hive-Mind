@@ -1,4 +1,5 @@
 """Analyzer para MongoDB queries e pipelines."""
+
 import logging
 from typing import Any
 

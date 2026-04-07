@@ -1,4 +1,5 @@
 """Cliente PostgreSQL para persistência de tickets usando SQLAlchemy async."""
+
 import asyncio
 import logging
 from typing import List, Optional

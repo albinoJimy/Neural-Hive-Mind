@@ -4,6 +4,7 @@ Processa eventos de SLA e dispara workflows.
 Responsável por monitorar eventos de SLO violations e budget changes,
 acionando workflows de remediação e avaliação de políticas.
 """
+
 from typing import Any, Dict, Optional
 
 import structlog

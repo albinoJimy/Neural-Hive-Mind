@@ -3,6 +3,7 @@ Testes unitarios para OptimizerServicer.
 
 Testa os metodos gRPC do servicer principal do Optimizer Agent.
 """
+
 import pytest
 from unittest.mock import AsyncMock, Mock, MagicMock, patch
 from datetime import datetime

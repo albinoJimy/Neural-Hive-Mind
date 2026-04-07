@@ -3,6 +3,7 @@ Testes unitários para queries do OrchestrationWorkflow.
 
 Testa os métodos @workflow.query que expõem estado do workflow.
 """
+
 import pytest
 from unittest.mock import Mock, MagicMock
 from datetime import datetime, timezone

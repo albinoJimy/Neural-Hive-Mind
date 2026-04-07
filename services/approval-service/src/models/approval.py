@@ -99,9 +99,9 @@ class ApprovalResponse(BaseModel):
             "approved_by": self.approved_by,
             "approved_at": int(self.approved_at.timestamp() * 1000),
             "rejection_reason": self.rejection_reason,
-            "cognitive_plan_json": json.dumps(self.cognitive_plan, default=str)
-            if self.cognitive_plan
-            else None,
+            "cognitive_plan_json": (
+                json.dumps(self.cognitive_plan, default=str) if self.cognitive_plan else None
+            ),
         }
 
 

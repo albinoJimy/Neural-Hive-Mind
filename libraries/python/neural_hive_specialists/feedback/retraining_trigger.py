@@ -258,9 +258,9 @@ class RetrainingTrigger:
                 "window_days": str(self.config.retraining_feedback_window_days),
                 "min_feedback_quality": str(self.config.retraining_min_feedback_quality),
                 "model_type": self.config.training_model_types[0],  # Usar primeiro tipo
-                "hyperparameter_tuning": "true"
-                if self.config.training_hyperparameter_tuning
-                else "false",
+                "hyperparameter_tuning": (
+                    "true" if self.config.training_hyperparameter_tuning else "false"
+                ),
                 "promote_if_better": "true",
             }
 

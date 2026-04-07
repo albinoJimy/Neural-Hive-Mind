@@ -1,4 +1,5 @@
 """Métricas e telemetria para Guard Agents conforme camada-resiliencia.md"""
+
 import structlog
 from prometheus_client import Counter, Gauge, Histogram
 

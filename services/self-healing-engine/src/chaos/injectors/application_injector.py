@@ -156,9 +156,11 @@ class ApplicationFaultInjector(BaseFaultInjector):
                     "hosts": [service_name],
                     "http": [
                         {
-                            "match": [{"uri": {"prefix": path_pattern.replace("*", "")}}]
-                            if path_pattern != "/*"
-                            else [],
+                            "match": (
+                                [{"uri": {"prefix": path_pattern.replace("*", "")}}]
+                                if path_pattern != "/*"
+                                else []
+                            ),
                             "fault": {
                                 "abort": {
                                     "percentage": {"value": percentage},
@@ -260,9 +262,11 @@ class ApplicationFaultInjector(BaseFaultInjector):
                     "hosts": [service_name],
                     "http": [
                         {
-                            "match": [{"uri": {"prefix": path_pattern.replace("*", "")}}]
-                            if path_pattern != "/*"
-                            else [],
+                            "match": (
+                                [{"uri": {"prefix": path_pattern.replace("*", "")}}]
+                                if path_pattern != "/*"
+                                else []
+                            ),
                             "fault": {
                                 "delay": {
                                     "percentage": {"value": percentage},

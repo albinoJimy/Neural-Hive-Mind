@@ -58,9 +58,11 @@ class ExperimentManager:
         self.guardrail_monitor = GuardrailMonitor(
             mongodb_client=mongodb_client,
             redis_client=redis_client,
-            min_sample_size=self.settings.ab_test_min_sample_size
-            if hasattr(self.settings, "ab_test_min_sample_size")
-            else 100,
+            min_sample_size=(
+                self.settings.ab_test_min_sample_size
+                if hasattr(self.settings, "ab_test_min_sample_size")
+                else 100
+            ),
         )
 
         # Inicializar SampleSizeCalculator para calculo de tamanho de amostra
@@ -273,9 +275,11 @@ class ExperimentManager:
             sample_progress = {
                 "current": current_sample_size,
                 "required": required_sample_size,
-                "percentage": min((current_sample_size / required_sample_size) * 100, 100)
-                if required_sample_size > 0
-                else 0,
+                "percentage": (
+                    min((current_sample_size / required_sample_size) * 100, 100)
+                    if required_sample_size > 0
+                    else 0
+                ),
                 "is_sufficient": current_sample_size >= required_sample_size,
             }
 
@@ -394,9 +398,9 @@ class ExperimentManager:
 
             analysis = {
                 "success": success_criteria_met,
-                "improvement_percentage": sum(improvements.values()) / len(improvements)
-                if improvements
-                else 0.0,
+                "improvement_percentage": (
+                    sum(improvements.values()) / len(improvements) if improvements else 0.0
+                ),
                 "confidence": confidence,
                 "recommendation": recommendation,
                 "baseline_metrics": baseline_metrics,

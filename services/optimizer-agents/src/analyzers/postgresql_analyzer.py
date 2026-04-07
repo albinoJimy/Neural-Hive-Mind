@@ -1,4 +1,5 @@
 """Analyzer para PostgreSQL queries."""
+
 import logging
 import re
 from typing import Any

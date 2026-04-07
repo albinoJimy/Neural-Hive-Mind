@@ -106,11 +106,12 @@ async def test_x509_svid_fetch_and_secure_channel(mock_spiffe_manager, mock_sett
     """
     from src.clients.service_registry_client import ServiceRegistryClient
 
-    with patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2, patch(
-        "src.clients.service_registry_client.service_registry_pb2_grpc"
-    ) as mock_grpc, patch("grpc.ssl_channel_credentials") as mock_ssl_creds, patch(
-        "grpc.aio.secure_channel"
-    ) as mock_secure_channel:
+    with (
+        patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2,
+        patch("src.clients.service_registry_client.service_registry_pb2_grpc") as mock_grpc,
+        patch("grpc.ssl_channel_credentials") as mock_ssl_creds,
+        patch("grpc.aio.secure_channel") as mock_secure_channel,
+    ):
         # Setup mocks
         mock_pb2.DiscoverRequest = MagicMock(return_value=MagicMock())
         mock_stub = AsyncMock()
@@ -159,11 +160,12 @@ async def test_mtls_handshake_success(mock_spiffe_manager, mock_settings):
     """
     from src.clients.service_registry_client import ServiceRegistryClient
 
-    with patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2, patch(
-        "src.clients.service_registry_client.service_registry_pb2_grpc"
-    ) as mock_grpc, patch("grpc.ssl_channel_credentials") as mock_ssl_creds, patch(
-        "grpc.aio.secure_channel"
-    ) as mock_secure_channel:
+    with (
+        patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2,
+        patch("src.clients.service_registry_client.service_registry_pb2_grpc") as mock_grpc,
+        patch("grpc.ssl_channel_credentials") as mock_ssl_creds,
+        patch("grpc.aio.secure_channel") as mock_secure_channel,
+    ):
         # Setup mocks
         mock_pb2.DiscoverRequest = MagicMock(return_value=MagicMock())
         mock_stub = AsyncMock()
@@ -226,11 +228,12 @@ async def test_mtls_handshake_failure_invalid_cert(mock_spiffe_manager, mock_set
         expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
     )
 
-    with patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2, patch(
-        "src.clients.service_registry_client.service_registry_pb2_grpc"
-    ) as mock_grpc, patch("grpc.ssl_channel_credentials") as mock_ssl_creds, patch(
-        "grpc.aio.secure_channel"
-    ) as mock_secure_channel:
+    with (
+        patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2,
+        patch("src.clients.service_registry_client.service_registry_pb2_grpc") as mock_grpc,
+        patch("grpc.ssl_channel_credentials") as mock_ssl_creds,
+        patch("grpc.aio.secure_channel") as mock_secure_channel,
+    ):
         # Setup mocks
         mock_pb2.DiscoverRequest = MagicMock(return_value=MagicMock())
         mock_stub = AsyncMock()
@@ -295,11 +298,12 @@ async def test_x509_svid_refresh_on_expiry(mock_spiffe_manager, mock_settings):
     # Configurar mock para retornar SVIDs diferentes em chamadas subsequentes
     mock_spiffe_manager.fetch_x509_svid.side_effect = [initial_svid, renewed_svid]
 
-    with patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2, patch(
-        "src.clients.service_registry_client.service_registry_pb2_grpc"
-    ) as mock_grpc, patch("grpc.ssl_channel_credentials") as mock_ssl_creds, patch(
-        "grpc.aio.secure_channel"
-    ) as mock_secure_channel:
+    with (
+        patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2,
+        patch("src.clients.service_registry_client.service_registry_pb2_grpc") as mock_grpc,
+        patch("grpc.ssl_channel_credentials") as mock_ssl_creds,
+        patch("grpc.aio.secure_channel") as mock_secure_channel,
+    ):
         # Setup mocks
         mock_pb2.DiscoverRequest = MagicMock(return_value=MagicMock())
         mock_stub = AsyncMock()
@@ -348,11 +352,12 @@ async def test_fallback_insecure_when_x509_disabled(mock_spiffe_manager, mock_se
     # Desabilitar X.509 (apenas JWT)
     mock_settings.spiffe_enable_x509 = False
 
-    with patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2, patch(
-        "src.clients.service_registry_client.service_registry_pb2_grpc"
-    ) as mock_grpc, patch("grpc.aio.insecure_channel") as mock_insecure_channel, patch(
-        "grpc.aio.secure_channel"
-    ) as mock_secure_channel:
+    with (
+        patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2,
+        patch("src.clients.service_registry_client.service_registry_pb2_grpc") as mock_grpc,
+        patch("grpc.aio.insecure_channel") as mock_insecure_channel,
+        patch("grpc.aio.secure_channel") as mock_secure_channel,
+    ):
         # Setup mocks
         mock_pb2.DiscoverRequest = MagicMock(return_value=MagicMock())
         mock_stub = AsyncMock()
@@ -402,11 +407,12 @@ async def test_channel_recreation_on_cert_renewal(mock_spiffe_manager, mock_sett
 
     mock_spiffe_manager.fetch_x509_svid.side_effect = [svid_v1, svid_v2]
 
-    with patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2, patch(
-        "src.clients.service_registry_client.service_registry_pb2_grpc"
-    ) as mock_grpc, patch("grpc.ssl_channel_credentials") as mock_ssl_creds, patch(
-        "grpc.aio.secure_channel"
-    ) as mock_secure_channel:
+    with (
+        patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2,
+        patch("src.clients.service_registry_client.service_registry_pb2_grpc") as mock_grpc,
+        patch("grpc.ssl_channel_credentials") as mock_ssl_creds,
+        patch("grpc.aio.secure_channel") as mock_secure_channel,
+    ):
         # Setup mocks
         mock_pb2.DiscoverRequest = MagicMock(return_value=MagicMock())
         mock_stub = AsyncMock()
@@ -459,11 +465,12 @@ async def test_mtls_with_jwt_combined(mock_spiffe_manager, mock_settings):
         expiry=datetime.now(timezone.utc) + timedelta(hours=1),
     )
 
-    with patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2, patch(
-        "src.clients.service_registry_client.service_registry_pb2_grpc"
-    ) as mock_grpc, patch("grpc.ssl_channel_credentials") as mock_ssl_creds, patch(
-        "grpc.aio.secure_channel"
-    ) as mock_secure_channel:
+    with (
+        patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2,
+        patch("src.clients.service_registry_client.service_registry_pb2_grpc") as mock_grpc,
+        patch("grpc.ssl_channel_credentials") as mock_ssl_creds,
+        patch("grpc.aio.secure_channel") as mock_secure_channel,
+    ):
         # Setup mocks
         mock_pb2.DiscoverRequest = MagicMock(return_value=MagicMock())
         mock_stub = AsyncMock()
@@ -521,11 +528,12 @@ async def test_x509_svid_expiry_logging(mock_spiffe_manager, mock_settings, capl
         expires_at=expires_at,
     )
 
-    with patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2, patch(
-        "src.clients.service_registry_client.service_registry_pb2_grpc"
-    ) as mock_grpc, patch("grpc.ssl_channel_credentials") as mock_ssl_creds, patch(
-        "grpc.aio.secure_channel"
-    ) as mock_secure_channel:
+    with (
+        patch("src.clients.service_registry_client.service_registry_pb2") as mock_pb2,
+        patch("src.clients.service_registry_client.service_registry_pb2_grpc") as mock_grpc,
+        patch("grpc.ssl_channel_credentials") as mock_ssl_creds,
+        patch("grpc.aio.secure_channel") as mock_secure_channel,
+    ):
         # Setup mocks
         mock_pb2.DiscoverRequest = MagicMock(return_value=MagicMock())
         mock_stub = AsyncMock()

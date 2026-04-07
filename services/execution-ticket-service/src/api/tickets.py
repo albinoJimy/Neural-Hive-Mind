@@ -1,4 +1,5 @@
 """API endpoints para operações de tickets."""
+
 import asyncio
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -291,9 +292,11 @@ async def create_compensation_ticket(request: CompensationTicketRequest):
         await postgres_client.update_ticket_compensation(
             ticket_id=request.original_ticket_id,
             compensation_ticket_id=compensation_ticket_id,
-            status=TicketStatus.COMPENSATING.value
-            if hasattr(TicketStatus, "COMPENSATING")
-            else "COMPENSATING",
+            status=(
+                TicketStatus.COMPENSATING.value
+                if hasattr(TicketStatus, "COMPENSATING")
+                else "COMPENSATING"
+            ),
         )
     except Exception:
         # Log warning mas nao falhar a operacao

@@ -313,9 +313,9 @@ class KubernetesJobsClient:
                 "succeeded": job.status.succeeded or 0,
                 "failed": job.status.failed or 0,
                 "start_time": str(job.status.start_time) if job.status.start_time else None,
-                "completion_time": str(job.status.completion_time)
-                if job.status.completion_time
-                else None,
+                "completion_time": (
+                    str(job.status.completion_time) if job.status.completion_time else None
+                ),
                 "conditions": [
                     {"type": c.type, "status": c.status, "reason": c.reason, "message": c.message}
                     for c in (job.status.conditions or [])

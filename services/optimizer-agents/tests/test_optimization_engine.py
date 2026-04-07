@@ -8,6 +8,7 @@ Cobre:
 - Cálculo de recompensa
 - Atualização da Q-table
 """
+
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
 from src.services.optimization_engine import OptimizationEngine

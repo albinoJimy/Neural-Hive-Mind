@@ -10,6 +10,7 @@ Cobre:
 - Atualização da Q-table
 - Funções helper de estado
 """
+
 import pytest
 import random
 from unittest.mock import Mock, AsyncMock, patch

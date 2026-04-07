@@ -269,7 +269,7 @@ class TestGetServiceAccountToken:
         """Testa erro quando JSON não tem access_token."""
         key_data = {
             "type": "service_account",
-            "project_id": "test-project"
+            "project_id": "test-project",
             # Falta access_token
         }
         key_file = tmp_path / "incomplete.json"

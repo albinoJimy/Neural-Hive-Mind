@@ -4,6 +4,7 @@ Kafka Producer para eventos de sincronização de memória
 Publica eventos para sincronização assíncrona MongoDB -> ClickHouse.
 Utiliza serialização Avro conforme schema em schemas/memory-sync-event/memory-sync-event.avsc
 """
+
 import asyncio
 import io
 import json

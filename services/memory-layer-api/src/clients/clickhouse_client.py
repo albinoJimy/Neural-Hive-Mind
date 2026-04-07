@@ -1,6 +1,7 @@
 """
 ClickHouse Client for historical analytics
 """
+
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 

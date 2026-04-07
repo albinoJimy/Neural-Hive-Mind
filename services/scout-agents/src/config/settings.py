@@ -1,4 +1,5 @@
 """Configuration settings for Scout Agents using Pydantic"""
+
 from functools import lru_cache
 from typing import Any, Dict, Optional
 

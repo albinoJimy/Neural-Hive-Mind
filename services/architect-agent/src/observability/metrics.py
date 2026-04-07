@@ -3,6 +3,7 @@
 This module provides Prometheus metrics integration.
 Will be fully implemented in Task 8.
 """
+
 from typing import Any
 
 

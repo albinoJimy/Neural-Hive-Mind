@@ -720,9 +720,11 @@ async def policy_reconciliation_timer(
             "lastSyncTime": datetime.now(timezone.utc).isoformat(),
             "policyId": policy_id,
             "activeFreezes": len(active_freezes) if active_freezes else 0,
-            "lastTriggeredAt": max([f.triggered_at for f in active_freezes]).isoformat()
-            if active_freezes
-            else None,
+            "lastTriggeredAt": (
+                max([f.triggered_at for f in active_freezes]).isoformat()
+                if active_freezes
+                else None
+            ),
             "conditions": [
                 {
                     "type": "Synced",

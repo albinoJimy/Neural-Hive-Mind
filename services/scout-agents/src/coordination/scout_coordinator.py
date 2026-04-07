@@ -7,6 +7,7 @@ Responsável por:
 - Evitar trabalho duplicado
 - Sincronizar progresso
 """
+
 import asyncio
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Set

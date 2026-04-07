@@ -1,4 +1,5 @@
 """Service Registry gRPC client for Code Forge com suporte a mTLS via SPIFFE."""
+
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -269,9 +270,9 @@ class ServiceRegistryClient:
 
             # Registrar novamente com novas capabilities
             new_agent_id = await self.register(
-                service_name=metadata.get("service_name", "code-forge")
-                if metadata
-                else "code-forge",
+                service_name=(
+                    metadata.get("service_name", "code-forge") if metadata else "code-forge"
+                ),
                 capabilities=capabilities,
                 metadata=metadata or {},
             )

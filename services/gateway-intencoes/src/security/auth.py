@@ -1,4 +1,5 @@
 """Módulo de autenticação OAuth2 + mTLS"""
+
 from typing import Any
 
 import jwt

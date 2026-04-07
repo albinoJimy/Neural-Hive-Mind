@@ -230,24 +230,32 @@ class BaseSpecialist(ABC):
         self.feature_extractor = FeatureExtractor(
             config={
                 "ontology_path": config.ontology_path if hasattr(config, "ontology_path") else None,
-                "embeddings_model": config.embeddings_model
-                if hasattr(config, "embeddings_model")
-                else "paraphrase-multilingual-MiniLM-L12-v2",
-                "embedding_cache_size": config.embedding_cache_size
-                if hasattr(config, "embedding_cache_size")
-                else 1000,
-                "embedding_batch_size": config.embedding_batch_size
-                if hasattr(config, "embedding_batch_size")
-                else 32,
-                "embedding_cache_enabled": config.embedding_cache_enabled
-                if hasattr(config, "embedding_cache_enabled")
-                else True,
-                "embedding_cache_ttl_seconds": config.embedding_cache_ttl_seconds
-                if hasattr(config, "embedding_cache_ttl_seconds")
-                else None,
-                "semantic_similarity_threshold": config.semantic_similarity_threshold
-                if hasattr(config, "semantic_similarity_threshold")
-                else 0.7,
+                "embeddings_model": (
+                    config.embeddings_model
+                    if hasattr(config, "embeddings_model")
+                    else "paraphrase-multilingual-MiniLM-L12-v2"
+                ),
+                "embedding_cache_size": (
+                    config.embedding_cache_size if hasattr(config, "embedding_cache_size") else 1000
+                ),
+                "embedding_batch_size": (
+                    config.embedding_batch_size if hasattr(config, "embedding_batch_size") else 32
+                ),
+                "embedding_cache_enabled": (
+                    config.embedding_cache_enabled
+                    if hasattr(config, "embedding_cache_enabled")
+                    else True
+                ),
+                "embedding_cache_ttl_seconds": (
+                    config.embedding_cache_ttl_seconds
+                    if hasattr(config, "embedding_cache_ttl_seconds")
+                    else None
+                ),
+                "semantic_similarity_threshold": (
+                    config.semantic_similarity_threshold
+                    if hasattr(config, "semantic_similarity_threshold")
+                    else 0.7
+                ),
             },
             metrics=self.metrics,
         )
@@ -577,10 +585,10 @@ class BaseSpecialist(ABC):
                             # Gerar embeddings se necessário (não cacheados)
                             if include_embeddings and "embedding_features" not in features:
                                 embedding_start = time.time()
-                                features[
-                                    "embedding_features"
-                                ] = self.feature_extractor._extract_embedding_features(
-                                    cognitive_plan.get("tasks", [])
+                                features["embedding_features"] = (
+                                    self.feature_extractor._extract_embedding_features(
+                                        cognitive_plan.get("tasks", [])
+                                    )
                                 )
                                 feature_extraction_time = time.time() - embedding_start
                         else:
@@ -667,10 +675,10 @@ class BaseSpecialist(ABC):
                     # Gerar embeddings se necessário (não cacheados)
                     if include_embeddings and "embedding_features" not in features:
                         embedding_start = time.time()
-                        features[
-                            "embedding_features"
-                        ] = self.feature_extractor._extract_embedding_features(
-                            cognitive_plan.get("tasks", [])
+                        features["embedding_features"] = (
+                            self.feature_extractor._extract_embedding_features(
+                                cognitive_plan.get("tasks", [])
+                            )
                         )
                         feature_extraction_time = time.time() - embedding_start
                 else:
@@ -794,9 +802,9 @@ class BaseSpecialist(ABC):
                             model_version=self._get_model_version(),
                             online_model_version=self.online_learning_client.get_online_model_version(),
                             prediction_method=prediction_method,
-                            prediction=prediction.tolist()
-                            if hasattr(prediction, "tolist")
-                            else prediction,
+                            prediction=(
+                                prediction.tolist() if hasattr(prediction, "tolist") else prediction
+                            ),
                         )
 
                         return prediction, prediction_method
@@ -1092,9 +1100,9 @@ class BaseSpecialist(ABC):
                     risk_score = float(prediction[1])
                     parsing_method = "numpy_array_1d"
                 else:
-                    metadata[
-                        "parse_warning"
-                    ] = f"NumPy array shape não suportado: {prediction.shape}"
+                    metadata["parse_warning"] = (
+                        f"NumPy array shape não suportado: {prediction.shape}"
+                    )
                     parsing_method = "numpy_array_unsupported"
                     logger.warning("NumPy array com shape inesperado", shape=prediction.shape)
 
@@ -1108,9 +1116,9 @@ class BaseSpecialist(ABC):
                         risk_score = float(prediction.iloc[0, 1])
                         parsing_method = "dataframe"
                     else:
-                        metadata[
-                            "parse_warning"
-                        ] = f"DataFrame com colunas insuficientes: {len(prediction.columns)}"
+                        metadata["parse_warning"] = (
+                            f"DataFrame com colunas insuficientes: {len(prediction.columns)}"
+                        )
                         parsing_method = "dataframe_insufficient"
                 elif isinstance(prediction, pd.Series):
                     if len(prediction) >= 2:
@@ -1118,9 +1126,9 @@ class BaseSpecialist(ABC):
                         risk_score = float(prediction.iloc[1])
                         parsing_method = "series"
                     else:
-                        metadata[
-                            "parse_warning"
-                        ] = f"Series com elementos insuficientes: {len(prediction)}"
+                        metadata["parse_warning"] = (
+                            f"Series com elementos insuficientes: {len(prediction)}"
+                        )
                         parsing_method = "series_insufficient"
 
             # Caso 3: Lista
@@ -1137,9 +1145,9 @@ class BaseSpecialist(ABC):
                         risk_score = float(prediction[1])
                         parsing_method = "list_flat"
                 else:
-                    metadata[
-                        "parse_warning"
-                    ] = f"Lista com elementos insuficientes: {len(prediction)}"
+                    metadata["parse_warning"] = (
+                        f"Lista com elementos insuficientes: {len(prediction)}"
+                    )
                     parsing_method = "list_insufficient"
 
             # Caso 4: Dicionário
@@ -1152,9 +1160,9 @@ class BaseSpecialist(ABC):
 
             # Caso 5: Formato desconhecido
             else:
-                metadata[
-                    "parse_warning"
-                ] = f"Formato de predição desconhecido: {type(prediction).__name__}"
+                metadata["parse_warning"] = (
+                    f"Formato de predição desconhecido: {type(prediction).__name__}"
+                )
                 parsing_method = "unknown"
                 logger.warning(
                     "Formato de predição não reconhecido",
@@ -1440,16 +1448,16 @@ class BaseSpecialist(ABC):
                             if "metadata" not in cached_opinion["opinion"]:
                                 cached_opinion["opinion"]["metadata"] = {}
 
-                            cached_opinion["opinion"]["metadata"][
-                                "original_processing_time_ms"
-                            ] = cached_opinion["processing_time_ms"]
+                            cached_opinion["opinion"]["metadata"]["original_processing_time_ms"] = (
+                                cached_opinion["processing_time_ms"]
+                            )
                             cached_opinion["processing_time_ms"] = int(processing_time * 1000)
 
                         # Preservar evaluated_at original
                         if "evaluated_at" in cached_opinion:
-                            cached_opinion["opinion"]["metadata"][
-                                "evaluated_at_original"
-                            ] = cached_opinion["evaluated_at"]
+                            cached_opinion["opinion"]["metadata"]["evaluated_at_original"] = (
+                                cached_opinion["evaluated_at"]
+                            )
                             cached_opinion["evaluated_at"] = datetime.now(timezone.utc).isoformat()
 
                         return cached_opinion
@@ -2186,9 +2194,9 @@ class BaseSpecialist(ABC):
                             "failed": len(failed),
                             "success_rate": success_rate,
                             "duration_seconds": duration,
-                            "avg_duration_per_plan_ms": int((duration / len(requests)) * 1000)
-                            if requests
-                            else 0,
+                            "avg_duration_per_plan_ms": (
+                                int((duration / len(requests)) * 1000) if requests else 0
+                            ),
                             "batch_method": "optimized",
                         },
                     }
@@ -2274,9 +2282,9 @@ class BaseSpecialist(ABC):
                 "failed": len(failed) + len(exceptions),
                 "success_rate": success_rate,
                 "duration_seconds": duration,
-                "avg_duration_per_plan_ms": int((duration / len(requests)) * 1000)
-                if requests
-                else 0,
+                "avg_duration_per_plan_ms": (
+                    int((duration / len(requests)) * 1000) if requests else 0
+                ),
                 "batch_method": "standard",
             },
         }
@@ -2551,9 +2559,9 @@ class BaseSpecialist(ABC):
             circuit_breaker_states["mlflow"] = self.mlflow_client.get_circuit_breaker_state()
         if self.ledger_client:
             circuit_breaker_states["ledger"] = self.ledger_client.get_circuit_breaker_state()
-        circuit_breaker_states[
-            "explainability"
-        ] = self.explainability_gen.get_circuit_breaker_state()
+        circuit_breaker_states["explainability"] = (
+            self.explainability_gen.get_circuit_breaker_state()
+        )
 
         details["circuit_breaker_states"] = circuit_breaker_states
 
@@ -2637,9 +2645,9 @@ class BaseSpecialist(ABC):
                 "average_processing_time_ms": metrics_summary.get("avg_processing_time_ms", 0.0),
                 "accuracy_score": metrics_summary.get("accuracy_score", 0.0),
                 "total_evaluations": metrics_summary.get("total_evaluations", 0),
-                "last_model_update": self.mlflow_client.get_last_model_update()
-                if self.mlflow_client
-                else None,
+                "last_model_update": (
+                    self.mlflow_client.get_last_model_update() if self.mlflow_client else None
+                ),
             },
             "configuration": {
                 "min_confidence_score": self.config.min_confidence_score,
@@ -2729,9 +2737,9 @@ class BaseSpecialist(ABC):
         before_sleep=lambda retry_state: logger.warning(
             "Retrying service-registry registration",
             attempt=retry_state.attempt_number,
-            wait_time=retry_state.next_action.sleep
-            if hasattr(retry_state.next_action, "sleep")
-            else 0,
+            wait_time=(
+                retry_state.next_action.sleep if hasattr(retry_state.next_action, "sleep") else 0
+            ),
         ),
     )
     def _register_sync(self) -> str:

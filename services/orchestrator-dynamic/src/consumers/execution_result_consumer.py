@@ -7,6 +7,7 @@ para workflows Temporal, permitindo que workflows continuem sem aguardar timeout
 Fluxo:
   Worker Agent → execution.results → Consumer → signal(ticket_completed) → Workflow Temporal
 """
+
 import contextlib
 import json
 from typing import Any
@@ -266,9 +267,9 @@ class ExecutionResultConsumer:
                 logger.exception(
                     "execution_result_deserialization_failed",
                     error=str(e),
-                    raw_bytes_preview=raw_value[:100].hex()
-                    if len(raw_value) >= 100
-                    else raw_value.hex(),
+                    raw_bytes_preview=(
+                        raw_value[:100].hex() if len(raw_value) >= 100 else raw_value.hex()
+                    ),
                 )
                 raise ValueError(f"Failed to deserialize execution result: {e}") from e
         return raw_value

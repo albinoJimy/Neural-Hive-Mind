@@ -4,6 +4,7 @@ Multi-Language Support for Semantic Translation Engine
 Provides language detection and translation for user intents.
 Supports Portuguese, English, Spanish, French, German, Italian.
 """
+
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any

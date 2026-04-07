@@ -174,9 +174,11 @@ class MockOPAServer(MockHTTPServer):
         def default_policy(input_data: Dict) -> Dict:
             return {
                 "allow": self.default_allow,
-                "violations": []
-                if self.default_allow
-                else [{"message": "Policy violation", "rule": "default"}],
+                "violations": (
+                    []
+                    if self.default_allow
+                    else [{"message": "Policy violation", "rule": "default"}]
+                ),
             }
 
         self.policies["policy/allow"] = default_policy
@@ -205,9 +207,11 @@ class MockOPAServer(MockHTTPServer):
                     # Default policy response
                     result = {
                         "allow": self.default_allow,
-                        "violations": []
-                        if self.default_allow
-                        else [{"message": "Unknown policy", "rule": policy_path}],
+                        "violations": (
+                            []
+                            if self.default_allow
+                            else [{"message": "Unknown policy", "rule": policy_path}]
+                        ),
                     }
 
                 return httpx.Response(

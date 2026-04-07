@@ -1,4 +1,5 @@
 """Repository MongoDB para recomendações de otimização."""
+
 import logging
 from datetime import datetime, timezone
 

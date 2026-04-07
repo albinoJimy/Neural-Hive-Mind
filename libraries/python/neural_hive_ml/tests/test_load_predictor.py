@@ -139,18 +139,17 @@ async def test_initialization(mock_config, mock_registry, mock_metrics):
 @pytest.mark.asyncio
 async def test_predict_load_prophet(mock_config, mock_registry, mock_metrics, time_series_data):
     """Testa predição de carga com Prophet."""
-    with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-        "mlflow.create_experiment"
-    ), patch("mlflow.get_experiment_by_name", return_value=None), patch("mlflow.start_run"), patch(
-        "mlflow.log_param"
-    ), patch(
-        "mlflow.log_metric"
-    ), patch(
-        "mlflow.set_tag"
-    ), patch(
-        "mlflow.log_artifact"
-    ), patch(
-        "mlflow.prophet.log_model"
+    with (
+        patch("mlflow.set_tracking_uri"),
+        patch("mlflow.set_experiment"),
+        patch("mlflow.create_experiment"),
+        patch("mlflow.get_experiment_by_name", return_value=None),
+        patch("mlflow.start_run"),
+        patch("mlflow.log_param"),
+        patch("mlflow.log_metric"),
+        patch("mlflow.set_tag"),
+        patch("mlflow.log_artifact"),
+        patch("mlflow.prophet.log_model"),
     ):
         predictor = LoadPredictor(
             config=mock_config,
@@ -196,18 +195,17 @@ async def test_predict_load_multiple_horizons(
     mock_config, mock_registry, mock_metrics, time_series_data
 ):
     """Testa predições para múltiplos horizontes."""
-    with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-        "mlflow.create_experiment"
-    ), patch("mlflow.get_experiment_by_name", return_value=None), patch("mlflow.start_run"), patch(
-        "mlflow.log_param"
-    ), patch(
-        "mlflow.log_metric"
-    ), patch(
-        "mlflow.set_tag"
-    ), patch(
-        "mlflow.log_artifact"
-    ), patch(
-        "mlflow.prophet.log_model"
+    with (
+        patch("mlflow.set_tracking_uri"),
+        patch("mlflow.set_experiment"),
+        patch("mlflow.create_experiment"),
+        patch("mlflow.get_experiment_by_name", return_value=None),
+        patch("mlflow.start_run"),
+        patch("mlflow.log_param"),
+        patch("mlflow.log_metric"),
+        patch("mlflow.set_tag"),
+        patch("mlflow.log_artifact"),
+        patch("mlflow.prophet.log_model"),
     ):
         predictor = LoadPredictor(
             config=mock_config,
@@ -239,18 +237,17 @@ async def test_predict_load_multiple_horizons(
 @pytest.mark.asyncio
 async def test_predict_load_arima(mock_config_arima, mock_registry, mock_metrics, time_series_data):
     """Testa predição de carga com ARIMA."""
-    with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-        "mlflow.create_experiment"
-    ), patch("mlflow.get_experiment_by_name", return_value=None), patch("mlflow.start_run"), patch(
-        "mlflow.log_param"
-    ), patch(
-        "mlflow.log_metric"
-    ), patch(
-        "mlflow.set_tag"
-    ), patch(
-        "mlflow.log_artifact"
-    ), patch(
-        "mlflow.statsmodels.log_model"
+    with (
+        patch("mlflow.set_tracking_uri"),
+        patch("mlflow.set_experiment"),
+        patch("mlflow.create_experiment"),
+        patch("mlflow.get_experiment_by_name", return_value=None),
+        patch("mlflow.start_run"),
+        patch("mlflow.log_param"),
+        patch("mlflow.log_metric"),
+        patch("mlflow.set_tag"),
+        patch("mlflow.log_artifact"),
+        patch("mlflow.statsmodels.log_model"),
     ):
         predictor = LoadPredictor(
             config=mock_config_arima,
@@ -280,18 +277,17 @@ async def test_predict_load_arima(mock_config_arima, mock_registry, mock_metrics
 @pytest.mark.asyncio
 async def test_seasonality_detection(mock_config, mock_registry, mock_metrics, time_series_data):
     """Valida que modelo detecta padrões sazonais."""
-    with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-        "mlflow.create_experiment"
-    ), patch("mlflow.get_experiment_by_name", return_value=None), patch("mlflow.start_run"), patch(
-        "mlflow.log_param"
-    ), patch(
-        "mlflow.log_metric"
-    ), patch(
-        "mlflow.set_tag"
-    ), patch(
-        "mlflow.log_artifact"
-    ), patch(
-        "mlflow.prophet.log_model"
+    with (
+        patch("mlflow.set_tracking_uri"),
+        patch("mlflow.set_experiment"),
+        patch("mlflow.create_experiment"),
+        patch("mlflow.get_experiment_by_name", return_value=None),
+        patch("mlflow.start_run"),
+        patch("mlflow.log_param"),
+        patch("mlflow.log_metric"),
+        patch("mlflow.set_tag"),
+        patch("mlflow.log_artifact"),
+        patch("mlflow.prophet.log_model"),
     ):
         predictor = LoadPredictor(
             config=mock_config,
@@ -319,18 +315,17 @@ async def test_seasonality_detection(mock_config, mock_registry, mock_metrics, t
 @pytest.mark.asyncio
 async def test_cache_hit(mock_config, mock_registry, mock_metrics, mock_redis, time_series_data):
     """Testa que cache é usado quando disponível."""
-    with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-        "mlflow.create_experiment"
-    ), patch("mlflow.get_experiment_by_name", return_value=None), patch("mlflow.start_run"), patch(
-        "mlflow.log_param"
-    ), patch(
-        "mlflow.log_metric"
-    ), patch(
-        "mlflow.set_tag"
-    ), patch(
-        "mlflow.log_artifact"
-    ), patch(
-        "mlflow.prophet.log_model"
+    with (
+        patch("mlflow.set_tracking_uri"),
+        patch("mlflow.set_experiment"),
+        patch("mlflow.create_experiment"),
+        patch("mlflow.get_experiment_by_name", return_value=None),
+        patch("mlflow.start_run"),
+        patch("mlflow.log_param"),
+        patch("mlflow.log_metric"),
+        patch("mlflow.set_tag"),
+        patch("mlflow.log_artifact"),
+        patch("mlflow.prophet.log_model"),
     ):
         predictor = LoadPredictor(
             config=mock_config,
@@ -373,18 +368,17 @@ async def test_cache_miss_rate(mock_config, mock_registry, mock_metrics, time_se
         config=mock_config, model_registry=mock_registry, metrics=mock_metrics, redis_client=None
     )
 
-    with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-        "mlflow.create_experiment"
-    ), patch("mlflow.get_experiment_by_name", return_value=None), patch("mlflow.start_run"), patch(
-        "mlflow.log_param"
-    ), patch(
-        "mlflow.log_metric"
-    ), patch(
-        "mlflow.set_tag"
-    ), patch(
-        "mlflow.log_artifact"
-    ), patch(
-        "mlflow.prophet.log_model"
+    with (
+        patch("mlflow.set_tracking_uri"),
+        patch("mlflow.set_experiment"),
+        patch("mlflow.create_experiment"),
+        patch("mlflow.get_experiment_by_name", return_value=None),
+        patch("mlflow.start_run"),
+        patch("mlflow.log_param"),
+        patch("mlflow.log_metric"),
+        patch("mlflow.set_tag"),
+        patch("mlflow.log_artifact"),
+        patch("mlflow.prophet.log_model"),
     ):
         await predictor.train_model(training_data=time_series_data)
 
@@ -402,18 +396,17 @@ async def test_cache_miss_rate(mock_config, mock_registry, mock_metrics, time_se
 @pytest.mark.asyncio
 async def test_train_model_metrics(mock_config, mock_registry, mock_metrics, time_series_data):
     """Valida que métricas de treinamento atendem os requisitos."""
-    with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-        "mlflow.create_experiment"
-    ), patch("mlflow.get_experiment_by_name", return_value=None), patch("mlflow.start_run"), patch(
-        "mlflow.log_param"
-    ), patch(
-        "mlflow.log_metric"
-    ), patch(
-        "mlflow.set_tag"
-    ), patch(
-        "mlflow.log_artifact"
-    ), patch(
-        "mlflow.prophet.log_model"
+    with (
+        patch("mlflow.set_tracking_uri"),
+        patch("mlflow.set_experiment"),
+        patch("mlflow.create_experiment"),
+        patch("mlflow.get_experiment_by_name", return_value=None),
+        patch("mlflow.start_run"),
+        patch("mlflow.log_param"),
+        patch("mlflow.log_metric"),
+        patch("mlflow.set_tag"),
+        patch("mlflow.log_artifact"),
+        patch("mlflow.prophet.log_model"),
     ):
         predictor = LoadPredictor(
             config=mock_config,
@@ -443,18 +436,17 @@ async def test_brazilian_holidays(mock_config, mock_registry, mock_metrics, time
     # Adicionar configuração de feriados
     mock_config["country_holidays"] = "BR"
 
-    with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-        "mlflow.create_experiment"
-    ), patch("mlflow.get_experiment_by_name", return_value=None), patch("mlflow.start_run"), patch(
-        "mlflow.log_param"
-    ), patch(
-        "mlflow.log_metric"
-    ), patch(
-        "mlflow.set_tag"
-    ), patch(
-        "mlflow.log_artifact"
-    ), patch(
-        "mlflow.prophet.log_model"
+    with (
+        patch("mlflow.set_tracking_uri"),
+        patch("mlflow.set_experiment"),
+        patch("mlflow.create_experiment"),
+        patch("mlflow.get_experiment_by_name", return_value=None),
+        patch("mlflow.start_run"),
+        patch("mlflow.log_param"),
+        patch("mlflow.log_metric"),
+        patch("mlflow.set_tag"),
+        patch("mlflow.log_artifact"),
+        patch("mlflow.prophet.log_model"),
     ):
         predictor = LoadPredictor(
             config=mock_config,
@@ -485,18 +477,17 @@ async def test_model_persistence_and_reload(
     mock_config, mock_registry, mock_metrics, time_series_data
 ):
     """Testa que modelo pode ser salvo e recarregado."""
-    with patch("mlflow.set_tracking_uri"), patch("mlflow.set_experiment"), patch(
-        "mlflow.create_experiment"
-    ), patch("mlflow.get_experiment_by_name", return_value=None), patch("mlflow.start_run"), patch(
-        "mlflow.log_param"
-    ), patch(
-        "mlflow.log_metric"
-    ), patch(
-        "mlflow.set_tag"
-    ), patch(
-        "mlflow.log_artifact"
-    ), patch(
-        "mlflow.prophet.log_model"
+    with (
+        patch("mlflow.set_tracking_uri"),
+        patch("mlflow.set_experiment"),
+        patch("mlflow.create_experiment"),
+        patch("mlflow.get_experiment_by_name", return_value=None),
+        patch("mlflow.start_run"),
+        patch("mlflow.log_param"),
+        patch("mlflow.log_metric"),
+        patch("mlflow.set_tag"),
+        patch("mlflow.log_artifact"),
+        patch("mlflow.prophet.log_model"),
     ):
         # Treinar modelo original
         predictor1 = LoadPredictor(

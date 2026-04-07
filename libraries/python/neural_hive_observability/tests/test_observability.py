@@ -278,8 +278,9 @@ class TestTracing:
         mock_config.neural_hive_layer = "test-layer"
         mock_config.neural_hive_domain = None
 
-        with patch("neural_hive_observability.tracing._tracer") as mock_tracer, patch(
-            "neural_hive_observability.tracing._config", mock_config
+        with (
+            patch("neural_hive_observability.tracing._tracer") as mock_tracer,
+            patch("neural_hive_observability.tracing._config", mock_config),
         ):
             mock_span = Mock()
             mock_tracer.start_as_current_span.return_value.__enter__.return_value = mock_span
@@ -301,8 +302,9 @@ class TestTracing:
         mock_config.neural_hive_layer = "test-layer"
         mock_config.neural_hive_domain = None
 
-        with patch("neural_hive_observability.tracing._tracer") as mock_tracer, patch(
-            "neural_hive_observability.tracing._config", mock_config
+        with (
+            patch("neural_hive_observability.tracing._tracer") as mock_tracer,
+            patch("neural_hive_observability.tracing._config", mock_config),
         ):
             mock_span = Mock()
             mock_tracer.start_as_current_span.return_value.__enter__.return_value = mock_span

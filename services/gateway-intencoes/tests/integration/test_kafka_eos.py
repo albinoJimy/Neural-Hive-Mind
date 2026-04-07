@@ -1,4 +1,5 @@
 """Testes de integração para Exactly-Once Semantics (EOS) no Kafka"""
+
 import pytest
 import asyncio
 import uuid

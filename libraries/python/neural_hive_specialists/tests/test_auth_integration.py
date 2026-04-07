@@ -4,6 +4,7 @@ Testes de integração E2E para servidor gRPC com autenticação JWT.
 Este módulo testa o servidor gRPC completo com interceptor de autenticação,
 incluindo chamadas reais aos métodos gRPC e validação de Health Check bypass.
 """
+
 import pytest
 import grpc
 import jwt

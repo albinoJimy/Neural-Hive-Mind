@@ -1,4 +1,5 @@
 """Testes para AutoApplier."""
+
 import pytest
 from unittest.mock import AsyncMock, patch
 

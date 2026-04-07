@@ -3,6 +3,7 @@ Unit tests for OptimizationApplier service (optimizer-agents).
 
 Tests automatic application of code and database optimizations.
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch, mock_open
 import tempfile

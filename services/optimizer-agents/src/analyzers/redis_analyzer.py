@@ -1,4 +1,5 @@
 """Analyzer para Redis usage patterns."""
+
 import logging
 from typing import Any
 

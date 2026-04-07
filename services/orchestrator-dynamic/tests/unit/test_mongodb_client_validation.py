@@ -2,6 +2,7 @@
 Testes unitários para validação de configuração e comportamento
 de fail-open/fail-closed do MongoDBClient.
 """
+
 import types
 from unittest.mock import AsyncMock, MagicMock, patch
 

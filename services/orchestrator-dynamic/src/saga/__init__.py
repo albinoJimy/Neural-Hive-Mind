@@ -4,6 +4,7 @@ Modulo de coordenacao de Saga para transaccoes distribuidas.
 Implementa o padrao Saga com estado persistido no MongoDB para
 coordenacao de transaccoes distribuidas com compensacao automatica.
 """
+
 from .retry_config import NON_RETRYABLE_ERRORS, SagaRetryConfig
 from .retry_policy import NoRetryPolicy, RetryError, RetryPolicy, create_retry_policy
 from .saga_event_store import SagaEventStore

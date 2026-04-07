@@ -3,6 +3,7 @@ Testes de API REST para Load Balancer
 
 Testa endpoints de gerenciamento de workers e atribuição de tarefas.
 """
+
 import pytest
 from httpx import AsyncClient
 from unittest.mock import AsyncMock, MagicMock, patch

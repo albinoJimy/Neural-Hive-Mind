@@ -257,9 +257,9 @@ class CircuitBreaker:
             "service_name": self.service_name,
             "state": self._state.value,
             "failure_count": self._failure_count,
-            "last_failure_time": self._last_failure_time.isoformat()
-            if self._last_failure_time
-            else None,
+            "last_failure_time": (
+                self._last_failure_time.isoformat() if self._last_failure_time else None
+            ),
             "last_state_change": self._last_state_change.isoformat(),
             "threshold": self._failure_threshold,
             "timeout_seconds": self._timeout_seconds,

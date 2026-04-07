@@ -7,6 +7,7 @@ Valida:
 - Cache hit rate > 99% em chamadas consecutivas
 - Ausencia de race conditions em acesso concorrente
 """
+
 import pytest
 import asyncio
 import time

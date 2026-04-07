@@ -3,6 +3,7 @@ Testes para o servico de Validacao do Code Forge.
 
 Cobre validacao de codigo, seguranca e qualidade.
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime

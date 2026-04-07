@@ -3,6 +3,7 @@ Dependency Injection para APIs REST do Queen Agent.
 
 Usa FastAPI Depends() para injetar dependências de forma tipada e testável.
 """
+
 from typing import Any
 
 from fastapi import Depends, HTTPException, Request

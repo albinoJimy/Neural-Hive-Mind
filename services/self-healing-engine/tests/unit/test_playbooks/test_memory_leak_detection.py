@@ -1,4 +1,5 @@
 """Testes para o playbook de detecção de memory leak - TDD Approach."""
+
 import pytest
 import yaml
 from pathlib import Path

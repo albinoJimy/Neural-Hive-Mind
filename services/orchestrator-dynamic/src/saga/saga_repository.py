@@ -4,6 +4,7 @@ Repository para persistencia de estado de Saga.
 Gerencia o estado de Sagas no MongoDB com operacoes CRUD
 e queries especializadas.
 """
+
 import asyncio
 from datetime import datetime, timezone
 

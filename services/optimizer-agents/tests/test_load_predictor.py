@@ -348,9 +348,9 @@ class TestBottleneckPrediction:
                     "ticket_count": 50 if i < 5 else 150,  # Pico em i >= 5
                     "resource_demand": {"cpu_cores": 5, "memory_mb": 5000},
                     "confidence_lower": 40,
-                    "confidence_upper": 50
-                    if i < 5
-                    else 250,  # Upper bound > 2x média (250 > 2*100)
+                    "confidence_upper": (
+                        50 if i < 5 else 250
+                    ),  # Upper bound > 2x média (250 > 2*100)
                 }
                 for i in range(10)
             ],

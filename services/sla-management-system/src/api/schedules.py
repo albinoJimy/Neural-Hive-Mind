@@ -3,6 +3,7 @@ API REST para gerenciamento de schedules.
 
 Endpoints para criar, listar, pausar, retomar e disparar schedules.
 """
+
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query

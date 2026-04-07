@@ -132,9 +132,11 @@ class MongoDBClient:
             # Campos obrigatórios na raiz (Fluxo C - Orchestrator)
             "execution_order": cognitive_plan.execution_order,
             "risk_score": cognitive_plan.risk_score,
-            "risk_band": cognitive_plan.risk_band.value
-            if hasattr(cognitive_plan.risk_band, "value")
-            else cognitive_plan.risk_band,
+            "risk_band": (
+                cognitive_plan.risk_band.value
+                if hasattr(cognitive_plan.risk_band, "value")
+                else cognitive_plan.risk_band
+            ),
             # Dados completos do plano aninhados (para integridade e histórico)
             "plan_data": plan_dict,
             "hash": plan_hash,

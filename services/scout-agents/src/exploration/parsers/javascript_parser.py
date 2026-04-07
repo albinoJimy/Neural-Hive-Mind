@@ -3,6 +3,7 @@ JavaScript Parser - Análise de código JavaScript.
 
 Suporta ES6+ e CommonJS.
 """
+
 import re
 from typing import Any, Dict, List, Optional
 

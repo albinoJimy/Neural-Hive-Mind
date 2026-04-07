@@ -141,9 +141,9 @@ class LIMEExplainer:
                     "feature_name": feature_name,
                     "lime_weight": float(weight),
                     "feature_value": float(features.get(feature_name, 0.0)),
-                    "contribution": "positive"
-                    if weight > 0
-                    else ("negative" if weight < 0 else "neutral"),
+                    "contribution": (
+                        "positive" if weight > 0 else ("negative" if weight < 0 else "neutral")
+                    ),
                     "importance": abs(weight),
                 }
             )
@@ -163,9 +163,9 @@ class LIMEExplainer:
             "method": "lime",
             "feature_importances": feature_importances,
             "computation_time_ms": int(computation_time * 1000),
-            "intercept": float(explanation.intercept[0])
-            if hasattr(explanation, "intercept")
-            else 0.0,
+            "intercept": (
+                float(explanation.intercept[0]) if hasattr(explanation, "intercept") else 0.0
+            ),
         }
 
     def _generate_training_data(

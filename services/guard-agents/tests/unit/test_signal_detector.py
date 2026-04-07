@@ -3,6 +3,7 @@ Unit tests for ThreatDetector service (guard-agents).
 
 Tests signal detection, classification, and threat analysis.
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timezone

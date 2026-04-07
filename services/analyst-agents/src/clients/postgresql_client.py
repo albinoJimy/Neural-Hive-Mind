@@ -3,6 +3,7 @@ PostgreSQL Client para Analyst Agents.
 
 Implementa conexão assíncrona com PostgreSQL usando asyncpg.
 """
+
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 

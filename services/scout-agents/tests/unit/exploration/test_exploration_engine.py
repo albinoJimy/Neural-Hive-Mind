@@ -3,6 +3,7 @@ Unit tests for ExplorationEngine service (scout-agents).
 
 Tests codebase exploration, curiosity scoring, and signal processing.
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timezone, timedelta

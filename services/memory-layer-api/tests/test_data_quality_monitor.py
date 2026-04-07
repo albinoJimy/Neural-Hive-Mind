@@ -7,6 +7,7 @@ Testes para o módulo DataQualityMonitor com foco em:
 - Publicação de métricas Prometheus
 - Integração com ClickHouse para estatísticas agregadas
 """
+
 import os
 import pytest
 from datetime import datetime, timezone, timedelta

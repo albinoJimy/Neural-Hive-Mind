@@ -6,6 +6,7 @@ NOTA: Este módulo usa Pydantic v2.
 - ConfigDict substitui class Config
 - field_serializer substitui json_encoders
 """
+
 import hashlib
 import json
 from datetime import datetime

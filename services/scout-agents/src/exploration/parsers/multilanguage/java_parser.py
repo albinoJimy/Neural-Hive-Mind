@@ -3,6 +3,7 @@ Java Parser - Análise de código Java usando tree-sitter.
 
 Extrai classes, interfaces, métodos, campos, annotations, generics.
 """
+
 from typing import Any, Dict, List, Optional
 
 import structlog

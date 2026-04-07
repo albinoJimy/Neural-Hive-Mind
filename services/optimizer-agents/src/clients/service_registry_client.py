@@ -1,4 +1,5 @@
 """Service Registry gRPC client for Optimizer Agents com suporte a mTLS via SPIFFE."""
+
 import asyncio
 
 import grpc
@@ -334,12 +335,12 @@ class ServiceRegistryClient:
                             "status": "HEALTHY",
                             "metadata": dict(agent.metadata),
                             "telemetry": {
-                                "success_rate": agent.telemetry.success_rate
-                                if agent.telemetry
-                                else 0.0,
-                                "avg_duration_ms": agent.telemetry.avg_duration_ms
-                                if agent.telemetry
-                                else 0,
+                                "success_rate": (
+                                    agent.telemetry.success_rate if agent.telemetry else 0.0
+                                ),
+                                "avg_duration_ms": (
+                                    agent.telemetry.avg_duration_ms if agent.telemetry else 0
+                                ),
                             },
                         }
                     )

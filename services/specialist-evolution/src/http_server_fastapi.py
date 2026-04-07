@@ -213,12 +213,12 @@ def create_fastapi_app(specialist, config) -> FastAPI:
                 "heuristic_mode": heuristic_mode,
                 "model_loaded": model_loaded,
                 "dependencies": {
-                    "mongodb": mongodb_health
-                    if isinstance(mongodb_health, dict)
-                    else {"status": "error"},
-                    "neo4j": neo4j_health
-                    if isinstance(neo4j_health, dict)
-                    else {"status": "error"},
+                    "mongodb": (
+                        mongodb_health if isinstance(mongodb_health, dict) else {"status": "error"}
+                    ),
+                    "neo4j": (
+                        neo4j_health if isinstance(neo4j_health, dict) else {"status": "error"}
+                    ),
                 },
             }
 
@@ -267,9 +267,11 @@ def create_fastapi_app(specialist, config) -> FastAPI:
             response = {
                 "specialist_type": specialist.specialist_type,
                 "version": specialist.version,
-                "mlflow_enabled": getattr(specialist.mlflow_client, "_enabled", False)
-                if specialist.mlflow_client
-                else False,
+                "mlflow_enabled": (
+                    getattr(specialist.mlflow_client, "_enabled", False)
+                    if specialist.mlflow_client
+                    else False
+                ),
                 "circuit_breakers": circuit_breaker_states,
                 "status": health_info.get("status", "UNKNOWN"),
                 "details": health_info.get("details", {}),
@@ -282,9 +284,11 @@ def create_fastapi_app(specialist, config) -> FastAPI:
             return {
                 "specialist_type": specialist.specialist_type,
                 "version": specialist.version,
-                "mlflow_enabled": getattr(specialist.mlflow_client, "_enabled", False)
-                if specialist.mlflow_client
-                else False,
+                "mlflow_enabled": (
+                    getattr(specialist.mlflow_client, "_enabled", False)
+                    if specialist.mlflow_client
+                    else False
+                ),
                 "circuit_breakers": circuit_breaker_states,
                 "status": "NOT_SERVING",
                 "details": {"degraded_reasons": [str(e)]},

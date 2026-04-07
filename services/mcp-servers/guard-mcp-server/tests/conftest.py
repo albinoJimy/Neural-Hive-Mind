@@ -1,4 +1,5 @@
 """Guard MCP Server - Tests configuration."""
+
 import sys
 from pathlib import Path
 

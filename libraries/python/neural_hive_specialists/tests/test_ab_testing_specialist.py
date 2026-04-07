@@ -100,25 +100,25 @@ def mock_mlflow_client():
 def ab_testing_specialist(ab_test_config, mock_mlflow_client):
     """Instância de ABTestingSpecialist configurada."""
     # Mockar métodos abstratos
-    with patch(
-        "neural_hive_specialists.ab_testing_specialist.ABTestingSpecialist._get_specialist_type",
-        return_value="technical",
-    ), patch(
-        "neural_hive_specialists.ab_testing_specialist.ABTestingSpecialist._evaluate_plan_internal",
-        return_value={
-            "recommendation": "approve",
-            "confidence_score": 0.8,
-            "risk_score": 0.2,
-            "reasoning_summary": "AB test",
-            "reasoning_factors": [],
-            "suggested_mitigations": [],
-        },
-    ), patch(
-        "neural_hive_specialists.base_specialist.FeatureStore", return_value=None
-    ), patch(
-        "neural_hive_specialists.base_specialist.OpinionCache", return_value=None
-    ), patch(
-        "neural_hive_specialists.base_specialist.FeatureCache", return_value=None
+    with (
+        patch(
+            "neural_hive_specialists.ab_testing_specialist.ABTestingSpecialist._get_specialist_type",
+            return_value="technical",
+        ),
+        patch(
+            "neural_hive_specialists.ab_testing_specialist.ABTestingSpecialist._evaluate_plan_internal",
+            return_value={
+                "recommendation": "approve",
+                "confidence_score": 0.8,
+                "risk_score": 0.2,
+                "reasoning_summary": "AB test",
+                "reasoning_factors": [],
+                "suggested_mitigations": [],
+            },
+        ),
+        patch("neural_hive_specialists.base_specialist.FeatureStore", return_value=None),
+        patch("neural_hive_specialists.base_specialist.OpinionCache", return_value=None),
+        patch("neural_hive_specialists.base_specialist.FeatureCache", return_value=None),
     ):
         specialist = ConcreteABTestingSpecialist(config=ab_test_config)
         specialist.mlflow_client = mock_mlflow_client
@@ -188,25 +188,25 @@ class TestABTestingSpecialistLoading:
 
         mock_mlflow_client.load_model = Mock(side_effect=failing_load_model)
 
-        with patch(
-            "neural_hive_specialists.ab_testing_specialist.ABTestingSpecialist._get_specialist_type",
-            return_value="technical",
-        ), patch(
-            "neural_hive_specialists.ab_testing_specialist.ABTestingSpecialist._evaluate_plan_internal",
-            return_value={
-                "recommendation": "approve",
-                "confidence_score": 0.8,
-                "risk_score": 0.2,
-                "reasoning_summary": "AB test",
-                "reasoning_factors": [],
-                "suggested_mitigations": [],
-            },
-        ), patch(
-            "neural_hive_specialists.base_specialist.FeatureStore", return_value=None
-        ), patch(
-            "neural_hive_specialists.base_specialist.OpinionCache", return_value=None
-        ), patch(
-            "neural_hive_specialists.base_specialist.FeatureCache", return_value=None
+        with (
+            patch(
+                "neural_hive_specialists.ab_testing_specialist.ABTestingSpecialist._get_specialist_type",
+                return_value="technical",
+            ),
+            patch(
+                "neural_hive_specialists.ab_testing_specialist.ABTestingSpecialist._evaluate_plan_internal",
+                return_value={
+                    "recommendation": "approve",
+                    "confidence_score": 0.8,
+                    "risk_score": 0.2,
+                    "reasoning_summary": "AB test",
+                    "reasoning_factors": [],
+                    "suggested_mitigations": [],
+                },
+            ),
+            patch("neural_hive_specialists.base_specialist.FeatureStore", return_value=None),
+            patch("neural_hive_specialists.base_specialist.OpinionCache", return_value=None),
+            patch("neural_hive_specialists.base_specialist.FeatureCache", return_value=None),
         ):
             specialist = ConcreteABTestingSpecialist(config=ab_test_config)
             specialist.mlflow_client = mock_mlflow_client

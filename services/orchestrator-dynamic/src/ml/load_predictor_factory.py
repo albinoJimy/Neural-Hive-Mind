@@ -7,6 +7,7 @@ Integra o LoadPredictor de neural_hive_ml com:
 - Fallback para LoadPredictor local quando centralizado indisponível
 - Métricas Prometheus integradas
 """
+
 import json
 import time
 from typing import Any, Optional

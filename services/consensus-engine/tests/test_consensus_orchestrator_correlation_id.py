@@ -191,7 +191,7 @@ class TestConsensusOrchestratorCorrelationId:
             plan = {
                 "plan_id": str(uuid.uuid4()),
                 "intent_id": str(uuid.uuid4()),
-                "original_domain": "BUSINESS"  # FIX BUG-002: Campo correto do schema Avro
+                "original_domain": "BUSINESS",  # FIX BUG-002: Campo correto do schema Avro
                 # Sem correlation_id
             }
 

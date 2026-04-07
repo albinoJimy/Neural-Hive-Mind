@@ -690,7 +690,7 @@ class TestApprovalResponseConsumerResilience:
             "plan_data": {
                 "approval_status": "pending",
                 "risk_band": "high",
-                "is_destructive": False
+                "is_destructive": False,
                 # Missing required fields for CognitivePlan reconstruction
             },
         }

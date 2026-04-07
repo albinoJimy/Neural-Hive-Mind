@@ -2,6 +2,7 @@
 Teste end-to-end do fluxo de resiliência E1-E6.
 Valida que um incidente Kafka percorre toda a pipeline até validação de SLA.
 """
+
 import pytest
 import asyncio
 import json

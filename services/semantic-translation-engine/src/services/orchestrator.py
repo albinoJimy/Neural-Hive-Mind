@@ -188,9 +188,9 @@ class SemanticTranslationOrchestrator:
                 plan_id=cognitive_plan.plan_id,
                 ledger_hash=ledger_hash,
                 requires_approval=cognitive_plan.requires_approval,
-                approval_status=cognitive_plan.approval_status.value
-                if cognitive_plan.approval_status
-                else None,
+                approval_status=(
+                    cognitive_plan.approval_status.value if cognitive_plan.approval_status else None
+                ),
             )
 
             # B6: Publish plan (conditional routing based on approval requirement)

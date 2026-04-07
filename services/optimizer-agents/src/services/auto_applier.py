@@ -1,4 +1,5 @@
 """Serviço para auto-aplicação de otimizações seguras."""
+
 import hashlib
 import logging
 import os

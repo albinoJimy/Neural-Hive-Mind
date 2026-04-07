@@ -4,6 +4,7 @@ Unit tests para SignalFeedbackConsumer.
 Testa o consumer que processa exploration-signals do Scout Agents,
 implementando feedback loop para ajuste de parâmetros de exploração.
 """
+
 import pytest
 import json
 import asyncio

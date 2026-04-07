@@ -1,4 +1,5 @@
 """Testes para API de Tickets."""
+
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from types import SimpleNamespace
@@ -180,8 +181,9 @@ async def test_retry_ticket_success(
     ticket_dict.retry_count = 1
     mock_postgres_client.get_ticket_by_id.return_value.to_pydantic.return_value = ticket_dict
 
-    with patch("src.api.tickets.get_postgres_client", return_value=mock_postgres_client), patch(
-        "src.api.tickets.get_mongodb_client", return_value=mock_mongodb_client
+    with (
+        patch("src.api.tickets.get_postgres_client", return_value=mock_postgres_client),
+        patch("src.api.tickets.get_mongodb_client", return_value=mock_mongodb_client),
     ):
         result = await tickets_api.retry_ticket(ticket_id)
 
@@ -282,8 +284,9 @@ async def test_get_ticket_history_success(
     mock_collection.find = MagicMock(return_value=mock_cursor)
     mock_mongodb_client.db.__getitem__ = MagicMock(return_value=mock_collection)
 
-    with patch("src.api.tickets.get_postgres_client", return_value=mock_postgres_client), patch(
-        "src.api.tickets.get_mongodb_client", return_value=mock_mongodb_client
+    with (
+        patch("src.api.tickets.get_postgres_client", return_value=mock_postgres_client),
+        patch("src.api.tickets.get_mongodb_client", return_value=mock_mongodb_client),
     ):
         result = await tickets_api.get_ticket_history(ticket_id)
 
@@ -321,8 +324,9 @@ async def test_get_ticket_history_mongodb_error(
     mock_collection.find = MagicMock(side_effect=Exception("MongoDB error"))
     mock_mongodb_client.db.__getitem__ = MagicMock(return_value=mock_collection)
 
-    with patch("src.api.tickets.get_postgres_client", return_value=mock_postgres_client), patch(
-        "src.api.tickets.get_mongodb_client", return_value=mock_mongodb_client
+    with (
+        patch("src.api.tickets.get_postgres_client", return_value=mock_postgres_client),
+        patch("src.api.tickets.get_mongodb_client", return_value=mock_mongodb_client),
     ):
         result = await tickets_api.get_ticket_history(ticket_id)
 
@@ -377,9 +381,11 @@ async def test_create_ticket_success(mock_settings, mock_postgres_client, sample
     mock_producer.publish_ticket = AsyncMock(side_effect=Exception("Kafka not available"))
 
     # Patch the kafka module path
-    with patch("src.api.tickets.get_postgres_client", return_value=mock_postgres_client), patch(
-        "src.kafka.producer.get_kafka_producer", return_value=mock_producer
-    ), patch("src.api.tickets.asyncio") as mock_asyncio:
+    with (
+        patch("src.api.tickets.get_postgres_client", return_value=mock_postgres_client),
+        patch("src.kafka.producer.get_kafka_producer", return_value=mock_producer),
+        patch("src.api.tickets.asyncio") as mock_asyncio,
+    ):
         mock_asyncio.create_task = MagicMock()
 
         result = await tickets_api.create_ticket(ticket_data)
@@ -428,8 +434,9 @@ async def test_update_ticket_status_success(
     updated_dict["status"] = "RUNNING"
     mock_postgres_client.update_ticket_status.return_value = make_orm_mock(updated_dict)
 
-    with patch("src.api.tickets.get_postgres_client", return_value=mock_postgres_client), patch(
-        "src.api.tickets.get_mongodb_client", return_value=mock_mongodb_client
+    with (
+        patch("src.api.tickets.get_postgres_client", return_value=mock_postgres_client),
+        patch("src.api.tickets.get_mongodb_client", return_value=mock_mongodb_client),
     ):
         result = await tickets_api.update_ticket_status(ticket_id, request_data)
 
@@ -447,8 +454,9 @@ async def test_get_ticket_token_success(mock_settings, mock_postgres_client, sam
     ticket_dict.status = TicketStatus.PENDING
     mock_postgres_client.get_ticket_by_id.return_value.to_pydantic.return_value = ticket_dict
 
-    with patch("src.api.tickets.get_postgres_client", return_value=mock_postgres_client), patch(
-        "src.api.tickets.get_settings", return_value=mock_settings
+    with (
+        patch("src.api.tickets.get_postgres_client", return_value=mock_postgres_client),
+        patch("src.api.tickets.get_settings", return_value=mock_settings),
     ):
         result = await tickets_api.get_ticket_token(ticket_id)
 
@@ -468,8 +476,9 @@ async def test_get_ticket_token_invalid_status(
     ticket_dict.status = TicketStatus.COMPLETED
     mock_postgres_client.get_ticket_by_id.return_value.to_pydantic.return_value = ticket_dict
 
-    with patch("src.api.tickets.get_postgres_client", return_value=mock_postgres_client), patch(
-        "src.api.tickets.get_settings", return_value=mock_settings
+    with (
+        patch("src.api.tickets.get_postgres_client", return_value=mock_postgres_client),
+        patch("src.api.tickets.get_settings", return_value=mock_settings),
     ):
         with pytest.raises(HTTPException) as exc_info:
             await tickets_api.get_ticket_token(ticket_id)

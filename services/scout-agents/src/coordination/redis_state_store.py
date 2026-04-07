@@ -7,6 +7,7 @@ Responsável por:
 - Sincronizar descobertas
 - Gerenciar locks para evitar trabalho duplicado
 """
+
 import json
 from datetime import datetime
 from typing import Dict, List, Optional

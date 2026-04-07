@@ -1,4 +1,5 @@
 """Producer Kafka para eventos de otimização."""
+
 import json
 from datetime import datetime, timezone
 

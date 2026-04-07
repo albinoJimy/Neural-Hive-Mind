@@ -3,6 +3,7 @@ Testes de integração para validar exposição de métricas via endpoint /metri
 
 Verifica que as novas métricas de compensação e segurança estão expostas corretamente.
 """
+
 import pytest
 from prometheus_client import REGISTRY, CollectorRegistry
 from prometheus_client.parser import text_string_to_metric_families

@@ -3,6 +3,7 @@ Testes unitários abrangentes para BayesianFilter.
 
 Cobertura: filtragem Bayesiana, atualização de priors, likelihoods.
 """
+
 import pytest
 import numpy as np
 from datetime import datetime, timezone

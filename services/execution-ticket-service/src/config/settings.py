@@ -1,6 +1,7 @@
 """
 Configurações do Execution Ticket Service usando Pydantic Settings.
 """
+
 from functools import lru_cache
 from typing import List, Optional
 

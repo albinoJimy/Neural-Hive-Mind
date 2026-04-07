@@ -1,4 +1,5 @@
 """Kafka consumer for orchestration incidents -> triggers remediation playbooks."""
+
 import asyncio
 import json
 from io import BytesIO

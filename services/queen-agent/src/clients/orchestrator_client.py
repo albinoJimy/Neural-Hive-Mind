@@ -678,9 +678,11 @@ class OrchestratorClient:
         if signal_name.lower() == "pause":
             return await self.pause_workflow(
                 workflow_id=workflow_id,
-                reason=input_payload.get("reason", "Signal via deprecated API")
-                if input_payload
-                else "Signal via deprecated API",
+                reason=(
+                    input_payload.get("reason", "Signal via deprecated API")
+                    if input_payload
+                    else "Signal via deprecated API"
+                ),
             )
         if signal_name.lower() == "resume":
             return await self.resume_workflow(workflow_id=workflow_id)

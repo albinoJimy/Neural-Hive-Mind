@@ -1,6 +1,7 @@
 """
 Ponto de entrada principal do Execution Ticket Service.
 """
+
 import asyncio
 import logging
 import sys

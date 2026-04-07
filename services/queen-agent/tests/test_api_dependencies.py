@@ -3,6 +3,7 @@ Testes de Dependency Injection para APIs REST do Queen Agent.
 
 Verifica que as dependências são injetadas correctamente usando FastAPI Depends().
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime, timezone

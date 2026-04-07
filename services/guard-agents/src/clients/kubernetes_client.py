@@ -1,4 +1,5 @@
 """Kubernetes client for Guard Agents"""
+
 from typing import Any, Dict, List, Optional
 
 import structlog
@@ -443,9 +444,11 @@ class KubernetesClient:
                         "revision": int(revision),
                         "replicas": rs.spec.replicas or 0,
                         "available_replicas": rs.status.available_replicas or 0,
-                        "created_at": rs.metadata.creation_timestamp.isoformat()
-                        if rs.metadata.creation_timestamp
-                        else None,
+                        "created_at": (
+                            rs.metadata.creation_timestamp.isoformat()
+                            if rs.metadata.creation_timestamp
+                            else None
+                        ),
                     }
                 )
 

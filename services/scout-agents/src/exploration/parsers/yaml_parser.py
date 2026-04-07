@@ -3,6 +3,7 @@ YAML Parser - Análise de arquivos YAML.
 
 Suporta detecção de recursos Kubernetes, docker-compose, CI/CD configs.
 """
+
 import re
 from typing import Any, Dict, List, Optional
 

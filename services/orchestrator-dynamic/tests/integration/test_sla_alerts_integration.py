@@ -4,6 +4,7 @@ Testes de Integração E2E para SLA Alerts Consumer.
 Estes testes validam o fluxo completo de alertas SLA desde o Kafka
 até o envio para Slack/PagerDuty.
 """
+
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 

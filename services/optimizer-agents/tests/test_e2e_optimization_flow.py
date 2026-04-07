@@ -9,6 +9,7 @@ Simula fluxo completo desde insight até aplicação de otimização:
 5. Aplicar otimização
 6. Atualizar Q-table
 """
+
 import pytest
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from datetime import datetime, timezone

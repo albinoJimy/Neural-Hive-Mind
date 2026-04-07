@@ -9,6 +9,7 @@ Para rodar testes E2E:
 1. docker-compose -f tests/e2e/docker-compose.e2e up -d
 2. RUN_VAULT_SPIFFE_E2E=true pytest tests/e2e/test_vault_spiffe_e2e.py
 """
+
 import os
 import asyncio
 import time

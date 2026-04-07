@@ -2,6 +2,7 @@
 Testes unitários para Router do Gateway de Intenções
 Testa roteamento de intenções para serviços downstream (STE, execução direta)
 """
+
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi import Request, HTTPException

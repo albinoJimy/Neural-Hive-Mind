@@ -1,4 +1,5 @@
 """Cliente REST para integração com o serviço Analyst Agents"""
+
 from typing import Dict, List, Optional
 
 import httpx

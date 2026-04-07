@@ -2,6 +2,7 @@
 Testes para CppParser (C/C++).
 Parsing de C/C++ para análise estática.
 """
+
 import pytest
 
 from src.exploration.parsers.multilanguage.cpp_parser import CppParser

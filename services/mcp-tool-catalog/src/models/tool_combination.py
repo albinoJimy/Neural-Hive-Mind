@@ -1,4 +1,5 @@
 """Pydantic model for Tool Combination used in genetic algorithm."""
+
 import random
 from typing import Dict, List, Optional
 from uuid import uuid4
