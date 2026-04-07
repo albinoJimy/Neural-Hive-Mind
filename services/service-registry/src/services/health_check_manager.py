@@ -4,7 +4,8 @@ from typing import Optional
 
 import structlog
 from prometheus_client import REGISTRY, Counter, Gauge
-from src.clients import EtcdClient
+from src.clients.autocura_producer import AutocuraEventProducer
+from src.clients.redis_registry_client import RedisRegistryClient
 from src.models import AgentStatus, AgentType
 
 logger = structlog.get_logger()
@@ -48,11 +49,16 @@ class HealthCheckManager:
     """Gerenciador de health checks periódicos para agentes"""
 
     def __init__(
-        self, etcd_client: EtcdClient, check_interval_seconds: int, heartbeat_timeout_seconds: int
+        self,
+        redis_client: RedisRegistryClient,
+        check_interval_seconds: int,
+        heartbeat_timeout_seconds: int,
+        autocura_producer: Optional[AutocuraEventProducer] = None,
     ):
-        self.etcd_client = etcd_client
+        self.redis_client = redis_client
         self.check_interval = check_interval_seconds
         self.heartbeat_timeout = heartbeat_timeout_seconds
+        self.autocura_producer = autocura_producer
         self._task: Optional[asyncio.Task] = None
         self._running = False
         self._unhealthy_counts = {}  # agent_id -> consecutive_unhealthy_count
@@ -103,7 +109,7 @@ class HealthCheckManager:
             health_checks_total.inc()
 
             # Listar todos os agentes
-            all_agents = await self.etcd_client.list_agents()
+            all_agents = await self.redis_client.list_agents()
 
             # Resetar gauges
             for agent_type in AgentType:
@@ -120,8 +126,7 @@ class HealthCheckManager:
                     await self._handle_expired_agent(agent, time_since_last_seen)
                 else:
                     # Agente está saudável, resetar contador
-                    if str(agent.agent_id) in self._unhealthy_counts:
-                        del self._unhealthy_counts[str(agent.agent_id)]
+                    self._unhealthy_counts.pop(str(agent.agent_id), None)
 
                 # Atualizar gauge
                 agents_active.labels(
@@ -157,7 +162,7 @@ class HealthCheckManager:
         # Ciclo 1: Marcar como UNHEALTHY
         if unhealthy_count == 1:
             agent.status = AgentStatus.UNHEALTHY
-            await self.etcd_client.put_agent(agent)
+            await self.redis_client.put_agent(agent)
 
             agents_marked_unhealthy_total.labels(agent_type=agent.agent_type.value).inc()
 
@@ -168,7 +173,7 @@ class HealthCheckManager:
         # Ciclo 2: Marcar como DEGRADED e notificar autocura
         elif unhealthy_count == 2:
             agent.status = AgentStatus.DEGRADED
-            await self.etcd_client.put_agent(agent)
+            await self.redis_client.put_agent(agent)
 
             # TODO: Publicar evento para motor de autocura
             await self._notify_autocura(agent)
@@ -179,8 +184,8 @@ class HealthCheckManager:
 
         # Ciclo 5+: Remover do registry
         elif unhealthy_count >= 5:
-            await self.etcd_client.delete_agent(agent.agent_id)
-            del self._unhealthy_counts[agent_id_str]
+            await self.redis_client.delete_agent(agent.agent_id)
+            self._unhealthy_counts.pop(agent_id_str, None)
 
             agents_removed_total.labels(agent_type=agent.agent_type.value).inc()
 
@@ -195,20 +200,67 @@ class HealthCheckManager:
         """
         Notifica motor de autocura sobre agente degradado.
 
-        TODO: Integrar com sistema de eventos/Kafka para publicar
-        notificação de agente degradado.
+        Publica evento no Kafka para o Self-Healing Engine.
         """
         logger.info(
-            "autocura_notification_sent",
+            "autocura_notification_sending",
             agent_id=str(agent.agent_id),
             agent_type=agent.agent_type.value,
             status=agent.status.value,
         )
 
+        # Publicar evento no Kafka se produtor disponível
+        if self.autocura_producer:
+            try:
+                if agent.status == AgentStatus.DEGRADED:
+                    success = self.autocura_producer.publish_agent_degraded(
+                        agent_id=str(agent.agent_id),
+                        agent_type=agent.agent_type.value,
+                        status=agent.status.value,
+                        last_seen=int(agent.last_seen),
+                    )
+                elif agent.status == AgentStatus.UNHEALTHY:
+                    success = self.autocura_producer.publish_agent_unhealthy(
+                        agent_id=str(agent.agent_id),
+                        agent_type=agent.agent_type.value,
+                        status=agent.status.value,
+                        last_seen=int(agent.last_seen),
+                    )
+                else:
+                    # Agente recuperou
+                    success = self.autocura_producer.publish_agent_recovered(
+                        agent_id=str(agent.agent_id),
+                        agent_type=agent.agent_type.value,
+                        status=agent.status.value,
+                    )
+
+                if success:
+                    logger.info(
+                        "autocura_notification_published",
+                        agent_id=str(agent.agent_id),
+                        status=agent.status.value,
+                    )
+                else:
+                    logger.warning(
+                        "autocura_notification_failed",
+                        agent_id=str(agent.agent_id),
+                    )
+
+            except Exception as e:
+                logger.error("autocura_notification_exception", error=str(e))
+        else:
+            # Fallback: log apenas
+            logger.info(
+                "autocura_notification_logged",
+                agent_id=str(agent.agent_id),
+                agent_type=agent.agent_type.value,
+                status=agent.status.value,
+            )
+
     async def check_agent_health(self, agent_id) -> Optional[AgentStatus]:
         """Verifica saúde de um agente específico"""
         try:
-            agent = await self.etcd_client.get_agent(agent_id)
+            agent = await self.redis_client.get_agent(agent_id)
             if not agent:
                 return None
 

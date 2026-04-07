@@ -90,6 +90,7 @@ class LoadBalancer:
         self._round_robin_index = 0
         self._local_cache: dict[str, WorkerMetrics] = {}
         self._cache_lock = asyncio.Lock()
+        self._round_robin_lock = asyncio.Lock()
 
         # Background tasks
         self.is_running = False
@@ -405,9 +406,10 @@ class LoadBalancer:
         if not workers:
             return None
 
-        worker_id = workers[self._round_robin_index % len(workers)]
-        self._round_robin_index += 1
-        return worker_id
+        async with self._round_robin_lock:
+            worker_id = workers[self._round_robin_index % len(workers)]
+            self._round_robin_index += 1
+            return worker_id
 
     async def _select_least_loaded(self, workers: list[str]) -> str | None:
         """Selecionar worker com menos carga"""

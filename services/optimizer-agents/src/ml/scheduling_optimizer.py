@@ -9,14 +9,14 @@ import logging
 import pickle
 from datetime import datetime, timezone
 UTC = timezone.utc  # type: ignore
-from enum import StrEnum
+from enum import Enum
 
 import numpy as np
 
 logger = logging.getLogger(__name__)
 
 
-class SchedulingAction(StrEnum):
+class SchedulingAction(str, Enum):
     """Ações de otimização de agendamento disponíveis."""
 
     INCREASE_WORKER_POOL = "INCREASE_WORKER_POOL"

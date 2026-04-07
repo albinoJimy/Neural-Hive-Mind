@@ -15,7 +15,7 @@ import json
 from collections import defaultdict
 from datetime import datetime, timezone
 UTC = timezone.utc  # type: ignore
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 
 import structlog
@@ -24,7 +24,7 @@ from confluent_kafka import Consumer, KafkaError, KafkaException
 logger = structlog.get_logger(__name__)
 
 
-class OptimizationType(StrEnum):
+class OptimizationType(str, Enum):
     """Tipos de otimizações"""
 
     WEIGHT_RECALIBRATION = "WEIGHT_RECALIBRATION"
@@ -34,7 +34,7 @@ class OptimizationType(StrEnum):
     PARAMETER_TUNING = "PARAMETER_TUNING"
 
 
-class OptimizationStatus(StrEnum):
+class OptimizationStatus(str, Enum):
     """Status da otimização"""
 
     PENDING = "PENDING"

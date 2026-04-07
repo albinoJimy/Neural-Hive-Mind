@@ -1,10 +1,10 @@
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
 
-class ExperimentType(StrEnum):
+class ExperimentType(str, Enum):
     """Types of experiment."""
 
     A_B_TEST = "A_B_TEST"
@@ -13,7 +13,7 @@ class ExperimentType(StrEnum):
     MULTI_ARMED_BANDIT = "MULTI_ARMED_BANDIT"
 
 
-class RandomizationStrategy(StrEnum):
+class RandomizationStrategy(str, Enum):
     """Randomization strategies."""
 
     RANDOM = "RANDOM"
@@ -21,7 +21,7 @@ class RandomizationStrategy(StrEnum):
     BLOCKED = "BLOCKED"
 
 
-class ComparisonOperator(StrEnum):
+class ComparisonOperator(str, Enum):
     """Comparison operators."""
 
     GT = "GT"

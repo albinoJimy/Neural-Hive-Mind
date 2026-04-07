@@ -6,27 +6,15 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from neural_hive_observability import get_logger
 
+from src.api.dependencies import get_mcp_orchestrator
+
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/mcp", tags=["mcp"])
 
 
-def get_orchestrator():
-    """Dependency injection para MCPToolOrchestrator."""
-    from fastapi import Request
-
-    async def _get_orchestrator(request: Request) -> Any:
-        app_state = request.app.state.app_state
-        orchestrator = app_state.mcp_orchestrator
-        if orchestrator is None:
-            raise HTTPException(status_code=503, detail="MCP Orchestrator not available")
-        return orchestrator
-
-    return _get_orchestrator
-
-
 @router.get("/tools")
-async def list_tools(orchestrator=Depends(get_orchestrator())):
+async def list_tools(orchestrator=Depends(get_mcp_orchestrator)):
     """
     Lista todas as ferramentas disponíveis nos servidores MCP.
 
@@ -50,7 +38,7 @@ async def execute_tools(
     requests: list[dict[str, Any]],
     parallel: bool = True,
     continue_on_error: bool = False,
-    orchestrator=Depends(get_orchestrator()),
+    orchestrator=Depends(get_mcp_orchestrator),
 ):
     """
     Executa múltiplas ferramentas MCP.
@@ -87,7 +75,9 @@ async def execute_tools(
 
 @router.post("/tools/{server}/execute")
 async def execute_server_tool(
-    server: str, tool_request: dict[str, Any], orchestrator=Depends(get_orchestrator())
+    server: str,
+    tool_request: dict[str, Any],
+    orchestrator=Depends(get_mcp_orchestrator),
 ):
     """
     Executa uma ferramenta específica de um servidor.
@@ -127,7 +117,7 @@ async def execute_server_tool(
 
 
 @router.get("/status")
-async def get_mcp_status(orchestrator=Depends(get_orchestrator())):
+async def get_mcp_status(orchestrator=Depends(get_mcp_orchestrator)):
     """
     Retorna status dos servidores MCP.
 

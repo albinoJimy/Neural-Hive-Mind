@@ -5,11 +5,12 @@ Endpoints para consultar estado da eleição e metadados do líder.
 """
 
 import structlog
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, Depends, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from src.services import NodeRole
+from src.api.dependencies import get_leader_election
+from src.services import LeaderElection, NodeRole
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/v1/election", tags=["election"])
@@ -42,7 +43,9 @@ class LeaderHeartbeatResponse(BaseModel):
 
 
 @router.get("/status", response_model=ElectionStatusResponse)
-async def get_election_status(request: Request) -> JSONResponse:
+async def get_election_status(
+    leader_election: LeaderElection = Depends(get_leader_election),
+) -> JSONResponse:
     """
     Obter status da eleição para este nó.
 
@@ -53,20 +56,12 @@ async def get_election_status(request: Request) -> JSONResponse:
     - is_leader: Se este nó é o líder
     - term: Termo atual da eleição
     """
-    app_state = request.app.state.app_state
-
-    if not app_state.leader_election:
-        return JSONResponse(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            content={"error": "Leader election not enabled"},
-        )
-
-    state = app_state.leader_election.get_state()
+    state = leader_election.get_state()
 
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content={
-            "node_id": app_state.leader_election.node_id,
+            "node_id": leader_election.node_id,
             "role": state.role.value,
             "leader_id": state.leader_id,
             "is_leader": state.role == NodeRole.LEADER,
@@ -76,7 +71,9 @@ async def get_election_status(request: Request) -> JSONResponse:
 
 
 @router.get("/leader", response_model=LeaderMetadataResponse)
-async def get_leader_info(request: Request) -> JSONResponse:
+async def get_leader_info(
+    leader_election: LeaderElection = Depends(get_leader_election),
+) -> JSONResponse:
     """
     Obter metadados do líder atual.
 
@@ -86,15 +83,7 @@ async def get_leader_info(request: Request) -> JSONResponse:
     - acquired_at: Quando o líder foi eleito
     - ttl: Time-to-live do lease em segundos
     """
-    app_state = request.app.state.app_state
-
-    if not app_state.leader_election:
-        return JSONResponse(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            content={"error": "Leader election not enabled"},
-        )
-
-    metadata = await app_state.leader_election.get_leader_metadata()
+    metadata = await leader_election.get_leader_metadata()
 
     return JSONResponse(
         status_code=status.HTTP_200_OK,
@@ -108,21 +97,15 @@ async def get_leader_info(request: Request) -> JSONResponse:
 
 
 @router.get("/leader/heartbeat", response_model=LeaderHeartbeatResponse)
-async def get_leader_heartbeat(request: Request) -> JSONResponse:
+async def get_leader_heartbeat(
+    leader_election: LeaderElection = Depends(get_leader_election),
+) -> JSONResponse:
     """
     Obter heartbeat do líder atual.
 
     Usado para verificar se o líder está ativo.
     """
-    app_state = request.app.state.app_state
-
-    if not app_state.leader_election:
-        return JSONResponse(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            content={"error": "Leader election not enabled"},
-        )
-
-    heartbeat = await app_state.leader_election.get_leader_heartbeat()
+    heartbeat = await leader_election.get_leader_heartbeat()
 
     return JSONResponse(
         status_code=status.HTTP_200_OK,
@@ -134,29 +117,23 @@ async def get_leader_heartbeat(request: Request) -> JSONResponse:
 
 
 @router.post("/resign")
-async def resign_leadership(request: Request) -> JSONResponse:
+async def resign_leadership(
+    leader_election: LeaderElection = Depends(get_leader_election),
+) -> JSONResponse:
     """
     Forçar renúncia à liderança (apenas líder).
 
     Deve ser usado apenas para manutenção ou testes.
     """
-    app_state = request.app.state.app_state
-
-    if not app_state.leader_election:
-        return JSONResponse(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            content={"error": "Leader election not enabled"},
-        )
-
-    if not app_state.leader_election.is_leader():
+    if not leader_election.is_leader():
         return JSONResponse(
             status_code=status.HTTP_403_FORBIDDEN,
             content={"error": "Only the leader can resign"},
         )
 
-    await app_state.leader_election._resign_leadership()
+    await leader_election._resign_leadership()
 
-    logger.info("leadership_resigned_via_api", node_id=app_state.leader_election.node_id)
+    logger.info("leadership_resigned_via_api", node_id=leader_election.node_id)
 
     return JSONResponse(
         status_code=status.HTTP_200_OK,

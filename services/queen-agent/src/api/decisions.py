@@ -1,15 +1,19 @@
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query
+
+from src.api.dependencies import get_mongodb_client
+from src.clients import MongoDBClient
 
 router = APIRouter(prefix="/api/v1/decisions", tags=["decisions"])
 
 
 @router.get("/{decision_id}")
-async def get_decision(decision_id: str, request: Request) -> dict[str, Any]:
+async def get_decision(
+    decision_id: str,
+    mongodb_client: MongoDBClient = Depends(get_mongodb_client),
+) -> dict[str, Any]:
     """Buscar decisão estratégica por ID"""
-    mongodb_client = request.app.state.app_state.mongodb_client
-
     decision = await mongodb_client.get_strategic_decision(decision_id)
     if not decision:
         raise HTTPException(status_code=404, detail=f"Decision {decision_id} not found")
@@ -21,16 +25,14 @@ async def get_decision(decision_id: str, request: Request) -> dict[str, Any]:
 
 @router.get("")
 async def list_decisions(
-    request: Request,
     decision_type: str | None = Query(None),
     start_date: int | None = Query(None),
     end_date: int | None = Query(None),
     limit: int = Query(50, le=100),
     offset: int = Query(0),
+    mongodb_client: MongoDBClient = Depends(get_mongodb_client),
 ) -> dict[str, Any]:
     """Listar decisões com filtros"""
-    mongodb_client = request.app.state.app_state.mongodb_client
-
     # Construir filtros
     filters = {}
     if decision_type:
@@ -57,10 +59,11 @@ async def list_decisions(
 
 
 @router.get("/recent")
-async def get_recent_decisions(request: Request, hours: int = Query(24)) -> list[dict[str, Any]]:
+async def get_recent_decisions(
+    hours: int = Query(24),
+    mongodb_client: MongoDBClient = Depends(get_mongodb_client),
+) -> list[dict[str, Any]]:
     """Buscar decisões recentes"""
-    mongodb_client = request.app.state.app_state.mongodb_client
-
     decisions = await mongodb_client.get_recent_decisions(hours=hours)
 
     # Remover _id do MongoDB
@@ -71,10 +74,10 @@ async def get_recent_decisions(request: Request, hours: int = Query(24)) -> list
 
 
 @router.get("/stats")
-async def get_decision_stats(request: Request) -> dict[str, Any]:
+async def get_decision_stats(
+    mongodb_client: MongoDBClient = Depends(get_mongodb_client),
+) -> dict[str, Any]:
     """Estatísticas de decisões"""
-    mongodb_client = request.app.state.app_state.mongodb_client
-
     # Buscar últimas 100 decisões para estatísticas
     recent_decisions = await mongodb_client.list_strategic_decisions({}, limit=100)
 

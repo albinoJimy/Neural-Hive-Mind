@@ -12,14 +12,14 @@ import json
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 UTC = timezone.utc  # type: ignore
-from enum import StrEnum
+from enum import Enum
 
 import structlog
 
 logger = structlog.get_logger()
 
 
-class RandomizationStrategyType(StrEnum):
+class RandomizationStrategyType(str, Enum):
     """Tipos de estrategia de randomizacao."""
 
     RANDOM = "RANDOM"
@@ -27,7 +27,7 @@ class RandomizationStrategyType(StrEnum):
     BLOCKED = "BLOCKED"
 
 
-class Group(StrEnum):
+class Group(str, Enum):
     """Grupos de experimento."""
 
     CONTROL = "control"

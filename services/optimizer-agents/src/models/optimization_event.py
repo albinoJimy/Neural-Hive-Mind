@@ -1,12 +1,12 @@
 import hashlib
 import json
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
 
-class OptimizationType(StrEnum):
+class OptimizationType(str, Enum):
     """Types of optimization."""
 
     WEIGHT_RECALIBRATION = "WEIGHT_RECALIBRATION"
@@ -15,7 +15,7 @@ class OptimizationType(StrEnum):
     POLICY_CHANGE = "POLICY_CHANGE"
 
 
-class ApprovalStatus(StrEnum):
+class ApprovalStatus(str, Enum):
     """Approval status."""
 
     AUTO_APPROVED = "AUTO_APPROVED"

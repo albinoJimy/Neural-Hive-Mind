@@ -1,11 +1,11 @@
 """Analyzer base para otimização."""
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 
 
-class RecommendationType(StrEnum):
+class RecommendationType(str, Enum):
     """Tipo de recomendação."""
 
     REDUCE_COMPLEXITY = "reduce_complexity"
@@ -19,7 +19,7 @@ class RecommendationType(StrEnum):
     PARTITIONING = "partitioning"
 
 
-class Severity(StrEnum):
+class Severity(str, Enum):
     """Nível de severidade."""
 
     INFO = "info"
@@ -29,7 +29,7 @@ class Severity(StrEnum):
     CRITICAL = "critical"
 
 
-class TargetType(StrEnum):
+class TargetType(str, Enum):
     """Tipo de target da otimização."""
 
     CODE = "code"

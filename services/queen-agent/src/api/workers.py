@@ -6,11 +6,12 @@ Endpoints para gerenciar workers e atribuir tarefas.
 from typing import Any
 
 import structlog
-from fastapi import APIRouter, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from src.services import BalancingStrategy
+from src.api.dependencies import get_load_balancer
+from src.services import BalancingStrategy, LoadBalancer
 
 logger = structlog.get_logger()
 router = APIRouter(prefix="/api/v1/workers", tags=["workers"])
@@ -56,21 +57,16 @@ class CompleteTaskRequest(BaseModel):
 
 
 @router.post("/register")
-async def register_worker(request: Request, req: RegisterWorkerRequest) -> JSONResponse:
+async def register_worker(
+    req: RegisterWorkerRequest,
+    load_balancer: LoadBalancer = Depends(get_load_balancer),
+) -> JSONResponse:
     """
     Registrar um novo worker no balanceador.
 
     O worker será considerado saudável após registro com heartbeat inicial.
     """
-    app_state = request.app.state.app_state
-
-    if not app_state.load_balancer:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Load balancer not enabled",
-        )
-
-    success = await app_state.load_balancer.register_worker(
+    success = await load_balancer.register_worker(
         worker_id=req.worker_id,
         capacity=req.capacity,
         metadata=req.metadata,
@@ -89,21 +85,16 @@ async def register_worker(request: Request, req: RegisterWorkerRequest) -> JSONR
 
 
 @router.delete("/{worker_id}")
-async def unregister_worker(request: Request, worker_id: str) -> JSONResponse:
+async def unregister_worker(
+    worker_id: str,
+    load_balancer: LoadBalancer = Depends(get_load_balancer),
+) -> JSONResponse:
     """
     Remover worker do balanceador.
 
     O worker não receberá mais novas tarefas.
     """
-    app_state = request.app.state.app_state
-
-    if not app_state.load_balancer:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Load balancer not enabled",
-        )
-
-    success = await app_state.load_balancer.unregister_worker(worker_id)
+    success = await load_balancer.unregister_worker(worker_id)
 
     if success:
         logger.info("worker_unregistered_via_api", worker_id=worker_id)
@@ -119,22 +110,16 @@ async def unregister_worker(request: Request, worker_id: str) -> JSONResponse:
 
 @router.post("/{worker_id}/metrics")
 async def update_worker_metrics(
-    request: Request, worker_id: str, req: UpdateMetricsRequest
+    worker_id: str,
+    req: UpdateMetricsRequest,
+    load_balancer: LoadBalancer = Depends(get_load_balancer),
 ) -> JSONResponse:
     """
     Atualizar métricas de um worker.
 
     Usado pelos workers para reportar seu estado atual.
     """
-    app_state = request.app.state.app_state
-
-    if not app_state.load_balancer:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Load balancer not enabled",
-        )
-
-    success = await app_state.load_balancer.update_worker_metrics(
+    success = await load_balancer.update_worker_metrics(
         worker_id=worker_id,
         active_tasks=req.active_tasks,
         completed_tasks=req.completed_tasks,
@@ -154,21 +139,15 @@ async def update_worker_metrics(
 
 
 @router.get("")
-async def get_workers_status(request: Request) -> JSONResponse:
+async def get_workers_status(
+    load_balancer: LoadBalancer = Depends(get_load_balancer),
+) -> JSONResponse:
     """
     Obter status de todos os workers registrados.
 
     Retorna métricas e estado de saúde de cada worker.
     """
-    app_state = request.app.state.app_state
-
-    if not app_state.load_balancer:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Load balancer not enabled",
-        )
-
-    status_data = await app_state.load_balancer.get_workers_status()
+    status_data = await load_balancer.get_workers_status()
 
     return JSONResponse(
         status_code=status.HTTP_200_OK,
@@ -180,7 +159,9 @@ async def get_workers_status(request: Request) -> JSONResponse:
 
 
 @router.get("/statistics")
-async def get_load_balancer_statistics(request: Request) -> JSONResponse:
+async def get_load_balancer_statistics(
+    load_balancer: LoadBalancer = Depends(get_load_balancer),
+) -> JSONResponse:
     """
     Obter estatísticas do balanceador.
 
@@ -190,15 +171,7 @@ async def get_load_balancer_statistics(request: Request) -> JSONResponse:
     - Tarefas ativas, completadas e falhadas
     - Estratégia atual
     """
-    app_state = request.app.state.app_state
-
-    if not app_state.load_balancer:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Load balancer not enabled",
-        )
-
-    stats = await app_state.load_balancer.get_statistics()
+    stats = await load_balancer.get_statistics()
 
     return JSONResponse(
         status_code=status.HTTP_200_OK,
@@ -207,20 +180,15 @@ async def get_load_balancer_statistics(request: Request) -> JSONResponse:
 
 
 @router.post("/assign")
-async def assign_task(request: Request, req: AssignTaskRequest) -> JSONResponse:
+async def assign_task(
+    req: AssignTaskRequest,
+    load_balancer: LoadBalancer = Depends(get_load_balancer),
+) -> JSONResponse:
     """
     Atribuir tarefa a um worker.
 
     Usa a estratégia configurada ou a especificada no request.
     """
-    app_state = request.app.state.app_state
-
-    if not app_state.load_balancer:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Load balancer not enabled",
-        )
-
     # Validar estratégia se fornecida
     strategy = None
     if req.strategy:
@@ -232,7 +200,7 @@ async def assign_task(request: Request, req: AssignTaskRequest) -> JSONResponse:
                 detail=f"Invalid strategy: {req.strategy}. Valid options: round_robin, least_loaded, weighted, consistent_hash",
             )
 
-    assignment = await app_state.load_balancer.assign_task(
+    assignment = await load_balancer.assign_task(
         task_id=req.task_id,
         task_data=req.task_data,
         strategy=strategy,
@@ -255,21 +223,16 @@ async def assign_task(request: Request, req: AssignTaskRequest) -> JSONResponse:
 
 
 @router.post("/complete")
-async def complete_task(request: Request, req: CompleteTaskRequest) -> JSONResponse:
+async def complete_task(
+    req: CompleteTaskRequest,
+    load_balancer: LoadBalancer = Depends(get_load_balancer),
+) -> JSONResponse:
     """
     Marcar tarefa como completa.
 
     Atualiza métricas do worker com o resultado da tarefa.
     """
-    app_state = request.app.state.app_state
-
-    if not app_state.load_balancer:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Load balancer not enabled",
-        )
-
-    success = await app_state.load_balancer.complete_task(
+    success = await load_balancer.complete_task(
         worker_id=req.worker_id,
         task_id=req.task_id,
         success=req.success,
