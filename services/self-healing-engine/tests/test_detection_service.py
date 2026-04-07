@@ -261,3 +261,214 @@ class TestDetectionServiceIntegration:
                 )
 
             assert result["success"] is True
+
+
+# ============================================================================
+# Tests de Histórico de Memória em Redis (FASE3-PREV-006)
+# ============================================================================
+
+
+class TestRedisMemoryHistory:
+    """Testes para funcionalidade de histórico de memória em Redis."""
+
+    @pytest.fixture
+    def mock_redis_client(self):
+        """Mock do cliente Redis."""
+        client = AsyncMock()
+        client.zadd = AsyncMock(return_value=1)
+        client.expire = AsyncMock(return_value=True)
+        client.zremrangebyscore = AsyncMock(return_value=0)
+        client.zrangebyscore = AsyncMock(return_value=[])
+        client.zrange = AsyncMock(return_value=[])
+        return client
+
+    @pytest.fixture
+    def mock_k8s_custom_api_async(self):
+        """Mock do Kubernetes CustomObjectsApi com async."""
+        api = MagicMock()
+        api.get_namespaced_custom_object = AsyncMock(
+            return_value={"containers": [{"name": "app", "usage": {"memory": "950Mi"}}]}
+        )
+        return api
+
+    @pytest.fixture
+    def detection_service_with_redis(self, mock_redis_client, mock_k8s_custom_api_async):
+        """DetectionService com Redis client."""
+        from src.services.detection_service import DetectionService
+
+        return DetectionService(
+            k8s_custom_api=mock_k8s_custom_api_async,
+            redis_client=mock_redis_client,
+            memory_threshold_percent=90.0,
+            memory_duration_seconds=300,
+        )
+
+    @pytest.mark.asyncio
+    async def test_store_memory_reading_success(
+        self, detection_service_with_redis, mock_redis_client
+    ):
+        """Testa armazenamento de leitura de memória no Redis."""
+        result = await detection_service_with_redis._store_memory_reading(
+            key="default/pod-1/container",
+            timestamp=datetime.now(timezone.utc),
+            usage_bytes=1024000000,
+            usage_percent=95.0,
+        )
+
+        assert result is True
+        mock_redis_client.zadd.assert_called_once()
+        mock_redis_client.expire.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_store_memory_reading_no_redis(self):
+        """Testa fallback quando Redis indisponível."""
+        from src.services.detection_service import DetectionService
+
+        service = DetectionService(
+            redis_client=None,
+        )
+
+        result = await service._store_memory_reading(
+            key="default/pod-1/container",
+            timestamp=datetime.now(timezone.utc),
+            usage_bytes=1024000000,
+            usage_percent=95.0,
+        )
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_get_memory_history_empty(
+        self, detection_service_with_redis, mock_redis_client
+    ):
+        """Testa obter histórico vazio do Redis."""
+        mock_redis_client.zrangebyscore.return_value = []
+
+        history = await detection_service_with_redis._get_memory_history(
+            key="default/pod-1/container"
+        )
+
+        assert history == []
+
+    @pytest.mark.asyncio
+    async def test_get_memory_history_with_data(
+        self, detection_service_with_redis, mock_redis_client
+    ):
+        """Testa obter histórico com dados do Redis."""
+        mock_redis_client.zrangebyscore.return_value = [
+            b"2026-04-07T10:00:00+00:00|1024000000|95.0",
+            b"2026-04-07T10:01:00+00:00|1032000000|96.0",
+        ]
+
+        history = await detection_service_with_redis._get_memory_history(
+            key="default/pod-1/container"
+        )
+
+        assert len(history) == 2
+        assert history[0]["usage_percent"] == 95.0
+        assert history[1]["usage_percent"] == 96.0
+
+    @pytest.mark.asyncio
+    async def test_get_memory_history_stats(
+        self, detection_service_with_redis, mock_redis_client
+    ):
+        """Testa obter estatísticas do histórico."""
+        mock_redis_client.zrange.return_value = [
+            b"2026-04-07T10:00:00+00:00|1024000000|95.0",
+            b"2026-04-07T10:01:00+00:00|1032000000|96.0",
+        ]
+
+        stats = await detection_service_with_redis._get_memory_history_stats(
+            key="default/pod-1/container"
+        )
+
+        assert stats["count"] == 2
+        assert stats["avg_bytes"] == 1028000000
+        assert stats["avg_percent"] == 95.5
+        assert stats["max_bytes"] == 1032000000
+        assert stats["max_percent"] == 96.0
+
+    @pytest.mark.asyncio
+    async def test_detect_memory_leak_with_redis_history(
+        self, detection_service_with_redis, mock_redis_client, mock_k8s_custom_api_async
+    ):
+        """Testa detecção de memory leak usando histórico do Redis."""
+        # Simular memórica alta contínua (1000Mi = 95%+ de 1GB)
+        now = datetime.now(timezone.utc)
+        timestamps = []
+        for i in range(10):
+            # Criar timestamps de 400s atrás até 310s atrás (10 leituras)
+            ts = now - timedelta(seconds=400 - i * 10)
+            timestamps.append(ts)
+
+        # Criar formato esperado pelo _get_memory_history
+        history_data = []
+        for ts in timestamps:
+            history_data.append({
+                "timestamp": ts.isoformat(),
+                "usage_bytes": 1048576000,  # 1000Mi
+                "usage_percent": 97.66,
+            })
+
+        # Mock para retornar history como lista de dicts
+        mock_redis_client.zrangebyscore.return_value = [
+            f"{ts.isoformat()}|1048576000|97.66" for ts in timestamps
+        ]
+        mock_redis_client.zrange.return_value = [
+            f"{ts.isoformat()}|1048576000|97.66" for ts in timestamps
+        ]
+        mock_k8s_custom_api_async.get_namespaced_custom_object.return_value = {
+            "containers": [{"name": "app", "usage": {"memory": "1000Mi"}}]
+        }
+
+        # Patch _get_memory_history para retornar o formato correto
+        with patch.object(
+            detection_service_with_redis, "_get_memory_history", return_value=history_data
+        ):
+            status = await detection_service_with_redis.detect_memory_leak(
+                pod_name="worker-1",
+                namespace="default",
+                memory_limit_bytes=1073741824,  # 1GB
+            )
+
+        # Com historico no Redis, deve detectar leak
+        assert status.has_leak is True
+        assert status.duration_above_threshold_seconds >= 300
+        # Metadata deve conter estatisticas do historico
+        assert status.metadata.get("history_samples") > 0
+
+    @pytest.mark.asyncio
+    async def test_detect_memory_leak_stores_reading(
+        self, detection_service_with_redis, mock_redis_client, mock_k8s_custom_api_async
+    ):
+        """Testa que leituras são armazenadas no Redis."""
+        await detection_service_with_redis.detect_memory_leak(
+            pod_name="worker-1",
+            namespace="default",
+            memory_limit_bytes=1073741824,
+        )
+
+        # Verificar se _store_memory_reading foi chamado (uso 95% > 90% threshold)
+        mock_redis_client.zadd.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_detect_memory_leak_fallback_to_memory(self, mock_k8s_custom_api_async):
+        """Testa fallback para memória quando Redis indisponível."""
+        from src.services.detection_service import DetectionService
+
+        service = DetectionService(
+            k8s_custom_api=mock_k8s_custom_api_async,
+            redis_client=None,
+            memory_duration_seconds=300,
+        )
+
+        status = await service.detect_memory_leak(
+            pod_name="worker-1",
+            namespace="default",
+            memory_limit_bytes=1073741824,
+        )
+
+        # Deve funcionar mesmo sem Redis (usando _memory_history)
+        assert status.usage_bytes == 996147200  # 950Mi
+        assert status.has_leak is False  # Primeira leitura, sem histórico
+        assert status.container_name == "app"

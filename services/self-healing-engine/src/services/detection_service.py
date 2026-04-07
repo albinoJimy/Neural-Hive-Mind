@@ -138,10 +138,12 @@ class DetectionService:
         orchestrator_client=None,
         k8s_core_v1=None,
         k8s_custom_api=None,
+        redis_client=None,
         memory_threshold_percent: float = 90.0,
         memory_duration_seconds: int = 300,
         workflow_timeout_seconds: int = 1800,
         lag_threshold: int = 10000,
+        memory_history_ttl_seconds: int = 86400,  # 24 horas
     ):
         """
         Inicializa o DetectionService.
@@ -150,21 +152,164 @@ class DetectionService:
             orchestrator_client: Cliente gRPC do Orchestrator
             k8s_core_v1: Cliente Kubernetes CoreV1Api
             k8s_custom_api: Cliente Kubernetes CustomObjectsApi (para metrics)
+            redis_client: Cliente Redis para historico de memoria (opcional)
             memory_threshold_percent: Percentual de memória para alerta
             memory_duration_seconds: Tempo acima do threshold para considerar leak
             workflow_timeout_seconds: Tempo sem progresso para considerar deadlock
             lag_threshold: Lag de Kafka para alerta
+            memory_history_ttl_seconds: TTL de historico no Redis
         """
         self.orchestrator_client = orchestrator_client
         self.k8s_core_v1 = k8s_core_v1
         self.k8s_custom_api = k8s_custom_api
+        self.redis_client = redis_client
         self.memory_threshold_percent = memory_threshold_percent
         self.memory_duration_seconds = memory_duration_seconds
         self.workflow_timeout_seconds = workflow_timeout_seconds
         self.lag_threshold = lag_threshold
+        self.memory_history_ttl_seconds = memory_history_ttl_seconds
 
-        # Histórico para detecção de memória
+        # Histórico em memória (fallback se Redis indisponível)
         self._memory_history: Dict[str, List[datetime]] = {}
+
+        # Chave Redis para historico de memoria
+        self._redis_memory_key_prefix = "self_healing:memory_history"
+
+    async def _store_memory_reading(
+        self, key: str, timestamp: datetime, usage_bytes: int, usage_percent: float
+    ) -> bool:
+        """
+        Armazena leitura de memoria no Redis.
+
+        Args:
+            key: Chave unica do pod (namespace/pod/container)
+            timestamp: Timestamp da leitura
+            usage_bytes: Uso de memoria em bytes
+            usage_percent: Percentual de uso
+
+        Returns:
+            True se armazenado com sucesso
+        """
+        if not self.redis_client:
+            return False
+
+        try:
+            redis_key = f"{self._redis_memory_key_prefix}:{key}"
+            timestamp_str = timestamp.isoformat()
+
+            # Formato: timestamp|usage_bytes|usage_percent
+            value = f"{timestamp_str}|{usage_bytes}|{usage_percent}"
+
+            # Adicionar ao sorted set com score = timestamp unix
+            score = timestamp.timestamp()
+            await self.redis_client.zadd(redis_key, {value: score})
+
+            # Definir TTL
+            await self.redis_client.expire(redis_key, self.memory_history_ttl_seconds)
+
+            # Limpar entradas muito antigas
+            cutoff = timestamp.timestamp() - (self.memory_duration_seconds * 2)
+            await self.redis_client.zremrangebyscore(redis_key, 0, cutoff)
+
+            return True
+        except Exception as e:
+            logger.warning("detection_service.redis_store_failed", key=key, error=str(e))
+            return False
+
+    async def _get_memory_history(
+        self, key: str, since_seconds: int = 3600
+    ) -> List[Dict[str, Any]]:
+        """
+        Obtem historico de memoria do Redis.
+
+        Args:
+            key: Chave unica do pod
+            since_seconds: Buscar historico desde este tempo atras
+
+        Returns:
+            Lista de leituras com timestamp, usage_bytes, usage_percent
+        """
+        if not self.redis_client:
+            return []
+
+        try:
+            redis_key = f"{self._redis_memory_key_prefix}:{key}"
+            now = datetime.now(timezone.utc)
+            min_score = (now - timedelta(seconds=since_seconds)).timestamp()
+            max_score = now.timestamp()
+
+            # Obter entradas do sorted set
+            results = await self.redis_client.zrangebyscore(
+                redis_key, min_score, max_score, withscores=False
+            )
+
+            history = []
+            for result in results:
+                if isinstance(result, bytes):
+                    result = result.decode()
+                parts = result.split("|")
+                if len(parts) == 3:
+                    history.append({
+                        "timestamp": parts[0],
+                        "usage_bytes": int(parts[1]),
+                        "usage_percent": float(parts[2]),
+                    })
+
+            return history
+        except Exception as e:
+            logger.warning("detection_service.redis_get_failed", key=key, error=str(e))
+            return []
+
+    async def _get_memory_history_stats(
+        self, key: str
+    ) -> Dict[str, Any]:
+        """
+        Obtem estatisticas do historico de memoria.
+
+        Args:
+            key: Chave unica do pod
+
+        Returns:
+            Dict com count, avg_bytes, avg_percent, max_bytes, max_percent
+        """
+        if not self.redis_client:
+            return {}
+
+        try:
+            redis_key = f"{self._redis_memory_key_prefix}:{key}"
+            results = await self.redis_client.zrange(redis_key, 0, -1, withscores=False)
+
+            if not results:
+                return {}
+
+            total_bytes = 0
+            max_bytes = 0
+            total_percent = 0.0
+            max_percent = 0.0
+            count = len(results)
+
+            for result in results:
+                if isinstance(result, bytes):
+                    result = result.decode()
+                parts = result.split("|")
+                if len(parts) == 3:
+                    bytes_val = int(parts[1])
+                    percent_val = float(parts[2])
+                    total_bytes += bytes_val
+                    max_bytes = max(max_bytes, bytes_val)
+                    total_percent += percent_val
+                    max_percent = max(max_percent, percent_val)
+
+            return {
+                "count": count,
+                "avg_bytes": total_bytes // count if count > 0 else 0,
+                "avg_percent": round(total_percent / count, 2) if count > 0 else 0,
+                "max_bytes": max_bytes,
+                "max_percent": round(max_percent, 2),
+            }
+        except Exception as e:
+            logger.warning("detection_service.redis_stats_failed", key=key, error=str(e))
+            return {}
 
     async def detect_deadlocks(self, workflow_id: str) -> DeadlockStatus:
         """
@@ -322,28 +467,77 @@ class DetectionService:
 
             has_leak = False
             duration_above = 0
+            now = datetime.now(timezone.utc)
 
             if above_threshold:
                 key = f"{namespace}/{pod_name}/{target_container or 'main'}"
-                now = datetime.now(timezone.utc)
 
-                if key not in self._memory_history:
-                    self._memory_history[key] = []
+                # Armazenar leitura no Redis (se disponível)
+                if self.redis_client:
+                    await self._store_memory_reading(
+                        key=key,
+                        timestamp=now,
+                        usage_bytes=usage_bytes,
+                        usage_percent=usage_percent,
+                    )
 
-                # Adicionar timestamp atual
-                self._memory_history[key].append(now)
+                    # Obter historico do Redis
+                    history = await self._get_memory_history(
+                        key, since_seconds=self.memory_duration_seconds * 2
+                    )
 
-                # Limpar timestamps antigos (mais de 2x a duração)
-                cutoff = now - timedelta(seconds=self.memory_duration_seconds * 2)
-                self._memory_history[key] = [t for t in self._memory_history[key] if t > cutoff]
+                    if history:
+                        first_timestamp = history[0]["timestamp"]
+                        try:
+                            if isinstance(first_timestamp, str):
+                                first_time = datetime.fromisoformat(
+                                    first_timestamp.replace("Z", "+00:00")
+                                )
+                            else:
+                                first_time = first_timestamp
+                            duration_above = int((now - first_time).total_seconds())
+                        except Exception:
+                            duration_above = 0
 
-                # Verificar se está acima há tempo suficiente
-                if self._memory_history[key]:
-                    first_above = self._memory_history[key][0]
-                    duration_above = int((now - first_above).total_seconds())
+                        if duration_above >= self.memory_duration_seconds:
+                            has_leak = True
+                    else:
+                        # Fallback para historico em memoria
+                        if key not in self._memory_history:
+                            self._memory_history[key] = []
+                        self._memory_history[key].append(now)
+                        cutoff = now - timedelta(seconds=self.memory_duration_seconds * 2)
+                        self._memory_history[key] = [
+                            t for t in self._memory_history[key] if t > cutoff
+                        ]
+                        if self._memory_history[key]:
+                            first_above = self._memory_history[key][0]
+                            duration_above = int((now - first_above).total_seconds())
+                            if duration_above >= self.memory_duration_seconds:
+                                has_leak = True
+                else:
+                    # Sem Redis - usar historico em memoria
+                    if key not in self._memory_history:
+                        self._memory_history[key] = []
 
-                    if duration_above >= self.memory_duration_seconds:
-                        has_leak = True
+                    self._memory_history[key].append(now)
+
+                    cutoff = now - timedelta(seconds=self.memory_duration_seconds * 2)
+                    self._memory_history[key] = [t for t in self._memory_history[key] if t > cutoff]
+
+                    if self._memory_history[key]:
+                        first_above = self._memory_history[key][0]
+                        duration_above = int((now - first_above).total_seconds())
+
+                        if duration_above >= self.memory_duration_seconds:
+                            has_leak = True
+
+            # Obter estatisticas do historico (se Redis disponivel)
+            history_stats = {}
+            if self.redis_client:
+                history_stats = await self._get_memory_history_stats(
+                    f"{namespace}/{pod_name}/{target_container or 'main'}"
+                )
 
             return MemoryStatus(
                 pod_name=pod_name,
@@ -354,6 +548,13 @@ class DetectionService:
                 limit_bytes=memory_limit_bytes,
                 duration_above_threshold_seconds=duration_above,
                 container_name=target_container,
+                metadata={
+                    "history_samples": history_stats.get("count", 0),
+                    "avg_usage_bytes": history_stats.get("avg_bytes", 0),
+                    "avg_usage_percent": history_stats.get("avg_percent", 0),
+                    "max_usage_bytes": history_stats.get("max_bytes", 0),
+                    "max_usage_percent": history_stats.get("max_percent", 0),
+                } if history_stats else {},
             )
 
         except Exception as e:
