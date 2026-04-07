@@ -15,7 +15,6 @@ from neural_hive_ml.predictive_models.base_predictor import BasePredictor
 from neural_hive_ml.predictive_models.feature_engineering import (
     extract_ticket_features,
     create_feature_vector,
-    get_feature_importance,
 )
 
 logger = logging.getLogger(__name__)
@@ -56,10 +55,10 @@ class SchedulingPredictor(BasePredictor):
         try:
             if self.model_type == "ensemble":
                 self.xgb_model = self._load_from_registry(
-                    f"scheduling-predictor-xgboost", stage="Production"
+                    "scheduling-predictor-xgboost", stage="Production"
                 )
                 self.lgb_model = self._load_from_registry(
-                    f"scheduling-predictor-lightgbm", stage="Production"
+                    "scheduling-predictor-lightgbm", stage="Production"
                 )
                 self.model = self.xgb_model or self.lgb_model
             else:

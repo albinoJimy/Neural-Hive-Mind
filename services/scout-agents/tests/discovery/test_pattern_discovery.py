@@ -6,8 +6,6 @@ Espec: GAPS-05 Scout Agents
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock
-from pathlib import Path
 
 # Import com skip automático se módulo não disponível
 PatternDiscovery = pytest.importorskip("src.discovery.pattern_discovery").PatternDiscovery

@@ -6,8 +6,7 @@ EPIC-204-01: Modelo ML para SHAP
 
 import pytest
 import numpy as np
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime
+from unittest.mock import Mock, patch
 
 from src.models.shap_model import DecisionWrapperModel, FeatureExtractor, ModelTrainer
 

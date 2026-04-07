@@ -11,15 +11,12 @@ Cobertura:
 - Metadata gRPC (autenticacao, tracing)
 """
 
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
-from datetime import datetime
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 import grpc
 from grpc.aio import AioRpcError
-from grpc import Status
 
-from src.adapters.base_adapter import ExecutionResult
 
 
 # ============================================================================

@@ -4,15 +4,14 @@ Testes para Multi-Source Aggregation.
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 
 from src.services.data_fusion_engine import (
     DataFusionEngine,
-    AggregatedResult,
     ConflictResolution,
 )
 from src.services.query_engine import QueryEngine
-from src.models.query_request import QueryRequest, MultiSourceQueryRequest
+from src.models.query_request import QueryRequest
 
 
 @pytest.fixture
@@ -166,7 +165,6 @@ class TestDataFusionEngine:
     @pytest.mark.asyncio
     async def test_align_temporal(self, data_fusion_engine):
         """Testa alinhamento temporal."""
-        from src.models.query_request import QueryRequest
 
         time_window = {
             "start": datetime(2024, 1, 1, tzinfo=timezone.utc),
@@ -259,7 +257,6 @@ class TestDataFusionEngine:
     @pytest.mark.asyncio
     async def test_fuse_sources_complete(self, data_fusion_engine):
         """Testa fluxo completo de fusão."""
-        from src.models.query_request import QueryRequest
 
         query_request = QueryRequest(
             query_id="test-fusion",

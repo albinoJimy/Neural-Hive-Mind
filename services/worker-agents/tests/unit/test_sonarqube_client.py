@@ -9,12 +9,9 @@ Cobertura:
 - Error handling
 """
 
-import asyncio
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
-import httpx
 
 from src.clients.sonarqube_client import (
     SonarQubeClient,
@@ -23,8 +20,6 @@ from src.clients.sonarqube_client import (
     SonarQubeQualityGate,
     SonarQubeStatus,
     SonarQubeSeverity,
-    SonarQubeClientError,
-    SonarQubeAPIError,
     SonarQubeTimeoutError,
 )
 

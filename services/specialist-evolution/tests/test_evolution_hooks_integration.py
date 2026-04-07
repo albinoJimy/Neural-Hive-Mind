@@ -9,15 +9,13 @@ WeightAdapter, PatternRegistry).
 import pytest
 import sys
 import os
-from unittest.mock import Mock, MagicMock, AsyncMock, patch
-from datetime import datetime, timezone
+from unittest.mock import Mock
 
 # Adicionar biblioteca ao path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../..", "libraries/python"))
 
 from neural_hive_specialists.evolution_hooks import (
     FingerprintExtractor,
-    PatternMatcher,
     WeightAdapter,
     SyncPatternRegistry,
     Fingerprint,

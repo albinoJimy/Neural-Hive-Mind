@@ -4,8 +4,6 @@ Testes unitários para modelos de decisão com campos hierárquicos.
 TDD: Testes escritos antes da implementação (RED phase).
 """
 
-import pytest
-from datetime import datetime
 from src.models.consolidated_decision import (
     DecisionType,
     ConsensusMethod,

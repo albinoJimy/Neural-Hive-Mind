@@ -6,11 +6,8 @@ import pytest
 from datetime import datetime, timezone, timedelta
 import numpy as np
 
-from src.services.timeseries_analyzer import TimeSeriesAnalyzer
 from src.models.insight_extended import (
     AnomalyDetectionQuery,
-    AnalysisType,
-    InsightSource,
 )
 
 

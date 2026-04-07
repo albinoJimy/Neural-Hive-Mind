@@ -16,10 +16,8 @@ import json
 import tarfile
 import tempfile
 import tempfile as real_tempfile
-import hashlib
 from datetime import datetime, timedelta, timezone
-from unittest.mock import Mock, MagicMock, patch, call, mock_open
-from pathlib import Path
+from unittest.mock import Mock, MagicMock, patch, mock_open
 
 import pytest
 
@@ -28,7 +26,6 @@ from neural_hive_specialists.disaster_recovery.disaster_recovery_manager import 
 )
 from neural_hive_specialists.disaster_recovery.backup_manifest import (
     BackupManifest,
-    ComponentMetadata,
 )
 from neural_hive_specialists.disaster_recovery.storage_client import StorageClient
 

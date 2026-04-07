@@ -2,7 +2,7 @@
 Testes para AutocuraEventProducer.
 """
 
-from unittest.mock import MagicMock, patch, Mock
+from unittest.mock import MagicMock, patch
 
 import pytest
 

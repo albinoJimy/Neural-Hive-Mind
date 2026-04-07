@@ -16,10 +16,8 @@ Requisitos:
 """
 
 import pytest
-import asyncio
 import tempfile
 import os
-from pathlib import Path
 
 from src.services.container_builder import ContainerBuilder, BuilderType, BuildResult
 

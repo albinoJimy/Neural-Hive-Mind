@@ -9,13 +9,12 @@ from typing import Dict, List, Optional, Callable, Any
 from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass, field
 from enum import Enum
-from collections import defaultdict, deque
+from collections import defaultdict
 
 from .config import RiskBand, RiskScoringConfig
-from .models import RiskAssessment, RiskMatrix
-from .thresholds import ThresholdMonitor, ThresholdViolation
+from .models import RiskAssessment
+from .thresholds import ThresholdMonitor
 from .history import RiskHistory, TrendDirection, AnomalyDetection
-from .utils import get_domain_value
 from neural_hive_domain import UnifiedDomain
 
 

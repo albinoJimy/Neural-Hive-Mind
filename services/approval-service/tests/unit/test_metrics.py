@@ -6,8 +6,8 @@ Testa atualizacao de gauges e contadores.
 
 import pytest
 import asyncio
-from unittest.mock import MagicMock, AsyncMock, patch
-from src.observability.metrics import NeuralHiveMetrics, approval_requests_pending_gauge
+from unittest.mock import MagicMock, AsyncMock
+from src.observability.metrics import NeuralHiveMetrics
 
 
 class TestNeuralHiveMetricsGauge:

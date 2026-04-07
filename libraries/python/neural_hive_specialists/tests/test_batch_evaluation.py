@@ -3,10 +3,8 @@ Testes para batch evaluation de planos.
 """
 
 import pytest
-import asyncio
 import json
 from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime
 
 from neural_hive_specialists.config import SpecialistConfig
 from neural_hive_specialists.base_specialist import BaseSpecialist

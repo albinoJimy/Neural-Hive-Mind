@@ -4,8 +4,7 @@ Testes unitários para ECRClient.
 Testes para integração com Amazon ECR (Elastic Container Registry).
 """
 
-import pytest
-from unittest.mock import AsyncMock, Mock, MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 from datetime import datetime, timedelta, timezone
 import sys
 

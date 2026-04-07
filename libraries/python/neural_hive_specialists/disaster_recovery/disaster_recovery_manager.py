@@ -21,7 +21,7 @@ from typing import Dict, Any, Optional, List
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import structlog
 
-from .backup_manifest import BackupManifest, ComponentMetadata
+from .backup_manifest import BackupManifest
 from .storage_client import StorageClient
 
 logger = structlog.get_logger()
@@ -218,7 +218,7 @@ class DisasterRecoveryManager:
 
             with tarfile.open(
                 backup_archive_path,
-                f"w:gz",
+                "w:gz",
                 compresslevel=self.config.backup_compression_level,
             ) as tar:
                 tar.add(backup_dir, arcname="")
@@ -247,7 +247,7 @@ class DisasterRecoveryManager:
                 if not upload_success:
                     raise Exception("Falha no upload para storage")
 
-            except Exception as e:
+            except Exception:
                 # Incrementar métrica de erro de upload
                 if hasattr(self.specialist, "metrics"):
                     provider = self.config.backup_storage_provider
@@ -1525,7 +1525,7 @@ class DisasterRecoveryManager:
                 if not self.storage_client.download_backup(backup_file, backup_local_path):
                     raise Exception("Falha no download do backup")
 
-            except Exception as e:
+            except Exception:
                 # Incrementar métrica de erro de download
                 if hasattr(self.specialist, "metrics"):
                     provider = self.config.backup_storage_provider

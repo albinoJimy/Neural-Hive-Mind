@@ -8,7 +8,7 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from src.clients.postgres_client import PostgresClient, PipelineResultORM
+from src.clients.postgres_client import PostgresClient
 from src.models.artifact import PipelineResult, PipelineStatus
 
 

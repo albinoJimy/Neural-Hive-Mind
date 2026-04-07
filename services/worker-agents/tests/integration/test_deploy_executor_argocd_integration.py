@@ -11,7 +11,7 @@ Cobertura:
 
 import asyncio
 import pytest
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import MagicMock
 from aioresponses import aioresponses
 import uuid
 

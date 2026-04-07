@@ -15,8 +15,7 @@ Cobertura:
 """
 
 import asyncio
-import uuid
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -79,7 +78,7 @@ class TestGeneticToolSelectorCache:
     ):
         """Deve retornar resposta cacheada quando disponivel."""
         from src.services.genetic_tool_selector import GeneticToolSelector
-        from src.models.tool_selection import ToolSelectionResponse, SelectionMethod
+        from src.models.tool_selection import SelectionMethod
 
         # Configurar cache hit
         cached_response = {

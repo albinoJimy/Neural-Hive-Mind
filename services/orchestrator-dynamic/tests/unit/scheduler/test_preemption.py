@@ -5,7 +5,7 @@ Testa regras de preempção e gerenciamento de preempção de tickets.
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock, AsyncMock
+from unittest.mock import Mock
 from datetime import datetime, timezone
 
 from src.scheduler.preemption_rules import PreemptionRules, PreemptionDecision

@@ -12,7 +12,6 @@ from ..models.insight import (
     InsightType,
     Priority,
     Recommendation,
-    RelatedEntity,
 )
 
 logger = structlog.get_logger()

@@ -6,8 +6,7 @@ import pytest
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, AsyncMock
 
-from src.config.settings import Settings
-from src.models.approval import ApprovalRequest, ApprovalResponse, ApprovalStatus, RiskBand
+from src.models.approval import ApprovalRequest, ApprovalStatus, RiskBand
 from src.services.approval_service import ApprovalService
 
 

@@ -6,8 +6,7 @@ Fixtures especificas para testes E2E com mock MCP server real.
 
 import asyncio
 import json
-from typing import Dict, Any, List
-from unittest.mock import AsyncMock, MagicMock
+from typing import Dict, Any
 
 import pytest
 from aiohttp import web

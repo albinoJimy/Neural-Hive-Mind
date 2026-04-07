@@ -3,14 +3,13 @@ Testes para AlertDispatcher do SLA Management System.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 from datetime import datetime, timezone
 
 from src.models.alert_rule import (
     AlertSeverity,
     AlertChannel,
     Alert,
-    AlertDispatchResult,
 )
 from src.services.alert_dispatcher import AlertDispatcher
 

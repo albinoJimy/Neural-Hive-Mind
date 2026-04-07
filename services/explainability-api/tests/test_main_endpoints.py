@@ -5,7 +5,7 @@ Cobre health, ready, metrics, explainability e shap.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock
 from datetime import datetime
 
 
@@ -25,7 +25,7 @@ async def test_health_endpoint():
 @pytest.mark.asyncio
 async def test_readiness_endpoint_mongodb_connected():
     """Readiness check deve retornar ready quando MongoDB conectado."""
-    from src.main import readiness_check, mongo_client
+    from src.main import readiness_check
 
     # Configurar mock MongoDB
     mock_mongo = MagicMock()
@@ -109,7 +109,7 @@ async def test_metrics_endpoint():
 @pytest.mark.asyncio
 async def test_get_explainability_by_token_success():
     """Buscar explicação por token deve retornar dados."""
-    from src.main import get_explainability_by_token, db
+    from src.main import get_explainability_by_token
 
     mock_db = MagicMock()
     mock_db.explainability_ledger.find_one = AsyncMock(
@@ -153,7 +153,7 @@ async def test_get_explainability_by_token_not_found():
 @pytest.mark.asyncio
 async def test_get_explanation_extended():
     """Buscar explicação extendida por decision_id."""
-    from src.main import get_explanation_extended, api_extensions
+    from src.main import get_explanation_extended
 
     mock_extensions = AsyncMock()
     mock_extensions.get_explainability_by_decision_id = AsyncMock(
@@ -177,7 +177,7 @@ async def test_get_explanation_extended():
 @pytest.mark.asyncio
 async def test_generate_explanation():
     """Gerar explicação sob demanda."""
-    from src.main import generate_explanation_endpoint, GenerateExplanationRequest, api_extensions
+    from src.main import generate_explanation_endpoint, GenerateExplanationRequest
 
     mock_extensions = AsyncMock()
     mock_extensions.generate_explanation = AsyncMock(
@@ -205,7 +205,7 @@ async def test_generate_explanation():
 @pytest.mark.asyncio
 async def test_get_explanation_formatted():
     """Buscar explicação em formato especifico."""
-    from src.main import get_explanation_formatted, api_extensions
+    from src.main import get_explanation_formatted
 
     mock_extensions = AsyncMock()
     mock_extensions.get_explainability_by_decision_id = AsyncMock(
@@ -247,7 +247,7 @@ async def test_get_explanation_formatted_invalid_format():
 @pytest.mark.asyncio
 async def test_get_explainability_stats():
     """Buscar estatisticas de explicabilidade."""
-    from src.main import get_explainability_stats, db
+    from src.main import get_explainability_stats
 
     mock_db = MagicMock()
     # aggregate() retorna um cursor com método to_list
@@ -272,7 +272,7 @@ async def test_get_explainability_stats():
 @pytest.mark.asyncio
 async def test_get_explainability_stats_with_date_filter():
     """Estatisticas com filtro de data."""
-    from src.main import get_explainability_stats, db
+    from src.main import get_explainability_stats
 
     mock_db = MagicMock()
     # aggregate() retorna um cursor com método to_list

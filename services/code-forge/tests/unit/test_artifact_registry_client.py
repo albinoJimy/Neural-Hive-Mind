@@ -5,7 +5,7 @@ Valida registro e recuperação de artefatos no registry.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 from src.clients.artifact_registry_client import ArtifactRegistryClient
 

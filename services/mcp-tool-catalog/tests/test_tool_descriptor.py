@@ -5,8 +5,6 @@ Validates that metadata field correctly accepts various value types (bool, int, 
 as required for MongoDB/BSON compatibility with Pydantic v2.
 """
 
-import pytest
-from datetime import datetime
 
 from src.models.tool_descriptor import (
     AuthenticationMethod,

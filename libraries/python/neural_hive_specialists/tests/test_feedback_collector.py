@@ -3,10 +3,9 @@ Testes unitários para FeedbackCollector.
 """
 
 import pytest
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from unittest.mock import Mock, MagicMock, patch
 from neural_hive_specialists.feedback import FeedbackCollector, FeedbackDocument
-from neural_hive_specialists.config import SpecialistConfig
 
 
 @pytest.fixture

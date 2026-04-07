@@ -7,11 +7,11 @@ Cobertura: detecção de sinais, tipos de sinal, confiança, risco, geolocaliza�
 import pytest
 import numpy as np
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock, patch
 
 from src.detection.signal_detector import SignalDetector
 from src.models.raw_event import RawEvent
-from src.models.scout_signal import SignalType, ChannelType, Geolocation, SignalSource
+from src.models.scout_signal import SignalType, ChannelType, Geolocation
 from neural_hive_domain import UnifiedDomain
 
 

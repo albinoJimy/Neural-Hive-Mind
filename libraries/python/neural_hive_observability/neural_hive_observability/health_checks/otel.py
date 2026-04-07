@@ -7,7 +7,7 @@ Validates OTEL Collector connectivity and trace pipeline functionality.
 import asyncio
 import logging
 import time
-from typing import Any, Dict, Optional
+from typing import Dict
 
 import aiohttp
 
@@ -192,7 +192,6 @@ class OTELPipelineHealthCheck(HealthCheck):
     def _build_test_trace(self) -> Dict:
         """Build a minimal test trace payload in OTLP format."""
         import random
-        import struct
 
         # Generate trace and span IDs
         trace_id = "".join(f"{random.randint(0, 255):02x}" for _ in range(16))

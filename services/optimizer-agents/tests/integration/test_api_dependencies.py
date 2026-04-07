@@ -2,7 +2,7 @@
 
 import sys
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 # Mock neural_hive_integration e outras dependências ausentes antes de qualquer importação
 mock_neural_hive = MagicMock()

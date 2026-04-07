@@ -1,10 +1,7 @@
 """Testes para biblioteca neural_hive_observability."""
 
 import pytest
-import asyncio
 from unittest.mock import Mock, patch
-import threading
-import time
 
 from neural_hive_observability import (
     init_observability,
@@ -414,7 +411,6 @@ class TestIntegration:
         """Teste 18: Verificar que inicialização correta previne AttributeError."""
         from neural_hive_observability import (
             init_observability,
-            get_context_manager,
             get_config,
         )
         from neural_hive_observability.kafka_instrumentation import instrument_kafka_producer
@@ -470,7 +466,6 @@ class TestIntegration:
         """Teste 19: Verificar que context_manager está disponível após init_observability."""
         from neural_hive_observability import (
             init_observability,
-            get_context_manager,
             get_config,
         )
         from neural_hive_observability.context import ContextManager

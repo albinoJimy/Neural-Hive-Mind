@@ -12,7 +12,6 @@ Testa:
 """
 
 import pytest
-from unittest.mock import MagicMock, patch
 import time
 
 from src.services.dag_generator import DAGGenerator, ConflictInfo

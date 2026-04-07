@@ -57,7 +57,7 @@ def save_key(key: bytes, path: str, force: bool = False):
         os.chmod(file_path, 0o600)
 
         print(f"✅ Chave de criptografia gerada e salva em: {path}")
-        print(f"   Permissões: 0600 (leitura/escrita apenas pelo owner)")
+        print("   Permissões: 0600 (leitura/escrita apenas pelo owner)")
 
     except Exception as e:
         print(f"ERRO ao salvar chave: {e}", file=sys.stderr)

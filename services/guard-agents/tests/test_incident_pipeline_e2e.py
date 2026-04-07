@@ -11,9 +11,8 @@ E6: Documentar lições aprendidas
 """
 
 import pytest
-import asyncio
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from src.services.threat_detector import ThreatDetector
 from src.services.incident_classifier import IncidentClassifier

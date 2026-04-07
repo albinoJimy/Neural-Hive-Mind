@@ -3,7 +3,7 @@
 import pytest
 import os
 import sys
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from datetime import datetime
 
 # Adicionar diretório de scripts ao path

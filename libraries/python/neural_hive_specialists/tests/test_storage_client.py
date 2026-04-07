@@ -10,10 +10,8 @@ Tests cover:
 import os
 import sys
 import tempfile
-import hashlib
 from datetime import datetime, timezone
-from unittest.mock import Mock, MagicMock, patch, call
-from pathlib import Path
+from unittest.mock import Mock, patch
 from types import ModuleType
 
 import pytest
@@ -100,7 +98,6 @@ sys.modules["google.oauth2.service_account"] = mock_service_account
 
 # Now import the storage_client module
 from neural_hive_specialists.disaster_recovery.storage_client import (
-    StorageClient,
     S3StorageClient,
     GCSStorageClient,
     LocalStorageClient,

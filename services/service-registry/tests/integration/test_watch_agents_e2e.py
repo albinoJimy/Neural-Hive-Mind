@@ -21,7 +21,6 @@ from .test_discover_e2e import (
     MockPheromoneClient,
     create_grpc_server,
     create_grpc_channel,
-    get_free_port,
 )
 
 from proto import service_registry_pb2, service_registry_pb2_grpc

@@ -5,8 +5,7 @@ Tests signal detection, classification, and threat analysis.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timezone
+from unittest.mock import AsyncMock, patch
 
 from src.services.threat_detector import ThreatDetector, ThreatType
 

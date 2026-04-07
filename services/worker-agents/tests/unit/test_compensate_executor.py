@@ -4,7 +4,7 @@ Testes unitarios para CompensateExecutor.
 
 import sys
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 
 # Mock do modulo de observability antes de importar

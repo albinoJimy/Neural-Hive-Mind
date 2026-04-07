@@ -7,8 +7,7 @@ de integração sem depender de um servidor externo.
 
 import pytest
 import pytest_asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
-import httpx
+from unittest.mock import AsyncMock, MagicMock
 
 from src.clients.opa_client import OPAClient
 

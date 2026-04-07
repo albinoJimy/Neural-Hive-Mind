@@ -5,8 +5,7 @@ Testa detecção de padrões complexos e cálculo de scores.
 """
 
 import pytest
-from unittest.mock import MagicMock, patch, mock_open
-import yaml
+from unittest.mock import patch, mock_open
 
 from src.services.pattern_matcher import PatternMatcher, PatternMatch
 

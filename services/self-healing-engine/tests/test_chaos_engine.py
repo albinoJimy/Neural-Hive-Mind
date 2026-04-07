@@ -9,8 +9,7 @@ Testa os componentes principais:
 """
 
 import pytest
-from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 from src.chaos.chaos_models import (
     ChaosExperiment,

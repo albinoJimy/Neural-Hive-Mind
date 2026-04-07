@@ -5,11 +5,10 @@ Valida que get_last_model_update retorna None ao invés de 'unknown'.
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, patch
 from datetime import datetime
 
 from neural_hive_specialists.mlflow_client import MLflowClient
-from neural_hive_specialists.config import SpecialistConfig
 
 
 class TestMLflowClient:

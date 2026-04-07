@@ -5,7 +5,7 @@ EPIC-204-01: Modelo ML para SHAP
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, timezone
 
 from src.database.mongodb_client import MongoDBClient

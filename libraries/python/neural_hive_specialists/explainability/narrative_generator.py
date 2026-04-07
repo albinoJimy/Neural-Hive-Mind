@@ -99,7 +99,7 @@ class NarrativeGenerator:
 
         # Introdução
         weight_key = "shap_value" if explanation_type == "shap" else "lime_weight"
-        narrative_parts.append(f"A decisão foi baseada principalmente nos seguintes fatores:")
+        narrative_parts.append("A decisão foi baseada principalmente nos seguintes fatores:")
 
         # Fatores positivos
         if top_positive:

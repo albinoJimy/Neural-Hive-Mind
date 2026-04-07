@@ -5,8 +5,7 @@ Conversão entre exceções internas e status gRPC, com adaptadores
 para HTTP REST APIs.
 """
 
-from typing import Dict, Any, Optional, Type
-from enum import Enum
+from typing import Dict, Any, Optional
 import grpc
 
 from .base import NeuralHiveError, ErrorContext

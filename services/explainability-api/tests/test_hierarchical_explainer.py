@@ -4,8 +4,7 @@ Testes unitários para HierarchicalExplainer.
 TDD: Testes escritos antes da implementação (Explainability API v3 Task 3).
 """
 
-import pytest
-from typing import List, Dict, Any
+from typing import Dict, Any
 import sys
 from pathlib import Path
 

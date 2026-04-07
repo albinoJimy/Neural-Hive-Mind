@@ -5,9 +5,9 @@ Identifica classes, confianças e domínios sub-representados para
 priorizar coleta de feedback via Active Learning.
 """
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from dataclasses import dataclass
-from collections import Counter, defaultdict
+from collections import Counter
 import structlog
 
 from pydantic import BaseModel, Field

@@ -4,7 +4,7 @@ import pytest
 from unittest.mock import Mock, AsyncMock, patch
 
 from src.validators.validate_engine import ValidateEngine
-from src.models.validation import Severity, ViolationType
+from src.models.validation import ViolationType
 
 
 @pytest.fixture

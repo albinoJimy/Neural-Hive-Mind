@@ -7,8 +7,6 @@ Estes testes importam o BehaviorSpecialistConfig real do código fonte.
 import sys
 import os
 import pytest
-from typing import List
-from unittest.mock import patch
 
 # Configurar path para importar código real
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))

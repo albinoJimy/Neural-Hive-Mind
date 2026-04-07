@@ -6,8 +6,7 @@ Testa eleição distribuída, renovação de lease, e failover.
 
 import pytest
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock
 
 from src.services.leader_election import (
     LeaderElection,

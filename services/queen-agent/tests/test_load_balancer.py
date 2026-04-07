@@ -12,8 +12,6 @@ from datetime import datetime, timezone, timedelta
 from src.services.load_balancer import (
     LoadBalancer,
     BalancingStrategy,
-    WorkerMetrics,
-    TaskAssignment,
 )
 
 

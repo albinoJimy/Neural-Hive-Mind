@@ -11,7 +11,6 @@ Cobertura:
 - Retry logic
 """
 
-import asyncio
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
@@ -338,7 +337,6 @@ class TestCountViolationsBySeverity:
 
     def test_count_violations_empty(self, opa_client):
         """Deve retornar zeros para lista vazia."""
-        from clients.opa_client import ViolationSeverity
 
         result = opa_client.count_violations_by_severity([])
         assert all(count == 0 for count in result.values())

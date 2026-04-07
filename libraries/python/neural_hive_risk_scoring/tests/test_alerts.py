@@ -4,7 +4,7 @@ Testes para RiskAlertManager e componentes relacionados
 
 import pytest
 from datetime import datetime, timedelta, timezone
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 
 from neural_hive_risk_scoring import (
     RiskAlertManager,
@@ -12,7 +12,6 @@ from neural_hive_risk_scoring import (
     AlertRule,
     AlertType,
     AlertSeverity,
-    AlertHandler,
     LoggingAlertHandler,
     CallbackAlertHandler,
     DynamicThresholds,

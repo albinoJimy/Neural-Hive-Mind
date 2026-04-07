@@ -1,9 +1,7 @@
 """Testes para AggregatedMetricsCollector."""
 
 import pytest
-from datetime import datetime, timedelta
-from unittest.mock import Mock, patch, MagicMock, AsyncMock
-import numpy as np
+from unittest.mock import patch, MagicMock
 
 from neural_hive_specialists.observability.aggregated_metrics import (
     AggregatedMetricsCollector,

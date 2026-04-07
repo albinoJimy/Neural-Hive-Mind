@@ -7,7 +7,7 @@ Validates ClickHouse schema integrity and connectivity for ML and analytics work
 import asyncio
 import logging
 import time
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, List, Optional
 
 from ..health import HealthCheck, HealthCheckResult, HealthStatus
 

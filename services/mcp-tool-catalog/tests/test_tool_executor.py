@@ -9,15 +9,13 @@ Cobertura:
 - Execucao em batch
 """
 
-import asyncio
-from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from src.services.tool_executor import ToolExecutor
 from src.models.tool_descriptor import ToolDescriptor, ToolCategory, IntegrationType
-from src.adapters.base_adapter import ExecutionResult, AdapterError
+from src.adapters.base_adapter import ExecutionResult
 
 
 # ============================================================================

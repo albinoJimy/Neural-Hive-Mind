@@ -12,7 +12,7 @@ Cobertura:
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from typing import Dict, List, Any
 import grpc
 

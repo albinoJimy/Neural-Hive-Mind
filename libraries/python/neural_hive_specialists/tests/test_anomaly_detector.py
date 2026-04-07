@@ -14,7 +14,7 @@ import numpy as np
 import tempfile
 import shutil
 import os
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 from neural_hive_specialists.observability.anomaly_detector import AnomalyDetector
 

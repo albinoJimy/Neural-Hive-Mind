@@ -6,7 +6,6 @@ Cobertura para compliance/audit_logger.py
 
 import pytest
 from unittest.mock import Mock, MagicMock, patch
-from typing import Dict, Any
 from datetime import datetime, timezone
 
 
@@ -388,7 +387,7 @@ class TestAuditLogger:
 
         logger = AuditLogger(config, specialist_type="test_specialist")
 
-        from datetime import datetime, timedelta
+        from datetime import timedelta
 
         start_date = datetime.now(timezone.utc) - timedelta(days=7)
         results = logger.query_audit_logs(
@@ -428,7 +427,7 @@ class TestAuditLogger:
         mock_mongo_class.return_value = mock_client
 
         from neural_hive_specialists.compliance.audit_logger import AuditLogger
-        from datetime import datetime, timedelta
+        from datetime import timedelta
 
         logger = AuditLogger(config, specialist_type="test_specialist")
 
@@ -446,7 +445,7 @@ class TestAuditLogger:
         config.enable_audit_logging = False
 
         from neural_hive_specialists.compliance.audit_logger import AuditLogger
-        from datetime import datetime, timedelta
+        from datetime import timedelta
 
         logger = AuditLogger(config, specialist_type="test_specialist")
 
@@ -529,7 +528,6 @@ class TestAuditLogger:
     @patch("neural_hive_specialists.compliance.audit_logger.MongoClient")
     def test_timestamp_is_datetime(self, mock_mongo_class, config):
         """Testa que timestamp é um datetime."""
-        from datetime import datetime
 
         mock_client = MagicMock()
         mock_db = MagicMock()

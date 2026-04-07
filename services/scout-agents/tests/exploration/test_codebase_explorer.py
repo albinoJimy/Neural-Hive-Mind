@@ -8,7 +8,7 @@ Espec: @.agent-os/specs/2026-03-17-gaps-05-scout-agents/
 import ast
 import pytest
 from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 # Import com skip automático se módulo não disponível
 CodebaseExplorer = pytest.importorskip("src.exploration.codebase_explorer").CodebaseExplorer

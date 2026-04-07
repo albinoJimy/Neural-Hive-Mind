@@ -5,7 +5,7 @@ Esperado que falhem inicialmente, servindo como contrato para a implementacao.
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch
 import os
 
 

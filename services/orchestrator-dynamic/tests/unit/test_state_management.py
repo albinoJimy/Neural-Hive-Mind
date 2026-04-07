@@ -8,7 +8,7 @@ a execução: PENDING -> RUNNING -> COMPLETED/FAILED.
 import pytest
 import sys
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 # Adicionar src ao path
 src_path = str(Path(__file__).parent.parent.parent / "src")

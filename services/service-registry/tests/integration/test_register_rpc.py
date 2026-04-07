@@ -9,7 +9,7 @@ import pytest
 import grpc
 import sys
 import os
-from unittest.mock import Mock, AsyncMock, MagicMock
+from unittest.mock import Mock, AsyncMock
 
 # Adicionar src ao path para importação
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../src"))

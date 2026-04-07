@@ -10,10 +10,9 @@ Cobertura:
 
 import pytest
 from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
-from typing import Dict, List, Any
+from unittest.mock import AsyncMock, MagicMock
+from typing import Dict, Any
 
-from src.workflows.orchestration_workflow import OrchestrationWorkflow
 from src.activities.ticket_generation import allocate_resources
 from src.scheduler.intelligent_scheduler import IntelligentScheduler
 from src.scheduler.priority_calculator import PriorityCalculator
@@ -271,7 +270,7 @@ class TestOrchestrationWorkflowScheduler:
     ):
         """Testa workflow completo C1→C2→C3→C4→C5→C6 com scheduler."""
         # Importar activities
-        from src.activities import ticket_generation, plan_validation, result_consolidation
+        from src.activities import ticket_generation
 
         # Injetar dependências
         ticket_generation.intelligent_scheduler = mock_activity_dependencies[

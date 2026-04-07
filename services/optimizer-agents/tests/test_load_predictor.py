@@ -11,9 +11,8 @@ Cobertura:
 """
 
 import pytest
-import pytest_asyncio
 from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 import pandas as pd
 import numpy as np
 

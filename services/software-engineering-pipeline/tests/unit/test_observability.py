@@ -3,8 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from fastapi import Request, Response
-from fastapi.responses import Response as FastAPIResponse
+from fastapi import Request
 from starlette.datastructures import URL
 
 from src.observability.metrics import (
@@ -16,7 +15,6 @@ from src.observability.metrics import (
     queue_size,
     success_rate,
     average_duration,
-    unresolved_anomalies,
     get_metrics_text,
     init_metrics_for_repo,
 )

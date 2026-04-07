@@ -5,12 +5,10 @@ Testa criacao de credenciais de servidor e adicao de porta segura.
 """
 
 import pytest
-import asyncio
 from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
+from unittest.mock import AsyncMock, MagicMock, patch
 from dataclasses import dataclass
 
-import grpc
 
 
 @dataclass

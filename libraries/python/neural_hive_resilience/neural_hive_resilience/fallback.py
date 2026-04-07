@@ -8,7 +8,7 @@ Este módulo implementa padrões de fallback para degradação graciosa:
 """
 
 import asyncio
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import (
     Any,
@@ -17,7 +17,6 @@ from typing import (
     List,
     Optional,
     TypeVar,
-    Union,
 )
 
 
@@ -459,6 +458,6 @@ def with_fallback(
 
             return wrapper
         else:
-            raise TypeError(f"@fallback decorator só suporta funções assíncronas")
+            raise TypeError("@fallback decorator só suporta funções assíncronas")
 
     return decorator

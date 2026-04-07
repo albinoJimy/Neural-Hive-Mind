@@ -6,7 +6,6 @@ Os testes de integração com Kubernetes requerem cluster real.
 """
 
 import pytest
-from unittest.mock import Mock, patch
 
 from src.services.container_builder import ContainerBuilder, BuilderType, BuildResult
 

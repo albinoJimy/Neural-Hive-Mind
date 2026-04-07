@@ -6,7 +6,6 @@ Cria as coleções necessárias e configura índices para performance otimizada.
 """
 import asyncio
 import os
-import sys
 
 from motor.motor_asyncio import AsyncIOMotorClient
 

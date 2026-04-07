@@ -12,7 +12,6 @@ Cobertura:
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from httpx import AsyncClient, ASGITransport
-from datetime import timedelta
 
 
 @pytest.fixture

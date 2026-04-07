@@ -14,7 +14,7 @@ Features extraídas:
 """
 
 import re
-from typing import Dict, List, Any, Optional, Set
+from typing import Dict, List, Any, Optional
 from collections import Counter
 import structlog
 

@@ -5,7 +5,7 @@ Valida comportamento de fail-fast no construtor e fail-safe no circuit breaker.
 """
 
 import types
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 

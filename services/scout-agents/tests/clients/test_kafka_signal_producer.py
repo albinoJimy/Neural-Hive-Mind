@@ -5,9 +5,7 @@ Cobertura: publicação de sinais, oportunidades, batch, tratamento de erros.
 """
 
 import pytest
-import json
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timezone
 
 from src.clients.kafka_signal_producer import KafkaSignalProducer
 from src.models.scout_signal import ScoutSignal, SignalType, SignalSource, ChannelType, Geolocation

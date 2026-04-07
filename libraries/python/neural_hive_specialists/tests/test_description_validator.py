@@ -1,12 +1,10 @@
 """Testes para DescriptionQualityValidator."""
 
 import pytest
-from datetime import datetime
 
 from neural_hive_specialists.validation.description_validator import (
     DescriptionQualityValidator,
     get_validator,
-    _validator_instance,
 )
 
 

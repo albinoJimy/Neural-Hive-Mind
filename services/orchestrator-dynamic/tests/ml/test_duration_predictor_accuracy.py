@@ -12,7 +12,7 @@ import pytest
 import numpy as np
 import pandas as pd
 from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 from src.ml.duration_predictor import DurationPredictor
@@ -147,12 +147,12 @@ class TestDurationPredictorAccuracy:
         ), f"MAE percentual ({mae_percentage:.2%}) excede threshold de 15%"
 
         # Log resultado
-        print(f"\n=== Teste MAE ===")
+        print("\n=== Teste MAE ===")
         print(f"MAE: {mae:.2f}ms")
         print(f"Mean Duration: {mean_duration:.2f}ms")
         print(f"MAE %: {mae_percentage:.2%}")
-        print(f"Threshold: 15%")
-        print(f"Status: PASS ✓")
+        print("Threshold: 15%")
+        print("Status: PASS ✓")
 
     @pytest.mark.asyncio
     async def test_rmse_threshold(self, sample_tickets):
@@ -180,12 +180,12 @@ class TestDurationPredictorAccuracy:
             rmse_mae_ratio < 1.5
         ), f"Ratio RMSE/MAE ({rmse_mae_ratio:.2f}) excede 1.5, indicando outliers"
 
-        print(f"\n=== Teste RMSE ===")
+        print("\n=== Teste RMSE ===")
         print(f"RMSE: {rmse:.2f}ms")
         print(f"MAE: {mae:.2f}ms")
         print(f"RMSE/MAE Ratio: {rmse_mae_ratio:.2f}")
-        print(f"Threshold: < 1.5")
-        print(f"Status: PASS ✓")
+        print("Threshold: < 1.5")
+        print("Status: PASS ✓")
 
     @pytest.mark.asyncio
     async def test_r2_score_threshold(self, sample_tickets):
@@ -208,10 +208,10 @@ class TestDurationPredictorAccuracy:
 
         assert r2 > 0.7, f"R² ({r2:.3f}) está abaixo do threshold de 0.7"
 
-        print(f"\n=== Teste R² ===")
+        print("\n=== Teste R² ===")
         print(f"R²: {r2:.3f}")
-        print(f"Threshold: > 0.7")
-        print(f"Status: PASS ✓")
+        print("Threshold: > 0.7")
+        print("Status: PASS ✓")
 
     @pytest.mark.asyncio
     async def test_confidence_calibration(self, sample_tickets):
@@ -252,10 +252,10 @@ class TestDurationPredictorAccuracy:
                 f"low_conf_mae ({low_conf_mae:.2f})"
             )
 
-            print(f"\n=== Teste Calibração de Confidence ===")
+            print("\n=== Teste Calibração de Confidence ===")
             print(f"High Confidence MAE: {high_conf_mae:.2f}ms")
             print(f"Low Confidence MAE: {low_conf_mae:.2f}ms")
-            print(f"Status: PASS ✓ (High < Low)")
+            print("Status: PASS ✓ (High < Low)")
 
     @pytest.mark.asyncio
     async def test_edge_cases(self, sample_tickets):
@@ -297,10 +297,10 @@ class TestDurationPredictorAccuracy:
             assert duration > 0, "Duração deve ser positiva"
             assert duration < 3600000, "Duração deve ser menor que 1 hora"
 
-        print(f"\n=== Teste Edge Cases ===")
-        print(f"Tickets com duração muito curta: OK")
-        print(f"Tickets com duração muito longa: OK")
-        print(f"Status: PASS ✓")
+        print("\n=== Teste Edge Cases ===")
+        print("Tickets com duração muito curta: OK")
+        print("Tickets com duração muito longa: OK")
+        print("Status: PASS ✓")
 
     @pytest.mark.asyncio
     async def test_prediction_bounds(self, sample_tickets):
@@ -323,11 +323,11 @@ class TestDurationPredictorAccuracy:
         assert min_pred >= 1000, f"Predição mínima ({min_pred:.0f}ms) < 1s"
         assert max_pred <= 3600000, f"Predição máxima ({max_pred:.0f}ms) > 1h"
 
-        print(f"\n=== Teste Bounds de Predição ===")
+        print("\n=== Teste Bounds de Predição ===")
         print(f"Min Predição: {min_pred:.0f}ms")
         print(f"Max Predição: {max_pred:.0f}ms")
-        print(f"Bounds: [1000ms, 3600000ms]")
-        print(f"Status: PASS ✓")
+        print("Bounds: [1000ms, 3600000ms]")
+        print("Status: PASS ✓")
 
     @pytest.mark.asyncio
     async def test_task_type_consistency(self, sample_tickets):
@@ -357,10 +357,10 @@ class TestDurationPredictorAccuracy:
 
             assert group_mae_pct < 0.20, f"MAE para {task_type} ({group_mae_pct:.2%}) excede 20%"
 
-        print(f"\n=== Teste Consistência por Task Type ===")
+        print("\n=== Teste Consistência por Task Type ===")
         for task_type in df["task_type"].unique():
             print(f"  {task_type}: OK")
-        print(f"Status: PASS ✓")
+        print("Status: PASS ✓")
 
 
 class TestDurationPredictorValidation:
@@ -394,7 +394,7 @@ class TestDurationPredictorValidation:
         p95_error = np.percentile(errors, 95)
         p99_error = np.percentile(errors, 99)
 
-        print(f"\n=== Validação Estatística ===")
+        print("\n=== Validação Estatística ===")
         print(f"MAE: {mae:.2f}ms")
         print(f"RMSE: {rmse:.2f}ms")
         print(f"R²: {r2:.3f}")
@@ -426,10 +426,10 @@ class TestDurationPredictorValidation:
 
         assert outlier_pct < 0.05, f"Muitos outliers ({outlier_pct:.1%})"
 
-        print(f"\n=== Distribuição de Erros ===")
+        print("\n=== Distribuição de Erros ===")
         print(f"Erro Médio Relativo: {mean_error:.3f}")
         print(f"Outliers: {outlier_pct:.1%}")
-        print(f"Status: PASS ✓")
+        print("Status: PASS ✓")
 
 
 class TestDurationPredictorTrainingValidation:

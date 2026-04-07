@@ -5,7 +5,6 @@ Este módulo testa o repositório MongoDB de padrões de avaliação.
 """
 
 import pytest
-from datetime import datetime
 
 from neural_hive_specialists.evolution_hooks.pattern_registry import PatternRegistry
 from neural_hive_specialists.evolution_hooks.models import (
@@ -15,7 +14,6 @@ from neural_hive_specialists.evolution_hooks.models import (
     FeedbackOutcome,
     FeedbackSource,
     TaskCountRange,
-    DEFAULT_WEIGHTS,
 )
 
 

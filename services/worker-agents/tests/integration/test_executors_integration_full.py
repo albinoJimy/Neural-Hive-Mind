@@ -14,9 +14,8 @@ Test categories:
 
 import asyncio
 import os
-import time
 from typing import Any, Dict
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 

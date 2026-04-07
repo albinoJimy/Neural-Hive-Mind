@@ -16,7 +16,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.types.artifact_types import ArtifactCategory, CodeLanguage
+from src.types.artifact_types import ArtifactCategory
 from src.models.artifact import (
     CodeForgeArtifact,
     GenerationMethod,
@@ -24,7 +24,6 @@ from src.models.artifact import (
     ValidationType,
     ValidationStatus,
 )
-from src.models.pipeline_context import PipelineContext
 
 
 pytest_plugins = ["tests.unit.conftest", "tests.fixtures.d3_fixtures"]

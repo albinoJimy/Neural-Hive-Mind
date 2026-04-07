@@ -7,7 +7,6 @@ Cobertura alvo: >90%
 import pytest
 import json
 from unittest.mock import Mock, MagicMock, patch
-from pydantic import ValidationError
 
 # Store patches para cleanup após o módulo
 _patches = []
@@ -91,9 +90,7 @@ def cleanup_patches():
 
 from neural_hive_specialists.base_specialist import BaseSpecialist
 from neural_hive_specialists.schemas import (
-    PlanValidationError,
     PlanVersionIncompatibleError,
-    TaskDependencyError,
 )
 
 

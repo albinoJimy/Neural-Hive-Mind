@@ -9,7 +9,6 @@ import pytest
 import uuid
 
 from src.services.consensus_orchestrator import ConsensusOrchestrator
-from src.models.consolidated_decision import ConsolidatedDecision, DecisionType
 
 
 # Fixtures específicas para testes de correlation_id (não duplicadas do conftest.py)

@@ -10,7 +10,7 @@ Cobre:
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, timezone
 
 from src.services.experiment_manager import ExperimentManager
@@ -51,7 +51,6 @@ def mock_argo_client():
 @pytest.fixture
 def mock_mongodb_client():
     """Mock do MongoDBClient."""
-    from datetime import datetime, timezone
 
     client = AsyncMock()
     client.save_experiment = AsyncMock(return_value=True)

@@ -5,8 +5,8 @@ Cobre UnifiedMemoryClient, LineageTracker e DataQualityMonitor.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock
+from datetime import datetime
 
 
 @pytest.mark.asyncio

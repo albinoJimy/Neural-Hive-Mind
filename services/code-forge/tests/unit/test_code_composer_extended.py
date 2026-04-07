@@ -6,11 +6,10 @@ incluindo metodos _generate_* e fallback behavior.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 from datetime import datetime
 
 from src.services.code_composer import CodeComposer
-from src.models.pipeline_context import PipelineContext
 from src.models.execution_ticket import (
     ExecutionTicket,
     TaskType,
@@ -24,9 +23,6 @@ from src.models.execution_ticket import (
     Consistency,
     Durability,
 )
-from src.models.template import Template, TemplateMetadata, TemplateType
-from src.types.artifact_types import CodeLanguage, ArtifactCategory
-from src.models.artifact import GenerationMethod
 import uuid
 
 

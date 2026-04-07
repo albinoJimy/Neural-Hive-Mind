@@ -1,13 +1,12 @@
 """Testes unitários para os roteadores da API."""
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
 
 from src.main import app
-from src.models.schemas import PipelineStatus, AnomalyType, Severity
 
 
 @pytest.fixture
@@ -137,7 +136,6 @@ class TestPipelineRunsRouter:
 
     def test_list_runs_empty(self, client, mock_pipeline_repo, monkeypatch):
         """Testa listagem de runs vazia."""
-        from src.api.routers import pipeline_runs
 
         monkeypatch.setattr("src.api.routers.pipeline_runs.repo", mock_pipeline_repo)
 
@@ -150,7 +148,6 @@ class TestPipelineRunsRouter:
 
     def test_create_run(self, client, mock_pipeline_repo, monkeypatch):
         """Testa criação de run."""
-        from src.api.routers import pipeline_runs
 
         monkeypatch.setattr("src.api.routers.pipeline_runs.repo", mock_pipeline_repo)
 
@@ -170,7 +167,6 @@ class TestPipelineRunsRouter:
 
     def test_get_run(self, client, mock_pipeline_repo, monkeypatch):
         """Testa obter run específica."""
-        from src.api.routers import pipeline_runs
 
         monkeypatch.setattr("src.api.routers.pipeline_runs.repo", mock_pipeline_repo)
 
@@ -183,7 +179,6 @@ class TestPipelineRunsRouter:
 
     def test_get_run_not_found(self, client, mock_pipeline_repo, monkeypatch):
         """Testa obter run inexistente."""
-        from src.api.routers import pipeline_runs
 
         mock_pipeline_repo.find_by_id = AsyncMock(return_value=None)
         monkeypatch.setattr("src.api.routers.pipeline_runs.repo", mock_pipeline_repo)
@@ -194,7 +189,6 @@ class TestPipelineRunsRouter:
 
     def test_delete_run(self, client, mock_pipeline_repo, monkeypatch):
         """Testa deletar run."""
-        from src.api.routers import pipeline_runs
 
         monkeypatch.setattr("src.api.routers.pipeline_runs.repo", mock_pipeline_repo)
 
@@ -204,7 +198,6 @@ class TestPipelineRunsRouter:
 
     def test_get_repository_stats(self, client, mock_pipeline_repo, monkeypatch):
         """Testa obter estatísticas do repositório."""
-        from src.api.routers import pipeline_runs
 
         mock_pipeline_repo.aggregate = AsyncMock(
             side_effect=[
@@ -226,7 +219,6 @@ class TestAnomaliesRouter:
 
     def test_list_anomalies_empty(self, client, mock_anomaly_repo, monkeypatch):
         """Testa listagem de anomalias vazia."""
-        from src.api.routers import anomalies
 
         monkeypatch.setattr("src.api.routers.anomalies.repo", mock_anomaly_repo)
 
@@ -239,7 +231,6 @@ class TestAnomaliesRouter:
 
     def test_get_anomaly(self, client, mock_anomaly_repo, monkeypatch):
         """Testa obter anomalia específica."""
-        from src.api.routers import anomalies
 
         monkeypatch.setattr("src.api.routers.anomalies.repo", mock_anomaly_repo)
 
@@ -252,7 +243,6 @@ class TestAnomaliesRouter:
 
     def test_get_anomaly_not_found(self, client, mock_anomaly_repo, monkeypatch):
         """Testa obter anomalia inexistente."""
-        from src.api.routers import anomalies
 
         mock_anomaly_repo.find_by_id = AsyncMock(return_value=None)
         monkeypatch.setattr("src.api.routers.anomalies.repo", mock_anomaly_repo)
@@ -263,7 +253,6 @@ class TestAnomaliesRouter:
 
     def test_resolve_anomaly(self, client, mock_anomaly_repo, monkeypatch):
         """Testa resolver anomalia."""
-        from src.api.routers import anomalies
 
         # Mock para retornar anomalia não resolvida primeiro
         anomaly_unresolved = {
@@ -289,7 +278,6 @@ class TestAnomaliesRouter:
 
     def test_get_unresolved_anomalies(self, client, mock_anomaly_repo, monkeypatch):
         """Testa obter anomalias não resolvidas."""
-        from src.api.routers import anomalies
 
         mock_anomaly_repo.find_unresolved = AsyncMock(
             return_value=[

@@ -181,9 +181,9 @@ def apply_retention_policies(config, dry_run=False, policy_name=None):
             stats = retention_manager.apply_retention_policies()
             duration = time.time() - start_time
 
-            print(f"\n✅ Políticas aplicadas com sucesso!")
+            print("\n✅ Políticas aplicadas com sucesso!")
             print(f"⏱️  Duração: {duration:.2f}s")
-            print(f"\n📊 Estatísticas:")
+            print("\n📊 Estatísticas:")
             print(f"   Documentos processados: {stats.get('documents_processed', 0)}")
             print(f"   Documentos mascarados:  {stats.get('documents_masked', 0)}")
             print(f"   Documentos deletados:   {stats.get('documents_deleted', 0)}")

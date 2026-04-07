@@ -6,7 +6,6 @@ Testa os métodos gRPC para otimização de SLOs.
 
 import pytest
 from unittest.mock import AsyncMock, Mock
-import time
 
 from src.grpc_service.orchestrator_optimization_servicer import OrchestratorOptimizationServicer
 from src.config.settings import Settings

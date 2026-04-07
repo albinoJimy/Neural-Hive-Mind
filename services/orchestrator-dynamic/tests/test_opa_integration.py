@@ -10,7 +10,6 @@ from unittest.mock import Mock, AsyncMock, patch
 from src.policies import OPAClient, PolicyValidator
 from src.policies.opa_client import OPAConnectionError, OPAPolicyNotFoundError
 from src.config.settings import OrchestratorSettings
-from src.policies.policy_validator import ValidationResult, PolicyViolation
 
 
 @pytest.fixture
@@ -123,7 +122,6 @@ class TestOPAClient:
     @pytest.mark.asyncio
     async def test_evaluate_policy_timeout(self, opa_client, mock_config):
         """Testa timeout na avaliação."""
-        import asyncio
 
         with patch.object(opa_client.session, "post") as mock_post:
             # Simular timeout
@@ -482,7 +480,6 @@ class TestCircuitBreaker:
     @pytest.mark.asyncio
     async def test_circuit_breaker_opens_after_failures(self, mock_config):
         """Testa abertura do circuit breaker após falhas consecutivas."""
-        import aiohttp
 
         client = OPAClient(mock_config)
         await client.initialize()
@@ -551,7 +548,6 @@ class TestCircuitBreaker:
     @pytest.mark.asyncio
     async def test_circuit_breaker_disabled(self, mock_config):
         """Testa comportamento com circuit breaker desabilitado."""
-        import aiohttp
 
         mock_config.opa_circuit_breaker_enabled = False
         client = OPAClient(mock_config)
@@ -653,7 +649,6 @@ class TestFailOpenFailClosed:
     @pytest.mark.asyncio
     async def test_fail_closed_rejects_on_opa_error(self, mock_config):
         """Testa fail-closed rejeita tickets em erro OPA."""
-        import aiohttp
 
         mock_config.opa_fail_open = False
         mock_opa_client = AsyncMock()

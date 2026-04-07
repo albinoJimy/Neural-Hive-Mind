@@ -10,7 +10,6 @@ from datetime import datetime, timezone
 
 from src.models.cognitive_plan import TaskNode, RiskBand, ApprovalStatus
 from src.services.risk_scorer import RiskScorer
-from src.services.destructive_detector import DestructiveDetector
 
 
 class TestDestructiveIntentTriggersApprovalFlow:
@@ -389,7 +388,6 @@ class TestApprovalProducerIntegration:
         self, mock_producer_class, mock_settings, mock_cognitive_plan
     ):
         """Verificar que headers incluem informações de aprovação"""
-        from src.producers.approval_producer import KafkaApprovalProducer
 
         # Os headers esperados incluem:
         expected_headers = [

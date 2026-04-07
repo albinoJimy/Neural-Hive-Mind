@@ -9,8 +9,7 @@ Cobertura:
 """
 
 import pytest
-from unittest.mock import MagicMock, patch
-from prometheus_client import REGISTRY, CollectorRegistry
+from prometheus_client import CollectorRegistry
 
 from src.observability.metrics import MCPToolCatalogMetrics
 

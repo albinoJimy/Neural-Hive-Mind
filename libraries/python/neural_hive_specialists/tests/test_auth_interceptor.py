@@ -4,9 +4,8 @@ Testes para AuthInterceptor.
 
 import pytest
 import jwt
-import grpc
 from datetime import datetime, timedelta, timezone
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock
 from prometheus_client import REGISTRY
 
 from neural_hive_specialists.auth_interceptor import AuthInterceptor

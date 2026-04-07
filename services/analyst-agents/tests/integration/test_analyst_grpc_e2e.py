@@ -6,14 +6,12 @@ disponiveis para execucao completa.
 """
 
 import pytest
-import asyncio
 import socket
 import uuid
 import grpc
 from datetime import datetime, timezone
 
 from src.grpc_service.server import AnalystGRPCServer
-from src.grpc_service.analyst_servicer import AnalystServicer
 from src.clients.mongodb_client import MongoDBClient
 from src.clients.redis_client import RedisClient
 from src.clients.neo4j_client import Neo4jClient

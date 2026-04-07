@@ -6,11 +6,9 @@ Valida criação e inicialização do LoadPredictor centralizado.
 
 import pytest
 from unittest.mock import Mock, AsyncMock, patch
-from datetime import datetime, timedelta
 
 from src.ml.load_predictor_factory import LoadPredictorFactory, LoadPredictorWrapper
 from src.config.settings import OrchestratorSettings
-from src.observability.metrics import OrchestratorMetrics
 
 
 # Mock do LoadPredictor centralizado para testes

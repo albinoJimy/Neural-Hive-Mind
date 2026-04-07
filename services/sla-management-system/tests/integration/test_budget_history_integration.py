@@ -1,10 +1,8 @@
 """Testes de integração para funcionalidades de histórico de budget."""
 
 import pytest
-import asyncio
 from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
-import json
+from unittest.mock import AsyncMock, MagicMock
 
 from fastapi.testclient import TestClient
 from fastapi import FastAPI

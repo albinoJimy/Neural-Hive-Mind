@@ -18,5 +18,3 @@ if shared_path.exists():
 # Importar módulos para garantir cobertura
 def pytest_configure(config):
     """Configuração do pytest."""
-    import queen_mcp_server.tools.queen_tools
-    import queen_mcp_server.server

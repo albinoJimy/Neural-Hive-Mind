@@ -6,7 +6,7 @@ Testa endpoints de gerenciamento de workers e atribuição de tarefas.
 
 import pytest
 from httpx import AsyncClient
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime, timezone
 
 from src.services.load_balancer import BalancingStrategy, TaskAssignment

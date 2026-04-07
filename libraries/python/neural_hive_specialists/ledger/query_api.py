@@ -10,9 +10,6 @@ from datetime import datetime, timedelta, timezone
 from pymongo import MongoClient, DESCENDING, ASCENDING
 from pymongo.errors import PyMongoError
 import structlog
-from functools import lru_cache
-import hashlib
-import json
 
 logger = structlog.get_logger(__name__)
 

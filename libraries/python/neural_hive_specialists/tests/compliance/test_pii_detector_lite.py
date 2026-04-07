@@ -6,9 +6,8 @@ anonymize_text, detect_pii.
 """
 
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 from neural_hive_specialists.compliance.pii_detector import PIIDetectorLite
-from neural_hive_specialists.compliance.pii_patterns import PIIType
 
 
 @pytest.mark.unit

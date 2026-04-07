@@ -6,22 +6,12 @@ Requer MongoDB e Kafka (usando testcontainers ou mocks).
 """
 
 import pytest
-import json
-from datetime import datetime
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock, AsyncMock
 
-from src.config.settings import Settings
 from src.models.approval import (
-    ApprovalRequest,
-    ApprovalDecision,
-    ApprovalResponse,
     ApprovalStatus,
-    RiskBand,
 )
 from src.services.approval_service import ApprovalService
-from src.clients.mongodb_client import MongoDBClient
-from src.producers.approval_response_producer import ApprovalResponseProducer
-from src.consumers.approval_request_consumer import ApprovalRequestConsumer
 
 
 class TestApprovalFlowEndToEnd:

@@ -12,7 +12,6 @@ Uses httpx.MockTransport for simulating HTTP responses.
 
 import json
 from typing import Any, Callable, Dict, List, Optional
-from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest

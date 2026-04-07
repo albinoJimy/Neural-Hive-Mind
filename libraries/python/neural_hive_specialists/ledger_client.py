@@ -179,7 +179,6 @@ class LedgerClient:
             Retrying,
             stop_after_attempt,
             wait_exponential,
-            retry_if_exception_type,
         )
 
         # Criar retryer com parâmetros configuráveis
@@ -413,7 +412,6 @@ class LedgerClient:
             opinion_id = str(uuid.uuid4())
 
             # Construir Opinion object (com backward compatibility)
-            from .ledger import ReasoningFactor, Mitigation
 
             # Preparar dados da opinião com defaults sensatos para campos obrigatórios
             opinion_data = {

@@ -8,7 +8,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 from src.models.cognitive_plan import TaskNode
-from src.services.task_splitter import TaskSplitter, ComplexityAnalysis
+from src.services.task_splitter import TaskSplitter
 from src.services.pattern_matcher import PatternMatch
 
 

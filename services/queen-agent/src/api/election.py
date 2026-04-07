@@ -5,7 +5,7 @@ Endpoints para consultar estado da eleição e metadados do líder.
 """
 
 import structlog
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 

@@ -6,8 +6,6 @@ Espec: @.agent-os/specs/2026-03-17-active-learning-feedback/
 """
 
 import pytest
-from unittest.mock import Mock
-from datetime import datetime
 
 from neural_hive_specialists.feedback.active_learning.learning_strategy import (
     ActiveLearningStrategy,

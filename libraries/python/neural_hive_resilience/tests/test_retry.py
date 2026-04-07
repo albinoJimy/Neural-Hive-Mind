@@ -2,14 +2,12 @@
 
 import pytest
 import asyncio
-from unittest.mock import Mock
 
 from neural_hive_resilience.retry import (
     RetryPolicy,
     BackoffStrategy,
     retry,
     RetryContext,
-    RetryConfigError,
 )
 from neural_hive_resilience.exceptions import (
     RetryableError,

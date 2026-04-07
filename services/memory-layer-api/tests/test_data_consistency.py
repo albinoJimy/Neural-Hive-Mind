@@ -10,8 +10,7 @@ Testes abrangentes para verificar consistência entre camadas de memória:
 
 import json
 import pytest
-import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 import uuid
 

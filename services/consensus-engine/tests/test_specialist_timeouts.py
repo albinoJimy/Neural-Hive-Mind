@@ -6,7 +6,7 @@ com fallback para o timeout global (grpc_timeout_ms).
 """
 
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 
 class TestSpecialistTimeouts:

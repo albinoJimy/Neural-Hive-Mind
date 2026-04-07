@@ -5,8 +5,7 @@ Cobertura para semantic_pipeline/semantic_pipeline.py
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock, patch
-from typing import Dict, Any
+from unittest.mock import Mock, patch
 
 
 class TestSemanticPipeline:

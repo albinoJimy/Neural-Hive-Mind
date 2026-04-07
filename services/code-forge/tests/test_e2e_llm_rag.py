@@ -213,7 +213,7 @@ async def test_e2e_fallback_to_heuristic(mock_all_clients, sample_context):
     assert artifact.generation_method == GenerationMethod.HEURISTIC
     assert artifact.confidence_score == 0.75  # Confidence de fallback
 
-    print(f"✅ Fallback Test Passed: Used HEURISTIC generation")
+    print("✅ Fallback Test Passed: Used HEURISTIC generation")
 
 
 @pytest.mark.asyncio
@@ -247,7 +247,7 @@ async def test_e2e_no_analyst_client(mock_all_clients, sample_context):
     # Verificar que LLM foi chamado mesmo sem RAG
     clients["llm_client"].generate_code.assert_called_once()
 
-    print(f"✅ No RAG Test Passed: Generated code without RAG context")
+    print("✅ No RAG Test Passed: Generated code without RAG context")
 
 
 @pytest.mark.asyncio
@@ -322,7 +322,6 @@ async def health():
 
     # Mock git client para template selector
     from src.models.template import Template, TemplateMetadata, TemplateType
-    from src.types.artifact_types import CodeLanguage
 
     mock_template = Template(
         template_id="template-123",
@@ -454,7 +453,7 @@ async def health():
     assert "packaging" in stage_names
     assert "approval_gate" in stage_names
 
-    print(f"✅ Pipeline E2E Test Passed: Full flow executed successfully")
+    print("✅ Pipeline E2E Test Passed: Full flow executed successfully")
     print(f"   Pipeline ID: {result.pipeline_id}")
     print(f"   Status: {result.status}")
     print(f"   Artifacts: {len(result.artifacts)}")

@@ -6,7 +6,6 @@ Testa operações CRUD, hit/miss, expiração e statistics.
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
 
 from src.services.cache_service import RedisCacheService
 from src.config.settings import Settings

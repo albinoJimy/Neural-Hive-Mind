@@ -6,7 +6,7 @@ Executa verificações periódicas de drift e persiste resultados no MongoDB.
 
 import asyncio
 from typing import Dict, Any, Optional
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 import structlog
 
 from .evidently_monitor import EvidentlyMonitor

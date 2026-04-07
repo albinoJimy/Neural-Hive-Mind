@@ -5,20 +5,9 @@ Testa operações CRUD, cache hit/miss e integração com MongoDB/Redis.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
-from motor.motor_asyncio import AsyncIOMotorClient
+from unittest.mock import AsyncMock, MagicMock
 
 # Import lineage models FIRST to resolve forward references
-from src.models.lineage import (
-    SourceType,
-    TransformationType,
-    LineageMetadata,
-    FeatureLineage,
-    LineageTree,
-    LineageImpact,
-    LineageIntegrityReport,
-)
 
 # Then import feature models
 from src.models.feature import (

@@ -6,13 +6,9 @@ compressão e interceptors.
 """
 
 import pytest
-import asyncio
-from unittest.mock import Mock, MagicMock, AsyncMock, patch, call
-from datetime import datetime, timezone
-import grpc
-from grpc.aio import AioRpcError
+from unittest.mock import MagicMock, AsyncMock, patch
 
-from neural_hive_agent_sdk import AgentClient, AgentType, AgentTelemetry, AgentConfig
+from neural_hive_agent_sdk import AgentClient, AgentType, AgentConfig
 
 
 # ============================================================================

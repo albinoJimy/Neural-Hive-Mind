@@ -9,8 +9,6 @@ Cobertura:
 - Criacao de Merge Request
 """
 
-import asyncio
-import uuid
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 

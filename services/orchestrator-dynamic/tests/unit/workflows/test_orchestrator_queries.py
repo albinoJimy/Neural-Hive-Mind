@@ -5,8 +5,6 @@ Testa os métodos @workflow.query que expõem estado do workflow.
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock
-from datetime import datetime, timezone
 
 from src.workflows.orchestration_workflow import OrchestrationWorkflow
 

@@ -1,7 +1,6 @@
 """Testes unitários para analyzers multi-database."""
 
 import pytest
-import asyncio
 from src.analyzers.factory import AnalyzerFactory, AnalyzerType
 from src.analyzers.mongodb_analyzer import MongoDBAnalyzer
 from src.analyzers.postgresql_analyzer import PostgreSQLAnalyzer

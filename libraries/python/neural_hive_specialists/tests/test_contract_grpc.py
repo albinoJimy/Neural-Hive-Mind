@@ -5,7 +5,6 @@ Testes de contrato gRPC para validar request/response structures.
 import pytest
 import grpc
 import uuid
-from google.protobuf.timestamp_pb2 import Timestamp
 
 from neural_hive_specialists.proto_gen import specialist_pb2
 

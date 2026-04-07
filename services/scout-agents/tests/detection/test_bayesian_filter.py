@@ -5,7 +5,6 @@ Cobertura: filtragem Bayesiana, atualização de priors, likelihoods.
 """
 
 import pytest
-import numpy as np
 from datetime import datetime, timezone
 from unittest.mock import patch
 

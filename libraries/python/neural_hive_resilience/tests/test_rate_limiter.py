@@ -9,12 +9,10 @@ from neural_hive_resilience.rate_limiter import (
     SlidingWindowLogRateLimiter,
     ConcurrencyLimiter,
     RateLimiterFactory,
-    RateLimitAlgorithm,
     RateLimitResult,
 )
 from neural_hive_resilience.exceptions import (
     RateLimitExceededError,
-    ConcurrencyLimitExceededError,
 )
 
 

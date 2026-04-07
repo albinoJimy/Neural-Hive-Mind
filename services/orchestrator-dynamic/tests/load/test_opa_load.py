@@ -13,10 +13,9 @@ import asyncio
 import os
 import pytest
 import time
-import statistics
 from datetime import datetime, timedelta
 from typing import Dict, List, Any
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import Mock
 from dataclasses import dataclass, field
 
 from src.policies.opa_client import OPAClient

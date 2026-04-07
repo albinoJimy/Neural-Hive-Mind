@@ -5,7 +5,6 @@ TDD: Testes escritos antes da implementação (GAPS-04 Task 4).
 """
 
 import pytest
-from typing import List, Dict, Any
 import sys
 from pathlib import Path
 
@@ -199,7 +198,7 @@ class TestAggregatedScore:
 
         # Completude tem peso maior, então overall deve ser >= média simples
         simple_average = (0.9 + 0.5 + 0.5) / 3
-        assert overall >= simple_average, f"Completeness should be weighted higher"
+        assert overall >= simple_average, "Completeness should be weighted higher"
 
 
 class TestMongoDBIntegration:
@@ -235,7 +234,6 @@ class TestMongoDBIntegration:
         scorer = ExplanationQualityScorer()
         scorer.mongodb = mock_mongodb
 
-        from datetime import datetime
 
         scores = {"completeness": 0.8}
         scorer.save_scores("exp-123", scores)

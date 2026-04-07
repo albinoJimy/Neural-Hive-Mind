@@ -1,8 +1,7 @@
 """Testes para o módulo exporters do neural_hive_observability."""
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-import time
+from unittest.mock import Mock, patch
 
 from neural_hive_observability.exporters import (
     ResilientOTLPSpanExporter,
@@ -304,7 +303,6 @@ class TestResilientOTLPSpanExporter:
     @patch("neural_hive_observability.exporters.OTLPSpanExporter")
     def test_multiple_export_failures_counted(self, mock_otlp_class):
         """Testa que múltiplas falhas são contabilizadas."""
-        from opentelemetry.sdk.trace.export import SpanExportResult
 
         mock_inner = Mock()
         mock_inner.export.side_effect = TypeError("Error")

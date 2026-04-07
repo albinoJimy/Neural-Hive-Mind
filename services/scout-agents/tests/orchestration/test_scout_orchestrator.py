@@ -7,7 +7,7 @@ Espec: @.agent-os/specs/2026-03-17-gaps-05-scout-agents/
 
 import asyncio
 import pytest
-from unittest.mock import Mock, MagicMock, AsyncMock
+from unittest.mock import AsyncMock
 from datetime import datetime, timezone
 
 # Import com skip automático se módulo não disponível

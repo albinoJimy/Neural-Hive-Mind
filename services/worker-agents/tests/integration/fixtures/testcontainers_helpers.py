@@ -27,9 +27,8 @@ Exemplo:
 """
 
 import os
-import json
 import time
-from typing import Optional, Dict, Any
+from typing import Optional
 
 try:
     from testcontainers.core.container import DockerContainer

@@ -3,7 +3,7 @@ Testes para Alert Engine do SLA Management System.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime, timezone, timedelta
 
 from src.models.alert_rule import (
@@ -12,7 +12,6 @@ from src.models.alert_rule import (
     AlertConditionType,
     AlertCondition,
     AlertRule,
-    Alert,
 )
 from src.models.error_budget import (
     ErrorBudget,

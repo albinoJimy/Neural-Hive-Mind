@@ -5,12 +5,9 @@ Testa os metodos gRPC do servicer principal do Optimizer Agent.
 """
 
 import pytest
-from unittest.mock import AsyncMock, Mock, MagicMock, patch
-from datetime import datetime
+from unittest.mock import AsyncMock, Mock
 
 from src.grpc_service.optimizer_servicer import OptimizerServicer
-from src.models.optimization_event import OptimizationType
-from src.models.optimization_hypothesis import OptimizationHypothesis
 
 
 @pytest.fixture

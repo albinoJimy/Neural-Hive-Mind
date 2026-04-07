@@ -10,16 +10,10 @@ Cobertura:
 """
 
 import pytest
-from datetime import datetime
-from unittest.mock import AsyncMock
 
 from src.services.license_validator import (
     LicenseValidator,
-    LicenseRisk,
     PERMISSIVE_LICENSES,
-    WEAK_COPYLEFT_LICENSES,
-    STRONG_COPYLEFT_LICENSES,
-    PROHIBITED_LICENSES,
 )
 from src.models.artifact import ValidationType, ValidationStatus
 

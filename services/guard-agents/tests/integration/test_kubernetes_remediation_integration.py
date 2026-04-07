@@ -5,7 +5,7 @@ Testa operacoes de restart de pods, scaling, rollback e NetworkPolicies
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 from kubernetes.client.rest import ApiException
 from kubernetes import client
 

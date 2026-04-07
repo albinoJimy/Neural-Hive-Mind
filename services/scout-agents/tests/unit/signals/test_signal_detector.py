@@ -5,12 +5,11 @@ Tests signal detection, classification, and scoring.
 """
 
 import pytest
-import numpy as np
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 from datetime import datetime, timezone
 
 from src.detection.signal_detector import SignalDetector
-from src.models.scout_signal import SignalType, SignalSource
+from src.models.scout_signal import SignalType
 
 
 class TestSignalDetectorInitialization:

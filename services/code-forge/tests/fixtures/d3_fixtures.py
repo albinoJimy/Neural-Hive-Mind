@@ -4,14 +4,11 @@ Fixtures específicos para testes D3 (Build + Geração de Artefatos).
 Estas fixtures suportam os testes conforme MODELO_TESTE_WORKER_AGENT.md seção D3.
 """
 
-import asyncio
 import uuid
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from pytest_mock import MockerFixture
 
 
 # ============================================================================

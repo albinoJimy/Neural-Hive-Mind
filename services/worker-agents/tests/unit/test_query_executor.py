@@ -5,8 +5,7 @@ Testa cada tipo de query com mocks.
 """
 
 import pytest
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, Mock
+from unittest.mock import AsyncMock, MagicMock
 from src.executors.query_executor import QueryExecutor
 from src.executors.base_executor import ValidationError
 
@@ -230,7 +229,6 @@ class TestRedisQueries:
     @pytest.mark.asyncio
     async def test_redis_scan_success(self, query_executor):
         """Testa query Redis SCAN bem-sucedida."""
-        import asyncio
 
         async def mock_scan_iter(*args, **kwargs):
             """Generator mock para scan_iter."""

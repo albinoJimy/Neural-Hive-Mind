@@ -8,7 +8,7 @@ incluindo configuração de timeouts, retry policies e tasks.
 import pytest
 import sys
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from datetime import timedelta
 
 # Adicionar src ao path

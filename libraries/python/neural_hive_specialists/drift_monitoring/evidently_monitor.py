@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 from typing import Dict, List, Any, Optional
 import structlog
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 logger = structlog.get_logger(__name__)
 

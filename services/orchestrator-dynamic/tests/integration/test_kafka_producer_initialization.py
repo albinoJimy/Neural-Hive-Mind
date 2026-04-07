@@ -9,7 +9,6 @@ Valida comportamento em cenários de falha real:
 """
 
 import pytest
-import asyncio
 from unittest.mock import patch, MagicMock
 from time import perf_counter
 import types

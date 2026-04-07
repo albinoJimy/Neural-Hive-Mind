@@ -1,7 +1,6 @@
 """Testes para CachedSpecialist."""
 
 import pytest
-from unittest.mock import Mock, patch
 
 from neural_hive_specialists.cached_specialist import CachedSpecialist
 from neural_hive_specialists.config import SpecialistConfig
@@ -54,7 +53,6 @@ class TestCachedSpecialistInit:
         """Testa erro quando cache está desabilitado."""
         # CachedSpecialist é abstrata, então testamos apenas a validação
         # no __init__ antes de chamar super().__init__
-        from neural_hive_specialists.base_specialist import BaseSpecialist
 
         # Verificar que é abstrata
         assert hasattr(CachedSpecialist, "__abstractmethods__")

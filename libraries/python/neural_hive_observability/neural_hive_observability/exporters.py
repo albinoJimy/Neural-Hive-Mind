@@ -8,7 +8,7 @@ exceções durante export sem bloquear operações principais.
 import logging
 import os
 import time
-from typing import Optional, Sequence, Dict, Any, TYPE_CHECKING
+from typing import Optional, Sequence, Dict, TYPE_CHECKING
 
 import grpc
 

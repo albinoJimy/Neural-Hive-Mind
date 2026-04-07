@@ -10,7 +10,6 @@ This patch intercepts attribute access to gracefully handle missing attributes.
 """
 
 import sys
-import warnings
 import structlog
 
 logger = structlog.get_logger()

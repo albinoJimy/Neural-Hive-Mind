@@ -3,8 +3,7 @@ Testes unitários para LoadPredictor (preditor local de carga e queue time).
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
-from datetime import datetime, timedelta
+from unittest.mock import Mock, AsyncMock
 
 from src.ml.load_predictor import LoadPredictor
 from src.config.settings import OrchestratorSettings

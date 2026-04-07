@@ -14,7 +14,6 @@ from datetime import datetime, timedelta, timezone
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 import structlog
-import asyncio
 from collections import defaultdict
 import time
 

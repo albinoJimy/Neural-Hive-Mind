@@ -4,15 +4,12 @@ Unit tests para BuildMetricsCollector.
 Testa a coleta, agregação e análise de métricas de performance de builds.
 """
 
-import pytest
 import tempfile
 import os
 import json
-from pathlib import Path
 
 from src.services.build_metrics import (
     BuildMetric,
-    MetricStats,
     BuildMetricsCollector,
     MetricType,
     get_metrics_collector,

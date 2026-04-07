@@ -7,7 +7,6 @@ Espec: @.agent-os/specs/2026-03-18-gaps-06-mcp-integration/
 
 import pytest
 from pathlib import Path
-from typing import Any, Dict
 import tempfile
 import shutil
 

@@ -6,12 +6,11 @@ prevenir o TypeError relacionado ao campo evaluated_at.
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock, AsyncMock
 from datetime import datetime, timezone
 from google.protobuf.timestamp_pb2 import Timestamp
 
-from src.clients.specialists_grpc_client import SpecialistsGrpcClient
-from neural_hive_specialists.proto_gen import specialist_pb2, specialist_pb2_grpc
+from neural_hive_specialists.proto_gen import specialist_pb2
 
 
 @pytest.mark.unit

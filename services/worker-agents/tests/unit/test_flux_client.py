@@ -11,7 +11,6 @@ Cobertura:
 - Error handling
 """
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -41,7 +40,7 @@ class TestFluxClientInitialization:
     @pytest.mark.asyncio
     async def test_initialize_kubernetes_not_installed(self):
         """Deve levantar erro quando kubernetes-asyncio nao instalado."""
-        from src.clients.flux_client import FluxClient, FluxAPIError
+        from src.clients.flux_client import FluxClient
 
         client = FluxClient(namespace="flux-system")
 

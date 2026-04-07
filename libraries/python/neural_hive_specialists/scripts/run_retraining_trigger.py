@@ -355,7 +355,7 @@ def main():
 
     # Resumo final
     print("=" * 50)
-    print(f"✅ Execution completed")
+    print("✅ Execution completed")
     print(f"   Triggers executed: {triggered_count}/{len(specialist_types)}")
     print()
 

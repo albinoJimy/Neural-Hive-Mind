@@ -5,7 +5,7 @@ Camada de compliance que orquestra PII detection, encryption e audit logging.
 import structlog
 import time
 import copy
-from typing import Dict, Any, Tuple, Optional
+from typing import Dict, Any, Tuple
 
 from .pii_detector import PIIDetector
 from .field_encryptor import FieldEncryptor

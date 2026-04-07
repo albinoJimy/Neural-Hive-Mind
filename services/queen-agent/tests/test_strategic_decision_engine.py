@@ -3,7 +3,7 @@ Testes para StrategicDecisionEngine - foco em execute_decision_action
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime
 
 from src.services.strategic_decision_engine import StrategicDecisionEngine

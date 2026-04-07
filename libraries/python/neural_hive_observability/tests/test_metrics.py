@@ -14,7 +14,7 @@ Este arquivo contém testes unitários para validar:
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import patch
 from prometheus_client import CollectorRegistry
 
 from neural_hive_observability.config import ObservabilityConfig

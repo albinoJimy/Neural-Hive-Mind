@@ -3,7 +3,7 @@ Testes unitários para SchedulingOptimizer (orquestrador ML de scheduling).
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import Mock, AsyncMock
 
 from src.ml.scheduling_optimizer import SchedulingOptimizer
 from src.ml.load_predictor import LoadPredictor

@@ -5,8 +5,7 @@ Cobre pod kill, network delay, resource injection e recovery.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock
 
 
 @pytest.mark.asyncio

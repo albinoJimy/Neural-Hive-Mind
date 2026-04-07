@@ -12,11 +12,10 @@ Todos os testes usam mocks dos clientes externos para evitar
 dependencias de servicos reais.
 """
 
-import asyncio
 import pytest
 import uuid
 from dataclasses import dataclass
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 
 # ============================================
@@ -418,7 +417,6 @@ class TestDeployExecutorRetryLogic:
     ):
         """Deve ter sucesso apos falhas temporarias com retry."""
         from executors.deploy_executor import DeployExecutor
-        from dataclasses import dataclass
 
         @dataclass
         class MockHealthStatus:

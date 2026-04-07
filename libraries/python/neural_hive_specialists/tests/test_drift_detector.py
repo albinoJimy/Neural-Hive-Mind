@@ -1,4 +1,3 @@
-import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -163,7 +162,6 @@ async def test_drift_triggers_retraining_for_scheduling_model():
     """
     Testa que drift em features de scheduling dispara retreinamento correto.
     """
-    from types import SimpleNamespace
 
     class MockRetrainer:
         def _determine_model_type(self, drift_event):
@@ -205,7 +203,6 @@ async def test_drift_triggers_retraining_for_load_model():
     """
     Testa que drift em features de load dispara retreinamento correto.
     """
-    from types import SimpleNamespace
 
     class MockRetrainer:
         def _determine_model_type(self, drift_event):
@@ -239,7 +236,6 @@ async def test_retraining_improves_model_metrics():
     Simula cenario onde modelo original tem F1=0.60 e apos
     retreinamento com dados recentes atinge F1=0.72.
     """
-    import numpy as np
 
     # Metricas antes do retreinamento
     old_metrics = {
@@ -262,7 +258,7 @@ async def test_retraining_improves_model_metrics():
     assert f1_improvement > 0.1, f"Melhoria de F1 ({f1_improvement:.2%}) menor que 10%"
     assert new_metrics["f1_score"] > 0.65, "F1 apos retreinamento abaixo de 0.65"
 
-    print(f"\n=== Teste Melhoria Apos Retreinamento ===")
+    print("\n=== Teste Melhoria Apos Retreinamento ===")
     print(f"F1 antes: {old_metrics['f1_score']:.3f}")
     print(f"F1 depois: {new_metrics['f1_score']:.3f}")
     print(f"Melhoria: {f1_improvement:.2%}")

@@ -12,7 +12,7 @@ import structlog
 
 # Lazy imports para evitar carregar dependências pesadas no import do módulo
 if TYPE_CHECKING:
-    from sentence_transformers import SentenceTransformer
+    pass
 
 logger = structlog.get_logger(__name__)
 

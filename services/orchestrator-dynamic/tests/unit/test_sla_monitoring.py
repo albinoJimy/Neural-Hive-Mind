@@ -8,9 +8,8 @@ e violações de SLA.
 import pytest
 import sys
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime, timedelta
-import time
+from unittest.mock import AsyncMock, MagicMock
+from datetime import datetime
 
 # Adicionar src ao path
 src_path = str(Path(__file__).parent.parent.parent / "src")

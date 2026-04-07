@@ -1,7 +1,7 @@
 """Testes para DriftDetector - Detecção de Model Drift."""
 
 import pytest
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from unittest.mock import Mock, patch, AsyncMock
 from neural_hive_ml.drift_detector import DriftDetector
 

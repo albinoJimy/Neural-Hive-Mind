@@ -4,7 +4,6 @@ Testes unitarios para models do Approval Service
 Testa serializacao e validacao de modelos.
 """
 
-import pytest
 import json
 from datetime import datetime
 from src.models.approval import ApprovalRequest, ApprovalResponse, RiskBand, ApprovalStatus

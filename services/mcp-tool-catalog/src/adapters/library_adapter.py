@@ -10,7 +10,7 @@ import json
 import time
 from typing import Any, Dict, Optional
 
-from .base_adapter import AdapterError, BaseToolAdapter, ExecutionResult
+from .base_adapter import BaseToolAdapter, ExecutionResult
 
 
 class LIBRARYAdapter(BaseToolAdapter):

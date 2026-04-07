@@ -9,15 +9,12 @@ import pytest
 import asyncio
 import json
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, AsyncMock, Mock, patch
-from collections import deque
+from unittest.mock import MagicMock, AsyncMock, patch
 
 from src.consumers.feedback_consumer import FeedbackConsumer, FeedbackBuffer
 from src.services.online_learning_service import (
     OnlineLearningService,
-    OnlineLearningServiceError,
     OnlineLearningNotEnabledError,
-    FeatureExtractionError,
 )
 from src.schedulers.retraining_scheduler import (
     RetrainingScheduler,

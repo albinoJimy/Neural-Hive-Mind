@@ -6,7 +6,6 @@ para Slack, email ou outros canais.
 """
 
 import aiohttp
-import json
 from typing import Dict, List, Any
 from datetime import datetime, timezone
 import structlog

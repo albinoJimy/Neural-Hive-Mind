@@ -6,8 +6,7 @@ tratamento de falhas e compensacao automatica.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock
 import sys
 
 # Mock dos modulos problematicos antes de importar
@@ -412,7 +411,7 @@ class TestFailStep:
     @pytest.mark.asyncio
     async def test_fail_step_without_compensation(self, orchestrator, mock_repository):
         """Deve nao iniciar compensacao se parametro for False."""
-        from src.saga.saga_state import SagaState, SagaStatus, SagaStep, StepStatus
+        from src.saga.saga_state import SagaState, SagaStatus, SagaStep
 
         step1 = SagaStep(
             step_id="step-1",
@@ -507,7 +506,7 @@ class TestCompensateStep:
     @pytest.mark.asyncio
     async def test_compensate_all_steps_completes_saga(self, orchestrator, mock_repository):
         """Deve marcar saga como COMPENSATED quando todos steps compensados."""
-        from src.saga.saga_state import SagaState, SagaStatus, SagaStep, StepStatus
+        from src.saga.saga_state import SagaState, SagaStatus, SagaStep
 
         step1 = SagaStep(
             step_id="step-1",
@@ -635,7 +634,7 @@ class TestGetCompensationOrder:
         self, orchestrator, mock_repository
     ):
         """Deve retornar steps na ordem reversa de execucao."""
-        from src.saga.saga_state import SagaState, SagaStatus, SagaStep, StepStatus
+        from src.saga.saga_state import SagaState, SagaStatus, SagaStep
 
         step1 = SagaStep(
             step_id="step-1",

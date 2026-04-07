@@ -1,7 +1,6 @@
 """Configurações para MLflow e Online Learning."""
 
 from typing import Optional
-import os
 from pydantic import Field, ConfigDict
 from pydantic_settings import BaseSettings
 

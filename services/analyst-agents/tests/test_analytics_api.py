@@ -7,7 +7,6 @@ from httpx import AsyncClient, ASGITransport
 from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, MagicMock
 import sys
-import os
 
 # Mock MongoDB antes de importar
 mock_motor = MagicMock()
@@ -17,7 +16,6 @@ sys.modules["motor.motor_asyncio"] = mock_motor
 
 from src.main import app
 from src.models.insight_extended import (
-    InsightCreate,
     InsightResponse,
     AnalysisType,
     InsightSource,
@@ -73,7 +71,6 @@ async def app_client():
     mock_ts = MagicMock()
 
     # Import TimeSeriesResponse to create proper mock
-    from src.models.insight_extended import TimeSeriesResponse, AnomalyDetectionResponse
 
     start_time = datetime.now(timezone.utc) - timedelta(hours=1)
 

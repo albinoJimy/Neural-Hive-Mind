@@ -7,7 +7,6 @@ feature importances, persistência/recuperação, circuit breaker.
 
 import pytest
 from unittest.mock import Mock, MagicMock, patch
-from pymongo.errors import PyMongoError
 from circuitbreaker import CircuitBreakerError
 
 from neural_hive_specialists.explainability_generator import ExplainabilityGenerator

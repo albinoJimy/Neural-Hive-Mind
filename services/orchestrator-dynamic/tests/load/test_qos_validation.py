@@ -139,7 +139,7 @@ class TestQoSDeliveryModeOrdering:
             avg_eo > avg_al
         ), f"EXACTLY_ONCE ({avg_eo:.4f}) deve ter score maior que AT_LEAST_ONCE ({avg_al:.4f})"
 
-        print(f"\n[QoS Delivery Mode Ordering]")
+        print("\n[QoS Delivery Mode Ordering]")
         print(f"  EXACTLY_ONCE média: {avg_eo:.4f}")
         print(f"  AT_LEAST_ONCE média: {avg_al:.4f}")
         print(f"  Diferença: {avg_eo - avg_al:.4f}")
@@ -183,7 +183,7 @@ class TestQoSDeliveryModeOrdering:
             avg_al > avg_am
         ), f"AT_LEAST_ONCE ({avg_al:.4f}) deve ter score maior que AT_MOST_ONCE ({avg_am:.4f})"
 
-        print(f"\n[QoS Delivery Mode Ordering]")
+        print("\n[QoS Delivery Mode Ordering]")
         print(f"  AT_LEAST_ONCE média: {avg_al:.4f}")
         print(f"  AT_MOST_ONCE média: {avg_am:.4f}")
         print(f"  Diferença: {avg_al - avg_am:.4f}")
@@ -216,7 +216,7 @@ class TestQoSDeliveryModeOrdering:
             avg_scores["EXACTLY_ONCE"] > avg_scores["AT_LEAST_ONCE"] > avg_scores["AT_MOST_ONCE"]
         ), f"Ordenação incorreta: {avg_scores}"
 
-        print(f"\n[Ordenação Completa de Delivery Mode]")
+        print("\n[Ordenação Completa de Delivery Mode]")
         for mode in ["EXACTLY_ONCE", "AT_LEAST_ONCE", "AT_MOST_ONCE"]:
             print(f"  {mode}: {avg_scores[mode]:.4f}")
 
@@ -263,7 +263,7 @@ class TestQoSConsistencyImpact:
             avg_strong > avg_eventual
         ), f"STRONG ({avg_strong:.4f}) deve ter score maior que EVENTUAL ({avg_eventual:.4f})"
 
-        print(f"\n[QoS Consistency Impact]")
+        print("\n[QoS Consistency Impact]")
         print(f"  STRONG média: {avg_strong:.4f}")
         print(f"  EVENTUAL média: {avg_eventual:.4f}")
         print(f"  Diferença: {avg_strong - avg_eventual:.4f}")
@@ -311,7 +311,7 @@ class TestRiskBandPrioritization:
             avg_scores["normal"] > avg_scores["low"]
         ), f'normal ({avg_scores["normal"]:.4f}) > low ({avg_scores["low"]:.4f})'
 
-        print(f"\n[Risk Band Ordering]")
+        print("\n[Risk Band Ordering]")
         for rb in risk_bands:
             print(f"  {rb}: {avg_scores[rb]:.4f}")
 
@@ -333,7 +333,7 @@ class TestRiskBandPrioritization:
                 actual_weight == expected_weight
             ), f"{risk_band}: esperado {expected_weight}, obtido {actual_weight}"
 
-        print(f"\n[Risk Band Weights]")
+        print("\n[Risk Band Weights]")
         for rb, weight in expected_weights.items():
             print(f"  {rb}: {weight}")
 
@@ -377,7 +377,7 @@ class TestSLAUrgencyPrioritization:
             avg_scores["urgent"] >= avg_scores["normal"]
         ), f'urgent ({avg_scores["urgent"]:.4f}) >= normal ({avg_scores["normal"]:.4f})'
 
-        print(f"\n[SLA Urgency Impact]")
+        print("\n[SLA Urgency Impact]")
         for level in ["urgent", "normal", "relaxed"]:
             print(f"  {level}: {avg_scores[level]:.4f}")
 
@@ -432,7 +432,7 @@ class TestCombinedQoSFactors:
         difference = score_high - score_low
         assert difference > 0.3, f"Diferença deve ser > 0.3, obtido: {difference:.4f}"
 
-        print(f"\n[Combined QoS Factors]")
+        print("\n[Combined QoS Factors]")
         print(f"  High priority score: {score_high:.4f}")
         print(f"  Low priority score: {score_low:.4f}")
         print(f"  Diferença: {difference:.4f}")
@@ -479,8 +479,8 @@ class TestCombinedQoSFactors:
         assert max_score <= 1.0, "Todos scores devem ser <= 1.0"
         assert stdev_score > 0.05, f"Deve haver variação nos scores, stdev: {stdev_score:.4f}"
 
-        print(f"\n[Mixed QoS Load Distribution]")
-        print(f"  Tickets: 200")
+        print("\n[Mixed QoS Load Distribution]")
+        print("  Tickets: 200")
         print(f"  Média: {mean_score:.4f}")
         print(f"  Desvio Padrão: {stdev_score:.4f}")
         print(f"  Min: {min_score:.4f}")
@@ -540,7 +540,7 @@ class TestQoSWeightsValidation:
             abs(actual_diff - expected_diff_approx) < 0.05
         ), f"Diferença ({actual_diff:.4f}) deve ser próxima de {expected_diff_approx:.4f}"
 
-        print(f"\n[QoS Weight Validation]")
+        print("\n[QoS Weight Validation]")
         print(f"  Score max QoS: {score_max:.4f}")
         print(f"  Score min QoS: {score_min:.4f}")
         print(f"  Diferença real: {actual_diff:.4f}")

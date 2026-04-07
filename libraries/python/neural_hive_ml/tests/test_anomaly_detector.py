@@ -1,10 +1,9 @@
 """Testes unitários para AnomalyDetector."""
 
 import pytest
-import pytest_asyncio
 import numpy as np
 import pandas as pd
-from unittest.mock import Mock, patch, MagicMock, AsyncMock
+from unittest.mock import Mock, patch, AsyncMock
 import tempfile
 import os
 import joblib

@@ -7,8 +7,7 @@ ML usando diferentes métodos de agregação (média ponderada, votação, stack
 
 import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional
 
 import numpy as np
 import structlog

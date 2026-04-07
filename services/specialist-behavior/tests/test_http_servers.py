@@ -7,7 +7,7 @@ Estes testes validam o http_server.py (HTTPServer) e http_server_fastapi.py.
 import sys
 import os
 import pytest
-from unittest.mock import MagicMock, patch, Mock
+from unittest.mock import MagicMock, patch
 from io import BytesIO
 
 # Configurar path para importar código real

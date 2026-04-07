@@ -8,10 +8,10 @@ Testa:
 """
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from src.services.intent_classifier import IntentClassifier, IntentType, IntentClassification
-from src.services.decomposition_templates import DecompositionTemplates, TaskTemplate
+from src.services.decomposition_templates import DecompositionTemplates
 from src.services.dag_generator import DAGGenerator
 
 

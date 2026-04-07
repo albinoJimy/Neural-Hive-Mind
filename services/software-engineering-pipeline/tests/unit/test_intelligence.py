@@ -2,7 +2,6 @@ import pytest
 from datetime import datetime, timedelta, timezone
 from src.intelligence.anomaly_detector import (
     AnomalyDetector,
-    AnomalyDetectionConfig,
 )
 from src.intelligence.flaky_test_detector import FlakyTestDetector
 from src.intelligence.insights_generator import InsightsGenerator, InsightConfig

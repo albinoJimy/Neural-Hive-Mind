@@ -6,9 +6,7 @@ Espec: @.agent-os/specs/2026-03-17-active-learning-feedback/
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock, patch
-from datetime import datetime, timedelta
-from pymongo import MongoClient, ASCENDING, DESCENDING
+from unittest.mock import MagicMock
 from pymongo.collection import Collection
 
 from neural_hive_specialists.feedback.active_learning.balance_analyzer import (

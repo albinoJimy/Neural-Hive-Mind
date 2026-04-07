@@ -3,7 +3,7 @@ Testes para LineageTracker do Feature Store.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime, timezone
 
 from src.models.lineage import (

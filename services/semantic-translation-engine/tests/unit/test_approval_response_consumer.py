@@ -7,7 +7,7 @@ inicialização e health check do consumer.
 
 import pytest
 import json
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock
 
 
 class TestApprovalResponseConsumerDeserialization:

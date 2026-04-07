@@ -6,9 +6,6 @@ import pytest
 
 from neural_hive_risk_scoring import (
     RiskExplainability,
-    RiskExplanation,
-    FactorContribution,
-    WhatIfScenario,
     RiskScoringConfig,
     RiskBand,
     RiskAssessment,

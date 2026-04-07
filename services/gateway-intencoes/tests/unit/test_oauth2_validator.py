@@ -3,13 +3,11 @@ Unit tests for OAuth2 Validator
 Test token validation, JWKS caching, and Keycloak integration
 """
 
-import asyncio
-import json
 import pytest
 from datetime import datetime, timedelta
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import Mock, AsyncMock, patch
 import httpx
-from jose import jwt, JWTError
+from jose import jwt
 
 from src.security.oauth2_validator import (
     OAuth2Validator,

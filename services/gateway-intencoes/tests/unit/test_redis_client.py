@@ -6,8 +6,8 @@ Test Redis operations, circuit breaker, and cluster-aware pipeline functionality
 import asyncio
 import json
 import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock, call
-from redis.exceptions import ConnectionError, TimeoutError, RedisError, RedisClusterException
+from unittest.mock import Mock, AsyncMock, patch
+from redis.exceptions import ConnectionError, TimeoutError, RedisClusterException
 
 from src.cache.redis_client import (
     RedisClient,

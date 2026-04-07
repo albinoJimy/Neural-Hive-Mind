@@ -5,7 +5,6 @@ Valida que a configuração de timeouts específicos funciona corretamente
 e que o cliente gRPC usa os timeouts corretos para cada specialist.
 """
 
-import pytest
 from unittest.mock import MagicMock
 
 

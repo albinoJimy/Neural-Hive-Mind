@@ -5,7 +5,6 @@ Cobertura: extração de features, normalização, validação, cálculo de anom
 """
 
 import pytest
-import numpy as np
 from datetime import datetime, timezone
 
 from src.models.raw_event import RawEvent

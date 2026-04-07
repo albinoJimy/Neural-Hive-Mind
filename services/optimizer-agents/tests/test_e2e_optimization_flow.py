@@ -11,12 +11,12 @@ Simula fluxo completo desde insight até aplicação de otimização:
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, timezone
 
 from src.services.optimization_engine import OptimizationEngine
 from src.services.experiment_manager import ExperimentManager
-from src.models.optimization_event import OptimizationType, OptimizationEvent
+from src.models.optimization_event import OptimizationEvent
 from src.config.settings import Settings
 
 

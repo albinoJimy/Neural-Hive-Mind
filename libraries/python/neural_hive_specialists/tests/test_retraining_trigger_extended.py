@@ -5,9 +5,8 @@ Cobertura para feedback/retraining_trigger.py com base na API implementada.
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock, AsyncMock, patch
-from typing import Dict, Any
-from datetime import datetime, timedelta
+from unittest.mock import Mock
+from datetime import datetime
 
 
 class TestRetrainingTriggerRecord:

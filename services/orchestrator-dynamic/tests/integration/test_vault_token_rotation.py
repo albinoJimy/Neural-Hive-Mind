@@ -280,7 +280,6 @@ async def test_fail_closed_on_vault_unavailable(mock_config):
     with patch("src.clients.vault_integration.VaultClient", return_value=mock_vault_client_failing):
         with patch("src.clients.vault_integration.SPIFFEManager"):
             from src.clients.vault_integration import OrchestratorVaultClient
-            from neural_hive_security import VaultConnectionError, VaultAuthenticationError
 
             vault_client = OrchestratorVaultClient(mock_config)
 

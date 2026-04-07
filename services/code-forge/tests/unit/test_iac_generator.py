@@ -8,7 +8,6 @@ Cobertura:
 - CloudFormation templates
 """
 
-import pytest
 from src.services.iac_generator import IaCGenerator
 
 

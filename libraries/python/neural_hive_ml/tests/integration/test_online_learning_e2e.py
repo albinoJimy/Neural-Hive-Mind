@@ -13,9 +13,8 @@ Nota: API tests estão em approval-service/tests/api/test_ml_management.py
 """
 
 import pytest
-import asyncio
 from datetime import datetime, timezone
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import Mock, AsyncMock, patch
 
 from neural_hive_ml.model_version_repository import ModelVersionRepository
 from neural_hive_ml.retraining_job import RetrainingJob

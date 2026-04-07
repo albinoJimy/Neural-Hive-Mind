@@ -6,8 +6,7 @@ de features estruturadas.
 """
 
 import numpy as np
-import pandas as pd
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 import structlog
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 import time

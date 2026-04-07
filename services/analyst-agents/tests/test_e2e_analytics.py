@@ -4,7 +4,6 @@ Usa mocks para evitar dependências externas.
 """
 
 import pytest
-import asyncio
 from datetime import datetime, timezone, timedelta
 from httpx import AsyncClient, ASGITransport
 
@@ -24,7 +23,6 @@ async def mock_app_state():
     from unittest.mock import AsyncMock, MagicMock
     from src.repositories.insight_repository import InsightRepository
     from src.services.timeseries_analyzer import TimeSeriesAnalyzer
-    from src.services.mcp_integration import MCPIntegration
     import uuid
     from datetime import datetime, timezone, timedelta
     from src.models.insight_extended import InsightResponse, InsightStatus, InsightMetrics
@@ -174,7 +172,7 @@ async def test_e2e_insight_lifecycle(mock_app_state):
         assert query_id is not None
 
         # Consultar insight criado
-        response = await client.get(f"/api/v1/analytics/insights?limit=10")
+        response = await client.get("/api/v1/analytics/insights?limit=10")
         assert response.status_code == 200
         list_data = response.json()
         assert list_data["total"] >= 1

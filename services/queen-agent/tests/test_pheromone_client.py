@@ -8,7 +8,7 @@ import time
 import structlog
 from typing import Dict, List, Any, Optional
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from enum import Enum
 
 logger = structlog.get_logger()
@@ -110,7 +110,7 @@ class PheromoneClientForTest:
                 self._metrics_mock.pheromone_trails_cache_misses_total.inc()
 
             # Novo pattern unificado: pheromone:{layer}:{domain}:SUCCESS:{id}
-            pattern = f"pheromone:*:*:SUCCESS:*"
+            pattern = "pheromone:*:*:SUCCESS:*"
             trails: List[Dict[str, Any]] = []
             keys_scanned = 0
 

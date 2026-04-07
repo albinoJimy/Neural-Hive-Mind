@@ -9,7 +9,6 @@ from typing import Dict, Any, Optional
 from dataclasses import dataclass
 import structlog
 
-from pydantic import BaseModel, Field
 
 logger = structlog.get_logger()
 

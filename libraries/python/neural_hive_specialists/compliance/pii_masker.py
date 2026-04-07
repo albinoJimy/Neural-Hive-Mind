@@ -4,9 +4,8 @@ PII Masker - Mascaramento parcial de informações sensíveis.
 Aplica mascaramento parcial baseado em regras por tipo de PII.
 """
 
-import re
 import hashlib
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional
 from dataclasses import dataclass
 from enum import Enum
 

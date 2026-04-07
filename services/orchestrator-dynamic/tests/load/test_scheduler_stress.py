@@ -181,7 +181,7 @@ class TestServiceRegistryDown:
         # Sistema não deve falhar
         assert metrics.error_count == 0, "Não deve haver erros fatais"
 
-        print(f"\n[Service Registry Down]")
+        print("\n[Service Registry Down]")
         print(f"  Total: {metrics.total_requests}")
         print(f"  Fallback rate: {metrics.fallback_rate*100:.1f}%")
         print(f"  Throughput: {metrics.throughput:.2f} t/s")
@@ -222,8 +222,8 @@ class TestServiceRegistryDown:
             exceptions_caught == 0
         ), f"Nenhuma exceção deve propagar, {exceptions_caught} encontradas"
 
-        print(f"\n[Graceful Degradation]")
-        print(f"  Tickets: 50")
+        print("\n[Graceful Degradation]")
+        print("  Tickets: 50")
         print(f"  Exceções propagadas: {exceptions_caught}")
 
 
@@ -274,7 +274,7 @@ class TestIntermittentFailures:
         # após o primeiro sucesso para um padrão de capability, cache é usado
         assert metrics.success_count + metrics.fallback_count == 100
 
-        print(f"\n[Intermittent Failures 50%]")
+        print("\n[Intermittent Failures 50%]")
         print(f"  Total: {metrics.total_requests}")
         print(f"  Sucesso: {metrics.success_count}")
         print(f"  Fallback: {metrics.fallback_count}")
@@ -320,7 +320,7 @@ class TestIntermittentFailures:
         assert metrics.total_requests == 200
         assert metrics.error_count == 0
 
-        print(f"\n[Random Failures 30%]")
+        print("\n[Random Failures 30%]")
         print(f"  Total: {metrics.total_requests}")
         print(f"  Taxa de sucesso: {metrics.success_rate*100:.1f}%")
         print(f"  Taxa de fallback: {metrics.fallback_rate*100:.1f}%")
@@ -361,8 +361,8 @@ class TestWorkerPoolExhaustion:
 
         assert fallback_count == 50, f"Todos 50 devem usar fallback, obtido: {fallback_count}"
 
-        print(f"\n[Worker Pool Exhaustion]")
-        print(f"  Tickets: 50")
+        print("\n[Worker Pool Exhaustion]")
+        print("  Tickets: 50")
         print(f"  Fallback: {fallback_count}")
 
     @pytest.mark.asyncio
@@ -406,8 +406,8 @@ class TestWorkerPoolExhaustion:
 
         assert fallback_count == 20
 
-        print(f"\n[All Workers Unhealthy]")
-        print(f"  Tickets: 20")
+        print("\n[All Workers Unhealthy]")
+        print("  Tickets: 20")
         print(f"  Fallback: {fallback_count}")
 
 
@@ -478,7 +478,7 @@ class TestSustainedLoad:
                 last_100_avg < first_100_avg * 1.5
             ), f"Latência degradou muito: início {first_100_avg:.2f}ms, fim {last_100_avg:.2f}ms"
 
-        print(f"\n[Sustained Load]")
+        print("\n[Sustained Load]")
         print(f"  Duração: {metrics.duration_seconds:.1f}s")
         print(f"  Total: {metrics.total_requests}")
         print(f"  Throughput: {metrics.throughput:.2f} t/s")
@@ -534,7 +534,7 @@ class TestBurstTraffic:
             burst2_avg < burst1_avg * 1.5
         ), f"Segunda rajada ({burst2_avg:.2f}ms) não deve ser 50% mais lenta que primeira ({burst1_avg:.2f}ms)"
 
-        print(f"\n[Burst Traffic]")
+        print("\n[Burst Traffic]")
         print(f"  Rajada 1: média {burst1_avg:.2f}ms")
         print(f"  Rajada 2: média {burst2_avg:.2f}ms")
 
@@ -588,7 +588,7 @@ class TestBurstTraffic:
 
         assert p99 < 1000, f"Latência P99 < 1s, obtido: {p99:.2f}ms"
 
-        print(f"\n[Concurrent Burst 500]")
+        print("\n[Concurrent Burst 500]")
         print(f"  Total: {metrics.total_requests}")
         print(f"  Throughput: {metrics.throughput:.2f} t/s")
         print(f"  Taxa de sucesso: {metrics.success_rate*100:.1f}%")
@@ -644,11 +644,11 @@ class TestCacheUnderStress:
             first_100_avg = sum(metrics.latencies_ms[:100]) / 100
             last_100_avg = sum(metrics.latencies_ms[-100:]) / 100
 
-            assert last_100_avg < first_100_avg * 2.0, f"Performance não deve degradar mais que 2x"
+            assert last_100_avg < first_100_avg * 2.0, "Performance não deve degradar mais que 2x"
 
-        print(f"\n[Cache Large Entries]")
+        print("\n[Cache Large Entries]")
         print(f"  Tickets: {metrics.total_requests}")
-        print(f"  Padrões únicos: 100")
+        print("  Padrões únicos: 100")
         print(f"  Cache size: {cache_size}")
         print(f"  Throughput: {metrics.throughput:.2f} t/s")
 
@@ -701,7 +701,7 @@ class TestRecoveryAfterFailure:
         # Tickets restantes devem usar scheduler inteligente
         assert success_count > 0, "Deve haver sucessos após recuperação"
 
-        print(f"\n[Recovery After Failure]")
-        print(f"  Total: 100")
+        print("\n[Recovery After Failure]")
+        print("  Total: 100")
         print(f"  Fallbacks (esperados nos primeiros 50): {fallback_count}")
         print(f"  Sucessos (após recuperação): {success_count}")

@@ -10,12 +10,8 @@ import httpx
 from src.clients.mcp_client import (
     MCPClient,
     HTTPMCPClient,
-    MCPClientError,
     MCPConnectionError,
     MCPToolExecutionError,
-    MCPTool,
-    MCPServerInfo,
-    MCPClientFactory,
 )
 
 

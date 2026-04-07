@@ -10,7 +10,7 @@ Estes testes foram escritos ANTES da implementação da funcionalidade.
 """
 
 import pytest
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock
 from datetime import datetime, timezone, timedelta
 
 from src.services.analytics_engine import AnalyticsEngine
@@ -20,7 +20,6 @@ from src.models.insight import (
     InsightType,
     Priority,
     Recommendation,
-    RelatedEntity,
 )
 
 

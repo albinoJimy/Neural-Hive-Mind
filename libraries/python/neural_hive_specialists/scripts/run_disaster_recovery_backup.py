@@ -10,7 +10,6 @@ Uso:
 Este script é executado pelo CronJob Kubernetes diariamente.
 """
 
-import os
 import sys
 import argparse
 import logging

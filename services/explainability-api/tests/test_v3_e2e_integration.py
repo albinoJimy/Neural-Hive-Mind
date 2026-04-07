@@ -16,7 +16,7 @@ TDD: Testes escritos antes da implementação (Explainability API v3 Task 8).
 import pytest
 from typing import List, Dict, Any
 from datetime import datetime, timezone, timedelta
-from unittest.mock import Mock, AsyncMock, MagicMock, patch
+from unittest.mock import Mock, AsyncMock, MagicMock
 import sys
 from pathlib import Path
 
@@ -408,7 +408,6 @@ class TestV3E2ECounterfactualScenarios:
     @pytest.fixture
     def explainer_services(self):
         """Instancia todos os serviços v3."""
-        from services.hierarchical_explainer import HierarchicalExplainer
         from services.counterfactual_analyzer import CounterfactualAnalyzer
 
         return {

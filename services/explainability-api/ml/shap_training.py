@@ -22,7 +22,7 @@ import structlog
 # Adicionar src ao path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.models.shap_model import DecisionWrapperModel, ModelTrainer
+from src.models.shap_model import ModelTrainer
 from src.database.mongodb_client import MongoDBClient
 
 logger = structlog.get_logger(__name__)
@@ -249,7 +249,7 @@ async def main():
     print("=" * 60)
 
     if result["success"]:
-        print(f"✅ Model trained successfully!")
+        print("✅ Model trained successfully!")
         print(f"   Accuracy: {result['metrics']['accuracy']:.4f}")
         print(f"   Samples: {result['metrics']['samples']}")
         print(f"   Approval rate: {result['metrics']['approval_rate']:.2%}")

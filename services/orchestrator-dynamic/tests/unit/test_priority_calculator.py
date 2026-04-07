@@ -13,7 +13,7 @@ Cobertura:
 
 import pytest
 from datetime import datetime, timezone, timedelta
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from typing import Dict, Any
 
 from src.scheduler.priority_calculator import PriorityCalculator

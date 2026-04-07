@@ -30,7 +30,7 @@ from typing import Optional
 import httpx
 import pytest
 import redis.asyncio as aioredis
-from kafka import KafkaConsumer, KafkaProducer
+from kafka import KafkaConsumer
 
 from src.clients.kafka_producer import KafkaProducerClient
 from src.config.settings import OrchestratorSettings
@@ -518,7 +518,7 @@ async def test_alert_deduplication_real(
         result2 = await alert_manager.send_proactive_alert("BUDGET_CRITICAL", context)
         assert result2 is False, "Segundo alerta deve ser deduplicado"
 
-        print(f"✓ Deduplicação: first=sent, second=blocked")
+        print("✓ Deduplicação: first=sent, second=blocked")
 
         # Verificar chave de deduplicação no Redis
         dedup_key = f"alert:sent:{workflow_id}:BUDGET_CRITICAL"
@@ -627,7 +627,7 @@ async def test_end_to_end_sla_monitoring_flow(
                 workflow_id=workflow_id, ticket_id=critical_ticket_id, deadline_data=deadline_data
             )
 
-            print(f"✓ Step 2: Deadline alert sent")
+            print("✓ Step 2: Deadline alert sent")
 
         # === 3. Verificar budget threshold ===
         is_critical, budget_data = await sla_monitor.check_budget_threshold(
@@ -640,7 +640,7 @@ async def test_end_to_end_sla_monitoring_flow(
                 service_name="orchestrator-dynamic",
                 budget_data=budget_data,
             )
-            print(f"✓ Step 3: Budget critical alert sent")
+            print("✓ Step 3: Budget critical alert sent")
         else:
             print(f"✓ Step 3: Budget OK ({budget_data.get('error_budget_remaining', 'N/A')})")
 
@@ -672,17 +672,17 @@ async def test_end_to_end_sla_monitoring_flow(
         if violations:
             print(f"✓ Step 4: {len(violations)} violations published")
         else:
-            print(f"✓ Step 4: No violations detected")
+            print("✓ Step 4: No violations detected")
 
         # === 5. Verificar que eventos foram para Kafka ===
         # (Já validado nos testes individuais, aqui apenas log)
-        print(f"✓ Step 5: All events published to Kafka")
+        print("✓ Step 5: All events published to Kafka")
 
         # === 6. Verificar métricas Prometheus ===
         # (Métricas são registradas via real_metrics)
-        print(f"✓ Step 6: Metrics recorded")
+        print("✓ Step 6: Metrics recorded")
 
-        print(f"\n✓ END-TO-END TEST PASSED: Full SLA monitoring flow validated")
+        print("\n✓ END-TO-END TEST PASSED: Full SLA monitoring flow validated")
 
     finally:
         await sla_monitor.close()

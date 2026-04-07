@@ -4,8 +4,7 @@ Testes unitários para OpinionCache.
 
 import pytest
 import json
-import hashlib
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 from redis.exceptions import RedisError, ConnectionError as RedisConnectionError
 
 from neural_hive_specialists.opinion_cache import OpinionCache

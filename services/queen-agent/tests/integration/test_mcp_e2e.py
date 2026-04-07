@@ -13,9 +13,7 @@ Espec: .agent-os/specs/2026-03-18-gaps-06-mcp-integration/
 
 import asyncio
 import sys
-from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, Mock
-from uuid import uuid4
 
 import pytest
 

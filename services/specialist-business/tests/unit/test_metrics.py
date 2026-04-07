@@ -3,8 +3,7 @@
 import sys
 import os
 import pytest
-from typing import Dict, Any
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock
 
 # Configurar paths
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src"))

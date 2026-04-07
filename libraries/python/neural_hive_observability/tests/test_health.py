@@ -16,8 +16,7 @@ Este arquivo contém testes unitários para validar:
 
 import asyncio
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from dataclasses import dataclass
+from unittest.mock import Mock, patch
 
 from neural_hive_observability.config import ObservabilityConfig
 from neural_hive_observability.health import (

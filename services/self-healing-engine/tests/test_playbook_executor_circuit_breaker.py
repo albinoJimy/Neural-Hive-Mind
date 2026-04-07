@@ -8,7 +8,7 @@ import pytest
 from unittest.mock import AsyncMock, patch
 
 from src.services.playbook_executor import PlaybookExecutor
-from src.services.circuit_breaker import CircuitBreaker, CircuitBreakerState
+from src.services.circuit_breaker import CircuitBreakerState
 
 
 class TestPlaybookExecutorCircuitBreaker:

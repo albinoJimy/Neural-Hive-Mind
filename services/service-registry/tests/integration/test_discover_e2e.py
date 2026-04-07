@@ -15,15 +15,13 @@ import asyncio
 import os
 import sys
 import socket
-from uuid import uuid4
 from contextlib import asynccontextmanager
-from unittest.mock import AsyncMock
 
 # Adicionar src ao path para importacao
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../src"))
 
 from grpc_server.registry_servicer import ServiceRegistryServicer
-from models.agent import AgentType, AgentStatus, AgentInfo, AgentTelemetry
+from models.agent import AgentType, AgentInfo
 from services.matching_engine import MatchingEngine
 from services.registry_service import RegistryService
 from proto import service_registry_pb2, service_registry_pb2_grpc

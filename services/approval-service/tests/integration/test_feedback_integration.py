@@ -7,11 +7,8 @@ submissao de feedback para continuous learning dos specialists.
 
 import asyncio
 import pytest
-from datetime import datetime
-from unittest.mock import MagicMock, AsyncMock, patch
 
 from src.services.approval_service import ApprovalService
-from src.models.approval import ApprovalStatus
 
 
 class TestFeedbackIntegration:

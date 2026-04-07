@@ -15,7 +15,7 @@ Cenários cobertos:
 import os
 import pytest
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 from src.activities.plan_validation import validate_cognitive_plan as validate_plan_activity
 from src.activities.plan_validation import set_activity_dependencies as set_plan_deps

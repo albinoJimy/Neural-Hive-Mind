@@ -18,13 +18,6 @@ import structlog
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 # Import ledger schemas
-from .ledger import (
-    OpinionDocumentV2,
-    Opinion,
-    ReasoningFactor,
-    Mitigation,
-    SchemaVersionManager,
-)
 
 logger = structlog.get_logger(__name__)
 

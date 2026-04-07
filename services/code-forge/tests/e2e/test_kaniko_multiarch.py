@@ -11,17 +11,14 @@ Requisitos:
 """
 
 import pytest
-import asyncio
 import tempfile
 import os
 import time
-from pathlib import Path
 
 from src.services.container_builder import (
     ContainerBuilder,
     BuilderType,
     BuildResult,
-    Platform,
     _get_qemu_binaries,
 )
 
@@ -83,7 +80,7 @@ CMD ["/bin/sh"]
             assert isinstance(result, BuildResult)
             # Build nativo deve funcionar sem problemas
             if result.success:
-                print(f"✅ Native AMD64 build sucesso!")
+                print("✅ Native AMD64 build sucesso!")
                 print(f"   Duração: {result.duration_seconds}s")
             else:
                 # Falha pode ser por outros motivos (rede, recursos)
@@ -125,7 +122,7 @@ CMD ["/bin/sh"]
             assert isinstance(result, BuildResult)
 
             if result.success:
-                print(f"✅ ARM64 build com QEMU sucesso!")
+                print("✅ ARM64 build com QEMU sucesso!")
                 print(f"   Duração: {result.duration_seconds}s")
                 # QEMU builds são significativamente mais lentos
                 assert result.duration_seconds > 10  # Pelo menos 10 segundos
@@ -166,7 +163,7 @@ CMD ["/bin/sh"]
             assert isinstance(result, BuildResult)
 
             if result.success:
-                print(f"✅ ARM v7 build sucesso!")
+                print("✅ ARM v7 build sucesso!")
                 print(f"   Duração: {result.duration_seconds}s")
             else:
                 print(f"⚠️ ARM v7 build falhou: {result.error_message}")
@@ -204,7 +201,7 @@ CMD ["/bin/sh"]
             assert isinstance(result, BuildResult)
 
             if result.success:
-                print(f"✅ Dual platform build sucesso!")
+                print("✅ Dual platform build sucesso!")
                 print(f"   Plataformas: {result.platforms}")
                 print(f"   Duração: {result.duration_seconds}s")
                 # Dual platform deve ser ainda mais lento
@@ -243,7 +240,7 @@ CMD ["/bin/sh"]
             assert isinstance(result, BuildResult)
 
             if result.success:
-                print(f"✅ Platform aliases build sucesso!")
+                print("✅ Platform aliases build sucesso!")
                 print(f"   Plataformas: {result.platforms}")
             else:
                 print(f"⚠️ Platform aliases build falhou: {result.error_message}")
@@ -287,7 +284,7 @@ CMD ["/bin/sh"]
             assert isinstance(result, BuildResult)
 
             if result.success:
-                print(f"✅ Python ARM64 build sucesso!")
+                print("✅ Python ARM64 build sucesso!")
                 print(f"   Duração: {result.duration_seconds}s")
                 # Python builds são mais demorados
                 assert result.duration_seconds > 30
@@ -327,7 +324,7 @@ CMD ["/bin/sh"]
             assert isinstance(result, BuildResult)
 
             if result.success:
-                print(f"✅ FastAPI multi-arch build sucesso!")
+                print("✅ FastAPI multi-arch build sucesso!")
                 print(f"   Duração: {result.duration_seconds}s")
             else:
                 print(f"⚠️ FastAPI multi-arch build falhou: {result.error_message}")
@@ -341,7 +338,6 @@ class TestQEMUPodStructure:
     async def test_qemu_init_container_present(self):
         """Verifica que o init container qemu-setup está presente quando necessário."""
         import tempfile
-        import uuid
 
         timestamp = int(time.time())
         image_tag = f"localhost:5000/codeforge-test/qemu-struct:{timestamp}"
@@ -368,7 +364,7 @@ class TestQEMUPodStructure:
             assert "qemu-aarch64" in qemu_container["args"][0]
             assert "qemu-arm" in qemu_container["args"][0]
 
-            print(f"✅ QEMU init container structure valid!")
+            print("✅ QEMU init container structure valid!")
 
     @pytest.mark.asyncio
     async def test_qemu_volumes_present(self):
@@ -395,7 +391,7 @@ class TestQEMUPodStructure:
         volume_names = [v["name"] for v in volumes_without_qemu]
         assert "qemu" not in volume_names
 
-        print(f"✅ QEMU volumes structure valid!")
+        print("✅ QEMU volumes structure valid!")
 
     @pytest.mark.asyncio
     async def test_qemu_volume_mounts_present(self):
@@ -418,4 +414,4 @@ class TestQEMUPodStructure:
         mount_paths = [m["mountPath"] for m in mounts_without_qemu]
         assert "/usr/local/bin" not in mount_paths
 
-        print(f"✅ QEMU volumeMounts structure valid!")
+        print("✅ QEMU volumeMounts structure valid!")

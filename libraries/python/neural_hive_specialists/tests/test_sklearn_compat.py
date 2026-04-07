@@ -1,8 +1,7 @@
 """Testes para sklearn_compat.py."""
 
 import pytest
-import sys
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, MagicMock
 
 try:
     import sklearn

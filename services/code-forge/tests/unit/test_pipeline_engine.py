@@ -9,9 +9,8 @@ Cobertura:
 """
 
 import asyncio
-import uuid
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -22,9 +21,7 @@ class TestPipelineEngineExecution:
     @pytest.mark.asyncio
     async def test_execute_pipeline_success(self, mock_pipeline_engine, sample_execution_ticket):
         """Deve executar pipeline completo com sucesso."""
-        from src.services.pipeline_engine import PipelineEngine
         from src.models.artifact import PipelineStage, StageStatus
-        from datetime import datetime
 
         # Lista de stages do pipeline (atualizado com 8 stages)
         stage_names = [

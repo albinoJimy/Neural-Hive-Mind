@@ -5,7 +5,7 @@ Testes para integração com Azure Container Registry (ACR).
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock, patch
 from datetime import datetime, timedelta, timezone
 
 

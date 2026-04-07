@@ -7,10 +7,10 @@ user_id e outros identificadores através de chamadas HTTP, Kafka e RPC.
 
 import logging
 from contextlib import contextmanager
-from typing import Dict, List, Optional, Any, Tuple, Union
+from typing import Dict, List, Optional, Any, Tuple
 import threading
 
-from opentelemetry import trace, baggage, context
+from opentelemetry import trace, context
 from opentelemetry.propagate import inject, extract
 from opentelemetry.baggage import set_baggage, get_all as get_all_baggage
 from opentelemetry.context import attach, detach

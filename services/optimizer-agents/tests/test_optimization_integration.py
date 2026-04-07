@@ -1,10 +1,8 @@
 """Testes de integração para otimizações multi-database."""
 
 import pytest
-import asyncio
-from datetime import datetime
 
-from src.analyzers.factory import AnalyzerFactory, AnalyzerType
+from src.analyzers.factory import AnalyzerFactory
 from src.analyzers.mongodb_analyzer import MongoDBAnalyzer
 from src.analyzers.postgresql_analyzer import PostgreSQLAnalyzer
 from src.analyzers.code_analyzer import CodeAnalyzer

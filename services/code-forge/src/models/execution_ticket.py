@@ -3,7 +3,6 @@ from enum import Enum
 from typing import Any, Dict, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
-from pydantic.functional_serializers import field_serializer
 
 
 class TaskType(str, Enum):

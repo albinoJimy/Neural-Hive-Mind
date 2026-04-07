@@ -225,7 +225,7 @@ class SemaphoreBulkhead:
 
                 return result
 
-            except Exception as e:
+            except Exception:
                 elapsed = asyncio.get_event_loop().time() - start_time
                 bulkhead_execution_duration_seconds.labels(
                     service=self.service_name,
@@ -326,7 +326,7 @@ class ThreadPoolBulkhead:
 
             return result
 
-        except Exception as e:
+        except Exception:
             elapsed = asyncio.get_event_loop().time() - start_time
             bulkhead_execution_duration_seconds.labels(
                 service=self.service_name,
@@ -461,6 +461,6 @@ def bulkhead(
 
             return wrapper
         else:
-            raise TypeError(f"@bulkhead decorator só suporta funções assíncronas")
+            raise TypeError("@bulkhead decorator só suporta funções assíncronas")
 
     return decorator

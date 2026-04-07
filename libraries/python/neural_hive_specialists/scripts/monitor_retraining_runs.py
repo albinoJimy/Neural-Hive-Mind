@@ -7,7 +7,6 @@ para verificar o status de runs assíncronos e atualizar os registros de trigger
 """
 
 import sys
-import time
 import argparse
 from datetime import datetime, timedelta, timezone
 import structlog

@@ -10,9 +10,7 @@ Este arquivo contém testes unitários e de integração para validar:
 
 import asyncio
 import pytest
-from unittest.mock import Mock, patch, MagicMock, AsyncMock
-from opentelemetry import trace
-from opentelemetry.trace import Status, StatusCode
+from unittest.mock import Mock, patch
 
 from neural_hive_observability.config import ObservabilityConfig
 from neural_hive_observability.tracing import (

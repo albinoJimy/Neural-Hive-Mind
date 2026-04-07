@@ -7,7 +7,6 @@ import jwt
 import structlog
 import time
 from typing import Callable, Any, Optional
-from datetime import datetime, timezone
 
 from .config import SpecialistConfig
 from .metrics import SpecialistMetrics

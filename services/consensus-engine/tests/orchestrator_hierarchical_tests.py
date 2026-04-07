@@ -7,8 +7,7 @@ TDD: Testes escritos antes da implementação (RED phase).
 import pytest
 import sys
 from pathlib import Path
-from unittest.mock import Mock, AsyncMock, MagicMock
-from datetime import datetime
+from unittest.mock import Mock, MagicMock
 
 # Mock neural_hive_domain before imports
 from enum import Enum
@@ -44,8 +43,6 @@ sys.modules["neural_hive_observability"] = mock_observability
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from services.hierarchical_weights import HierarchicalWeightCalculator
-from models.consolidated_decision import ConsolidatedDecision, DecisionType, ConsensusMethod
-from models.seniority import SeniorityLevel
 
 
 class TestConsensusOrchestratorInitialization:

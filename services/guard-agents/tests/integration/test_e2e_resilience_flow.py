@@ -4,10 +4,8 @@ Valida que um incidente Kafka percorre toda a pipeline até validação de SLA.
 """
 
 import pytest
-import asyncio
-import json
 from datetime import datetime, timezone
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import Mock, AsyncMock
 
 
 @pytest.fixture

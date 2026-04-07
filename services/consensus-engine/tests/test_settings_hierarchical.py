@@ -84,7 +84,6 @@ class TestHierarchicalConsensusSettings:
         os.environ["SPECIALIST_SENIORITY"] = '{"business": "invalid_level"}'
 
         from src.config.settings import Settings
-        from pydantic import ValidationError
 
         # Deve levantar ValidationError para nível inválido
         with pytest.raises(ValidationError) as exc_info:
@@ -166,7 +165,7 @@ class TestHierarchicalConsensusIntegration:
         from src.config.settings import Settings
         import importlib.util
         from pathlib import Path
-        from unittest.mock import Mock, MagicMock
+        from unittest.mock import MagicMock
         from enum import Enum
 
         # Mock neural_hive_domain

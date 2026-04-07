@@ -20,7 +20,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from ml.anomaly_detector import AnomalyDetector
 from ml.anomaly_training_utils import (
     prepare_anomaly_training_data,
     validate_anomaly_training_data,
@@ -201,10 +200,10 @@ class TestAnomalyDetectorAccuracy:
 
         assert precision > 0.75, f"Precision ({precision:.2%}) está abaixo do threshold de 75%"
 
-        print(f"\n=== Teste Precision ===")
+        print("\n=== Teste Precision ===")
         print(f"Precision: {precision:.2%}")
-        print(f"Threshold: 75%")
-        print(f"Status: PASS ✓")
+        print("Threshold: 75%")
+        print("Status: PASS ✓")
 
     @pytest.mark.asyncio
     async def test_recall_threshold(self, sample_tickets_with_anomalies):
@@ -239,10 +238,10 @@ class TestAnomalyDetectorAccuracy:
 
         assert recall > 0.60, f"Recall ({recall:.2%}) está abaixo do threshold de 60%"
 
-        print(f"\n=== Teste Recall ===")
+        print("\n=== Teste Recall ===")
         print(f"Recall: {recall:.2%}")
-        print(f"Threshold: 60%")
-        print(f"Status: PASS ✓")
+        print("Threshold: 60%")
+        print("Status: PASS ✓")
 
     @pytest.mark.asyncio
     async def test_f1_score_threshold(self, sample_tickets_with_anomalies):
@@ -275,10 +274,10 @@ class TestAnomalyDetectorAccuracy:
 
         assert f1 > 0.65, f"F1 Score ({f1:.3f}) está abaixo do threshold de 0.65"
 
-        print(f"\n=== Teste F1 Score ===")
+        print("\n=== Teste F1 Score ===")
         print(f"F1 Score: {f1:.3f}")
-        print(f"Threshold: 0.65")
-        print(f"Status: PASS ✓")
+        print("Threshold: 0.65")
+        print("Status: PASS ✓")
 
     @pytest.mark.asyncio
     async def test_false_positive_rate(self, sample_tickets_with_anomalies):
@@ -313,11 +312,11 @@ class TestAnomalyDetectorAccuracy:
 
         assert fpr < 0.10, f"False Positive Rate ({fpr:.2%}) excede 10%"
 
-        print(f"\n=== Teste False Positive Rate ===")
+        print("\n=== Teste False Positive Rate ===")
         print(f"FPR: {fpr:.2%}")
         print(f"FP: {fp}, TN: {tn}")
-        print(f"Threshold: < 10%")
-        print(f"Status: PASS ✓")
+        print("Threshold: < 10%")
+        print("Status: PASS ✓")
 
     @pytest.mark.asyncio
     async def test_synthetic_anomaly_detection(self, sample_tickets_with_anomalies):
@@ -386,11 +385,11 @@ class TestAnomalyDetectorAccuracy:
             f"está abaixo de 75%"
         )
 
-        print(f"\n=== Teste Detecção de Anomalias Sintéticas ===")
+        print("\n=== Teste Detecção de Anomalias Sintéticas ===")
         print(f"Anomalias testadas: {len(synthetic_anomalies)}")
         print(f"Detectadas: {int(labels.sum())}")
         print(f"Taxa de detecção: {detection_rate:.0%}")
-        print(f"Status: PASS ✓")
+        print("Status: PASS ✓")
 
 
 class TestAnomalyTrainingDataValidation:
@@ -426,11 +425,11 @@ class TestAnomalyTrainingDataValidation:
         assert anomaly_ratio > 0, "Sem anomalias no dataset"
         assert anomaly_ratio < 0.5, "Muitas anomalias (>50%)"
 
-        print(f"\n=== Teste Preparação de Dados ===")
+        print("\n=== Teste Preparação de Dados ===")
         print(f"Train size: {len(X_train)}")
         print(f"Test size: {len(X_test)}")
         print(f"Anomaly ratio: {anomaly_ratio:.2%}")
-        print(f"Status: PASS ✓")
+        print("Status: PASS ✓")
 
     def test_validation_function(self):
         """Testa função de validação de dados."""
@@ -463,10 +462,10 @@ class TestAnomalyTrainingDataValidation:
         assert not is_valid_small, "Dados pequenos deveriam ser rejeitados"
         assert "Insufficient samples" in str(issues_small)
 
-        print(f"\n=== Teste Função de Validação ===")
-        print(f"Dados válidos: aceitos ✓")
-        print(f"Dados inválidos: rejeitados ✓")
-        print(f"Status: PASS ✓")
+        print("\n=== Teste Função de Validação ===")
+        print("Dados válidos: aceitos ✓")
+        print("Dados inválidos: rejeitados ✓")
+        print("Status: PASS ✓")
 
     def test_confusion_matrix_analysis(self):
         """Testa análise detalhada via confusion matrix."""
@@ -495,12 +494,12 @@ class TestAnomalyTrainingDataValidation:
         fpr = fp / (fp + tn)
         fnr = fn / (fn + tp)
 
-        print(f"\n=== Confusion Matrix Analysis ===")
+        print("\n=== Confusion Matrix Analysis ===")
         print(f"True Negatives: {tn}")
         print(f"False Positives: {fp}")
         print(f"False Negatives: {fn}")
         print(f"True Positives: {tp}")
-        print(f"")
+        print("")
         print(f"Precision: {precision:.2%}")
         print(f"Recall: {recall:.2%}")
         print(f"F1 Score: {f1:.3f}")

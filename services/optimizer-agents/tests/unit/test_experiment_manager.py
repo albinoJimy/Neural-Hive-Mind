@@ -5,12 +5,11 @@ Tests experiment creation, monitoring, and analysis.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 from datetime import datetime, timezone
-from uuid import uuid4
 
 from src.services.experiment_manager import ExperimentManager
-from src.models.experiment_request import ExperimentType, RandomizationStrategy
+from src.models.experiment_request import ExperimentType
 
 
 class TestExperimentManagerInitialization:

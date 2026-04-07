@@ -11,9 +11,6 @@ Este arquivo contém testes unitários para validar:
 import logging
 import pytest
 import json
-from datetime import datetime, timezone
-from unittest.mock import Mock, patch, MagicMock
-from io import StringIO
 
 from neural_hive_observability.config import ObservabilityConfig
 from neural_hive_observability.logging import (

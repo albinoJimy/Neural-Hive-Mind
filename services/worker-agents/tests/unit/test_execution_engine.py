@@ -8,7 +8,7 @@ import asyncio
 import sys
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -20,7 +20,7 @@ mock_tracer_module = MagicMock()
 mock_tracer_module.get_tracer = MagicMock()
 sys.modules["neural_hive_observability"] = mock_tracer_module
 
-from engine.execution_engine import ExecutionEngine, TaskExecutionError  # noqa: E402
+from engine.execution_engine import ExecutionEngine  # noqa: E402
 
 
 class StubTicketClient:

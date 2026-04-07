@@ -5,13 +5,11 @@ Tests the BuildExecutor with mocked and real Code Forge integration,
 including retry logic, timeout handling, and fallback to simulation.
 """
 
-import asyncio
 import os
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
-from neural_hive_integration.clients.code_forge_client import PipelineStatus
 
 
 # Import test helpers

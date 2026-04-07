@@ -3,9 +3,8 @@ Testes para InsightRepository.
 """
 
 import pytest
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 
-from src.repositories.insight_repository import InsightRepository
 from src.models.insight_extended import (
     InsightCreate,
     InsightResponse,

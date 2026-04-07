@@ -1,7 +1,7 @@
 """Testes para activity de publicação de eventos de otimização."""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 from src.activities.optimization_event import (
     publish_ticket_completed_event,

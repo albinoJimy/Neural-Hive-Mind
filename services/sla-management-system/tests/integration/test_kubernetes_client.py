@@ -1,7 +1,7 @@
 """Testes de integracao para o Kubernetes Client."""
 
 import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock, patch
 from kubernetes.client.rest import ApiException
 
 from src.clients.kubernetes_client import KubernetesClient, CRD_GROUP, CRD_VERSION, CRD_PLURAL

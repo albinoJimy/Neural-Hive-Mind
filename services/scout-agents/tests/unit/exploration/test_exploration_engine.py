@@ -5,7 +5,7 @@ Tests codebase exploration, curiosity scoring, and signal processing.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 from datetime import datetime, timezone, timedelta
 from collections import deque
 
@@ -87,7 +87,7 @@ class TestEngineStartStop:
         engine._is_running = True
 
         # Add mock signals to queue
-        from src.models.scout_signal import ScoutSignal, SignalType, UnifiedDomain
+        from src.models.scout_signal import ScoutSignal, UnifiedDomain
 
         signal = ScoutSignal(
             scout_agent_id="test",
@@ -132,7 +132,6 @@ class TestEventProcessing:
         # Mock detection to return signal
         from src.models.scout_signal import (
             ScoutSignal,
-            SignalType,
             SignalSource,
             UnifiedDomain,
             ChannelType,
@@ -243,7 +242,7 @@ class TestSignalPublishing:
     @pytest.mark.asyncio
     async def test_publish_signal_success(self):
         """Test successful signal publishing."""
-        from src.models.scout_signal import ScoutSignal, SignalType, UnifiedDomain
+        from src.models.scout_signal import ScoutSignal, UnifiedDomain
 
         engine = ExplorationEngine("scout-agent-001")
 
@@ -268,7 +267,7 @@ class TestSignalPublishing:
     @pytest.mark.asyncio
     async def test_publish_signal_kafka_failure(self):
         """Test signal publishing handles Kafka failure."""
-        from src.models.scout_signal import ScoutSignal, SignalType, UnifiedDomain
+        from src.models.scout_signal import ScoutSignal, UnifiedDomain
 
         engine = ExplorationEngine("scout-agent-001")
         engine.kafka_producer.publish_signal = AsyncMock(return_value=False)
@@ -294,7 +293,7 @@ class TestSignalPublishing:
     @pytest.mark.asyncio
     async def test_publish_signal_memory_failure_continues(self):
         """Test publishing continues if memory storage fails."""
-        from src.models.scout_signal import ScoutSignal, SignalType, UnifiedDomain
+        from src.models.scout_signal import ScoutSignal, UnifiedDomain
 
         engine = ExplorationEngine("scout-agent-001")
         engine.memory_client.store_signal_redis = AsyncMock(return_value=False)
@@ -334,7 +333,7 @@ class TestQueueProcessing:
     @pytest.mark.asyncio
     async def test_process_queue_signals(self):
         """Test processing queued signals."""
-        from src.models.scout_signal import ScoutSignal, SignalType, UnifiedDomain
+        from src.models.scout_signal import ScoutSignal, UnifiedDomain
 
         engine = ExplorationEngine("scout-agent-001")
 
@@ -384,7 +383,7 @@ class TestStatistics:
         engine = ExplorationEngine("scout-agent-001")
 
         # Add to queue
-        from src.models.scout_signal import ScoutSignal, SignalType, UnifiedDomain
+        from src.models.scout_signal import ScoutSignal, UnifiedDomain
 
         signal = ScoutSignal(
             scout_agent_id="test",
@@ -569,7 +568,7 @@ class TestPriorityHandling:
     @pytest.mark.asyncio
     async def test_high_priority_queued_when_rate_limited(self):
         """Test high priority signals are queued when rate limited."""
-        from src.models.scout_signal import ScoutSignal, SignalType, UnifiedDomain
+        from src.models.scout_signal import ScoutSignal, UnifiedDomain
 
         engine = ExplorationEngine("scout-agent-001")
         await engine.start()
@@ -579,7 +578,6 @@ class TestPriorityHandling:
             engine.published_signals.append(datetime.now(timezone.utc))
 
         # Mock signal with high priority
-        from src.models.scout_signal import ScoutSignal
 
         mock_signal = ScoutSignal(
             scout_agent_id="test",

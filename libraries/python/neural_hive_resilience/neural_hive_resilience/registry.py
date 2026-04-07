@@ -13,9 +13,9 @@ Permite configuração centralizada e reutilização de políticas.
 
 import asyncio
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Type, Union
+from typing import Any, Dict, List, Optional, Type, Union
 import structlog
 
 from .circuit_breaker import MonitoredCircuitBreaker
@@ -26,7 +26,6 @@ from .rate_limiter import (
     ConcurrencyLimiter,
     RateLimiterFactory,
 )
-from .timeout import TimeoutContext
 from .fallback import FallbackChain, FallbackConfig
 from .bulkhead import SemaphoreBulkhead, BulkheadConfig
 from .exceptions import (

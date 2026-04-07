@@ -6,8 +6,7 @@ from datetime import datetime, timezone
 
 from fastapi.testclient import TestClient
 from src.api.app import create_app
-from src.api.schemas import ArchitectureRequest, ValidationRequest
-from src.models.architecture import Component, ArchitectureType, Pattern
+from src.models.architecture import Component, Pattern
 
 
 @pytest.fixture

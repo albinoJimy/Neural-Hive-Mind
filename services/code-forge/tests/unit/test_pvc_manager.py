@@ -5,9 +5,8 @@ Testes para gerenciamento de PVCs em builds Kaniko com contextos grandes.
 """
 
 import pytest
-from unittest.mock import AsyncMock, Mock, MagicMock, patch
+from unittest.mock import Mock, MagicMock, patch
 from datetime import datetime, timedelta, timezone
-from uuid import uuid4
 
 from src.services.kaniko.pvc_manager import (
     PVCManager,

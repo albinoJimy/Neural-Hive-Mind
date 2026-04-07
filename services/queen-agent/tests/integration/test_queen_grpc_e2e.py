@@ -11,11 +11,10 @@ Valida fluxo completo dos métodos gRPC com servidor real:
 
 import pytest
 import pytest_asyncio
-import asyncio
 import uuid
 import socket
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import grpc
 from grpc import aio

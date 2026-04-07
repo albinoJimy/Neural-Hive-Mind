@@ -7,7 +7,6 @@ import pandas as pd
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import precision_score, recall_score, f1_score
-import tensorflow as tf
 from tensorflow import keras
 
 from neural_hive_ml.predictive_models.base_predictor import BasePredictor
@@ -51,7 +50,6 @@ class AnomalyDetector(BasePredictor):
         try:
             import mlflow
             import joblib
-            import os
 
             model_name = f"anomaly-detector-{self.model_type}"
 

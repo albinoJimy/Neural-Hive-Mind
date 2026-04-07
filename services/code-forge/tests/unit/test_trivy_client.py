@@ -6,8 +6,7 @@ Valida a execução de scans de vulnerabilidades com Trivy CLI.
 
 import pytest
 import json
-import shutil
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 from datetime import datetime
 
 from src.clients.trivy_client import TrivyClient
@@ -444,7 +443,6 @@ class TestTrivyCache:
 
     def test_cache_save_and_retrieve(self, trivy_client):
         """Testa salvar e recuperar do cache."""
-        from datetime import timedelta
 
         result = MagicMock()
         cache_key = "test:key"

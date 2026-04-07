@@ -192,7 +192,7 @@ class TestAnomalyDetectorRealModel:
         p95_latency = np.percentile(latencies, 95)
         p99_latency = np.percentile(latencies, 99)
 
-        print(f"\n=== Teste de Latencia ===")
+        print("\n=== Teste de Latencia ===")
         print(f"Media: {avg_latency:.2f}ms")
         print(f"P95: {p95_latency:.2f}ms")
         print(f"P99: {p99_latency:.2f}ms")
@@ -235,7 +235,7 @@ class TestAnomalyDetectorRealModel:
 
         precision = tp / (tp + fp) if (tp + fp) > 0 else 0
 
-        print(f"\n=== Teste de Precision ===")
+        print("\n=== Teste de Precision ===")
         print(f"True Positives: {tp}")
         print(f"False Positives: {fp}")
         print(f"Precision: {precision:.2%}")
@@ -277,7 +277,7 @@ class TestAnomalyDetectorRealModel:
 
         recall = tp / (tp + fn) if (tp + fn) > 0 else 0
 
-        print(f"\n=== Teste de Recall ===")
+        print("\n=== Teste de Recall ===")
         print(f"True Positives: {tp}")
         print(f"False Negatives: {fn}")
         print(f"Recall: {recall:.2%}")
@@ -319,7 +319,7 @@ class TestAnomalyDetectorRealModel:
         recall = tp / (tp + fn) if (tp + fn) > 0 else 0
         f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
 
-        print(f"\n=== Teste de F1 Score ===")
+        print("\n=== Teste de F1 Score ===")
         print(f"Precision: {precision:.2%}")
         print(f"Recall: {recall:.2%}")
         print(f"F1 Score: {f1:.3f}")
@@ -350,7 +350,7 @@ class TestAnomalyDetectorRealModel:
         total_time = time.perf_counter() - start
         throughput = len(tickets) / total_time
 
-        print(f"\n=== Teste de Batch Performance ===")
+        print("\n=== Teste de Batch Performance ===")
         print(f"Tickets processados: {len(tickets)}")
         print(f"Tempo total: {total_time:.2f}s")
         print(f"Throughput: {throughput:.0f} tickets/s")

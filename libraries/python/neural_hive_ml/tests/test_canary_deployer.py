@@ -1,8 +1,7 @@
 """Testes para CanaryDeployer - Deploy Canary de Modelos ML."""
 
 import pytest
-from datetime import datetime, timedelta
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import AsyncMock
 from neural_hive_ml.drift_detector import CanaryDeployer
 
 

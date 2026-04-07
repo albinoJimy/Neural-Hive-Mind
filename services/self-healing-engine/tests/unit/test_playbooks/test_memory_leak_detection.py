@@ -3,7 +3,7 @@
 import pytest
 import yaml
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 
 class TestMemoryLeakDetectionPlaybook:
@@ -74,7 +74,6 @@ class TestPodMetricsAction:
     async def test_get_pod_metrics_success(self, executor):
         """Testa sucesso ao obter métricas do pod."""
         # Arrange
-        from kubernetes.client.rest import ApiException
 
         mock_response = MagicMock()
         mock_response.status_code = 200

@@ -6,9 +6,7 @@ TDD: Testes escritos antes da implementação (GAPS-04 Task 5).
 
 import pytest
 from unittest.mock import Mock, AsyncMock, MagicMock
-from fastapi.testclient import TestClient
 import sys
-import asyncio
 from pathlib import Path
 
 # Add src to path

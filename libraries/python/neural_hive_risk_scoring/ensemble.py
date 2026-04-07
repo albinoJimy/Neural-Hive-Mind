@@ -12,7 +12,7 @@ from enum import Enum
 from statistics import mean, median, stdev
 
 from .config import RiskBand, RiskScoringConfig
-from .models import RiskAssessment, RiskMatrix
+from .models import RiskAssessment
 from neural_hive_domain import UnifiedDomain
 
 

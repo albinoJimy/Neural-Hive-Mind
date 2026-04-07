@@ -6,7 +6,6 @@ caching distribuído das features extraídas.
 """
 
 import json
-import hashlib
 import structlog
 from typing import Dict, Any, Optional
 from redis import RedisCluster

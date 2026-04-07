@@ -3,11 +3,8 @@ Configuração pytest para testes do Queen Agent
 """
 
 import sys
-import pytest
 import pytest_asyncio
 from pathlib import Path
-from types import ModuleType
-from unittest.mock import Mock, MagicMock
 from httpx import AsyncClient, ASGITransport
 
 # Adicionar src ao path para imports

@@ -1,8 +1,7 @@
 """Testes para MLflowClient - Approval Models."""
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from datetime import datetime
+from unittest.mock import patch, MagicMock
 from neural_hive_ml.mlflow_client import MLflowClient
 
 

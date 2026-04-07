@@ -6,8 +6,7 @@ Testes para construções multi-arch de containers em paralelo.
 
 import pytest
 import asyncio
-from unittest.mock import Mock, MagicMock, AsyncMock, patch
-from datetime import datetime, timezone
+from unittest.mock import MagicMock, AsyncMock, patch
 
 from src.services.kaniko.parallel_builder import (
     ParallelBuilder,

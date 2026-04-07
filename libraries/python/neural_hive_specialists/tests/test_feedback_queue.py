@@ -6,9 +6,8 @@ Espec: @.agent-os/specs/2026-03-17-active-learning-feedback/
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock
 from datetime import datetime, timedelta, timezone
-from pymongo import MongoClient, ASCENDING, DESCENDING
 from pymongo.collection import Collection
 from pymongo.errors import DuplicateKeyError
 
@@ -113,7 +112,6 @@ class TestPriorityFeedbackQueue:
 
     def test_enqueue_handles_duplicate_plan_id(self, queue, sample_plan):
         """Testa tratamento de plano duplicado."""
-        from pymongo.errors import DuplicateKeyError
 
         # Simular DuplicateKeyError
         queue.collection.insert_one.side_effect = DuplicateKeyError("E11000 duplicate key")

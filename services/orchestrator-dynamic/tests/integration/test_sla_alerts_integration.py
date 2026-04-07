@@ -5,7 +5,6 @@ Estes testes validam o fluxo completo de alertas SLA desde o Kafka
 até o envio para Slack/PagerDuty.
 """
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -15,7 +14,6 @@ from prometheus_client import REGISTRY
 from src.clients.pagerduty_client import PagerDutyClient
 from src.clients.slack_client import SlackClient
 from src.consumers.sla_alert_consumer import SLAAlertConsumer
-from src.config.settings import get_settings
 
 
 @pytest.fixture(autouse=True)

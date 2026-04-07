@@ -3,9 +3,7 @@
 Script não-interativo para executar todos os testes manuais do CodeForge.
 """
 
-import os
 import sys
-import tempfile
 import subprocess
 import shutil
 from pathlib import Path
@@ -562,7 +560,7 @@ require github.com/gin-gonic/gin v1.9.1
         # Salvar em arquivo
         report_file = Path("/tmp/codeforge-test-report.txt")
         with open(report_file, "w") as f:
-            f.write(f"CodeForge Builds Reais - Relatório de Testes\n")
+            f.write("CodeForge Builds Reais - Relatório de Testes\n")
             f.write(f"Data: {self.start_time.strftime('%Y-%m-%d %H:%M:%S')}\n")
             f.write(f"Total: {total} | Passou: {passed} | Falhou: {failed} | Pulado: {skipped}\n\n")
 

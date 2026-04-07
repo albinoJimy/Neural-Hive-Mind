@@ -1,12 +1,10 @@
 """Testes unitários para SchedulingPredictor."""
 
 import pytest
-import pytest_asyncio
 import numpy as np
 import pandas as pd
 from unittest.mock import Mock, patch, AsyncMock
 import tempfile
-import os
 
 from neural_hive_ml.predictive_models.scheduling_predictor import SchedulingPredictor
 

@@ -11,7 +11,6 @@ Para executar:
 
 import pytest
 import pytest_asyncio
-import httpx
 
 from src.clients.opa_client import OPAClient
 

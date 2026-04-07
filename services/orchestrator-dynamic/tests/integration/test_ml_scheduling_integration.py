@@ -3,8 +3,8 @@ Testes de integração para ML Scheduling (LoadPredictor + SchedulingOptimizer +
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
-from datetime import datetime, timezone, timedelta
+from unittest.mock import Mock, AsyncMock
+from datetime import datetime, timezone
 
 from src.ml.load_predictor import LoadPredictor
 from src.ml.scheduling_optimizer import SchedulingOptimizer

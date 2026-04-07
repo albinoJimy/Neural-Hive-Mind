@@ -9,9 +9,8 @@ import pytest
 import grpc
 import jwt
 import time
-import threading
 from datetime import datetime, timedelta, timezone
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 
 from neural_hive_specialists.grpc_server import create_grpc_server_with_observability
 from neural_hive_specialists.config import SpecialistConfig

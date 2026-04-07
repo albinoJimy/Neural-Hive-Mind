@@ -7,7 +7,7 @@ encrypt_opinion_fields adiciona metadados, audit logging, métricas.
 
 import pytest
 import copy
-from unittest.mock import Mock, MagicMock, patch, call
+from unittest.mock import Mock, patch
 
 from neural_hive_specialists.compliance.compliance_layer import ComplianceLayer
 

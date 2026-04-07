@@ -7,9 +7,7 @@ garantindo que apenas decisões válidas sejam publicadas no Kafka.
 
 import pytest
 import uuid
-import asyncio
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from datetime import datetime, timezone
+from unittest.mock import patch, MagicMock
 
 from src.producers.decision_producer import DecisionProducer
 from src.models.consolidated_decision import (

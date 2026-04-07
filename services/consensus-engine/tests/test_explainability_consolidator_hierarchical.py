@@ -7,7 +7,7 @@ TDD: Testes escritos antes da implementação (GAPS-04 Task 1).
 import pytest
 import sys
 from pathlib import Path
-from unittest.mock import Mock, MagicMock, AsyncMock
+from unittest.mock import MagicMock, AsyncMock
 from enum import Enum
 
 

@@ -5,8 +5,7 @@ Testa conexão, queries, retry logic, cache, timeout e parametrização.
 """
 
 import pytest
-import pytest_asyncio
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, timezone, timedelta
 import json
 

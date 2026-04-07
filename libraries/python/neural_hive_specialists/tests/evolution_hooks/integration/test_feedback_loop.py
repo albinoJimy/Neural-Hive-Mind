@@ -11,11 +11,9 @@ Este módulo testa o loop completo de feedback:
 import pytest
 import asyncio
 from datetime import datetime, timezone
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import Mock, AsyncMock, patch
 
 from neural_hive_specialists.evolution_hooks.models import (
-    FeedbackMessage,
-    FeedbackData,
     FeedbackOutcome,
     FeedbackSource,
     Fingerprint,

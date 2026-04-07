@@ -7,7 +7,7 @@ Testa deserializacao e processamento de mensagens Kafka.
 import pytest
 import json
 from datetime import datetime, timezone
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock, patch
 
 from src.models.approval import ApprovalRequest, RiskBand
 from src.consumers.approval_request_consumer import ApprovalRequestConsumer

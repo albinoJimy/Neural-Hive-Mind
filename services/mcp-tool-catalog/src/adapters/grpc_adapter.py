@@ -13,7 +13,7 @@ from unittest.mock import Mock
 import grpc
 from grpc.aio import AioRpcError
 
-from .base_adapter import BaseToolAdapter, ExecutionResult, logger
+from .base_adapter import BaseToolAdapter, ExecutionResult
 
 
 class GRPCAdapter(BaseToolAdapter):

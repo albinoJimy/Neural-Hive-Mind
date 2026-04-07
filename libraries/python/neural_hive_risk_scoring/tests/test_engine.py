@@ -4,7 +4,6 @@ Testes para RiskScoringEngine e RiskScoringMetrics
 
 import pytest
 from datetime import datetime, timezone
-from unittest.mock import Mock, patch, MagicMock
 
 from neural_hive_risk_scoring import (
     RiskScoringEngine,

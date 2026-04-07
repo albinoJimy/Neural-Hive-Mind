@@ -6,16 +6,14 @@ FeatureEngineering e TrainingPipeline com mocks de dependências externas.
 """
 
 import pytest
-import pytest_asyncio
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from datetime import datetime, timezone, timedelta
+from unittest.mock import Mock, AsyncMock, patch
+from datetime import datetime, timezone
 import numpy as np
 import pandas as pd
 
 from src.ml import (
     DurationPredictor,
     AnomalyDetector,
-    ModelRegistry,
     MLPredictor,
     TrainingPipeline,
     extract_ticket_features,

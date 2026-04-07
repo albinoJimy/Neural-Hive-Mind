@@ -5,8 +5,6 @@ Tests the DeployExecutor with mocked and real ArgoCD integration,
 including timeout handling, error scenarios, and fallback to simulation.
 """
 
-import asyncio
-import json
 import os
 from unittest.mock import AsyncMock, MagicMock, patch
 

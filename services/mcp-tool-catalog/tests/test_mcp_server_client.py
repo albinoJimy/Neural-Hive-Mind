@@ -245,7 +245,6 @@ class TestRetryMechanism:
     @pytest.mark.asyncio
     async def test_send_request_retry_on_timeout(self, mcp_client, mock_aiohttp):
         """Mock timeout na 1ª tentativa, sucesso na 2ª, verificar retry."""
-        import aiohttp
 
         # Primeira chamada: timeout
         mock_aiohttp.post(
