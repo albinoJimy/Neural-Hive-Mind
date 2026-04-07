@@ -16,7 +16,10 @@ from .clients.kafka_producer import KafkaProducerClient
 from .clients.postgresql_client import PostgreSQLClient
 from .clients.prometheus_client import PrometheusClient
 from .clients.redis_client import RedisClient
+from .clients.slack_client import SlackClient
+from .clients.pagerduty_client import PagerDutyClient
 from .config.settings import get_settings
+from .consumers.sla_alert_consumer import SLAAlertConsumer
 from .services.alert_dispatcher import AlertDispatcher
 from .services.alert_engine import AlertEngine
 from .services.budget_calculator import BudgetCalculator
@@ -45,6 +48,8 @@ postgresql_client: PostgreSQLClient = None
 redis_client: RedisClient = None
 kafka_producer: KafkaProducerClient = None
 alertmanager_client: AlertmanagerClient = None
+slack_client: SlackClient = None
+pagerduty_client: PagerDutyClient = None
 
 # Serviços globais
 budget_calculator: BudgetCalculator = None
@@ -52,10 +57,12 @@ policy_enforcer: PolicyEnforcer = None
 slo_manager: SLOManager = None
 alert_engine: AlertEngine = None
 alert_dispatcher: AlertDispatcher = None
+sla_alert_consumer: SLAAlertConsumer = None
 
 # Background task handles
 periodic_calculation_task: asyncio.Task = None
 alert_monitoring_task: asyncio.Task = None
+sla_alert_consumer_task: asyncio.Task = None
 
 
 @asynccontextmanager
@@ -71,9 +78,10 @@ async def lifespan(app: FastAPI):
 
     global prometheus_client, postgresql_client, redis_client
     global kafka_producer, alertmanager_client
+    global slack_client, pagerduty_client
     global budget_calculator, policy_enforcer, slo_manager
-    global alert_engine, alert_dispatcher
-    global periodic_calculation_task, alert_monitoring_task
+    global alert_engine, alert_dispatcher, sla_alert_consumer
+    global periodic_calculation_task, alert_monitoring_task, sla_alert_consumer_task
 
     try:
         # Inicializar clientes
@@ -102,6 +110,22 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning("alertmanager_connection_failed", error=str(e))
 
+        # Inicializar clientes de notificação (opcional)
+        slack_client = None
+        if settings.slack.webhook_url:
+            slack_client = SlackClient(webhook_url=settings.slack.webhook_url)
+            await slack_client.connect()
+            logger.info("slack_client_connected")
+
+        pagerduty_client = None
+        if settings.pagerduty.routing_key:
+            pagerduty_client = PagerDutyClient(
+                routing_key=settings.pagerduty.routing_key,
+                api_url=settings.pagerduty.api_url,
+            )
+            await pagerduty_client.connect()
+            logger.info("pagerduty_client_connected")
+
         # Inicializar serviços
         budget_calculator = BudgetCalculator(
             prometheus_client, postgresql_client, redis_client, kafka_producer, settings.calculator
@@ -113,7 +137,7 @@ async def lifespan(app: FastAPI):
 
         slo_manager = SLOManager(postgresql_client, prometheus_client)
 
-        # Inicializar AlertDispatcher e AlertEngine
+        # Inicializar AlertDispatcher e AlertEngine (usa clientes diretamente)
         alert_dispatcher = AlertDispatcher(
             slack_webhook_url=settings.slack.webhook_url,
             pagerduty_routing_key=settings.pagerduty.routing_key,
@@ -128,6 +152,28 @@ async def lifespan(app: FastAPI):
         )
         await alert_engine.start()
 
+        # Inicializar SLAAlertConsumer se habilitado
+        if settings.sla_alert_consumer.enable_sla_alert_consumer:
+            if slack_client and pagerduty_client:
+                sla_alert_consumer = SLAAlertConsumer(
+                    bootstrap_servers=settings.kafka.bootstrap_servers,
+                    topics=settings.sla_alert_consumer.sla_alerts_topics,
+                    slack_client=slack_client,
+                    pagerduty_client=pagerduty_client,
+                    group_id=settings.sla_alert_consumer.consumer_group_id,
+                    auto_offset_reset=settings.sla_alert_consumer.auto_offset_reset,
+                )
+                await sla_alert_consumer.start()
+                sla_alert_consumer_task = asyncio.create_task(
+                    sla_alert_consumer.consume()
+                )
+                logger.info("sla_alert_consumer_started")
+            else:
+                logger.warning(
+                    "sla_alert_consumer_not_started",
+                    reason="slack_client or pagerduty_client not configured",
+                )
+
         # Iniciar background task de cálculo periódico
         periodic_calculation_task = asyncio.create_task(
             budget_calculator.run_periodic_calculation()
@@ -140,6 +186,17 @@ async def lifespan(app: FastAPI):
     finally:
         # Shutdown
         logger.info("sla_management_system_shutting_down")
+
+        # Parar SLAAlertConsumer
+        if sla_alert_consumer_task:
+            sla_alert_consumer_task.cancel()
+            try:
+                await sla_alert_consumer_task
+            except asyncio.CancelledError:
+                pass
+
+        if sla_alert_consumer:
+            await sla_alert_consumer.stop()
 
         # Parar background tasks
         if periodic_calculation_task:
@@ -157,6 +214,13 @@ async def lifespan(app: FastAPI):
         # Fechar AlertDispatcher
         if alert_dispatcher:
             await alert_dispatcher.disconnect()
+
+        # Fechar clientes de notificação
+        if slack_client:
+            await slack_client.disconnect()
+
+        if pagerduty_client:
+            await pagerduty_client.disconnect()
 
         # Fechar clientes
         if kafka_producer:
