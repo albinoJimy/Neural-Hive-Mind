@@ -1,5 +1,14 @@
 """Services module"""
 
+from src.services.alert_manager_client import (
+    Alert,
+    AlertManagerClient,
+    AlertSeverity,
+    alert_deadlock_detected,
+    alert_memory_leak_detected,
+    alert_remediation_failed,
+    alert_remediation_started,
+)
 from src.services.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerOpenError,
@@ -18,6 +27,14 @@ from src.services.playbook_executor import PlaybookExecutor
 from src.services.remediation_manager import RemediationManager
 
 __all__ = [
+    # AlertManager
+    "AlertManagerClient",
+    "Alert",
+    "AlertSeverity",
+    "alert_deadlock_detected",
+    "alert_memory_leak_detected",
+    "alert_remediation_started",
+    "alert_remediation_failed",
     # PlaybookExecutor
     "PlaybookExecutor",
     # RemediationManager
