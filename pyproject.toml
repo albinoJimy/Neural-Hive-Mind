@@ -67,7 +67,7 @@ disallow_untyped_defs = false
 # =============================================================================
 [tool.black]
 line-length = 100
-target-version = ["py311"]
+target-version = ["py312"]
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -89,7 +89,7 @@ extend-exclude = '''
 # RUFF - Fast Python Linter
 # =============================================================================
 [tool.ruff]
-target-version = "py311"
+target-version = "py312"
 line-length = 100
 indent-width = 4
 
