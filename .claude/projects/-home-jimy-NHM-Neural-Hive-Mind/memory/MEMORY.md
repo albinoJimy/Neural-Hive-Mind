@@ -1,5 +1,23 @@
 # Neural Hive-Mind - Auto Memory
 
+---
+
+## GAPS Resolvidos (2026-04-07) ✅
+
+**GAP-01: STE-Consensus Topic Alignment**
+- Problema: STE publicava para `intentions.consensus` mas Consensus Engine consumia de `plans.consensus`
+- Solução: Alinhado topic naming entre STE e Consensus Engine
+- Validação: E2E flow verificado, StrEnum polyfill para Python 3.10
+
+**GAP-02: Execution Results Consumer**
+- Problema: Consumer de resultados de execução não funcional
+- Solução: Consumer implementado e validado
+- Testes: 20 testes automatizados passando
+
+**GAPS Pendentes:** Priorities Implementation (GAP-01 e GAP-02 resolvidos em 2026-04-07)
+
+---
+
 ## Project Context
 - **Tech Stack:** Python, FastAPI, Kafka, MongoDB, Redis, Neo4j, Kubernetes
 - **Architecture:** Microservices with Cognitive Pipeline (Gateway → STE → Specialists → Consensus → Orchestrator)
