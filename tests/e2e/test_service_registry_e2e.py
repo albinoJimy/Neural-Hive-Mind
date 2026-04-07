@@ -234,6 +234,7 @@ async def test_register_worker_agent(service_registry_client, etcd_client, test_
 
         # Parse stored data and validate
         import json
+
         stored_data = json.loads(value.decode("utf-8"))
         assert stored_data["agent_type"] == test_agent_info.agent_type
         assert stored_data["namespace"] == test_agent_info.namespace
@@ -283,6 +284,7 @@ async def test_register_multiple_agent_types(service_registry_client, etcd_clien
             assert value is not None, f"Agent {agent_id} not found in etcd"
 
             import json
+
             stored_data = json.loads(value.decode("utf-8"))
             assert stored_data["agent_type"] == agent_type
 
@@ -384,6 +386,7 @@ async def test_heartbeat_updates_telemetry(service_registry_client, etcd_client,
     assert value is not None
 
     import json
+
     stored_data = json.loads(value.decode("utf-8"))
 
     # Validate telemetry fields
@@ -401,7 +404,9 @@ async def test_heartbeat_updates_telemetry(service_registry_client, etcd_client,
 @pytest.mark.e2e
 @pytest.mark.asyncio
 @pytest.mark.slow
-async def test_heartbeat_timeout_marks_unhealthy(service_registry_client, etcd_client, test_agent_info):
+async def test_heartbeat_timeout_marks_unhealthy(
+    service_registry_client, etcd_client, test_agent_info
+):
     """
     Testa que agent sem heartbeat e marcado UNHEALTHY.
 
@@ -426,6 +431,7 @@ async def test_heartbeat_timeout_marks_unhealthy(service_registry_client, etcd_c
         etcd_key = f"/agents/{agent_id}"
         value, _ = etcd_client.get(etcd_key)
         import json
+
         stored_data = json.loads(value.decode("utf-8"))
         assert stored_data["status"] == "HEALTHY"
 
@@ -436,7 +442,9 @@ async def test_heartbeat_timeout_marks_unhealthy(service_registry_client, etcd_c
         # Validate status changed to UNHEALTHY
         value, _ = etcd_client.get(etcd_key)
         stored_data = json.loads(value.decode("utf-8"))
-        assert stored_data["status"] == "UNHEALTHY", "Agent should be marked UNHEALTHY after timeout"
+        assert (
+            stored_data["status"] == "UNHEALTHY"
+        ), "Agent should be marked UNHEALTHY after timeout"
 
         # Validate agent not in discovery with status=HEALTHY filter
         discovered = await service_registry_client.discover(
@@ -616,7 +624,9 @@ async def test_discover_agents_with_filters(service_registry_client):
         production_ids = [a.agent_id for a in production_agents]
 
         assert healthy_agent in production_ids, "Healthy agent should be in production namespace"
-        assert staging_agent not in production_ids, "Staging agent should not be in production namespace"
+        assert (
+            staging_agent not in production_ids
+        ), "Staging agent should not be in production namespace"
         logger.info(f"Namespace filter test passed: {len(production_ids)} agents in production")
 
         # ===== Teste 2: Filtro por status=HEALTHY deve EXCLUIR degraded =====
@@ -639,7 +649,9 @@ async def test_discover_agents_with_filters(service_registry_client):
             f"Got: {healthy_ids}"
         )
 
-        logger.info(f"Status filter test passed: {len(healthy_ids)} healthy agents found, degraded excluded")
+        logger.info(
+            f"Status filter test passed: {len(healthy_ids)} healthy agents found, degraded excluded"
+        )
 
         # ===== Teste 3: Discovery sem filtro de status deve incluir todos =====
         all_production_agents = await service_registry_client.discover(
@@ -649,10 +661,16 @@ async def test_discover_agents_with_filters(service_registry_client):
         all_production_ids = [a.agent_id for a in all_production_agents]
 
         # Ambos agents de production devem estar presentes
-        assert healthy_agent in all_production_ids, "Healthy agent should be in unfiltered discovery"
-        assert degraded_agent in all_production_ids, "Degraded agent should be in unfiltered discovery"
+        assert (
+            healthy_agent in all_production_ids
+        ), "Healthy agent should be in unfiltered discovery"
+        assert (
+            degraded_agent in all_production_ids
+        ), "Degraded agent should be in unfiltered discovery"
 
-        logger.info("Discovery with filters working correctly: namespace and status filters validated")
+        logger.info(
+            "Discovery with filters working correctly: namespace and status filters validated"
+        )
 
     finally:
         for name, agent_id in registered_agents:
@@ -700,10 +718,13 @@ async def test_discover_agents_cache_hit(service_registry_client):
             "service_registry_cache_misses_total",
         )
         initial_cache_misses = int(initial_cache_misses) if initial_cache_misses else 0
-        logger.info(f"Initial cache metrics - hits: {initial_cache_hits}, misses: {initial_cache_misses}")
+        logger.info(
+            f"Initial cache metrics - hits: {initial_cache_hits}, misses: {initial_cache_misses}"
+        )
 
         # Medir latencia da primeira discovery (cache miss - deve ser mais lenta)
         import time
+
         start_time = time.time()
         await service_registry_client.discover(
             capabilities=["python"],
@@ -784,8 +805,8 @@ async def test_discover_agents_cache_hit(service_registry_client):
         # Dois cenarios validos:
         # 1. Cache miss counter aumenta
         # 2. Cache hit counter NAO aumenta (indicando que nao foi cache hit)
-        cache_miss_occurred = (post_ttl_misses > pre_ttl_misses)
-        cache_hit_unchanged = (post_ttl_hits == pre_ttl_hits)
+        cache_miss_occurred = post_ttl_misses > pre_ttl_misses
+        cache_hit_unchanged = post_ttl_hits == pre_ttl_hits
 
         assert cache_miss_occurred or cache_hit_unchanged, (
             f"After TTL expiry, should be cache miss. "
@@ -797,7 +818,9 @@ async def test_discover_agents_cache_hit(service_registry_client):
         if third_discovery_latency > second_discovery_latency * 0.8:
             logger.info(f"Latency increase after TTL confirms cache miss")
 
-        logger.info(f"Cache TTL expiry verified. Final metrics - hits: {post_ttl_hits}, misses: {post_ttl_misses}")
+        logger.info(
+            f"Cache TTL expiry verified. Final metrics - hits: {post_ttl_hits}, misses: {post_ttl_misses}"
+        )
 
     finally:
         for agent_id in registered_agents:
@@ -928,9 +951,13 @@ async def test_pheromone_scoring_affects_discovery_order(service_registry_client
         agent_a_id = registered_agents[0][0]
         if len(discovered_order) >= 3:
             # Best agent should be in top positions
-            agent_a_position = discovered_order.index(agent_a_id) if agent_a_id in discovered_order else -1
+            agent_a_position = (
+                discovered_order.index(agent_a_id) if agent_a_id in discovered_order else -1
+            )
             assert agent_a_position >= 0, "Agent A should be in discovery results"
-            assert agent_a_position <= 1, f"Agent A should be near top, but is at position {agent_a_position}"
+            assert (
+                agent_a_position <= 1
+            ), f"Agent A should be near top, but is at position {agent_a_position}"
 
         logger.info("Pheromone scoring correctly affects discovery order")
 
@@ -1017,8 +1044,9 @@ async def test_deregister_nonexistent_agent(service_registry_client):
     except Exception as e:
         # Should be a "not found" type error
         error_msg = str(e).lower()
-        assert "not found" in error_msg or "not exist" in error_msg, \
-            f"Expected 'not found' error, got: {e}"
+        assert (
+            "not found" in error_msg or "not exist" in error_msg
+        ), f"Expected 'not found' error, got: {e}"
         logger.info("Deregister of nonexistent agent correctly returns not found")
 
 

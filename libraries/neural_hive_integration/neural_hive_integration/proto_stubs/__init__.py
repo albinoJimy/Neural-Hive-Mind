@@ -11,8 +11,8 @@ from . import ticket_service_pb2
 from . import ticket_service_pb2_grpc
 
 __all__ = [
-    'service_registry_pb2',
-    'service_registry_pb2_grpc',
-    'ticket_service_pb2',
-    'ticket_service_pb2_grpc',
+    "service_registry_pb2",
+    "service_registry_pb2_grpc",
+    "ticket_service_pb2",
+    "ticket_service_pb2_grpc",
 ]

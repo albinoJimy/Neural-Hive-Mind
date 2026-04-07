@@ -58,21 +58,12 @@ class MockMLflowClient:
     def create_registered_model(self, name: str) -> MagicMock:
         """Cria modelo registrado."""
         if name not in self._models:
-            self._models[name] = {
-                "name": name,
-                "versions": [],
-                "current_stage": "None"
-            }
+            self._models[name] = {"name": name, "versions": [], "current_stage": "None"}
         model = MagicMock()
         model.name = name
         return model
 
-    def create_model_version(
-        self,
-        name: str,
-        source: str,
-        run_id: str = None
-    ) -> MagicMock:
+    def create_model_version(self, name: str, source: str, run_id: str = None) -> MagicMock:
         """Cria versão de modelo."""
         if name not in self._models:
             self.create_registered_model(name)
@@ -84,7 +75,7 @@ class MockMLflowClient:
             "version": str(version_num),
             "source": source,
             "run_id": run_id,
-            "current_stage": "None"
+            "current_stage": "None",
         }
         self._models[name]["versions"].append(version_info)
 
@@ -95,11 +86,7 @@ class MockMLflowClient:
         return version
 
     def transition_model_version_stage(
-        self,
-        name: str,
-        version: str,
-        stage: str,
-        archive_existing_versions: bool = False
+        self, name: str, version: str, stage: str, archive_existing_versions: bool = False
     ) -> MagicMock:
         """Transiciona versão de modelo para novo estágio."""
         if name in self._models:
@@ -181,11 +168,7 @@ class MockMLflowRun:
         self._info.run_id = self.run_id
 
     def __enter__(self):
-        self.client._runs[self.run_id] = {
-            "params": {},
-            "metrics": {},
-            "artifacts": []
-        }
+        self.client._runs[self.run_id] = {"params": {}, "metrics": {}, "artifacts": []}
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -199,6 +182,7 @@ class MockMLflowRun:
 # =============================================================================
 # Fixtures Pytest
 # =============================================================================
+
 
 @pytest.fixture(scope="session")
 def mlflow_test_tracking_uri() -> str:
@@ -278,29 +262,23 @@ async def seed_mlflow_models(mlflow_test_client, mock_duration_predictor) -> Dic
         mlflow_test_client.create_registered_model(model_name)
 
         v1 = mlflow_test_client.create_model_version(
-            name=model_name,
-            source="mock://v1",
-            run_id="run_v1"
+            name=model_name, source="mock://v1", run_id="run_v1"
         )
         mlflow_test_client.log_metric("run_v1", "mae_percentage", 10.0)
         mlflow_test_client.log_metric("run_v1", "precision", 0.80)
         mlflow_test_client.transition_model_version_stage(
-            name=model_name,
-            version="1",
-            stage="Production"
+            name=model_name, version="1", stage="Production"
         )
 
         v2 = mlflow_test_client.create_model_version(
-            name=model_name,
-            source="mock://v2",
-            run_id="run_v2"
+            name=model_name, source="mock://v2", run_id="run_v2"
         )
         mlflow_test_client.log_metric("run_v2", "mae_percentage", 8.0)
         mlflow_test_client.log_metric("run_v2", "precision", 0.85)
 
         return {
             "v1": {"run_id": "run_v1", "version": "1"},
-            "v2": {"run_id": "run_v2", "version": "2"}
+            "v2": {"run_id": "run_v2", "version": "2"},
         }
 
     else:
@@ -323,9 +301,7 @@ async def seed_mlflow_models(mlflow_test_client, mock_duration_predictor) -> Dic
 
             # Promove v1.0 para produção
             mlflow_test_client.transition_model_version_stage(
-                name=model_name,
-                version=result.version,
-                stage="Production"
+                name=model_name, version=result.version, stage="Production"
             )
 
             # Registra v2.0 (candidato)
@@ -341,12 +317,12 @@ async def seed_mlflow_models(mlflow_test_client, mock_duration_predictor) -> Dic
 
             return {
                 "v1": {"run_id": run_id_v1, "version": result.version},
-                "v2": {"run_id": run_id_v2, "version": result_v2.version}
+                "v2": {"run_id": run_id_v2, "version": result_v2.version},
             }
 
         except Exception as e:
             # Fallback para mock em caso de erro
             return {
                 "v1": {"run_id": "run_v1_fallback", "version": "1"},
-                "v2": {"run_id": "run_v2_fallback", "version": "2"}
+                "v2": {"run_id": "run_v2_fallback", "version": "2"},
             }

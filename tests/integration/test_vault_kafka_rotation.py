@@ -64,7 +64,7 @@ async def test_kafka_credentials_renewal_at_threshold(mock_config, mock_vault_cl
 
     mock_vault_client.read_secret.side_effect = [
         {"username": "kafka_user1", "password": "kafka_pass1", "ttl": 100},
-        {"username": "kafka_user2", "password": "kafka_pass2", "ttl": 100}
+        {"username": "kafka_user2", "password": "kafka_pass2", "ttl": 100},
     ]
 
     # Buscar credenciais iniciais
@@ -95,7 +95,9 @@ async def test_kafka_credentials_no_renewal_before_threshold(mock_config, mock_v
     vault_integration.config = mock_config
 
     mock_vault_client.read_secret.return_value = {
-        "username": "kafka_user1", "password": "kafka_pass1", "ttl": 100
+        "username": "kafka_user1",
+        "password": "kafka_pass1",
+        "ttl": 100,
     }
 
     # Buscar credenciais iniciais
@@ -124,7 +126,7 @@ async def test_kafka_credentials_renewal_on_expiry(mock_config, mock_vault_clien
 
     mock_vault_client.read_secret.side_effect = [
         {"username": "kafka_user1", "password": "kafka_pass1", "ttl": 100},
-        {"username": "kafka_user2", "password": "kafka_pass2", "ttl": 100}
+        {"username": "kafka_user2", "password": "kafka_pass2", "ttl": 100},
     ]
 
     # Buscar credenciais iniciais
@@ -244,7 +246,9 @@ async def test_kafka_credentials_with_zero_ttl_no_expiry_tracking(mock_config, m
 
     # Credenciais sem TTL
     mock_vault_client.read_secret.return_value = {
-        "username": "kafka_user1", "password": "kafka_pass1", "ttl": 0
+        "username": "kafka_user1",
+        "password": "kafka_pass1",
+        "ttl": 0,
     }
 
     # Buscar credenciais iniciais

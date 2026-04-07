@@ -99,8 +99,7 @@ def get_metrics_summary() -> dict:
 if __name__ == "__main__":
     # Test the metrics server when running this module directly
     logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
 
     print("Starting standalone metrics server...")
@@ -112,6 +111,7 @@ if __name__ == "__main__":
 
         # Keep the main thread alive
         import time
+
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
@@ -119,4 +119,5 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"Error: {e}")
         import sys
+
         sys.exit(1)

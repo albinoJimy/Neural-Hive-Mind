@@ -15,6 +15,7 @@ tracer = trace.get_tracer(__name__)
 
 class TaskAssignment(BaseModel):
     """Task assignment request."""
+
     task_id: str
     ticket_id: str
     task_type: str
@@ -24,6 +25,7 @@ class TaskAssignment(BaseModel):
 
 class TaskStatus(BaseModel):
     """Task status response."""
+
     task_id: str
     status: str
     progress: float
@@ -102,9 +104,7 @@ class WorkerAgentClient:
         if not self.base_url or not self.client:
             raise ValueError("Worker endpoint not configured")
 
-        response = await self.client.get(
-            f"{self.base_url}/api/v1/tasks/{task_id}"
-        )
+        response = await self.client.get(f"{self.base_url}/api/v1/tasks/{task_id}")
         response.raise_for_status()
 
         return TaskStatus(**response.json())
@@ -123,9 +123,7 @@ class WorkerAgentClient:
 
         self.logger.info("cancelling_task", task_id=task_id)
 
-        response = await self.client.delete(
-            f"{self.base_url}/api/v1/tasks/{task_id}"
-        )
+        response = await self.client.delete(f"{self.base_url}/api/v1/tasks/{task_id}")
         response.raise_for_status()
 
         self.logger.info("task_cancelled", task_id=task_id)

@@ -92,7 +92,8 @@ async def test_correlation_id_propagation_gateway_to_tickets(
     tickets = await collect_avro_messages(
         avro_consumer,
         topic=test_kafka_topics.get("execution.tickets", "execution.tickets"),
-        filter_fn=lambda msg: msg.get("decision_id") == decision_id or msg.get("plan_id") == plan_id,
+        filter_fn=lambda msg: msg.get("decision_id") == decision_id
+        or msg.get("plan_id") == plan_id,
         timeout=180,
         expected_count=1,
     )
@@ -112,18 +113,18 @@ async def test_correlation_id_propagation_gateway_to_tickets(
         if ledger_collection:
             plan_doc = await ledger_collection.find_one({"plan_id": plan_id})
             if plan_doc:
-                assert plan_doc.get("correlation_id") == correlation_id, (
-                    f"MongoDB cognitive_ledger não tem correlation_id correto"
-                )
+                assert (
+                    plan_doc.get("correlation_id") == correlation_id
+                ), f"MongoDB cognitive_ledger não tem correlation_id correto"
 
         # Verificar consensus_decisions
         decisions_collection = test_mongodb_collections.get("consensus_decisions")
         if decisions_collection and decision_id:
             decision_doc = await decisions_collection.find_one({"decision_id": decision_id})
             if decision_doc:
-                assert decision_doc.get("correlation_id") == correlation_id, (
-                    f"MongoDB consensus_decisions não tem correlation_id correto"
-                )
+                assert (
+                    decision_doc.get("correlation_id") == correlation_id
+                ), f"MongoDB consensus_decisions não tem correlation_id correto"
 
 
 @pytest.mark.e2e
@@ -259,6 +260,6 @@ async def test_correlation_id_persistence_in_mongodb(
     if ledger_collection:
         plan_doc = await ledger_collection.find_one({"plan_id": plan_id})
         assert plan_doc is not None, f"Plano {plan_id} não encontrado em cognitive_ledger"
-        assert plan_doc.get("correlation_id") == correlation_id, (
-            f"correlation_id incorreto em cognitive_ledger"
-        )
+        assert (
+            plan_doc.get("correlation_id") == correlation_id
+        ), f"correlation_id incorreto em cognitive_ledger"

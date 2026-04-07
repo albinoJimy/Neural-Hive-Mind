@@ -14,6 +14,7 @@ from enum import Enum
 # Test: Specialist Base Class
 # =============================================================================
 
+
 class TestSpecialistBase:
     """Testes da classe base de especialista."""
 
@@ -24,17 +25,14 @@ class TestSpecialistBase:
             "type": "business",
             "name": "BusinessAnalyst",
             "version": "1.0.0",
-            "status": "active"
+            "status": "active",
         }
 
         assert specialist["type"] == "business"
 
     def test_specialist_initialize(self):
         """Deve inicializar especialista."""
-        specialist = {
-            "specialist_id": str(uuid4()),
-            "config": {"timeout": 30, "max_retries": 3}
-        }
+        specialist = {"specialist_id": str(uuid4()), "config": {"timeout": 30, "max_retries": 3}}
 
         specialist["initialized_at"] = datetime.now(timezone.utc).isoformat()
         specialist["status"] = "ready"
@@ -43,9 +41,7 @@ class TestSpecialistBase:
 
     def test_specialist_validate_input(self):
         """Deve validar entrada do especialista."""
-        specialist = {
-            "required_fields": ["plan_id", "context"]
-        }
+        specialist = {"required_fields": ["plan_id", "context"]}
 
         valid_input = {"plan_id": str(uuid4()), "context": {}}
         invalid_input = {"plan_id": str(uuid4())}
@@ -61,6 +57,7 @@ class TestSpecialistBase:
 # Test: Opinion Generation
 # =============================================================================
 
+
 class TestOpinionGeneration:
     """Testes de geração de opinião."""
 
@@ -73,7 +70,7 @@ class TestOpinionGeneration:
             "verdict": "approve",
             "confidence": 0.85,
             "reasoning": "Low business risk",
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         assert opinion["verdict"] in ["approve", "reject", "escalate", "defer"]
@@ -86,8 +83,8 @@ class TestOpinionGeneration:
             "reasoning_factors": [
                 {"factor": "low_risk", "weight": 0.3, "value": 0.2},
                 {"factor": "high_value", "weight": 0.4, "value": 0.9},
-                {"factor": "strategic_fit", "weight": 0.3, "value": 0.8}
-            ]
+                {"factor": "strategic_fit", "weight": 0.3, "value": 0.8},
+            ],
         }
 
         # Calcular score ponderado
@@ -102,8 +99,8 @@ class TestOpinionGeneration:
             "metadata": {
                 "processing_time_ms": 150,
                 "model_version": "v2.1",
-                "features_used": ["risk", "value", "strategy"]
-            }
+                "features_used": ["risk", "value", "strategy"],
+            },
         }
 
         assert "processing_time_ms" in opinion["metadata"]
@@ -113,6 +110,7 @@ class TestOpinionGeneration:
 # Test: Specialist Types
 # =============================================================================
 
+
 class TestSpecialistTypes:
     """Testes de tipos de especialista."""
 
@@ -121,7 +119,7 @@ class TestSpecialistTypes:
         specialist = {
             "type": "business",
             "focus_areas": ["roi", "market_fit", "strategic_value"],
-            "risk_tolerance": "medium"
+            "risk_tolerance": "medium",
         }
 
         assert specialist["type"] == "business"
@@ -132,7 +130,7 @@ class TestSpecialistTypes:
         specialist = {
             "type": "technical",
             "focus_areas": ["architecture", "scalability", "maintainability"],
-            "tech_stack_preference": ["python", "kubernetes"]
+            "tech_stack_preference": ["python", "kubernetes"],
         }
 
         assert specialist["type"] == "technical"
@@ -142,7 +140,7 @@ class TestSpecialistTypes:
         specialist = {
             "type": "security",
             "focus_areas": ["data_protection", "compliance", "vulnerability"],
-            "security_level": "high"
+            "security_level": "high",
         }
 
         assert specialist["type"] == "security"
@@ -152,7 +150,7 @@ class TestSpecialistTypes:
         specialist = {
             "type": "architecture",
             "focus_areas": ["design_patterns", "coupling", "cohesion"],
-            "quality_metrics": ["modularity", "testability"]
+            "quality_metrics": ["modularity", "testability"],
         }
 
         assert specialist["type"] == "architecture"
@@ -162,7 +160,7 @@ class TestSpecialistTypes:
         specialist = {
             "type": "behavior",
             "focus_areas": ["user_experience", "interaction_flow", "accessibility"],
-            "ux_score_weight": 0.7
+            "ux_score_weight": 0.7,
         }
 
         assert specialist["type"] == "behavior"
@@ -172,7 +170,7 @@ class TestSpecialistTypes:
         specialist = {
             "type": "evolution",
             "focus_areas": ["adaptability", "learning", "optimization"],
-            "ml_feedback_loop": True
+            "ml_feedback_loop": True,
         }
 
         assert specialist["type"] == "evolution"
@@ -182,38 +180,31 @@ class TestSpecialistTypes:
 # Test: Feature Extraction
 # =============================================================================
 
+
 class TestFeatureExtraction:
     """Testes de extração de features."""
 
     def test_extract_numerical_features(self):
         """Deve extrair features numéricas."""
-        context = {
-            "amount": 1000,
-            "duration_days": 30,
-            "user_age": 35
-        }
+        context = {"amount": 1000, "duration_days": 30, "user_age": 35}
 
         features = {
             "amount_normalized": context["amount"] / 10000,
             "duration_normalized": context["duration_days"] / 365,
-            "age_normalized": context["user_age"] / 100
+            "age_normalized": context["user_age"] / 100,
         }
 
         assert all(0 <= f <= 1 for f in features.values())
 
     def test_extract_categorical_features(self):
         """Deve extrair features categóricas."""
-        context = {
-            "user_segment": "premium",
-            "industry": "finance",
-            "region": "emea"
-        }
+        context = {"user_segment": "premium", "industry": "finance", "region": "emea"}
 
         # One-hot encoding
         features = {
             "is_premium": 1 if context["user_segment"] == "premium" else 0,
             "is_finance": 1 if context["industry"] == "finance" else 0,
-            "is_emea": 1 if context["region"] == "emea" else 0
+            "is_emea": 1 if context["region"] == "emea" else 0,
         }
 
         assert features["is_premium"] == 1
@@ -226,7 +217,7 @@ class TestFeatureExtraction:
             "length": len(text),
             "word_count": len(text.split()),
             "has_digit": any(c.isdigit() for c in text),
-            "avg_word_length": sum(len(w) for w in text.split()) / len(text.split())
+            "avg_word_length": sum(len(w) for w in text.split()) / len(text.split()),
         }
 
         assert features["word_count"] == 8
@@ -237,6 +228,7 @@ class TestFeatureExtraction:
 # Test: Model Prediction
 # =============================================================================
 
+
 class TestModelPrediction:
     """Testes de predição de modelo."""
 
@@ -246,7 +238,7 @@ class TestModelPrediction:
             "model_id": "business_approval_model",
             "version": "v2.1",
             "path": "/models/business_v2.1.pkl",
-            "loaded_at": datetime.now(timezone.utc).isoformat()
+            "loaded_at": datetime.now(timezone.utc).isoformat(),
         }
 
         assert model_info["model_id"] is not None
@@ -270,13 +262,7 @@ class TestModelPrediction:
 
     def test_predict_confidence(self):
         """Deve predir confiança."""
-        model_output = {
-            "probabilities": {
-                "approve": 0.75,
-                "reject": 0.15,
-                "defer": 0.10
-            }
-        }
+        model_output = {"probabilities": {"approve": 0.75, "reject": 0.15, "defer": 0.10}}
 
         # Confiança = probabilidade da classe predita
         max_prob = max(model_output["probabilities"].values())
@@ -288,6 +274,7 @@ class TestModelPrediction:
 # Test: Feedback Collection
 # =============================================================================
 
+
 class TestFeedbackCollection:
     """Testes de coleta de feedback."""
 
@@ -298,7 +285,7 @@ class TestFeedbackCollection:
             "opinion_id": str(uuid4()),
             "actual_outcome": "approved",  # O que realmente aconteceu
             "was_correct": True,
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         assert feedback["was_correct"] is True
@@ -308,7 +295,7 @@ class TestFeedbackCollection:
         feedback = {
             "feedback_id": str(uuid4()),
             "used_for_retraining": True,
-            "retraining_batch": "batch_2026_03_29"
+            "retraining_batch": "batch_2026_03_29",
         }
 
         assert feedback["used_for_retraining"] is True
@@ -319,7 +306,7 @@ class TestFeedbackCollection:
             {"predicted": "approve", "actual": "approve"},
             {"predicted": "reject", "actual": "reject"},
             {"predicted": "approve", "actual": "reject"},  # Erro
-            {"predicted": "reject", "actual": "approve"}   # Erro
+            {"predicted": "reject", "actual": "approve"},  # Erro
         ]
 
         correct = sum(1 for p in predictions if p["predicted"] == p["actual"])
@@ -332,6 +319,7 @@ class TestFeedbackCollection:
 # Test: Specialist Orchestration
 # =============================================================================
 
+
 class TestSpecialistOrchestration:
     """Testes de orquestração de especialistas."""
 
@@ -339,7 +327,7 @@ class TestSpecialistOrchestration:
         """Deve despachar para especialista."""
         plan = {
             "plan_id": str(uuid4()),
-            "required_specialists": ["business", "technical", "security"]
+            "required_specialists": ["business", "technical", "security"],
         }
 
         specialist = "business"
@@ -357,7 +345,7 @@ class TestSpecialistOrchestration:
             opinions[specialist] = {
                 "opinion_id": str(uuid4()),
                 "verdict": "approve" if specialist != "security" else "reject",
-                "confidence": 0.8
+                "confidence": 0.8,
             }
 
         assert len(opinions) == 3
@@ -377,6 +365,7 @@ class TestSpecialistOrchestration:
 # Test: Specialist Configuration
 # =============================================================================
 
+
 class TestSpecialistConfiguration:
     """Testes de configuração de especialista."""
 
@@ -387,7 +376,7 @@ class TestSpecialistConfiguration:
             "model_path": "/models/business.pkl",
             "threshold": 0.5,
             "timeout": 30,
-            "fallback_action": "defer"
+            "fallback_action": "defer",
         }
 
         assert config["threshold"] == 0.5
@@ -403,11 +392,7 @@ class TestSpecialistConfiguration:
 
     def test_validate_config(self):
         """Deve validar configuração."""
-        config = {
-            "threshold": 0.6,
-            "timeout": 60,
-            "model_path": "/models/test.pkl"
-        }
+        config = {"threshold": 0.6, "timeout": 60, "model_path": "/models/test.pkl"}
 
         required_fields = ["threshold", "timeout", "model_path"]
         is_valid = all(f in config for f in required_fields)
@@ -418,6 +403,7 @@ class TestSpecialistConfiguration:
 # =============================================================================
 # Test: Specialist Metrics
 # =============================================================================
+
 
 class TestSpecialistMetrics:
     """Testes de métricas de especialista."""
@@ -438,10 +424,7 @@ class TestSpecialistMetrics:
         """Deve rastrear distribuição de opiniões."""
         opinions = ["approve", "approve", "reject", "reject", "reject"]
 
-        distribution = {
-            "approve": opinions.count("approve"),
-            "reject": opinions.count("reject")
-        }
+        distribution = {"approve": opinions.count("approve"), "reject": opinions.count("reject")}
 
         assert distribution["approve"] == 2
         assert distribution["reject"] == 3
@@ -459,6 +442,7 @@ class TestSpecialistMetrics:
 # =============================================================================
 # Test: A/B Testing for Specialists
 # =============================================================================
+
 
 class TestSpecialistABTesting:
     """Testes de A/B testing para especialistas."""
@@ -478,7 +462,7 @@ class TestSpecialistABTesting:
         """Deve comparar performance de variantes."""
         variants = {
             "v1": {"accuracy": 0.82, "response_time_ms": 150},
-            "v2": {"accuracy": 0.85, "response_time_ms": 180}
+            "v2": {"accuracy": 0.85, "response_time_ms": 180},
         }
 
         # v2 tem maior accuracy mas mais lento
@@ -493,6 +477,7 @@ class TestSpecialistABTesting:
 # Test: Specialist Caching
 # =============================================================================
 
+
 class TestSpecialistCaching:
     """Testes de cache de especialista."""
 
@@ -504,17 +489,14 @@ class TestSpecialistCaching:
         cache = {}
         cache[cache_key] = {
             "prediction": prediction,
-            "cached_at": datetime.now(timezone.utc).isoformat()
+            "cached_at": datetime.now(timezone.utc).isoformat(),
         }
 
         assert cache_key in cache
 
     def test_invalidate_cache(self):
         """Deve invalidar cache."""
-        cache = {
-            "key1": {"value": "v1"},
-            "key2": {"value": "v2"}
-        }
+        cache = {"key1": {"value": "v1"}, "key2": {"value": "v2"}}
 
         key_to_invalidate = "key1"
         if key_to_invalidate in cache:
@@ -526,7 +508,7 @@ class TestSpecialistCaching:
         """Deve expirar cache."""
         cache_entry = {
             "cached_at": (datetime.now(timezone.utc) - timedelta(minutes=35)).isoformat(),
-            "ttl_minutes": 30
+            "ttl_minutes": 30,
         }
 
         cached_at = datetime.fromisoformat(cache_entry["cached_at"])
@@ -540,6 +522,7 @@ class TestSpecialistCaching:
 # =============================================================================
 # Test: Specialist Error Handling
 # =============================================================================
+
 
 class TestSpecialistErrorHandling:
     """Testes de tratamento de erros."""

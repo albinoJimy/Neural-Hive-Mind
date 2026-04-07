@@ -20,12 +20,9 @@ from pathlib import Path
 from typing import Dict, Any
 
 # Adicionar path da biblioteca ao PYTHONPATH
-sys.path.insert(0, str(Path(__file__).parent.parent / 'libraries' / 'python'))
+sys.path.insert(0, str(Path(__file__).parent.parent / "libraries" / "python"))
 
-from neural_hive_specialists.multi_tenant_specialist import (
-    MultiTenantSpecialist,
-    TenantConfig
-)
+from neural_hive_specialists.multi_tenant_specialist import MultiTenantSpecialist, TenantConfig
 from neural_hive_specialists.config import SpecialistConfig
 
 
@@ -38,12 +35,10 @@ class ExampleTechnicalSpecialist(MultiTenantSpecialist):
 
     def _get_specialist_type(self) -> str:
         """Retorna o tipo deste especialista."""
-        return 'technical'
+        return "technical"
 
     def _evaluate_plan_internal(
-        self,
-        cognitive_plan: Dict[str, Any],
-        context: Dict[str, Any]
+        self, cognitive_plan: Dict[str, Any], context: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
         Avalia o plano cognitivo com contexto de tenant.
@@ -56,7 +51,7 @@ class ExampleTechnicalSpecialist(MultiTenantSpecialist):
             Opinião estruturada
         """
         # Extrair tenant_id do contexto
-        tenant_id = context.get('tenant_id', 'default')
+        tenant_id = context.get("tenant_id", "default")
 
         # Buscar configuração do tenant (já validado pelo MultiTenantSpecialist)
         tenant_config = self.tenant_configs.get(tenant_id)
@@ -74,39 +69,37 @@ class ExampleTechnicalSpecialist(MultiTenantSpecialist):
 
         # Determinar recomendação baseado no threshold do tenant
         if confidence_score >= min_confidence:
-            recommendation = 'approve'
+            recommendation = "approve"
         else:
-            recommendation = 'review_required'
+            recommendation = "review_required"
 
         # Retornar opinião
         return {
-            'confidence_score': confidence_score,
-            'risk_score': risk_score,
-            'recommendation': recommendation,
-            'reasoning_summary': f'Avaliação técnica para tenant {tenant_id}',
-            'reasoning_factors': [
+            "confidence_score": confidence_score,
+            "risk_score": risk_score,
+            "recommendation": recommendation,
+            "reasoning_summary": f"Avaliação técnica para tenant {tenant_id}",
+            "reasoning_factors": [
                 {
-                    'factor_name': 'code_quality',
-                    'weight': 0.4,
-                    'score': 0.9,
-                    'description': 'Qualidade do código analisada'
+                    "factor_name": "code_quality",
+                    "weight": 0.4,
+                    "score": 0.9,
+                    "description": "Qualidade do código analisada",
                 },
                 {
-                    'factor_name': 'security',
-                    'weight': 0.6,
-                    'score': 0.8,
-                    'description': 'Análise de segurança'
-                }
+                    "factor_name": "security",
+                    "weight": 0.6,
+                    "score": 0.8,
+                    "description": "Análise de segurança",
+                },
             ],
-            'mitigations': [],
-            'metadata': {
-                'tenant_id': tenant_id,
-                'model_name': (
-                    tenant_config.mlflow_model_name
-                    if tenant_config
-                    else 'default-model'
-                )
-            }
+            "mitigations": [],
+            "metadata": {
+                "tenant_id": tenant_id,
+                "model_name": (
+                    tenant_config.mlflow_model_name if tenant_config else "default-model"
+                ),
+            },
         }
 
 
@@ -118,60 +111,48 @@ def create_tenant_configs() -> Dict[str, TenantConfig]:
         Dicionário de configurações por tenant_id
     """
     return {
-        'tenant-enterprise-A': TenantConfig(
-            tenant_id='tenant-enterprise-A',
-            tenant_name='Empresa A (Enterprise)',
+        "tenant-enterprise-A": TenantConfig(
+            tenant_id="tenant-enterprise-A",
+            tenant_name="Empresa A (Enterprise)",
             is_active=True,
-            mlflow_model_name='technical-specialist-enterprise-v2',
-            mlflow_model_stage='Production',
+            mlflow_model_name="technical-specialist-enterprise-v2",
+            mlflow_model_stage="Production",
             min_confidence_score=0.85,
             high_risk_threshold=0.7,
             enable_explainability=True,
             rate_limit_per_second=500,
             metadata={
-                'tier': 'enterprise',
-                'support_level': 'premium',
-                'contract_id': 'ENT-2024-001'
-            }
+                "tier": "enterprise",
+                "support_level": "premium",
+                "contract_id": "ENT-2024-001",
+            },
         ),
-        'tenant-startup-B': TenantConfig(
-            tenant_id='tenant-startup-B',
-            tenant_name='Startup B',
+        "tenant-startup-B": TenantConfig(
+            tenant_id="tenant-startup-B",
+            tenant_name="Startup B",
             is_active=True,
             min_confidence_score=0.75,
             rate_limit_per_second=100,
-            metadata={
-                'tier': 'standard',
-                'support_level': 'standard'
-            }
+            metadata={"tier": "standard", "support_level": "standard"},
         ),
-        'tenant-inactive-C': TenantConfig(
-            tenant_id='tenant-inactive-C',
-            tenant_name='Tenant Inativo C',
+        "tenant-inactive-C": TenantConfig(
+            tenant_id="tenant-inactive-C",
+            tenant_name="Tenant Inativo C",
             is_active=False,  # ⚠️  Inativo - requests serão rejeitados
             rate_limit_per_second=0,
-            metadata={
-                'tier': 'suspended',
-                'reason': 'payment_overdue'
-            }
+            metadata={"tier": "suspended", "reason": "payment_overdue"},
         ),
-        'default': TenantConfig(
-            tenant_id='default',
-            tenant_name='Tenant Padrão',
+        "default": TenantConfig(
+            tenant_id="default",
+            tenant_name="Tenant Padrão",
             is_active=True,
             rate_limit_per_second=50,
-            metadata={
-                'tier': 'free'
-            }
-        )
+            metadata={"tier": "free"},
+        ),
     }
 
 
-def simulate_request(
-    specialist: ExampleTechnicalSpecialist,
-    tenant_id: str,
-    plan_id: str
-) -> None:
+def simulate_request(specialist: ExampleTechnicalSpecialist, tenant_id: str, plan_id: str) -> None:
     """
     Simula um request gRPC com tenant_id.
 
@@ -188,14 +169,14 @@ def simulate_request(
     class MockRequest:
         def __init__(self):
             self.plan_id = plan_id
-            self.intent_id = f'intent-{plan_id}'
-            self.correlation_id = f'corr-{plan_id}'
+            self.intent_id = f"intent-{plan_id}"
+            self.correlation_id = f"corr-{plan_id}"
             self.trace_id = None
-            self.context = {'tenant_id': tenant_id}
+            self.context = {"tenant_id": tenant_id}
             self.cognitive_plan = {
-                'action': 'deploy',
-                'resources': ['api-gateway', 'database'],
-                'domain': 'infrastructure'
+                "action": "deploy",
+                "resources": ["api-gateway", "database"],
+                "domain": "infrastructure",
             }
 
     request = MockRequest()
@@ -217,8 +198,7 @@ def simulate_request(
 
         # Avaliar plano
         opinion = specialist._evaluate_plan_internal(
-            cognitive_plan=request.cognitive_plan,
-            context=request.context
+            cognitive_plan=request.cognitive_plan, context=request.context
         )
 
         print(f"\n📊 Opinião Gerada:")
@@ -250,24 +230,24 @@ def simulate_request(
 
 def main():
     """Função principal do exemplo."""
-    print("="*80)
+    print("=" * 80)
     print("EXEMPLO: Multi-Tenant Specialist - Neural Hive Mind")
-    print("="*80)
+    print("=" * 80)
 
     # 1. Criar configuração do especialista
     print("\n1. Criando configuração do especialista...")
     config = SpecialistConfig(
-        specialist_type='technical',
-        specialist_version='1.0.0',
-        model_name='technical-specialist-default',
+        specialist_type="technical",
+        specialist_version="1.0.0",
+        model_name="technical-specialist-default",
         enable_multi_tenancy=True,
         max_tenants=50,
-        default_tenant_id='default',
+        default_tenant_id="default",
         min_confidence_score=0.7,
         # Desabilitar dependências externas para exemplo
         enable_cache=False,
         enable_ledger=False,
-        enable_metrics=False
+        enable_metrics=False,
     )
     print("✅ Configuração criada")
 
@@ -292,30 +272,22 @@ def main():
 
     # Request do tenant enterprise (ativo)
     simulate_request(
-        specialist=specialist,
-        tenant_id='tenant-enterprise-A',
-        plan_id='plan-enterprise-001'
+        specialist=specialist, tenant_id="tenant-enterprise-A", plan_id="plan-enterprise-001"
     )
 
     # Request do tenant startup (ativo)
     simulate_request(
-        specialist=specialist,
-        tenant_id='tenant-startup-B',
-        plan_id='plan-startup-001'
+        specialist=specialist, tenant_id="tenant-startup-B", plan_id="plan-startup-001"
     )
 
     # Request do tenant inativo (deve falhar)
     simulate_request(
-        specialist=specialist,
-        tenant_id='tenant-inactive-C',
-        plan_id='plan-inactive-001'
+        specialist=specialist, tenant_id="tenant-inactive-C", plan_id="plan-inactive-001"
     )
 
     # Request de tenant desconhecido (deve falhar)
     simulate_request(
-        specialist=specialist,
-        tenant_id='tenant-unknown-XYZ',
-        plan_id='plan-unknown-001'
+        specialist=specialist, tenant_id="tenant-unknown-XYZ", plan_id="plan-unknown-001"
     )
 
     # Request sem tenant_id (usa default)
@@ -325,15 +297,12 @@ def main():
 
     class MockRequestNoTenant:
         def __init__(self):
-            self.plan_id = 'plan-default-001'
-            self.intent_id = 'intent-default-001'
-            self.correlation_id = 'corr-default-001'
+            self.plan_id = "plan-default-001"
+            self.intent_id = "intent-default-001"
+            self.correlation_id = "corr-default-001"
             self.trace_id = None
             self.context = {}  # ⚠️  Sem tenant_id
-            self.cognitive_plan = {
-                'action': 'analyze',
-                'resources': []
-            }
+            self.cognitive_plan = {"action": "analyze", "resources": []}
 
     request = MockRequestNoTenant()
     extracted = specialist._extract_tenant_id(request)
@@ -344,7 +313,7 @@ def main():
     print(f"\n{'='*80}")
 
     # Mesmo plan_id, tenants diferentes
-    plan_id_shared = 'shared-plan-999'
+    plan_id_shared = "shared-plan-999"
 
     print(f"\n📝 Cenário: Dois tenants com MESMO plan_id")
     print(f"   plan_id: {plan_id_shared}")
@@ -372,7 +341,8 @@ def main():
     print(f"\n{'='*80}")
     print("RESUMO")
     print(f"{'='*80}")
-    print("""
+    print(
+        """
 Este exemplo demonstrou:
 
 ✅ Configuração de múltiplos tenants com diferentes tiers
@@ -391,8 +361,9 @@ Para usar em produção:
 4. Deploy com helm charts incluindo tenant-config ConfigMap
 
 Veja mais em: docs/MULTI_TENANCY_GUIDE.md
-    """)
+    """
+    )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

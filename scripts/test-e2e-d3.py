@@ -41,7 +41,9 @@ REPORT_DIR = PROJECT_ROOT / "docs" / "test-raw-data" / datetime.now().strftime("
 CODE_FORGE_URL = os.getenv("CODE_FORGE_URL", "http://localhost:8000")
 TICKET_SVC_URL = os.getenv("TICKET_SVC_URL", "http://localhost:8003")
 KAFKA_BROKER = os.getenv("KAFKA_BROKER", "localhost:9092")
-MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://root:local_dev_password@localhost:27017/?authSource=admin")
+MONGODB_URI = os.getenv(
+    "MONGODB_URI", "mongodb://root:local_dev_password@localhost:27017/?authSource=admin"
+)
 
 # Timeout para o teste completo
 TEST_TIMEOUT = 300  # 5 minutos
@@ -52,12 +54,13 @@ POLL_INTERVAL = 5  # segundos
 # FUNÇÕES DE LOG
 # ============================================================================
 
+
 class Colors:
-    BLUE = '\033[0;34m'
-    GREEN = '\033[0;32m'
-    YELLOW = '\033[1;33m'
-    RED = '\033[0;31m'
-    NC = '\033[0m'
+    BLUE = "\033[0;34m"
+    GREEN = "\033[0;32m"
+    YELLOW = "\033[1;33m"
+    RED = "\033[0;31m"
+    NC = "\033[0m"
 
 
 def log_info(msg: str):
@@ -83,6 +86,7 @@ def log_step(msg: str):
 # ============================================================================
 # CLASSES DO TESTE
 # ============================================================================
+
 
 class D3E2ETest:
     """Classe principal para teste E2E do fluxo D3"""
@@ -135,21 +139,21 @@ class D3E2ETest:
                 "patterns": ["repository", "service_layer"],
                 "generate_tests": True,
                 "generate_sbom": True,
-                "sign_artifact": True
+                "sign_artifact": True,
             },
             "sla": {
                 "deadline": (now + timedelta(hours=4)).isoformat(),
                 "timeout_ms": 14400000,
-                "max_retries": 3
+                "max_retries": 3,
             },
             "qos": {
                 "delivery_mode": "AT_LEAST_ONCE",
                 "consistency": "EVENTUAL",
-                "durability": "PERSISTENT"
+                "durability": "PERSISTENT",
             },
             "security_level": "INTERNAL",
             "dependencies": [],
-            "created_at": now.isoformat()
+            "created_at": now.isoformat(),
         }
 
     async def create_ticket(self) -> bool:
@@ -163,7 +167,7 @@ class D3E2ETest:
                 async with session.post(
                     f"{TICKET_SVC_URL}/api/v1/tickets/",
                     json=payload,
-                    headers={"Content-Type": "application/json"}
+                    headers={"Content-Type": "application/json"},
                 ) as response:
                     if response.status == 200 or response.status == 201:
                         result = await response.json()
@@ -193,18 +197,18 @@ class D3E2ETest:
                     ) as response:
                         if response.status == 200:
                             data = await response.json()
-                            status = data.get('status', 'UNKNOWN')
+                            status = data.get("status", "UNKNOWN")
 
-                            if status == 'COMPLETED':
+                            if status == "COMPLETED":
                                 log_success("Ticket completado!")
                                 self.end_time = time.time()
                                 return True
-                            elif status == 'FAILED':
+                            elif status == "FAILED":
                                 log_error("Ticket falhou!")
-                                error = data.get('metadata', {}).get('error', 'Unknown')
+                                error = data.get("metadata", {}).get("error", "Unknown")
                                 log_error(f"Erro: {error}")
                                 return False
-                            elif status in ('RUNNING', 'PENDING'):
+                            elif status in ("RUNNING", "PENDING"):
                                 print(".", end="", flush=True)
                             else:
                                 log_info(f"Status: {status}")
@@ -224,11 +228,7 @@ class D3E2ETest:
         """Verifica resultados no MongoDB"""
         log_step("Verificando resultados no MongoDB")
 
-        results = {
-            'pipeline': None,
-            'artifacts': [],
-            'found': False
-        }
+        results = {"pipeline": None, "artifacts": [], "found": False}
 
         try:
             client = MongoClient(MONGODB_URI)
@@ -238,12 +238,12 @@ class D3E2ETest:
             pipeline = db.pipelines.find_one({"ticket_id": self.ticket_id})
             if pipeline:
                 log_success("Pipeline encontrado no MongoDB")
-                self.pipeline_id = pipeline.get('pipeline_id')
+                self.pipeline_id = pipeline.get("pipeline_id")
                 log_info(f"Pipeline ID: {self.pipeline_id}")
                 log_info(f"Status: {pipeline.get('status')}")
                 log_info(f"Duração: {pipeline.get('total_duration_ms')}ms")
-                results['pipeline'] = pipeline
-                results['found'] = True
+                results["pipeline"] = pipeline
+                results["found"] = True
 
             # Buscar artefatos
             artifacts = list(db.artifacts.find({"ticket_id": self.ticket_id}))
@@ -251,7 +251,7 @@ class D3E2ETest:
                 log_success(f"Encontrados {len(artifacts)} artefato(s)")
                 for artifact in artifacts:
                     log_info(f"  - {artifact.get('artifact_type')}: {artifact.get('artifact_id')}")
-                results['artifacts'] = artifacts
+                results["artifacts"] = artifacts
 
             client.close()
 
@@ -266,18 +266,21 @@ class D3E2ETest:
 
         try:
             consumer = KafkaConsumer(
-                'execution.results',
+                "execution.results",
                 bootstrap_servers=KAFKA_BROKER,
-                auto_offset_reset='earliest',
+                auto_offset_reset="earliest",
                 consumer_timeout_ms=5000,
-                group_id=f'd3-test-{uuid.uuid4().hex[:8]}'
+                group_id=f"d3-test-{uuid.uuid4().hex[:8]}",
             )
 
             messages = []
             for message in consumer:
                 try:
-                    value = json.loads(message.value.decode('utf-8'))
-                    if value.get('ticket_id') == self.ticket_id or value.get('trace_id') == self.trace_id:
+                    value = json.loads(message.value.decode("utf-8"))
+                    if (
+                        value.get("ticket_id") == self.ticket_id
+                        or value.get("trace_id") == self.trace_id
+                    ):
                         messages.append(value)
                 except:
                     pass
@@ -301,9 +304,9 @@ class D3E2ETest:
 
         duration = self.end_time - self.start_time if self.end_time and self.start_time else 0
 
-        artifact_count = len(mongodb_results.get('artifacts', []))
-        has_sbom = any(a.get('sbom_uri') for a in mongodb_results.get('artifacts', []))
-        has_signature = any(a.get('signature') for a in mongodb_results.get('artifacts', []))
+        artifact_count = len(mongodb_results.get("artifacts", []))
+        has_sbom = any(a.get("sbom_uri") for a in mongodb_results.get("artifacts", []))
+        has_signature = any(a.get("signature") for a in mongodb_results.get("artifacts", []))
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         report_file = REPORT_DIR / f"E2E_D3_{timestamp}.md"
@@ -339,10 +342,12 @@ class D3E2ETest:
 
 """
 
-        for artifact in mongodb_results.get('artifacts', []):
-            report_content += f"- **{artifact.get('artifact_type')}**: `{artifact.get('artifact_id')}`\n"
+        for artifact in mongodb_results.get("artifacts", []):
+            report_content += (
+                f"- **{artifact.get('artifact_type')}**: `{artifact.get('artifact_id')}`\n"
+            )
             report_content += f"  - URI: {artifact.get('content_uri')}\n"
-            if artifact.get('sbom_uri'):
+            if artifact.get("sbom_uri"):
                 report_content += f"  - SBOM: {artifact.get('sbom_uri')}\n"
 
         report_content += f"""
@@ -413,6 +418,7 @@ Todos os critérios de aceitação foram validados.
 # ============================================================================
 # MAIN
 # ============================================================================
+
 
 async def main():
     """Função principal"""

@@ -13,22 +13,23 @@ import os
 from datetime import datetime
 
 # Configuração do namespace (configurável via variável de ambiente)
-SPECIALISTS_NAMESPACE = os.getenv('SPECIALISTS_NAMESPACE', 'neural-hive')
+SPECIALISTS_NAMESPACE = os.getenv("SPECIALISTS_NAMESPACE", "neural-hive")
 
 # Configuração dos specialists
 SPECIALISTS = {
-    'business': f'specialist-business.{SPECIALISTS_NAMESPACE}.svc.cluster.local:50051',
-    'behavior': f'specialist-behavior.{SPECIALISTS_NAMESPACE}.svc.cluster.local:50051',
-    'evolution': f'specialist-evolution.{SPECIALISTS_NAMESPACE}.svc.cluster.local:50051',
-    'architecture': f'specialist-architecture.{SPECIALISTS_NAMESPACE}.svc.cluster.local:50051',
-    'technical': f'specialist-technical.{SPECIALISTS_NAMESPACE}.svc.cluster.local:50051',
+    "business": f"specialist-business.{SPECIALISTS_NAMESPACE}.svc.cluster.local:50051",
+    "behavior": f"specialist-behavior.{SPECIALISTS_NAMESPACE}.svc.cluster.local:50051",
+    "evolution": f"specialist-evolution.{SPECIALISTS_NAMESPACE}.svc.cluster.local:50051",
+    "architecture": f"specialist-architecture.{SPECIALISTS_NAMESPACE}.svc.cluster.local:50051",
+    "technical": f"specialist-technical.{SPECIALISTS_NAMESPACE}.svc.cluster.local:50051",
 }
+
 
 def test_health_check(specialist_name, address):
     """Testa o health check de um specialist via gRPC"""
     print(f"\n{'='*60}")
     print(f"Testando {specialist_name} em {address}")
-    print('='*60)
+    print("=" * 60)
 
     try:
         # Cria canal gRPC
@@ -53,12 +54,13 @@ def test_health_check(specialist_name, address):
         print(f"✗ Erro: {str(e)}")
         return False
 
+
 def main():
-    print("="*60)
+    print("=" * 60)
     print("Teste gRPC - Specialists Phase 1")
     print(f"Timestamp: {datetime.now().isoformat()}")
     print(f"Namespace: {SPECIALISTS_NAMESPACE}")
-    print("="*60)
+    print("=" * 60)
 
     results = {}
 
@@ -67,9 +69,9 @@ def main():
         results[name] = success
 
     # Resumo
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("RESUMO DOS TESTES")
-    print("="*60)
+    print("=" * 60)
 
     total = len(results)
     passed = sum(1 for v in results.values() if v)
@@ -81,14 +83,14 @@ def main():
 
     print(f"\nTotal: {total} | Passou: {passed} | Falhou: {failed}")
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("NOTA IMPORTANTE")
-    print("="*60)
+    print("=" * 60)
     print("\nEste script testa apenas conectividade básica gRPC.")
     print("Para testar EvaluatePlan com validação completa do campo evaluated_at")
     print("(necessário para provocar o TypeError), execute:")
     print("\n  python3 scripts/debug/test-grpc-isolated.py")
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
 
     if failed > 0:
         print("\n✗ Alguns testes falharam")
@@ -96,6 +98,7 @@ def main():
     else:
         print("\n✓ Todos os testes passaram!")
         sys.exit(0)
+
 
 if __name__ == "__main__":
     main()

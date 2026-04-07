@@ -15,15 +15,13 @@ logger = structlog.get_logger(__name__)
 
 # Métricas Prometheus
 mtls_channel_created_total = Counter(
-    'mtls_channel_created_total',
-    'Total de canais gRPC mTLS criados',
-    ['status']
+    "mtls_channel_created_total", "Total de canais gRPC mTLS criados", ["status"]
 )
 
 insecure_channel_created_total = Counter(
-    'insecure_channel_created_total',
-    'Total de canais gRPC inseguros criados (apenas dev)',
-    ['environment']
+    "insecure_channel_created_total",
+    "Total de canais gRPC inseguros criados (apenas dev)",
+    ["environment"],
 )
 
 
@@ -31,7 +29,7 @@ async def create_secure_grpc_channel(
     target: str,
     spiffe_config: SPIFFEConfig,
     spiffe_manager: Optional[SPIFFEManager] = None,
-    fallback_insecure: bool = False
+    fallback_insecure: bool = False,
 ) -> grpc.aio.Channel:
     """
     Cria canal gRPC seguro com mTLS via SPIFFE X.509-SVID.
@@ -66,20 +64,20 @@ async def create_secure_grpc_channel(
 
                 # Criar credenciais SSL
                 credentials = grpc.ssl_channel_credentials(
-                    root_certificates=x509_svid.ca_bundle.encode('utf-8'),
-                    private_key=x509_svid.private_key.encode('utf-8'),
-                    certificate_chain=x509_svid.certificate.encode('utf-8')
+                    root_certificates=x509_svid.ca_bundle.encode("utf-8"),
+                    private_key=x509_svid.private_key.encode("utf-8"),
+                    certificate_chain=x509_svid.certificate.encode("utf-8"),
                 )
 
                 # Criar canal seguro
                 channel = grpc.aio.secure_channel(target, credentials)
 
-                mtls_channel_created_total.labels(status='success').inc()
+                mtls_channel_created_total.labels(status="success").inc()
                 logger.info(
-                    'mtls_channel_created',
+                    "mtls_channel_created",
                     target=target,
                     spiffe_id=x509_svid.spiffe_id,
-                    expires_at=x509_svid.expires_at.isoformat()
+                    expires_at=x509_svid.expires_at.isoformat(),
                 )
 
                 return channel
@@ -91,15 +89,15 @@ async def create_secure_grpc_channel(
                     pass
 
         except SPIFFEFetchError as e:
-            mtls_channel_created_total.labels(status='error').inc()
-            logger.error('mtls_channel_creation_failed', target=target, error=str(e))
+            mtls_channel_created_total.labels(status="error").inc()
+            logger.error("mtls_channel_creation_failed", target=target, error=str(e))
 
             # Verificar se fallback é permitido
             if not fallback_insecure:
                 raise RuntimeError(f"Failed to create mTLS channel: {e}")
 
             # Fallback apenas em desenvolvimento
-            is_dev_env = spiffe_config.environment.lower() in ('dev', 'development')
+            is_dev_env = spiffe_config.environment.lower() in ("dev", "development")
             if not is_dev_env:
                 raise RuntimeError(
                     f"mTLS required in {spiffe_config.environment} but failed. "
@@ -107,14 +105,14 @@ async def create_secure_grpc_channel(
                 )
 
         except Exception as e:
-            mtls_channel_created_total.labels(status='error').inc()
-            logger.error('mtls_channel_creation_failed', target=target, error=str(e))
+            mtls_channel_created_total.labels(status="error").inc()
+            logger.error("mtls_channel_creation_failed", target=target, error=str(e))
 
             if not fallback_insecure:
                 raise RuntimeError(f"Failed to create mTLS channel: {e}")
 
             # Fallback apenas em desenvolvimento
-            is_dev_env = spiffe_config.environment.lower() in ('dev', 'development')
+            is_dev_env = spiffe_config.environment.lower() in ("dev", "development")
             if not is_dev_env:
                 raise RuntimeError(
                     f"mTLS required in {spiffe_config.environment} but failed. "
@@ -122,7 +120,7 @@ async def create_secure_grpc_channel(
                 )
 
     # Fallback para canal inseguro (apenas desenvolvimento)
-    is_dev_env = spiffe_config.environment.lower() in ('dev', 'development')
+    is_dev_env = spiffe_config.environment.lower() in ("dev", "development")
     if not is_dev_env:
         raise RuntimeError(
             f"mTLS is required in {spiffe_config.environment} but SPIFFE X.509 is disabled. "
@@ -131,19 +129,16 @@ async def create_secure_grpc_channel(
 
     insecure_channel_created_total.labels(environment=spiffe_config.environment).inc()
     logger.warning(
-        'using_insecure_channel',
+        "using_insecure_channel",
         target=target,
         environment=spiffe_config.environment,
-        warning='mTLS disabled - NOT FOR PRODUCTION USE'
+        warning="mTLS disabled - NOT FOR PRODUCTION USE",
     )
 
     return grpc.aio.insecure_channel(target)
 
 
-def create_secure_grpc_channel_sync(
-    target: str,
-    x509_svid: X509SVID
-) -> grpc.Channel:
+def create_secure_grpc_channel_sync(target: str, x509_svid: X509SVID) -> grpc.Channel:
     """
     Cria canal gRPC seguro síncrono com X.509-SVID já obtido.
 
@@ -155,28 +150,26 @@ def create_secure_grpc_channel_sync(
         Canal gRPC síncrono seguro
     """
     credentials = grpc.ssl_channel_credentials(
-        root_certificates=x509_svid.ca_bundle.encode('utf-8'),
-        private_key=x509_svid.private_key.encode('utf-8'),
-        certificate_chain=x509_svid.certificate.encode('utf-8')
+        root_certificates=x509_svid.ca_bundle.encode("utf-8"),
+        private_key=x509_svid.private_key.encode("utf-8"),
+        certificate_chain=x509_svid.certificate.encode("utf-8"),
     )
 
     channel = grpc.secure_channel(target, credentials)
 
-    mtls_channel_created_total.labels(status='success').inc()
+    mtls_channel_created_total.labels(status="success").inc()
     logger.info(
-        'mtls_channel_created_sync',
+        "mtls_channel_created_sync",
         target=target,
         spiffe_id=x509_svid.spiffe_id,
-        expires_at=x509_svid.expires_at.isoformat()
+        expires_at=x509_svid.expires_at.isoformat(),
     )
 
     return channel
 
 
 async def get_grpc_metadata_with_jwt(
-    spiffe_manager: SPIFFEManager,
-    audience: str,
-    environment: str = 'development'
+    spiffe_manager: SPIFFEManager, audience: str, environment: str = "development"
 ) -> List[Tuple[str, str]]:
     """
     Obtém metadata gRPC com JWT-SVID para autenticação.
@@ -193,19 +186,19 @@ async def get_grpc_metadata_with_jwt(
 
     try:
         jwt_svid = await spiffe_manager.fetch_jwt_svid(audience=audience)
-        metadata.append(('authorization', f'Bearer {jwt_svid.token}'))
+        metadata.append(("authorization", f"Bearer {jwt_svid.token}"))
 
         logger.debug(
-            'jwt_svid_added_to_metadata',
+            "jwt_svid_added_to_metadata",
             spiffe_id=jwt_svid.spiffe_id,
-            expiry=jwt_svid.expiry.isoformat()
+            expiry=jwt_svid.expiry.isoformat(),
         )
 
     except Exception as e:
-        logger.warning('jwt_svid_fetch_failed', error=str(e))
+        logger.warning("jwt_svid_fetch_failed", error=str(e))
 
         # Falhar em produção, continuar em dev
-        is_dev_env = environment.lower() in ('dev', 'development')
+        is_dev_env = environment.lower() in ("dev", "development")
         if not is_dev_env:
             raise
 

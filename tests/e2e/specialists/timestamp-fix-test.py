@@ -28,26 +28,26 @@ structlog.configure(
     processors=[
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.add_log_level,
-        structlog.processors.JSONRenderer()
+        structlog.processors.JSONRenderer(),
     ]
 )
 
 logger = structlog.get_logger()
 
 # Configurações (podem ser sobrescritas via variáveis de ambiente)
-KAFKA_BOOTSTRAP_SERVERS = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092')
-TOPIC_PLANS_READY = os.getenv('TOPIC_PLANS_READY', 'plans.ready')
-TOPIC_PLANS_CONSENSUS = os.getenv('TOPIC_PLANS_CONSENSUS', 'plans.consensus')
+KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+TOPIC_PLANS_READY = os.getenv("TOPIC_PLANS_READY", "plans.ready")
+TOPIC_PLANS_CONSENSUS = os.getenv("TOPIC_PLANS_CONSENSUS", "plans.consensus")
 
 
 class Colors:
-    GREEN = '\033[92m'
-    RED = '\033[91m'
-    YELLOW = '\033[93m'
-    BLUE = '\033[94m'
-    CYAN = '\033[96m'
-    RESET = '\033[0m'
-    BOLD = '\033[1m'
+    GREEN = "\033[92m"
+    RED = "\033[91m"
+    YELLOW = "\033[93m"
+    BLUE = "\033[94m"
+    CYAN = "\033[96m"
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
 
 
 class TestTimestampFix:
@@ -62,7 +62,7 @@ class TestTimestampFix:
             "consensus_received": False,
             "specialists_count": 0,
             "timestamps_valid": 0,
-            "errors": []
+            "errors": [],
         }
 
     async def setup(self):
@@ -75,7 +75,7 @@ class TestTimestampFix:
         # Configurar producer
         self.producer = AIOKafkaProducer(
             bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
-            value_serializer=lambda v: json.dumps(v).encode('utf-8')
+            value_serializer=lambda v: json.dumps(v).encode("utf-8"),
         )
         await self.producer.start()
         logger.info("Producer Kafka iniciado")
@@ -85,9 +85,9 @@ class TestTimestampFix:
         self.consumer = AIOKafkaConsumer(
             TOPIC_PLANS_CONSENSUS,
             bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
-            value_deserializer=lambda m: json.loads(m.decode('utf-8')),
-            auto_offset_reset='latest',
-            group_id=f'test-timestamp-fix-{uuid.uuid4()}'
+            value_deserializer=lambda m: json.loads(m.decode("utf-8")),
+            auto_offset_reset="latest",
+            group_id=f"test-timestamp-fix-{uuid.uuid4()}",
         )
         await self.consumer.start()
         logger.info("Consumer Kafka iniciado")
@@ -116,25 +116,18 @@ class TestTimestampFix:
                 {
                     "task_id": f"task-{uuid.uuid4()}",
                     "action_type": "validate_timestamp",
-                    "parameters": {
-                        "test_type": "timestamp_fix",
-                        "version": "1.0.8"
-                    },
-                    "dependencies": []
+                    "parameters": {"test_type": "timestamp_fix", "version": "1.0.8"},
+                    "dependencies": [],
                 }
             ],
             "metadata": {
                 "test_type": "timestamp_fix_e2e",
                 "version": "1.0.8",
-                "timestamp": datetime.now(timezone.utc).isoformat()
-            }
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            },
         }
 
-        logger.info(
-            "Plano de teste criado",
-            plan_id=self.test_plan_id,
-            intent_id=intent_id
-        )
+        logger.info("Plano de teste criado", plan_id=self.test_plan_id, intent_id=intent_id)
 
         return plan
 
@@ -157,7 +150,9 @@ class TestTimestampFix:
 
     async def wait_for_consensus(self, timeout: int = 60) -> Optional[Dict[str, Any]]:
         """Aguardar decisão de consenso"""
-        print(f"\n{Colors.BLUE}{Colors.BOLD}[2/4] Aguardando decisão de consenso (timeout: {timeout}s){Colors.RESET}")
+        print(
+            f"\n{Colors.BLUE}{Colors.BOLD}[2/4] Aguardando decisão de consenso (timeout: {timeout}s){Colors.RESET}"
+        )
 
         start_time = datetime.now()
         deadline = start_time + timedelta(seconds=timeout)
@@ -175,13 +170,13 @@ class TestTimestampFix:
                 decision = msg.value
 
                 # Filtrar por plan_id
-                if decision.get('plan_id') != self.test_plan_id:
+                if decision.get("plan_id") != self.test_plan_id:
                     continue
 
                 logger.info(
                     "Decisão de consenso recebida",
                     plan_id=self.test_plan_id,
-                    decision_id=decision.get('decision_id')
+                    decision_id=decision.get("decision_id"),
                 )
                 print(f"{Colors.GREEN}✓ Decisão de consenso recebida{Colors.RESET}")
                 self.results["consensus_received"] = True
@@ -206,7 +201,7 @@ class TestTimestampFix:
         print(f"\n{Colors.BLUE}{Colors.BOLD}[3/4] Validando decisão de consenso{Colors.RESET}")
 
         # Validar campos obrigatórios
-        required_fields = ['decision_id', 'plan_id', 'opinions']
+        required_fields = ["decision_id", "plan_id", "opinions"]
         for field in required_fields:
             if field not in decision:
                 error_msg = f"Campo obrigatório ausente: {field}"
@@ -217,7 +212,7 @@ class TestTimestampFix:
         print(f"{Colors.GREEN}✓ Campos obrigatórios presentes{Colors.RESET}")
 
         # Validar opinions
-        opinions = decision.get('opinions', [])
+        opinions = decision.get("opinions", [])
         if not isinstance(opinions, list):
             error_msg = f"'opinions' deve ser uma lista, recebido: {type(opinions).__name__}"
             self.results["errors"].append(error_msg)
@@ -240,8 +235,8 @@ class TestTimestampFix:
         all_timestamps_valid = True
 
         for idx, opinion in enumerate(opinions):
-            specialist_type = opinion.get('specialist_type', 'unknown')
-            evaluated_at_str = opinion.get('evaluated_at')
+            specialist_type = opinion.get("specialist_type", "unknown")
+            evaluated_at_str = opinion.get("evaluated_at")
 
             if not evaluated_at_str:
                 error_msg = f"Specialist {specialist_type}: evaluated_at ausente"
@@ -252,7 +247,7 @@ class TestTimestampFix:
 
             try:
                 # Tentar parsear timestamp ISO 8601
-                evaluated_at = datetime.fromisoformat(evaluated_at_str.replace('Z', '+00:00'))
+                evaluated_at = datetime.fromisoformat(evaluated_at_str.replace("Z", "+00:00"))
 
                 # Validar que não é timestamp zero (1970-01-01)
                 epoch_start = datetime(1970, 1, 1, tzinfo=timezone.utc)
@@ -273,7 +268,9 @@ class TestTimestampFix:
                     # Não falha o teste, apenas warning
 
                 if age < timedelta(seconds=0):
-                    error_msg = f"Specialist {specialist_type}: timestamp no futuro: {evaluated_at_str}"
+                    error_msg = (
+                        f"Specialist {specialist_type}: timestamp no futuro: {evaluated_at_str}"
+                    )
                     self.results["errors"].append(error_msg)
                     print(f"{Colors.RED}  ✗ {error_msg}{Colors.RESET}")
                     all_timestamps_valid = False
@@ -281,7 +278,9 @@ class TestTimestampFix:
 
                 # Timestamp válido
                 self.results["timestamps_valid"] += 1
-                print(f"{Colors.GREEN}  ✓ {specialist_type}: {evaluated_at_str} (idade: {age.total_seconds():.1f}s){Colors.RESET}")
+                print(
+                    f"{Colors.GREEN}  ✓ {specialist_type}: {evaluated_at_str} (idade: {age.total_seconds():.1f}s){Colors.RESET}"
+                )
 
             except (ValueError, TypeError, AttributeError) as e:
                 error_msg = f"Specialist {specialist_type}: erro ao parsear timestamp '{evaluated_at_str}': {e}"
@@ -311,15 +310,21 @@ class TestTimestampFix:
             decision = await self.wait_for_consensus(timeout=60)
 
             if decision is None:
-                print(f"\n{Colors.RED}{Colors.BOLD}✗ TESTE FALHOU: Consenso não recebido{Colors.RESET}")
+                print(
+                    f"\n{Colors.RED}{Colors.BOLD}✗ TESTE FALHOU: Consenso não recebido{Colors.RESET}"
+                )
                 return 1
 
             # Validar decisão
             if self.validate_consensus_decision(decision):
-                print(f"\n{Colors.GREEN}{Colors.BOLD}✓ TESTE PASSOU: Timestamps válidos{Colors.RESET}")
+                print(
+                    f"\n{Colors.GREEN}{Colors.BOLD}✓ TESTE PASSOU: Timestamps válidos{Colors.RESET}"
+                )
                 exit_code = 0
             else:
-                print(f"\n{Colors.RED}{Colors.BOLD}✗ TESTE FALHOU: Validação de timestamps{Colors.RESET}")
+                print(
+                    f"\n{Colors.RED}{Colors.BOLD}✗ TESTE FALHOU: Validação de timestamps{Colors.RESET}"
+                )
                 exit_code = 1
 
         except Exception as e:
@@ -345,11 +350,17 @@ class TestTimestampFix:
         print(f"Plan ID: {Colors.YELLOW}{self.test_plan_id}{Colors.RESET}")
         print(f"Plan enviado: {self._status_icon(self.results['plan_sent'])}")
         print(f"Consenso recebido: {self._status_icon(self.results['consensus_received'])}")
-        print(f"Specialists responderam: {Colors.CYAN}{self.results['specialists_count']}/5{Colors.RESET}")
-        print(f"Timestamps válidos: {Colors.CYAN}{self.results['timestamps_valid']}/{self.results['specialists_count']}{Colors.RESET}")
+        print(
+            f"Specialists responderam: {Colors.CYAN}{self.results['specialists_count']}/5{Colors.RESET}"
+        )
+        print(
+            f"Timestamps válidos: {Colors.CYAN}{self.results['timestamps_valid']}/{self.results['specialists_count']}{Colors.RESET}"
+        )
 
         if self.results["errors"]:
-            print(f"\n{Colors.RED}{Colors.BOLD}Erros ({len(self.results['errors'])}):{ Colors.RESET}")
+            print(
+                f"\n{Colors.RED}{Colors.BOLD}Erros ({len(self.results['errors'])}):{ Colors.RESET}"
+            )
             for i, error in enumerate(self.results["errors"], 1):
                 print(f"{Colors.RED}  {i}. {error}{Colors.RESET}")
         else:
@@ -382,5 +393,5 @@ async def main():
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     asyncio.run(main())

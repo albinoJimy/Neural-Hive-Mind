@@ -14,6 +14,7 @@ from enum import Enum
 # Test: Domain Models
 # =============================================================================
 
+
 class TestDomainModels:
     """Testes de modelos de domínio."""
 
@@ -24,7 +25,7 @@ class TestDomainModels:
             "specialist_type": "business",
             "content": {"recommendation": "approve"},
             "confidence": 0.85,
-            "reasoning": "Baixo risco detectado"
+            "reasoning": "Baixo risco detectado",
         }
 
         assert opinion["confidence"] > 0.8
@@ -37,7 +38,7 @@ class TestDomainModels:
             "final_verdict": "approved",
             "confidence": 0.92,
             "participating_specialists": ["business", "technical", "security"],
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         assert decision["final_verdict"] == "approved"
@@ -50,7 +51,7 @@ class TestDomainModels:
             "intent_type": "query",
             "steps": ["validate", "enrich", "execute"],
             "status": "pending",
-            "priority": "medium"
+            "priority": "medium",
         }
 
         assert plan["status"] == "pending"
@@ -60,6 +61,7 @@ class TestDomainModels:
 # =============================================================================
 # Test: Enums and Constants
 # =============================================================================
+
 
 class TestEnumsAndConstants:
     """Testes de enums e constantes."""
@@ -72,7 +74,7 @@ class TestEnumsAndConstants:
             "security",
             "architecture",
             "behavior",
-            "evolution"
+            "evolution",
         ]
 
         assert "business" in specialist_types
@@ -97,6 +99,7 @@ class TestEnumsAndConstants:
 # =============================================================================
 # Test: Opinion Validation
 # =============================================================================
+
 
 class TestOpinionValidation:
     """Testes de validação de opinião."""
@@ -123,14 +126,9 @@ class TestOpinionValidation:
 
     def test_validate_reasoning_present(self):
         """Deve validar presença de reasoning."""
-        opinion_with_reasoning = {
-            "content": "approve",
-            "reasoning": "Low risk"
-        }
+        opinion_with_reasoning = {"content": "approve", "reasoning": "Low risk"}
 
-        opinion_without_reasoning = {
-            "content": "reject"
-        }
+        opinion_without_reasoning = {"content": "reject"}
 
         has_reasoning_1 = "reasoning" in opinion_with_reasoning
         has_reasoning_2 = "reasoning" in opinion_without_reasoning
@@ -143,6 +141,7 @@ class TestOpinionValidation:
 # Test: Decision Consolidation
 # =============================================================================
 
+
 class TestDecisionConsolidation:
     """Testes de consolidação de decisão."""
 
@@ -151,12 +150,13 @@ class TestDecisionConsolidation:
         opinions = [
             {"specialist": "business", "verdict": "approve", "confidence": 0.9},
             {"specialist": "technical", "verdict": "approve", "confidence": 0.8},
-            {"specialist": "security", "verdict": "reject", "confidence": 0.6}
+            {"specialist": "security", "verdict": "reject", "confidence": 0.6},
         ]
 
         # Consolidação simples por maioria
         verdicts = [o["verdict"] for o in opinions]
         from collections import Counter
+
         verdict_counts = Counter(verdicts)
 
         final_verdict = verdict_counts.most_common(1)[0][0]
@@ -168,7 +168,7 @@ class TestDecisionConsolidation:
         opinions = [
             {"confidence": 0.9, "weight": 0.3},
             {"confidence": 0.8, "weight": 0.3},
-            {"confidence": 0.7, "weight": 0.4}
+            {"confidence": 0.7, "weight": 0.4},
         ]
 
         aggregated = sum(o["confidence"] * o["weight"] for o in opinions)
@@ -191,6 +191,7 @@ class TestDecisionConsolidation:
 # Test: Cognitive Plan Structure
 # =============================================================================
 
+
 class TestCognitivePlanStructure:
     """Testes de estrutura do plano cognitivo."""
 
@@ -200,7 +201,7 @@ class TestCognitivePlanStructure:
             {"step": 1, "name": "validate", "depends_on": []},
             {"step": 2, "name": "enrich", "depends_on": [1]},
             {"step": 3, "name": "execute", "depends_on": [2]},
-            {"step": 4, "name": "finalize", "depends_on": [3]}
+            {"step": 4, "name": "finalize", "depends_on": [3]},
         ]
 
         # Verificar ordem topológica
@@ -218,7 +219,7 @@ class TestCognitivePlanStructure:
             {"step": 1, "name": "validate", "depends_on": []},
             {"step": 2, "name": "enrich_a", "depends_on": [1]},
             {"step": 3, "name": "enrich_b", "depends_on": [1]},
-            {"step": 4, "name": "finalize", "depends_on": [2, 3]}
+            {"step": 4, "name": "finalize", "depends_on": [2, 3]},
         ]
 
         # Passos 2 e 3 podem ser paralelos
@@ -234,6 +235,7 @@ class TestCognitivePlanStructure:
 # Test: Domain Events
 # =============================================================================
 
+
 class TestDomainEvents:
     """Testes de eventos de domínio."""
 
@@ -244,7 +246,7 @@ class TestDomainEvents:
             "type": "OpinionReceived",
             "aggregate_id": str(uuid4()),
             "data": {"specialist": "business", "verdict": "approve"},
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         assert event["type"] == "OpinionReceived"
@@ -252,11 +254,7 @@ class TestDomainEvents:
 
     def test_event_versioning(self):
         """Deve versionar eventos."""
-        event = {
-            "type": "DecisionConsolidated",
-            "version": 2,
-            "data": {"verdict": "approved"}
-        }
+        event = {"type": "DecisionConsolidated", "version": 2, "data": {"verdict": "approved"}}
 
         assert event["version"] == 2
 
@@ -264,11 +262,7 @@ class TestDomainEvents:
         """Deve serializar evento para JSON."""
         import json
 
-        event = {
-            "event_id": str(uuid4()),
-            "type": "TestEvent",
-            "data": {"key": "value"}
-        }
+        event = {"event_id": str(uuid4()), "type": "TestEvent", "data": {"key": "value"}}
 
         json_str = json.dumps(event)
 
@@ -279,11 +273,13 @@ class TestDomainEvents:
 # Test: Value Objects
 # =============================================================================
 
+
 class TestValueObjects:
     """Testes de objetos de valor."""
 
     def test_confidence_value(self):
         """Deve criar objeto de valor de confiança."""
+
         class Confidence:
             def __init__(self, value):
                 if not 0 <= value <= 1:
@@ -296,6 +292,7 @@ class TestValueObjects:
 
     def test_confidence_invalid(self):
         """Deve rejeitar confiança inválida."""
+
         class Confidence:
             def __init__(self, value):
                 if not 0 <= value <= 1:
@@ -307,11 +304,7 @@ class TestValueObjects:
 
     def test_specialist_id(self):
         """Deve criar ID de especialista."""
-        specialist_id = {
-            "type": "business",
-            "instance": "primary",
-            "full_id": "business:primary"
-        }
+        specialist_id = {"type": "business", "instance": "primary", "full_id": "business:primary"}
 
         assert specialist_id["full_id"] == f"{specialist_id['type']}:{specialist_id['instance']}"
 
@@ -319,6 +312,7 @@ class TestValueObjects:
 # =============================================================================
 # Test: Aggregates
 # =============================================================================
+
 
 class TestAggregates:
     """Testes de agregados."""
@@ -329,14 +323,11 @@ class TestAggregates:
             "plan_id": str(uuid4()),
             "status": "in_progress",
             "opinions": [],
-            "current_step": 1
+            "current_step": 1,
         }
 
         # Adicionar opinião
-        aggregate["opinions"].append({
-            "specialist": "business",
-            "verdict": "approve"
-        })
+        aggregate["opinions"].append({"specialist": "business", "verdict": "approve"})
 
         assert len(aggregate["opinions"]) == 1
         assert aggregate["status"] == "in_progress"
@@ -348,13 +339,14 @@ class TestAggregates:
             "opinions": [
                 {"specialist": "business", "verdict": "approve"},
                 {"specialist": "technical", "verdict": "approve"},
-                {"specialist": "security", "verdict": "reject"}
-            ]
+                {"specialist": "security", "verdict": "reject"},
+            ],
         }
 
         # Calcular estado consolidado
         verdicts = [o["verdict"] for o in aggregate["opinions"]]
         from collections import Counter
+
         final_verdict = Counter(verdicts).most_common(1)[0][0]
 
         aggregate["final_verdict"] = final_verdict
@@ -368,6 +360,7 @@ class TestAggregates:
 # Test: Repository Pattern
 # =============================================================================
 
+
 class TestRepositoryPattern:
     """Testes de padrão de repositório."""
 
@@ -375,11 +368,7 @@ class TestRepositoryPattern:
         """Deve salvar opinião no repositório."""
         repository = {}  # Simulação in-memory
 
-        opinion = {
-            "opinion_id": str(uuid4()),
-            "specialist": "business",
-            "verdict": "approve"
-        }
+        opinion = {"opinion_id": str(uuid4()), "specialist": "business", "verdict": "approve"}
 
         repository[opinion["opinion_id"]] = opinion
 
@@ -389,7 +378,7 @@ class TestRepositoryPattern:
         """Deve encontrar por ID."""
         repository = {
             "op-1": {"opinion_id": "op-1", "verdict": "approve"},
-            "op-2": {"opinion_id": "op-2", "verdict": "reject"}
+            "op-2": {"opinion_id": "op-2", "verdict": "reject"},
         }
 
         found = repository.get("op-1")
@@ -402,7 +391,7 @@ class TestRepositoryPattern:
         opinions = [
             {"opinion_id": "op-1", "specialist": "business", "verdict": "approve"},
             {"opinion_id": "op-2", "specialist": "technical", "verdict": "approve"},
-            {"opinion_id": "op-3", "specialist": "business", "verdict": "reject"}
+            {"opinion_id": "op-3", "specialist": "business", "verdict": "reject"},
         ]
 
         # Query: todas as opiniões "business"
@@ -415,16 +404,13 @@ class TestRepositoryPattern:
 # Test: Domain Services
 # =============================================================================
 
+
 class TestDomainServices:
     """Testes de serviços de domínio."""
 
     def test_calculate_risk_score(self):
         """Deve calcular score de risco."""
-        factors = {
-            "complexity": 0.7,
-            "sensitivity": 0.8,
-            "external_dependency": 0.5
-        }
+        factors = {"complexity": 0.7, "sensitivity": 0.8, "external_dependency": 0.5}
 
         # Score médio ponderado
         risk_score = sum(factors.values()) / len(factors)
@@ -446,8 +432,8 @@ class TestDomainServices:
             "verdict": "approved",
             "key_factors": [
                 {"factor": "low_risk", "impact": "positive"},
-                {"factor": "high_value", "impact": "positive"}
-            ]
+                {"factor": "high_value", "impact": "positive"},
+            ],
         }
 
         explanation = (

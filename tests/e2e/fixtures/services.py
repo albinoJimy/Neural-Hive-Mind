@@ -32,7 +32,9 @@ async def service_registry_grpc_client(k8s_service_endpoints):
 
 @pytest.fixture(scope="session")
 async def temporal_client(k8s_service_endpoints):
-    client = await TemporalClient.connect(k8s_service_endpoints["temporal"], namespace="neural-hive-mind")
+    client = await TemporalClient.connect(
+        k8s_service_endpoints["temporal"], namespace="neural-hive-mind"
+    )
     try:
         yield client
     finally:

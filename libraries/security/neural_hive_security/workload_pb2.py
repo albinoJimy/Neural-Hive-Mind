@@ -14,6 +14,7 @@ from typing import List, Optional
 
 class JWTSVIDRequest(_message.Message):
     """Request for JWT-SVID"""
+
     audience: List[str]
     spiffe_id: Optional[str]
 
@@ -24,6 +25,7 @@ class JWTSVIDRequest(_message.Message):
 
 class JWTSVID(_message.Message):
     """JWT-SVID response"""
+
     spiffe_id: str
     svid: str
     expires_at: int
@@ -36,6 +38,7 @@ class JWTSVID(_message.Message):
 
 class JWTSVIDResponse(_message.Message):
     """Response containing JWT-SVIDs"""
+
     svids: List[JWTSVID]
 
     def __init__(self, svids: List[JWTSVID] = None):
@@ -44,11 +47,13 @@ class JWTSVIDResponse(_message.Message):
 
 class X509SVIDRequest(_message.Message):
     """Request for X.509-SVID"""
+
     pass
 
 
 class X509SVID(_message.Message):
     """X.509-SVID response"""
+
     spiffe_id: str
     x509_svid: bytes
     x509_svid_key: bytes
@@ -61,7 +66,7 @@ class X509SVID(_message.Message):
         x509_svid: bytes = b"",
         x509_svid_key: bytes = b"",
         bundle: bytes = b"",
-        expires_at: int = 0
+        expires_at: int = 0,
     ):
         self.spiffe_id = spiffe_id
         self.x509_svid = x509_svid
@@ -72,15 +77,13 @@ class X509SVID(_message.Message):
 
 class X509SVIDResponse(_message.Message):
     """Response containing X.509-SVIDs"""
+
     svids: List[X509SVID]
     crl: List[bytes]
     federated_bundles: dict
 
     def __init__(
-        self,
-        svids: List[X509SVID] = None,
-        crl: List[bytes] = None,
-        federated_bundles: dict = None
+        self, svids: List[X509SVID] = None, crl: List[bytes] = None, federated_bundles: dict = None
     ):
         self.svids = svids or []
         self.crl = crl or []
@@ -89,6 +92,7 @@ class X509SVIDResponse(_message.Message):
 
 class ValidateJWTSVIDRequest(_message.Message):
     """Request to validate JWT-SVID"""
+
     audience: str
     svid: str
 
@@ -99,6 +103,7 @@ class ValidateJWTSVIDRequest(_message.Message):
 
 class ValidateJWTSVIDResponse(_message.Message):
     """Response from JWT-SVID validation"""
+
     spiffe_id: str
     claims: dict
 

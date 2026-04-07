@@ -15,6 +15,7 @@ import json
 # Kafka Mocks
 # =============================================================================
 
+
 class MockKafkaMessage:
     """Mock de mensagem Kafka para testes de consumers."""
 
@@ -102,12 +103,14 @@ class MockKafkaProducer:
         Returns:
             True se enviado com sucesso
         """
-        self.messages.append({
-            "topic": topic,
-            "value": value,
-            "key": key,
-            "headers": headers,
-        })
+        self.messages.append(
+            {
+                "topic": topic,
+                "value": value,
+                "key": key,
+                "headers": headers,
+            }
+        )
 
         if on_delivery:
             on_delivery(None, None)
@@ -200,6 +203,7 @@ class MockKafkaConsumer:
 # Database Mocks
 # =============================================================================
 
+
 class MockMongoDBCollection:
     """Mock de coleção MongoDB para testes."""
 
@@ -238,7 +242,9 @@ class MockMongoDBCollection:
                     break
             if match:
                 if projection:
-                    return {k: v for k, v in doc.items() if k in projection or projection.get(k) != 0}
+                    return {
+                        k: v for k, v in doc.items() if k in projection or projection.get(k) != 0
+                    }
                 return doc
         return None
 
@@ -265,7 +271,9 @@ class MockMongoDBCollection:
             if match:
                 result = doc
                 if projection:
-                    result = {k: v for k, v in doc.items() if k in projection or projection.get(k) != 0}
+                    result = {
+                        k: v for k, v in doc.items() if k in projection or projection.get(k) != 0
+                    }
                 yield result
                 count += 1
 
@@ -474,6 +482,7 @@ class MockRedisClient:
 # Temporal Mocks
 # =============================================================================
 
+
 class MockTemporalWorkflowHandle:
     """Mock de handle de workflow Temporal."""
 
@@ -490,17 +499,21 @@ class MockTemporalWorkflowHandle:
         arg: Any = None,
     ) -> None:
         """Envia um sinal para o workflow."""
-        self.signals_sent.append({
-            "signal_name": signal_name,
-            "arg": arg,
-        })
+        self.signals_sent.append(
+            {
+                "signal_name": signal_name,
+                "arg": arg,
+            }
+        )
 
     async def query(self, query_name: str, arg: Any = None) -> Any:
         """Consulta o workflow."""
-        self.queries_made.append({
-            "query_name": query_name,
-            "arg": arg,
-        })
+        self.queries_made.append(
+            {
+                "query_name": query_name,
+                "arg": arg,
+            }
+        )
         return self._result
 
     def set_result(self, result: Any) -> None:
@@ -530,12 +543,14 @@ class MockTemporalClient:
             Mock com id do workflow
         """
         workflow_id = id or f"workflow-{uuid4().hex[:8]}"
-        self.workflows_started.append({
-            "workflow": workflow.__name__ if workflow else None,
-            "args": args,
-            "id": workflow_id,
-            "task_queue": task_queue,
-        })
+        self.workflows_started.append(
+            {
+                "workflow": workflow.__name__ if workflow else None,
+                "args": args,
+                "id": workflow_id,
+                "task_queue": task_queue,
+            }
+        )
 
         handle = MockTemporalWorkflowHandle(workflow_id)
         self.handles[workflow_id] = handle
@@ -558,6 +573,7 @@ class MockTemporalClient:
 # =============================================================================
 # gRPC Mocks
 # =============================================================================
+
 
 class MockGRPCChannel:
     """Mock de canal gRPC."""
@@ -609,6 +625,7 @@ class MockGRPCServer:
 # =============================================================================
 # HTTP Client Mocks
 # =============================================================================
+
 
 class MockHTTPResponse:
     """Mock de resposta HTTP."""

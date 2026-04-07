@@ -16,19 +16,17 @@ from collections import Counter, defaultdict
 from typing import List, Dict, Tuple
 import statistics
 
+
 def load_test_intents(file_path: str) -> List[Dict]:
     """Carregar intents de teste de arquivo JSON"""
-    with open(file_path, 'r', encoding='utf-8') as f:
+    with open(file_path, "r", encoding="utf-8") as f:
         return json.load(f)
+
 
 def test_intent(gateway_url: str, text: str, expected_domain: str = None) -> Dict:
     """Testar uma intent e retornar resultado"""
     try:
-        response = requests.post(
-            f"{gateway_url}/intentions",
-            json={"text": text},
-            timeout=10
-        )
+        response = requests.post(f"{gateway_url}/intentions", json={"text": text}, timeout=10)
         response.raise_for_status()
         data = response.json()
 
@@ -41,15 +39,12 @@ def test_intent(gateway_url: str, text: str, expected_domain: str = None) -> Dic
             "requires_validation": data.get("requires_manual_validation"),
             "routing_thresholds": data.get("routing_thresholds"),
             "expected_domain": expected_domain,
-            "correct": data.get("domain") == expected_domain if expected_domain else None
+            "correct": data.get("domain") == expected_domain if expected_domain else None,
         }
         return result
     except Exception as e:
-        return {
-            "text": text,
-            "error": str(e),
-            "status": "error"
-        }
+        return {"text": text, "error": str(e), "status": "error"}
+
 
 def run_test_suite(gateway_url: str, test_intents: List[Dict]) -> Dict:
     """Executar suite completa de testes"""
@@ -83,10 +78,14 @@ def run_test_suite(gateway_url: str, test_intents: List[Dict]) -> Dict:
 
     # Calcular estatísticas
     validation_rate = (status_counter["routed_to_validation"] / len(test_intents)) * 100
-    low_confidence_rate = (status_counter.get("processed_low_confidence", 0) / len(test_intents)) * 100
+    low_confidence_rate = (
+        status_counter.get("processed_low_confidence", 0) / len(test_intents)
+    ) * 100
     processed_rate = (status_counter.get("processed", 0) / len(test_intents)) * 100
 
-    accuracy = (correct_classifications / total_with_expected * 100) if total_with_expected > 0 else None
+    accuracy = (
+        (correct_classifications / total_with_expected * 100) if total_with_expected > 0 else None
+    )
 
     summary = {
         "total_intents": len(test_intents),
@@ -97,29 +96,29 @@ def run_test_suite(gateway_url: str, test_intents: List[Dict]) -> Dict:
         "confidence_stats": {
             "mean": round(statistics.mean(confidence_scores), 3) if confidence_scores else 0,
             "median": round(statistics.median(confidence_scores), 3) if confidence_scores else 0,
-            "stdev": round(statistics.stdev(confidence_scores), 3) if len(confidence_scores) > 1 else 0,
+            "stdev": round(statistics.stdev(confidence_scores), 3)
+            if len(confidence_scores) > 1
+            else 0,
             "min": round(min(confidence_scores), 3) if confidence_scores else 0,
-            "max": round(max(confidence_scores), 3) if confidence_scores else 0
+            "max": round(max(confidence_scores), 3) if confidence_scores else 0,
         },
         "accuracy_percent": round(accuracy, 2) if accuracy else None,
         "correct_classifications": correct_classifications,
-        "total_with_expected_domain": total_with_expected
+        "total_with_expected_domain": total_with_expected,
     }
 
-    return {
-        "summary": summary,
-        "results": results
-    }
+    return {"summary": summary, "results": results}
+
 
 def print_summary(summary: Dict):
     """Imprimir resumo formatado"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("RESUMO DOS TESTES")
-    print("="*60)
+    print("=" * 60)
     print(f"\nTotal de intents testadas: {summary['total_intents']}")
     print(f"\nDistribuição de status:")
-    for status, count in summary['status_distribution'].items():
-        percentage = (count / summary['total_intents']) * 100
+    for status, count in summary["status_distribution"].items():
+        percentage = (count / summary["total_intents"]) * 100
         print(f"  {status}: {count} ({percentage:.1f}%)")
 
     print(f"\nTaxas:")
@@ -128,18 +127,21 @@ def print_summary(summary: Dict):
     print(f"  Validação manual: {summary['validation_rate_percent']}%")
 
     print(f"\nEstatísticas de confidence:")
-    stats = summary['confidence_stats']
+    stats = summary["confidence_stats"]
     print(f"  Média: {stats['mean']}")
     print(f"  Mediana: {stats['median']}")
     print(f"  Desvio padrão: {stats['stdev']}")
     print(f"  Min: {stats['min']} | Max: {stats['max']}")
 
-    if summary['accuracy_percent']:
+    if summary["accuracy_percent"]:
         print(f"\nPrecisão de classificação:")
-        print(f"  Corretas: {summary['correct_classifications']}/{summary['total_with_expected_domain']}")
+        print(
+            f"  Corretas: {summary['correct_classifications']}/{summary['total_with_expected_domain']}"
+        )
         print(f"  Acurácia: {summary['accuracy_percent']}%")
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
+
 
 def main():
     parser = argparse.ArgumentParser(description="Testar routing thresholds do gateway")
@@ -162,14 +164,14 @@ def main():
         "gateway_url": args.gateway_url,
         "test_file": args.test_file,
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-        "elapsed_time_seconds": round(elapsed_time, 2)
+        "elapsed_time_seconds": round(elapsed_time, 2),
     }
 
     # Imprimir resumo
     print_summary(test_results["summary"])
 
     # Salvar resultados
-    with open(args.output, 'w', encoding='utf-8') as f:
+    with open(args.output, "w", encoding="utf-8") as f:
         json.dump(test_results, f, indent=2, ensure_ascii=False)
 
     print(f"\nResultados salvos em: {args.output}")
@@ -182,6 +184,7 @@ def main():
         return 1
 
     return 0
+
 
 if __name__ == "__main__":
     exit(main())

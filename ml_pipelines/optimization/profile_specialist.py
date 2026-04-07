@@ -17,8 +17,8 @@ import sys
 import os
 
 # Adicionar paths necessários
-sys.path.insert(0, '/home/jimy/NHM/Neural-Hive-Mind/services/specialist-business/src')
-sys.path.insert(0, '/home/jimy/NHM/Neural-Hive-Mind/libraries/python')
+sys.path.insert(0, "/home/jimy/NHM/Neural-Hive-Mind/services/specialist-business/src")
+sys.path.insert(0, "/home/jimy/NHM/Neural-Hive-Mind/libraries/python")
 
 import structlog
 
@@ -27,7 +27,7 @@ structlog.configure(
     processors=[
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.add_log_level,
-        structlog.dev.ConsoleRenderer()
+        structlog.dev.ConsoleRenderer(),
     ]
 )
 
@@ -46,21 +46,23 @@ def generate_test_plan(num_tasks: int = 10, plan_id: str = "test-profile") -> di
         Plano cognitivo de teste
     """
     return {
-        'plan_id': plan_id,
-        'tasks': [
+        "plan_id": plan_id,
+        "tasks": [
             {
-                'task_id': f'task-{i}',
-                'task_type': 'analysis' if i % 3 == 0 else ('transformation' if i % 3 == 1 else 'validation'),
-                'description': f'Executar tarefa de teste {i} com análise de dados e processamento',
-                'dependencies': [f'task-{i-1}'] if i > 0 else [],
-                'estimated_duration_ms': 5000 + (i * 100)
+                "task_id": f"task-{i}",
+                "task_type": "analysis"
+                if i % 3 == 0
+                else ("transformation" if i % 3 == 1 else "validation"),
+                "description": f"Executar tarefa de teste {i} com análise de dados e processamento",
+                "dependencies": [f"task-{i-1}"] if i > 0 else [],
+                "estimated_duration_ms": 5000 + (i * 100),
             }
             for i in range(num_tasks)
         ],
-        'original_domain': 'workflow-analysis',
-        'original_priority': 'high',
-        'risk_score': 0.3,
-        'complexity_score': 0.6
+        "original_domain": "workflow-analysis",
+        "original_priority": "high",
+        "risk_score": 0.3,
+        "complexity_score": 0.6,
     }
 
 
@@ -87,7 +89,7 @@ def profile_evaluation(specialist, cognitive_plan: dict, context: dict = None) -
 
     # Formatar estatísticas
     s = StringIO()
-    ps = pstats.Stats(profiler, stream=s).sort_stats('cumulative')
+    ps = pstats.Stats(profiler, stream=s).sort_stats("cumulative")
     ps.print_stats(30)  # Top 30 funções
 
     return result, duration, s.getvalue()
@@ -110,57 +112,55 @@ def profile_step_by_step(specialist, cognitive_plan: dict) -> dict:
     start = time.time()
     try:
         validated_plan = specialist._validate_plan(cognitive_plan)
-        timings['plan_validation'] = (time.time() - start) * 1000
+        timings["plan_validation"] = (time.time() - start) * 1000
     except AttributeError:
         validated_plan = cognitive_plan
-        timings['plan_validation'] = 0
+        timings["plan_validation"] = 0
 
     # 2. Hash do plano (para cache)
     start = time.time()
     plan_hash = specialist._hash_plan(cognitive_plan)
-    timings['plan_hashing'] = (time.time() - start) * 1000
+    timings["plan_hashing"] = (time.time() - start) * 1000
 
     # 3. Feature extraction
     start = time.time()
     features = specialist.feature_extractor.extract_features(
-        cognitive_plan,
-        include_embeddings=specialist.model is not None
+        cognitive_plan, include_embeddings=specialist.model is not None
     )
-    timings['feature_extraction'] = (time.time() - start) * 1000
+    timings["feature_extraction"] = (time.time() - start) * 1000
 
     # 3a. Breakdown de feature extraction
-    tasks = cognitive_plan.get('tasks', [])
+    tasks = cognitive_plan.get("tasks", [])
 
     start = time.time()
     specialist.feature_extractor._extract_metadata_features(cognitive_plan)
-    timings['feature_extraction_metadata'] = (time.time() - start) * 1000
+    timings["feature_extraction_metadata"] = (time.time() - start) * 1000
 
     start = time.time()
     specialist.feature_extractor._extract_ontology_features(
-        cognitive_plan.get('original_domain'),
-        tasks
+        cognitive_plan.get("original_domain"), tasks
     )
-    timings['feature_extraction_ontology'] = (time.time() - start) * 1000
+    timings["feature_extraction_ontology"] = (time.time() - start) * 1000
 
     start = time.time()
     specialist.feature_extractor._extract_graph_features(tasks)
-    timings['feature_extraction_graph'] = (time.time() - start) * 1000
+    timings["feature_extraction_graph"] = (time.time() - start) * 1000
 
     if specialist.model:
         start = time.time()
         specialist.feature_extractor._extract_embedding_features(tasks)
-        timings['feature_extraction_embeddings'] = (time.time() - start) * 1000
+        timings["feature_extraction_embeddings"] = (time.time() - start) * 1000
 
     # 4. Model inference (se disponível)
     if specialist.model:
         start = time.time()
         specialist._predict_with_model(cognitive_plan)
-        timings['model_inference'] = (time.time() - start) * 1000
+        timings["model_inference"] = (time.time() - start) * 1000
 
     # 5. Heuristic evaluation
     start = time.time()
     specialist._evaluate_plan_internal(cognitive_plan, {})
-    timings['heuristic_evaluation'] = (time.time() - start) * 1000
+    timings["heuristic_evaluation"] = (time.time() - start) * 1000
 
     return timings
 
@@ -224,10 +224,10 @@ def run_profiling():
 
         extractor = FeatureExtractor(
             config={
-                'embeddings_model': 'paraphrase-multilingual-MiniLM-L12-v2',
-                'embedding_cache_size': 1000,
-                'embedding_batch_size': 32,
-                'embedding_cache_enabled': True
+                "embeddings_model": "paraphrase-multilingual-MiniLM-L12-v2",
+                "embedding_cache_size": 1000,
+                "embedding_batch_size": 32,
+                "embedding_cache_enabled": True,
             }
         )
 
@@ -244,14 +244,14 @@ def run_profiling():
             print(f"    Features extracted: {len(features['aggregated_features'])}")
 
             # Breakdown
-            tasks = plan['tasks']
+            tasks = plan["tasks"]
 
             start = time.time()
             extractor._extract_metadata_features(plan)
             metadata_ms = (time.time() - start) * 1000
 
             start = time.time()
-            extractor._extract_ontology_features(plan['original_domain'], tasks)
+            extractor._extract_ontology_features(plan["original_domain"], tasks)
             ontology_ms = (time.time() - start) * 1000
 
             start = time.time()
@@ -270,7 +270,8 @@ def run_profiling():
         print("\n" + "=" * 80)
         print("PROFILING SUMMARY")
         print("=" * 80)
-        print("""
+        print(
+            """
 Bottlenecks identificados:
 1. Embedding generation é o maior custo (~70-80% do tempo de feature extraction)
 2. Ontology mapping tem overhead de lookup semântico
@@ -281,7 +282,8 @@ Otimizações recomendadas:
 2. Batch Processing: Processar múltiplos planos em batch
 3. GPU Acceleration: Usar CUDA para embeddings
 4. Async Processing: Paralelizar feature extraction
-        """)
+        """
+        )
 
     except ImportError as e:
         print(f"\n✗ Import error: {e}")
@@ -291,8 +293,9 @@ Otimizações recomendadas:
     except Exception as e:
         print(f"\n✗ Error during profiling: {e}")
         import traceback
+
         traceback.print_exc()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     run_profiling()

@@ -6,7 +6,11 @@ import pytest
 from tests.e2e.utils.kafka_helpers import collect_kafka_messages, wait_for_kafka_message
 from tests.e2e.utils.assertions import assert_workflow_completed
 
-pytestmark = [pytest.mark.e2e, pytest.mark.slow, pytest.mark.skip(reason="Requires full platform environment")]
+pytestmark = [
+    pytest.mark.e2e,
+    pytest.mark.slow,
+    pytest.mark.skip(reason="Requires full platform environment"),
+]
 
 
 @pytest.mark.asyncio
@@ -110,7 +114,9 @@ async def test_complete_flow_intent_to_artifact_with_real_tools(
     if validate_ticket:
         validate_ticket_id = validate_ticket["ticket_id"]
 
-        stored_ticket = await test_mongodb_collections["execution_tickets"].find_one({"ticket_id": validate_ticket_id})
+        stored_ticket = await test_mongodb_collections["execution_tickets"].find_one(
+            {"ticket_id": validate_ticket_id}
+        )
 
         if stored_ticket:
             assert stored_ticket["status"] in ["COMPLETED", "RUNNING"]
@@ -123,7 +129,9 @@ async def test_complete_flow_intent_to_artifact_with_real_tools(
 
     await asyncio.sleep(10)
 
-    workflow_result = await test_mongodb_collections["workflows"].find_one({"correlation_id": correlation_id})
+    workflow_result = await test_mongodb_collections["workflows"].find_one(
+        {"correlation_id": correlation_id}
+    )
     assert_workflow_completed(workflow_result)
 
     telemetry = await wait_for_kafka_message(

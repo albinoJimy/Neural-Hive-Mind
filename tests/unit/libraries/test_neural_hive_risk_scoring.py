@@ -13,16 +13,13 @@ from uuid import uuid4
 # Test: Risk Calculation
 # =============================================================================
 
+
 class TestRiskCalculation:
     """Testes de cálculo de risco."""
 
     def test_calculate_base_risk(self):
         """Deve calcular risco base."""
-        factors = {
-            "financial_impact": 0.7,
-            "operational_impact": 0.5,
-            "reputational_impact": 0.3
-        }
+        factors = {"financial_impact": 0.7, "operational_impact": 0.5, "reputational_impact": 0.3}
 
         # Risco base = média ponderada
         base_risk = sum(factors.values()) / len(factors)
@@ -35,7 +32,7 @@ class TestRiskCalculation:
         multipliers = {
             "high_value_client": 0.8,  # Reduz risco
             "new_client": 1.2,  # Aumenta risco
-            "vip_client": 0.5
+            "vip_client": 0.5,
         }
 
         client_type = "new_client"
@@ -49,10 +46,7 @@ class TestRiskCalculation:
         min_score = 0
         max_score = 100
 
-        normalized = [
-            (s - min_score) / (max_score - min_score)
-            for s in raw_scores
-        ]
+        normalized = [(s - min_score) / (max_score - min_score) for s in raw_scores]
 
         assert all(0 <= n <= 1 for n in normalized)
         assert normalized[0] == 0.15
@@ -61,6 +55,7 @@ class TestRiskCalculation:
 # =============================================================================
 # Test: Risk Categories
 # =============================================================================
+
 
 class TestRiskCategories:
     """Testes de categorias de risco."""
@@ -109,6 +104,7 @@ class TestRiskCategories:
 # Test: Risk Factors
 # =============================================================================
 
+
 class TestRiskFactors:
     """Testes de fatores de risco."""
 
@@ -118,7 +114,7 @@ class TestRiskFactors:
             "amount": 10000,
             "new_client": True,
             "international": True,
-            "high_risk_category": False
+            "high_risk_category": False,
         }
 
         risk_factors = []
@@ -138,15 +134,12 @@ class TestRiskFactors:
             "high_amount": 0.3,
             "new_client": 0.2,
             "international": 0.15,
-            "sensitive_industry": 0.25
+            "sensitive_industry": 0.25,
         }
 
         present_factors = ["high_amount", "new_client", "international"]
 
-        weighted_score = sum(
-            factor_weights[f] for f in present_factors
-            if f in factor_weights
-        )
+        weighted_score = sum(factor_weights[f] for f in present_factors if f in factor_weights)
 
         assert weighted_score == 0.65  # 0.3 + 0.2 + 0.15
 
@@ -168,6 +161,7 @@ class TestRiskFactors:
 # =============================================================================
 # Test: Risk Thresholds
 # =============================================================================
+
 
 class TestRiskThresholds:
     """Testes de thresholds de risco."""
@@ -196,9 +190,7 @@ class TestRiskThresholds:
         approval_threshold = 0.5
         rejection_threshold = 0.8
 
-        needs_manual_review = (
-            approval_threshold <= risk_score <= rejection_threshold
-        )
+        needs_manual_review = approval_threshold <= risk_score <= rejection_threshold
 
         assert needs_manual_review is True
 
@@ -206,6 +198,7 @@ class TestRiskThresholds:
 # =============================================================================
 # Test: Risk History
 # =============================================================================
+
 
 class TestRiskHistory:
     """Testes de histórico de risco."""
@@ -215,7 +208,7 @@ class TestRiskHistory:
         history = [
             {"date": "2026-03-27", "risk_score": 0.4},
             {"date": "2026-03-28", "risk_score": 0.45},
-            {"date": "2026-03-29", "risk_score": 0.35}
+            {"date": "2026-03-29", "risk_score": 0.35},
         ]
 
         # Tendência: diminuindo
@@ -230,7 +223,7 @@ class TestRiskHistory:
 
         moving_averages = []
         for i in range(len(scores) - window + 1):
-            window_avg = sum(scores[i:i + window]) / window
+            window_avg = sum(scores[i : i + window]) / window
             moving_averages.append(window_avg)
 
         assert moving_averages[0] == pytest.approx(0.55, rel=0.01)  # (0.5+0.6+0.55)/3
@@ -241,7 +234,7 @@ class TestRiskHistory:
         history = [
             {"date": "2026-03-27", "risk_score": 0.4},
             {"date": "2026-03-28", "risk_score": 0.45},
-            {"date": "2026-03-29", "risk_score": 0.85}  # Spike
+            {"date": "2026-03-29", "risk_score": 0.85},  # Spike
         ]
 
         # Detectar aumento > 50% em relação à média anterior
@@ -257,6 +250,7 @@ class TestRiskHistory:
 # Test: Risk Mitigation
 # =============================================================================
 
+
 class TestRiskMitigation:
     """Testes de mitigação de risco."""
 
@@ -267,13 +261,10 @@ class TestRiskMitigation:
         mitigations = {
             "high_amount": "require_additional_approval",
             "new_client": "limit_initial_transaction",
-            "international": "enhanced_duediligence"
+            "international": "enhanced_duediligence",
         }
 
-        suggested_actions = [
-            mitigations[f] for f in risk_factors
-            if f in mitigations
-        ]
+        suggested_actions = [mitigations[f] for f in risk_factors if f in mitigations]
 
         assert len(suggested_actions) == 3
         assert "require_additional_approval" in suggested_actions
@@ -285,7 +276,7 @@ class TestRiskMitigation:
         mitigations_applied = {
             "additional_approval": 0.1,  # Reduz 10%
             "collateral": 0.15,  # Reduz 15%
-            "insurance": 0.05  # Reduz 5%
+            "insurance": 0.05,  # Reduz 5%
         }
 
         total_reduction = sum(mitigations_applied.values())
@@ -299,9 +290,8 @@ class TestRiskMitigation:
         post_mitigation_loss_rate = 0.02
 
         effectiveness = (
-            (pre_mitigation_loss_rate - post_mitigation_loss_rate) /
-            pre_mitigation_loss_rate
-        )
+            pre_mitigation_loss_rate - post_mitigation_loss_rate
+        ) / pre_mitigation_loss_rate
 
         assert effectiveness == 0.6  # 60% de redução
 
@@ -309,6 +299,7 @@ class TestRiskMitigation:
 # =============================================================================
 # Test: Risk Aggregation
 # =============================================================================
+
 
 class TestRiskAggregation:
     """Testes de agregação de risco."""
@@ -318,14 +309,11 @@ class TestRiskAggregation:
         transactions = [
             {"id": "t1", "risk": 0.3, "amount": 1000},
             {"id": "t2", "risk": 0.6, "amount": 2000},
-            {"id": "t3", "risk": 0.4, "amount": 1500}
+            {"id": "t3", "risk": 0.4, "amount": 1500},
         ]
 
         total_amount = sum(t["amount"] for t in transactions)
-        weighted_risk = sum(
-            t["risk"] * (t["amount"] / total_amount)
-            for t in transactions
-        )
+        weighted_risk = sum(t["risk"] * (t["amount"] / total_amount) for t in transactions)
 
         assert 0.4 < weighted_risk < 0.5
 
@@ -334,7 +322,7 @@ class TestRiskAggregation:
         transactions = [
             {"category": "retail", "risk": 0.3},
             {"category": "retail", "risk": 0.4},
-            {"category": "corporate", "risk": 0.7}
+            {"category": "corporate", "risk": 0.7},
         ]
 
         category_risks = {}
@@ -344,10 +332,7 @@ class TestRiskAggregation:
                 category_risks[cat] = []
             category_risks[cat].append(t["risk"])
 
-        avg_by_category = {
-            cat: sum(risks) / len(risks)
-            for cat, risks in category_risks.items()
-        }
+        avg_by_category = {cat: sum(risks) / len(risks) for cat, risks in category_risks.items()}
 
         assert avg_by_category["retail"] == 0.35  # (0.3+0.4)/2
         assert avg_by_category["corporate"] == 0.7
@@ -356,6 +341,7 @@ class TestRiskAggregation:
 # =============================================================================
 # Test: Risk Reporting
 # =============================================================================
+
 
 class TestRiskReporting:
     """Testes de relatórios de risco."""
@@ -367,7 +353,7 @@ class TestRiskReporting:
             "low_risk": 40,
             "medium_risk": 35,
             "high_risk": 25,
-            "average_risk_score": 0.52
+            "average_risk_score": 0.52,
         }
 
         assert summary["total_assessed"] == 100
@@ -381,7 +367,7 @@ class TestRiskReporting:
             "min": min(risks),
             "max": max(risks),
             "mean": sum(risks) / len(risks),
-            "median": sorted(risks)[len(risks) // 2]
+            "median": sorted(risks)[len(risks) // 2],
         }
 
         assert distribution["min"] == 0.1
@@ -404,6 +390,7 @@ class TestRiskReporting:
 # Test: Risk Models
 # =============================================================================
 
+
 class TestRiskModels:
     """Testes de modelos de risco."""
 
@@ -419,21 +406,11 @@ class TestRiskModels:
 
     def test_weighted_risk_model(self):
         """Deve aplicar modelo ponderado de risco."""
-        features = {
-            "financial_strength": 0.7,
-            "payment_history": 0.9,
-            "collateral": 0.5
-        }
+        features = {"financial_strength": 0.7, "payment_history": 0.9, "collateral": 0.5}
 
-        weights = {
-            "financial_strength": 0.4,
-            "payment_history": 0.4,
-            "collateral": 0.2
-        }
+        weights = {"financial_strength": 0.4, "payment_history": 0.4, "collateral": 0.2}
 
-        risk_score = sum(
-            features[f] * weights[f] for f in features
-        )
+        risk_score = sum(features[f] * weights[f] for f in features)
 
         assert risk_score == pytest.approx(0.74, rel=0.01)
 
@@ -450,6 +427,7 @@ class TestRiskModels:
 # =============================================================================
 # Test: Risk Validation
 # =============================================================================
+
 
 class TestRiskValidation:
     """Testes de validação de risco."""
@@ -492,6 +470,7 @@ class TestRiskValidation:
 # Test: Risk History Tracking
 # =============================================================================
 
+
 class TestRiskHistoryTracking:
     """Testes de rastreamento de histórico de risco."""
 
@@ -502,10 +481,7 @@ class TestRiskHistoryTracking:
             "risk_score": 0.75,
             "verdict": "reject",
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "factors": {
-                "amount": 1000000,
-                "new_client": True
-            }
+            "factors": {"amount": 1000000, "new_client": True},
         }
 
         assert decision["risk_score"] >= 0.7
@@ -516,18 +492,20 @@ class TestRiskHistoryTracking:
         risk_history = [
             {"date": "2026-03-01", "avg_risk": 0.5},
             {"date": "2026-03-15", "avg_risk": 0.6},
-            {"date": "2026-03-29", "avg_risk": 0.7}
+            {"date": "2026-03-29", "avg_risk": 0.7},
         ]
 
         # Risco está aumentando
-        assert risk_history[0]["avg_risk"] < risk_history[1]["avg_risk"] < risk_history[2]["avg_risk"]
+        assert (
+            risk_history[0]["avg_risk"] < risk_history[1]["avg_risk"] < risk_history[2]["avg_risk"]
+        )
 
     def test_calculate_risk_trend(self):
         """Deve calcular tendência de risco."""
         recent_scores = [0.5, 0.6, 0.7, 0.8]
 
         # Tendência positiva (risco aumentando)
-        trend = sum(recent_scores[i+1] - recent_scores[i] for i in range(len(recent_scores)-1))
+        trend = sum(recent_scores[i + 1] - recent_scores[i] for i in range(len(recent_scores) - 1))
 
         assert trend > 0
 
@@ -558,6 +536,7 @@ class TestRiskHistoryTracking:
 # Test: Risk Mitigation
 # =============================================================================
 
+
 class TestRiskMitigation:
     """Testes de mitigação de risco."""
 
@@ -571,11 +550,7 @@ class TestRiskMitigation:
 
     def test_suggest_mitigation_actions(self):
         """Deve sugerir ações de mitigação."""
-        risk_factors = {
-            "high_amount": True,
-            "new_client": True,
-            "unusual_location": False
-        }
+        risk_factors = {"high_amount": True, "new_client": True, "unusual_location": False}
 
         mitigations = []
 
@@ -617,6 +592,7 @@ class TestRiskMitigation:
 # =============================================================================
 # Test: Risk Categories
 # =============================================================================
+
 
 class TestRiskCategories:
     """Testes de categorização de risco."""
@@ -671,25 +647,16 @@ class TestRiskCategories:
 # Test: Risk Aggregation
 # =============================================================================
 
+
 class TestRiskAggregation:
     """Testes de agregação de risco."""
 
     def test_aggregate_multiple_risks(self):
         """Deve agregar múltiplos riscos."""
-        risks = {
-            "financial": 0.7,
-            "operational": 0.5,
-            "compliance": 0.8,
-            "security": 0.3
-        }
+        risks = {"financial": 0.7, "operational": 0.5, "compliance": 0.8, "security": 0.3}
 
         # Agregação: média ponderada
-        weights = {
-            "financial": 0.3,
-            "operational": 0.2,
-            "compliance": 0.3,
-            "security": 0.2
-        }
+        weights = {"financial": 0.3, "operational": 0.2, "compliance": 0.3, "security": 0.2}
 
         aggregated = sum(risks[k] * weights[k] for k in risks)
 
@@ -727,6 +694,7 @@ class TestRiskAggregation:
 # Test: Risk Thresholds
 # =============================================================================
 
+
 class TestRiskThresholds:
     """Testes de thresholds de risco."""
 
@@ -754,9 +722,7 @@ class TestRiskThresholds:
         auto_approve_threshold = 0.4
         auto_reject_threshold = 0.7
 
-        requires_manual = (
-            auto_approve_threshold <= risk_score <= auto_reject_threshold
-        )
+        requires_manual = auto_approve_threshold <= risk_score <= auto_reject_threshold
 
         assert requires_manual is True
 
@@ -774,6 +740,7 @@ class TestRiskThresholds:
 # =============================================================================
 # Test: Risk Factors
 # =============================================================================
+
 
 class TestRiskFactors:
     """Testes de fatores de risco."""
@@ -833,23 +800,19 @@ class TestRiskFactors:
 # Test: Risk Model Validation
 # =============================================================================
 
+
 class TestRiskModelValidation:
     """Testes de validação de modelo de risco."""
 
     def test_validate_model_inputs(self):
         """Deve validar entradas do modelo."""
-        required_inputs = [
-            "amount",
-            "user_history",
-            "transaction_velocity",
-            "geographic_location"
-        ]
+        required_inputs = ["amount", "user_history", "transaction_velocity", "geographic_location"]
 
         inputs_provided = {
             "amount": 1000,
             "user_history": "good",
             "transaction_velocity": 1.0,
-            "geographic_location": "US"
+            "geographic_location": "US",
         }
 
         is_valid = all(k in inputs_provided for k in required_inputs)
@@ -871,7 +834,8 @@ class TestRiskModelValidation:
 
         # Calcular accuracy (simplificado)
         correct = sum(
-            1 for p, a in zip(predicted_probs, actual_outcomes)
+            1
+            for p, a in zip(predicted_probs, actual_outcomes)
             if (p >= 0.5 and a == 1) or (p < 0.5 and a == 0)
         )
 
@@ -883,6 +847,7 @@ class TestRiskModelValidation:
 # =============================================================================
 # Test: Risk Reporting
 # =============================================================================
+
 
 class TestRiskReporting:
     """Testes de relatórios de risco."""
@@ -896,8 +861,8 @@ class TestRiskReporting:
             "risk_category": "medium",
             "top_factors": [
                 {"factor": "amount", "contribution": 0.4},
-                {"factor": "velocity", "contribution": 0.3}
-            ]
+                {"factor": "velocity", "contribution": 0.3},
+            ],
         }
 
         assert report["risk_category"] == "medium"
@@ -918,18 +883,14 @@ class TestRiskReporting:
 
     def test_generate_risk_summary(self):
         """Deve gerar sumário de risco."""
-        risks = {
-            "low": 45,
-            "medium": 30,
-            "high": 25
-        }
+        risks = {"low": 45, "medium": 30, "high": 25}
         total = sum(risks.values())
 
         summary = {
             "total": total,
             "low_pct": risks["low"] / total,
             "medium_pct": risks["medium"] / total,
-            "high_pct": risks["high"] / total
+            "high_pct": risks["high"] / total,
         }
 
         assert summary["total"] == 100
@@ -939,6 +900,7 @@ class TestRiskReporting:
 # =============================================================================
 # Test: Risk Alerts
 # =============================================================================
+
 
 class TestRiskAlerts:
     """Testes de alertas de risco."""
@@ -959,7 +921,7 @@ class TestRiskAlerts:
         recipients = {
             "low": ["user_manager"],
             "medium": ["user_manager", "risk_team"],
-            "high": ["user_manager", "risk_team", "compliance"]
+            "high": ["user_manager", "risk_team", "compliance"],
         }
 
         assert len(recipients[risk_level]) >= len(recipients["low"])
@@ -968,6 +930,7 @@ class TestRiskAlerts:
 # =============================================================================
 # Test: Risk Model Updates
 # =============================================================================
+
 
 class TestRiskModelUpdates:
     """Testes de atualização de modelo de risco."""
@@ -984,12 +947,7 @@ class TestRiskModelUpdates:
 
     def test_validate_model_before_deployment(self):
         """Deve validar modelo antes do deploy."""
-        model_metrics = {
-            "accuracy": 0.82,
-            "precision": 0.80,
-            "recall": 0.78,
-            "f1_score": 0.79
-        }
+        model_metrics = {"accuracy": 0.82, "precision": 0.80, "recall": 0.78, "f1_score": 0.79}
 
         # Todos os métricos devem estar acima de 0.7
         is_valid = all(v >= 0.7 for v in model_metrics.values())
@@ -1012,4 +970,3 @@ class TestRiskModelUpdates:
         significant_degradation = (degradation - degradation_threshold) > 0.01
 
         assert significant_degradation is False
-

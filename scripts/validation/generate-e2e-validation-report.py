@@ -45,14 +45,14 @@ class E2EReportGenerator:
         if len(json_files) > 1:
             print(f"  Note: Multiple metrics files found, using most recent")
 
-        with open(metrics_file, 'r') as f:
+        with open(metrics_file, "r") as f:
             self.test_data = json.load(f)
 
         # Validate structure
-        if 'iterations_results' not in self.test_data:
+        if "iterations_results" not in self.test_data:
             raise ValueError("Invalid test data: missing 'iterations_results'")
 
-        if not self.test_data['iterations_results']:
+        if not self.test_data["iterations_results"]:
             raise ValueError("Test data is empty")
 
         print(f"  Loaded {len(self.test_data['iterations_results'])} test results")
@@ -66,53 +66,53 @@ class E2EReportGenerator:
         if not summary_file.exists():
             print("  Warning: No monitoring summary found, using empty summary")
             self.log_summary = {
-                'typeerrors_detected': 0,
-                'timestamps_logged': 0,
-                'errors_logged': 0,
-                'warnings_logged': 0,
-                'duration_seconds': 0
+                "typeerrors_detected": 0,
+                "timestamps_logged": 0,
+                "errors_logged": 0,
+                "warnings_logged": 0,
+                "duration_seconds": 0,
             }
             return
 
         # Parse Markdown to extract key metrics
-        with open(summary_file, 'r') as f:
+        with open(summary_file, "r") as f:
             content = f.read()
 
         self.log_summary = {}
 
         # Extract TypeErrors
-        match = re.search(r'\*\*TypeErrors detected:\*\* (\d+)', content)
-        self.log_summary['typeerrors_detected'] = int(match.group(1)) if match else 0
+        match = re.search(r"\*\*TypeErrors detected:\*\* (\d+)", content)
+        self.log_summary["typeerrors_detected"] = int(match.group(1)) if match else 0
 
         # Extract Timestamps
-        match = re.search(r'\*\*Timestamps logged:\*\* (\d+)', content)
-        self.log_summary['timestamps_logged'] = int(match.group(1)) if match else 0
+        match = re.search(r"\*\*Timestamps logged:\*\* (\d+)", content)
+        self.log_summary["timestamps_logged"] = int(match.group(1)) if match else 0
 
         # Extract Errors
-        match = re.search(r'\*\*Errors logged:\*\* (\d+)', content)
-        self.log_summary['errors_logged'] = int(match.group(1)) if match else 0
+        match = re.search(r"\*\*Errors logged:\*\* (\d+)", content)
+        self.log_summary["errors_logged"] = int(match.group(1)) if match else 0
 
         # Extract Warnings
-        match = re.search(r'\*\*Warnings logged:\*\* (\d+)', content)
-        self.log_summary['warnings_logged'] = int(match.group(1)) if match else 0
+        match = re.search(r"\*\*Warnings logged:\*\* (\d+)", content)
+        self.log_summary["warnings_logged"] = int(match.group(1)) if match else 0
 
         # Extract Duration
-        match = re.search(r'\*\*Duration:\*\* (\d+) seconds', content)
-        self.log_summary['duration_seconds'] = int(match.group(1)) if match else 0
+        match = re.search(r"\*\*Duration:\*\* (\d+) seconds", content)
+        self.log_summary["duration_seconds"] = int(match.group(1)) if match else 0
 
         print(f"  TypeErrors: {self.log_summary['typeerrors_detected']}")
         print(f"  Timestamps: {self.log_summary['timestamps_logged']}")
 
     def generate_executive_summary(self):
         """Generate executive summary section."""
-        stats = self.test_data.get('summary_statistics', {})
+        stats = self.test_data.get("summary_statistics", {})
 
-        total_tests = stats.get('total_tests', 0)
-        passed_tests = stats.get('passed_tests', 0)
-        failed_tests = stats.get('failed_tests', 0)
-        success_rate = stats.get('success_rate', 0)
-        timestamp_validation_rate = stats.get('timestamp_validation_rate', 0)
-        typeerrors = self.log_summary.get('typeerrors_detected', 0)
+        total_tests = stats.get("total_tests", 0)
+        passed_tests = stats.get("passed_tests", 0)
+        failed_tests = stats.get("failed_tests", 0)
+        success_rate = stats.get("success_rate", 0)
+        timestamp_validation_rate = stats.get("timestamp_validation_rate", 0)
+        typeerrors = self.log_summary.get("typeerrors_detected", 0)
 
         # Determine verdict
         if success_rate >= 95 and typeerrors == 0 and timestamp_validation_rate == 100:
@@ -151,8 +151,8 @@ class E2EReportGenerator:
 
     def generate_test_results_section(self):
         """Generate test results by specialist section."""
-        stats = self.test_data.get('summary_statistics', {})
-        specialist_stats = stats.get('specialist_stats', {})
+        stats = self.test_data.get("summary_statistics", {})
+        specialist_stats = stats.get("specialist_stats", {})
 
         section = """## Test Results by Specialist
 
@@ -160,18 +160,18 @@ class E2EReportGenerator:
 |---------------|-------|--------|--------|--------------|-------------|-----|-----|--------|----------|
 """
 
-        for specialist in ['business', 'technical', 'behavior', 'evolution', 'architecture']:
+        for specialist in ["business", "technical", "behavior", "evolution", "architecture"]:
             if specialist in specialist_stats:
                 sp = specialist_stats[specialist]
-                opinion_total = sp.get('opinion_count_total', 0)
-                opinion_avg = sp.get('opinion_count_avg', 0)
+                opinion_total = sp.get("opinion_count_total", 0)
+                opinion_avg = sp.get("opinion_count_avg", 0)
                 section += f"| {specialist:<13} | {sp['total']:>5} | {sp['passed']:>6} | {sp['failed']:>6} | {sp['success_rate']:>11.1f}% | {sp['latency_avg']:>10.0f}ms | {sp['latency_min']:>3.0f} | {sp['latency_max']:>3.0f} | {sp['latency_median']:>6.0f} | {opinion_total} ({opinion_avg:.1f} avg) |\n"
 
         section += "\n### Opinion Metrics Summary\n\n"
 
         # Calculate total opinions
-        total_opinions = sum(sp.get('opinion_count_total', 0) for sp in specialist_stats.values())
-        total_tests = sum(sp.get('total', 0) for sp in specialist_stats.values())
+        total_opinions = sum(sp.get("opinion_count_total", 0) for sp in specialist_stats.values())
+        total_tests = sum(sp.get("total", 0) for sp in specialist_stats.values())
         avg_opinions_per_test = total_opinions / total_tests if total_tests > 0 else 0
 
         section += f"- **Total Opinions Generated:** {total_opinions}\n"
@@ -182,11 +182,13 @@ class E2EReportGenerator:
 
     def generate_timestamp_validation_section(self):
         """Generate timestamp validation section."""
-        stats = self.test_data.get('summary_statistics', {})
-        valid_timestamps = stats.get('valid_timestamps', 0)
-        invalid_timestamps = stats.get('invalid_timestamps', 0)
+        stats = self.test_data.get("summary_statistics", {})
+        valid_timestamps = stats.get("valid_timestamps", 0)
+        invalid_timestamps = stats.get("invalid_timestamps", 0)
         total_validations = valid_timestamps + invalid_timestamps
-        validation_rate = (valid_timestamps / total_validations * 100) if total_validations > 0 else 0
+        validation_rate = (
+            (valid_timestamps / total_validations * 100) if total_validations > 0 else 0
+        )
 
         section = f"""## Timestamp Validation Results
 
@@ -221,16 +223,16 @@ Review test logs for specific timestamp validation errors.
 
     def generate_latency_analysis_section(self):
         """Generate latency analysis section."""
-        stats = self.test_data.get('summary_statistics', {})
-        lat = stats.get('latency_overall', {})
+        stats = self.test_data.get("summary_statistics", {})
+        lat = stats.get("latency_overall", {})
 
-        mean = lat.get('mean', 0)
-        median = lat.get('median', 0)
-        stdev = lat.get('stdev', 0)
-        min_lat = lat.get('min', 0)
-        max_lat = lat.get('max', 0)
-        p95 = lat.get('p95', 0)
-        p99 = lat.get('p99', 0)
+        mean = lat.get("mean", 0)
+        median = lat.get("median", 0)
+        stdev = lat.get("stdev", 0)
+        min_lat = lat.get("min", 0)
+        max_lat = lat.get("max", 0)
+        p95 = lat.get("p95", 0)
+        p99 = lat.get("p99", 0)
 
         section = f"""## Latency Analysis
 
@@ -254,7 +256,9 @@ Review test logs for specific timestamp validation errors.
             section += "❌ Poor - Average latency exceeds 2 seconds\n"
 
         # Latency distribution
-        all_latencies = [r['latency_ms'] for r in self.test_data['iterations_results'] if 'latency_ms' in r]
+        all_latencies = [
+            r["latency_ms"] for r in self.test_data["iterations_results"] if "latency_ms" in r
+        ]
 
         if all_latencies:
             under_500 = sum(1 for l in all_latencies if l < 500)
@@ -276,7 +280,7 @@ Review test logs for specific timestamp validation errors.
 
     def generate_error_analysis_section(self):
         """Generate error analysis section."""
-        errors = self.test_data.get('errors', [])
+        errors = self.test_data.get("errors", [])
 
         section = """## Error Analysis
 
@@ -288,14 +292,14 @@ Review test logs for specific timestamp validation errors.
             # Group by type
             errors_by_type = defaultdict(list)
             for error in errors:
-                error_type = error.get('error_type', 'Unknown')
+                error_type = error.get("error_type", "Unknown")
                 errors_by_type[error_type].append(error)
 
             # Group by specialist
             errors_by_specialist = defaultdict(list)
             for error in errors:
-                scenario = error.get('scenario', '')
-                specialist = scenario.split('-')[0] if '-' in scenario else scenario
+                scenario = error.get("scenario", "")
+                specialist = scenario.split("-")[0] if "-" in scenario else scenario
                 errors_by_specialist[specialist].append(error)
 
             section += f"""### Summary
@@ -309,7 +313,9 @@ Review test logs for specific timestamp validation errors.
             for error_type, error_list in errors_by_type.items():
                 section += f"\n#### {error_type} ({len(error_list)} occurrences)\n"
                 for error in error_list[:3]:  # Show first 3
-                    section += f"- **Iteration {error['iteration_num']}**, Scenario: {error['scenario']}\n"
+                    section += (
+                        f"- **Iteration {error['iteration_num']}**, Scenario: {error['scenario']}\n"
+                    )
                     section += f"  - Message: {error['error_message']}\n"
 
             section += "\n### Errors by Specialist\n"
@@ -321,11 +327,11 @@ Review test logs for specific timestamp validation errors.
 
     def generate_log_monitoring_section(self):
         """Generate log monitoring results section."""
-        typeerrors = self.log_summary.get('typeerrors_detected', 0)
-        timestamps = self.log_summary.get('timestamps_logged', 0)
-        errors = self.log_summary.get('errors_logged', 0)
-        warnings = self.log_summary.get('warnings_logged', 0)
-        duration = self.log_summary.get('duration_seconds', 0)
+        typeerrors = self.log_summary.get("typeerrors_detected", 0)
+        timestamps = self.log_summary.get("timestamps_logged", 0)
+        errors = self.log_summary.get("errors_logged", 0)
+        warnings = self.log_summary.get("warnings_logged", 0)
+        duration = self.log_summary.get("duration_seconds", 0)
 
         section = f"""## Log Monitoring Results
 
@@ -368,11 +374,11 @@ This confirms that the protobuf version incompatibility issue has been successfu
 
     def generate_recommendations_section(self):
         """Generate recommendations section."""
-        stats = self.test_data.get('summary_statistics', {})
-        success_rate = stats.get('success_rate', 0)
-        timestamp_validation_rate = stats.get('timestamp_validation_rate', 0)
-        typeerrors = self.log_summary.get('typeerrors_detected', 0)
-        mean_latency = stats.get('latency_overall', {}).get('mean', 0)
+        stats = self.test_data.get("summary_statistics", {})
+        success_rate = stats.get("success_rate", 0)
+        timestamp_validation_rate = stats.get("timestamp_validation_rate", 0)
+        typeerrors = self.log_summary.get("typeerrors_detected", 0)
+        mean_latency = stats.get("latency_overall", {}).get("mean", 0)
 
         recommendations = []
 
@@ -468,9 +474,9 @@ This confirms that the protobuf version incompatibility issue has been successfu
         full_report = "\n\n".join(self.report_sections)
 
         # Add appendix
-        metadata = self.test_data.get('metadata', {})
-        num_iterations = metadata.get('num_iterations', 'N/A')
-        gateway_url = metadata.get('gateway_url', 'N/A')
+        metadata = self.test_data.get("metadata", {})
+        num_iterations = metadata.get("num_iterations", "N/A")
+        gateway_url = metadata.get("gateway_url", "N/A")
 
         appendix = f"""---
 
@@ -501,7 +507,7 @@ This confirms that the protobuf version incompatibility issue has been successfu
 
         # Save report
         self.output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.output_path, 'w') as f:
+        with open(self.output_path, "w") as f:
             f.write(full_report)
 
         print(f"\n✓ Report generated: {self.output_path}")
@@ -512,13 +518,10 @@ This confirms that the protobuf version incompatibility issue has been successfu
 
 def main():
     """Main execution function."""
-    parser = argparse.ArgumentParser(description='Generate E2E Validation Report')
-    parser.add_argument('--test-results', required=True,
-                       help='Directory with test results')
-    parser.add_argument('--logs', required=True,
-                       help='Directory with captured logs')
-    parser.add_argument('--output', required=True,
-                       help='Output path for report')
+    parser = argparse.ArgumentParser(description="Generate E2E Validation Report")
+    parser.add_argument("--test-results", required=True, help="Directory with test results")
+    parser.add_argument("--logs", required=True, help="Directory with captured logs")
+    parser.add_argument("--output", required=True, help="Output path for report")
 
     args = parser.parse_args()
 
@@ -537,9 +540,7 @@ def main():
     # Generate report
     try:
         generator = E2EReportGenerator(
-            test_results_dir=str(test_results_dir),
-            logs_dir=str(logs_dir),
-            output_path=args.output
+            test_results_dir=str(test_results_dir), logs_dir=str(logs_dir), output_path=args.output
         )
 
         report_path = generator.generate_report()
@@ -558,9 +559,10 @@ def main():
     except Exception as e:
         print(f"Error generating report: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

@@ -18,7 +18,9 @@ if "neural_hive_integration" not in sys.modules:
             return "pipeline-1"
 
         async def wait_for_pipeline_completion(self, *_args, **_kwargs):
-            return SimpleNamespace(status="completed", duration_ms=10, artifacts={}, sbom={}, signature={})
+            return SimpleNamespace(
+                status="completed", duration_ms=10, artifacts={}, sbom={}, signature={}
+            )
 
     clients_pkg.code_forge_client = ModuleType("neural_hive_integration.clients.code_forge_client")
     clients_pkg.code_forge_client.CodeForgeClient = CodeForgeClient

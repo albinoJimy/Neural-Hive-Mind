@@ -10,8 +10,10 @@ from unittest.mock import MagicMock
 _vault_integration_module = None
 
 # Path to the services directory
-_services_root = os.path.join(os.path.dirname(__file__), '..', '..', 'services', 'orchestrator-dynamic')
-_services_src = os.path.join(_services_root, 'src')
+_services_root = os.path.join(
+    os.path.dirname(__file__), "..", "..", "services", "orchestrator-dynamic"
+)
+_services_src = os.path.join(_services_root, "src")
 
 
 def get_vault_integration_class():
@@ -26,8 +28,8 @@ def get_vault_integration_class():
         return _vault_integration_module.OrchestratorVaultClient
 
     # Check if already loaded in a previous test file
-    if 'vault_integration_cached' in sys.modules:
-        _vault_integration_module = sys.modules['vault_integration_cached']
+    if "vault_integration_cached" in sys.modules:
+        _vault_integration_module = sys.modules["vault_integration_cached"]
         return _vault_integration_module.OrchestratorVaultClient
 
     import importlib.util
@@ -35,8 +37,8 @@ def get_vault_integration_class():
     # Mock the security library
     mock_security = MagicMock()
     mock_security.VaultClient = MagicMock()
-    sys.modules['neural_hive_security'] = mock_security
-    sys.modules['neural_hive_security.vault_client'] = mock_security
+    sys.modules["neural_hive_security"] = mock_security
+    sys.modules["neural_hive_security.vault_client"] = mock_security
 
     # Add paths if not already added
     if _services_root not in sys.path:
@@ -45,10 +47,12 @@ def get_vault_integration_class():
         sys.path.insert(0, _services_src)
 
     # Load vault_integration directly without going through __init__.py
-    vault_integration_path = os.path.join(_services_src, 'clients', 'vault_integration.py')
-    spec = importlib.util.spec_from_file_location("vault_integration_cached", vault_integration_path)
+    vault_integration_path = os.path.join(_services_src, "clients", "vault_integration.py")
+    spec = importlib.util.spec_from_file_location(
+        "vault_integration_cached", vault_integration_path
+    )
     vault_module = importlib.util.module_from_spec(spec)
-    sys.modules['vault_integration_cached'] = vault_module
+    sys.modules["vault_integration_cached"] = vault_module
     spec.loader.exec_module(vault_module)
 
     _vault_integration_module = vault_module

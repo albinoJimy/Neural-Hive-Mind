@@ -22,6 +22,7 @@ import pytest_asyncio
 # Execution Ticket Service Mock
 # =============================================================================
 
+
 class MockExecutionTicketService:
     """Mock HTTP server for Execution Ticket Service."""
 
@@ -41,7 +42,7 @@ class MockExecutionTicketService:
             "workflow_id": kwargs.get("workflow_id"),
             "created_at": datetime.now(timezone.utc).isoformat(),
             "updated_at": datetime.now(timezone.utc).isoformat(),
-            **kwargs
+            **kwargs,
         }
 
     def set_should_fail(self, should_fail: bool, message: str = "Service unavailable"):
@@ -65,7 +66,7 @@ class MockExecutionTicketService:
         status: str,
         result: Optional[Dict] = None,
         assigned_worker: Optional[str] = None,
-        metadata: Optional[Dict] = None
+        metadata: Optional[Dict] = None,
     ) -> Dict[str, Any]:
         """Update ticket status."""
         if self._should_fail:
@@ -90,19 +91,18 @@ class MockExecutionTicketService:
                 self.tickets[ticket_id]["metadata"] = {}
             self.tickets[ticket_id]["metadata"].update(metadata)
 
-        self.status_updates.append({
-            "ticket_id": ticket_id,
-            "status": status,
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        })
+        self.status_updates.append(
+            {
+                "ticket_id": ticket_id,
+                "status": status,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        )
 
         return self.tickets[ticket_id]
 
     async def reallocate_ticket(
-        self,
-        ticket_id: str,
-        reason: str,
-        metadata: Optional[Dict] = None
+        self, ticket_id: str, reason: str, metadata: Optional[Dict] = None
     ) -> Dict[str, Any]:
         """Reallocate a ticket."""
         if self._should_fail:
@@ -124,30 +124,29 @@ class MockExecutionTicketService:
                 "reallocation_id": reallocation_id,
                 "reallocation_reason": reason,
                 "reallocation_timestamp": datetime.now(timezone.utc).isoformat(),
-                **(metadata or {})
-            }
+                **(metadata or {}),
+            },
         )
 
-        self.reallocations.append({
-            "ticket_id": ticket_id,
-            "reallocation_id": reallocation_id,
-            "reason": reason,
-            "previous_worker": previous_worker,
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        })
+        self.reallocations.append(
+            {
+                "ticket_id": ticket_id,
+                "reallocation_id": reallocation_id,
+                "reason": reason,
+                "previous_worker": previous_worker,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        )
 
         return {
             **result,
             "reallocation_id": reallocation_id,
             "previous_worker": previous_worker,
-            "reallocated": True
+            "reallocated": True,
         }
 
     async def reallocate_multiple_tickets(
-        self,
-        ticket_ids: List[str],
-        reason: str,
-        metadata: Optional[Dict] = None
+        self, ticket_ids: List[str], reason: str, metadata: Optional[Dict] = None
     ) -> Dict[str, Any]:
         """Reallocate multiple tickets."""
         if self._should_fail:
@@ -163,7 +162,7 @@ class MockExecutionTicketService:
                 result = await self.reallocate_ticket(
                     ticket_id=ticket_id,
                     reason=reason,
-                    metadata={**(metadata or {}), "batch_id": batch_id}
+                    metadata={**(metadata or {}), "batch_id": batch_id},
                 )
                 results.append({"ticket_id": ticket_id, "success": True, "result": result})
                 successful += 1
@@ -176,13 +175,14 @@ class MockExecutionTicketService:
             "total": len(ticket_ids),
             "successful": successful,
             "failed": failed,
-            "results": results
+            "results": results,
         }
 
 
 # =============================================================================
 # Orchestrator gRPC Mock
 # =============================================================================
+
 
 class MockOrchestratorClient:
     """Mock gRPC client for Orchestrator Dynamic."""
@@ -205,14 +205,10 @@ class MockOrchestratorClient:
             "progress_percent": kwargs.get("progress_percent", 50.0),
             "started_at": int(datetime.now(timezone.utc).timestamp()),
             "updated_at": int(datetime.now(timezone.utc).timestamp()),
-            "tickets": kwargs.get("tickets", {
-                "total": 10,
-                "completed": 5,
-                "pending": 3,
-                "running": 2,
-                "failed": 0
-            }),
-            **kwargs
+            "tickets": kwargs.get(
+                "tickets", {"total": 10, "completed": 5, "pending": 3, "running": 2, "failed": 0}
+            ),
+            **kwargs,
         }
 
     def set_should_fail(self, should_fail: bool, message: str = "gRPC unavailable"):
@@ -233,7 +229,7 @@ class MockOrchestratorClient:
         workflow_id: str,
         reason: str,
         duration_seconds: Optional[int] = None,
-        adjustment_id: Optional[str] = None
+        adjustment_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Pause a workflow."""
         if self._should_fail:
@@ -248,19 +244,21 @@ class MockOrchestratorClient:
         adj_id = adjustment_id or str(uuid4())
         paused_at = int(datetime.now(timezone.utc).timestamp())
 
-        self.pause_calls.append({
-            "workflow_id": workflow_id,
-            "reason": reason,
-            "adjustment_id": adj_id,
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        })
+        self.pause_calls.append(
+            {
+                "workflow_id": workflow_id,
+                "reason": reason,
+                "adjustment_id": adj_id,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        )
 
         result = {
             "success": True,
             "message": "Workflow paused",
             "paused_at": paused_at,
             "workflow_id": workflow_id,
-            "adjustment_id": adj_id
+            "adjustment_id": adj_id,
         }
 
         if duration_seconds:
@@ -269,10 +267,7 @@ class MockOrchestratorClient:
         return result
 
     async def resume_workflow(
-        self,
-        workflow_id: str,
-        reason: str,
-        adjustment_id: Optional[str] = None
+        self, workflow_id: str, reason: str, adjustment_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """Resume a paused workflow."""
         if self._should_fail:
@@ -291,12 +286,14 @@ class MockOrchestratorClient:
         adj_id = adjustment_id or str(uuid4())
         resumed_at = int(datetime.now(timezone.utc).timestamp())
 
-        self.resume_calls.append({
-            "workflow_id": workflow_id,
-            "reason": reason,
-            "adjustment_id": adj_id,
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        })
+        self.resume_calls.append(
+            {
+                "workflow_id": workflow_id,
+                "reason": reason,
+                "adjustment_id": adj_id,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        )
 
         return {
             "success": True,
@@ -304,14 +301,11 @@ class MockOrchestratorClient:
             "resumed_at": resumed_at,
             "pause_duration_seconds": 60,  # Mock value
             "workflow_id": workflow_id,
-            "adjustment_id": adj_id
+            "adjustment_id": adj_id,
         }
 
     async def get_workflow_status(
-        self,
-        workflow_id: str,
-        include_tickets: bool = True,
-        include_history: bool = False
+        self, workflow_id: str, include_tickets: bool = True, include_history: bool = False
     ) -> Dict[str, Any]:
         """Get workflow status."""
         if self._should_fail:
@@ -334,7 +328,7 @@ class MockOrchestratorClient:
         trigger_type: str = "TRIGGER_TYPE_STRATEGIC",
         preserve_progress: bool = True,
         context: Optional[Dict[str, str]] = None,
-        adjustment_id: Optional[str] = None
+        adjustment_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Trigger replanning."""
         if self._should_fail:
@@ -343,13 +337,15 @@ class MockOrchestratorClient:
         adj_id = adjustment_id or str(uuid4())
         replanning_id = str(uuid4())
 
-        self.replanning_calls.append({
-            "plan_id": plan_id,
-            "reason": reason,
-            "trigger_type": trigger_type,
-            "adjustment_id": adj_id,
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        })
+        self.replanning_calls.append(
+            {
+                "plan_id": plan_id,
+                "reason": reason,
+                "trigger_type": trigger_type,
+                "adjustment_id": adj_id,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        )
 
         return {
             "success": True,
@@ -357,13 +353,14 @@ class MockOrchestratorClient:
             "replanning_id": replanning_id,
             "triggered_at": int(datetime.now(timezone.utc).timestamp()),
             "plan_id": plan_id,
-            "adjustment_id": adj_id
+            "adjustment_id": adj_id,
         }
 
 
 # =============================================================================
 # OPA Mock
 # =============================================================================
+
 
 class MockOPAClient:
     """Mock OPA client for policy evaluation."""
@@ -399,17 +396,13 @@ class MockOPAClient:
             return self._policies[policy_path]
 
         # Default: allow all
-        return {
-            "result": {
-                "allow": True,
-                "violations": []
-            }
-        }
+        return {"result": {"allow": True, "violations": []}}
 
 
 # =============================================================================
 # Fixtures
 # =============================================================================
+
 
 @pytest.fixture
 def execution_ticket_service_mock():
@@ -431,10 +424,7 @@ def opa_server_mock():
 
 @pytest_asyncio.fixture
 async def playbook_executor_with_clients(
-    execution_ticket_service_mock,
-    orchestrator_grpc_mock,
-    opa_server_mock,
-    tmp_path
+    execution_ticket_service_mock, orchestrator_grpc_mock, opa_server_mock, tmp_path
 ):
     """
     Provide a PlaybookExecutor with mock clients.
@@ -449,7 +439,8 @@ async def playbook_executor_with_clients(
 
     # Create a test playbook
     test_playbook = playbooks_dir / "ticket_timeout_recovery.yaml"
-    test_playbook.write_text("""
+    test_playbook.write_text(
+        """
 name: ticket_timeout_recovery
 description: Recover from ticket timeout
 timeout_seconds: 60
@@ -465,11 +456,13 @@ actions:
     parameters:
       ticket_id: "{{ ticket_id }}"
       status: pending
-""")
+"""
+    )
 
     # Create worker failure playbook
     worker_failure_playbook = playbooks_dir / "worker_failure_recovery.yaml"
-    worker_failure_playbook.write_text("""
+    worker_failure_playbook.write_text(
+        """
 name: worker_failure_recovery
 description: Recover from worker failure
 timeout_seconds: 120
@@ -478,11 +471,13 @@ actions:
     parameters:
       affected_tickets: "{{ affected_tickets }}"
       reason: worker_failure
-""")
+"""
+    )
 
     # Create workflow restart playbook
     workflow_restart_playbook = playbooks_dir / "workflow_restart.yaml"
-    workflow_restart_playbook.write_text("""
+    workflow_restart_playbook.write_text(
+        """
 name: workflow_restart
 description: Restart a paused workflow
 timeout_seconds: 30
@@ -491,10 +486,11 @@ actions:
     parameters:
       workflow_id: "{{ workflow_id }}"
       reason: self_healing_restart
-""")
+"""
+    )
 
     # Mock Kubernetes initialization
-    with patch('services.self_healing_engine.src.services.playbook_executor.config'):
+    with patch("services.self_healing_engine.src.services.playbook_executor.config"):
         executor = PlaybookExecutor(
             playbooks_dir=str(playbooks_dir),
             k8s_in_cluster=False,
@@ -523,5 +519,5 @@ def sample_incident_context():
         "workflow_id": "workflow-789",
         "worker_id": "worker-001",
         "namespace": "neural-hive-execution",
-        "timestamp": datetime.now(timezone.utc).isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }

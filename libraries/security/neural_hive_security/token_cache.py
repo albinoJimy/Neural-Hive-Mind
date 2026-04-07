@@ -12,23 +12,12 @@ from prometheus_client import Counter, Gauge
 
 
 # Prometheus metrics
-cache_hits_total = Counter(
-    "token_cache_hits_total",
-    "Total token cache hits"
-)
-cache_misses_total = Counter(
-    "token_cache_misses_total",
-    "Total token cache misses"
-)
+cache_hits_total = Counter("token_cache_hits_total", "Total token cache hits")
+cache_misses_total = Counter("token_cache_misses_total", "Total token cache misses")
 cache_refresh_total = Counter(
-    "token_cache_refresh_total",
-    "Total token cache refreshes",
-    ["status"]
+    "token_cache_refresh_total", "Total token cache refreshes", ["status"]
 )
-cache_size = Gauge(
-    "token_cache_size",
-    "Current number of cached tokens"
-)
+cache_size = Gauge("token_cache_size", "Current number of cached tokens")
 
 
 logger = structlog.get_logger(__name__)
@@ -36,14 +25,16 @@ logger = structlog.get_logger(__name__)
 
 class RefreshStrategy(str, Enum):
     """Token refresh strategies"""
-    EAGER = "eager"      # Refresh proactively before expiration
-    LAZY = "lazy"        # Refresh on access if expired
+
+    EAGER = "eager"  # Refresh proactively before expiration
+    LAZY = "lazy"  # Refresh on access if expired
     DISABLED = "disabled"  # No automatic refresh
 
 
 @dataclass
 class CachedToken:
     """Cached token metadata"""
+
     value: str
     expiry: datetime
     refresh_at: datetime
@@ -64,7 +55,7 @@ class TokenCache:
     def __init__(
         self,
         refresh_threshold: float = 0.8,
-        refresh_strategy: RefreshStrategy = RefreshStrategy.EAGER
+        refresh_strategy: RefreshStrategy = RefreshStrategy.EAGER,
     ):
         """
         Initialize token cache
@@ -121,7 +112,7 @@ class TokenCache:
         key: str,
         token: str,
         ttl: int,
-        refresh_callback: Optional[Callable[[str], Awaitable[str]]] = None
+        refresh_callback: Optional[Callable[[str], Awaitable[str]]] = None,
     ):
         """
         Store token in cache
@@ -135,11 +126,7 @@ class TokenCache:
         expiry = datetime.now(timezone.utc) + timedelta(seconds=ttl)
         refresh_at = datetime.now(timezone.utc) + timedelta(seconds=ttl * self.refresh_threshold)
 
-        self._cache[key] = CachedToken(
-            value=token,
-            expiry=expiry,
-            refresh_at=refresh_at
-        )
+        self._cache[key] = CachedToken(value=token, expiry=expiry, refresh_at=refresh_at)
 
         if refresh_callback:
             self._refresh_callbacks[key] = refresh_callback
@@ -149,12 +136,7 @@ class TokenCache:
             self._locks[key] = asyncio.Lock()
 
         cache_size.set(len(self._cache))
-        self.logger.debug(
-            "token_cached",
-            key=key,
-            ttl=ttl,
-            refresh_at=refresh_at.isoformat()
-        )
+        self.logger.debug("token_cached", key=key, ttl=ttl, refresh_at=refresh_at.isoformat())
 
     async def invalidate(self, key: str):
         """
@@ -199,7 +181,9 @@ class TokenCache:
                     cached.value = new_token
                     # Reset refresh time
                     ttl = (cached.expiry - datetime.now(timezone.utc)).total_seconds()
-                    cached.refresh_at = datetime.now(timezone.utc) + timedelta(seconds=ttl * self.refresh_threshold)
+                    cached.refresh_at = datetime.now(timezone.utc) + timedelta(
+                        seconds=ttl * self.refresh_threshold
+                    )
 
                 cache_refresh_total.labels(status="success").inc()
                 self.logger.info("token_refreshed", key=key)

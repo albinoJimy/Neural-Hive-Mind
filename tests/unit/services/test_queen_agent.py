@@ -15,6 +15,7 @@ import asyncio
 # Test: Queen Agent Leadership
 # =============================================================================
 
+
 class TestQueenAgentLeadership:
     """Testes de liderança do Queen Agent."""
 
@@ -34,10 +35,12 @@ class TestQueenAgentLeadership:
         queen = {
             "queen_id": "queen-1",
             "last_heartbeat": datetime.now(timezone.utc),
-            "status": "leading"
+            "status": "leading",
         }
 
-        time_since_heartbeat = (datetime.now(timezone.utc) - queen["last_heartbeat"]).total_seconds()
+        time_since_heartbeat = (
+            datetime.now(timezone.utc) - queen["last_heartbeat"]
+        ).total_seconds()
         is_alive = time_since_heartbeat < 30
 
         assert is_alive is True
@@ -60,23 +63,16 @@ class TestQueenAgentLeadership:
 # Test: Swarm Management
 # =============================================================================
 
+
 class TestSwarmManagement:
     """Testes de gerenciamento de swarm."""
 
     @pytest.mark.asyncio
     async def test_register_agent_in_swarm(self):
         """Deve registrar agente no swarm."""
-        swarm = {
-            "swarm_id": str(uuid4()),
-            "agents": {},
-            "queen": "queen-1"
-        }
+        swarm = {"swarm_id": str(uuid4()), "agents": {}, "queen": "queen-1"}
 
-        agent = {
-            "agent_id": "worker-1",
-            "type": "worker",
-            "status": "idle"
-        }
+        agent = {"agent_id": "worker-1", "type": "worker", "status": "idle"}
 
         swarm["agents"][agent["agent_id"]] = agent
 
@@ -90,14 +86,11 @@ class TestSwarmManagement:
                 "agent-1": {"status": "active"},
                 "agent-2": {"status": "idle"},
                 "agent-3": {"status": "active"},
-                "agent-4": {"status": "offline"}
+                "agent-4": {"status": "offline"},
             }
         }
 
-        active_count = sum(
-            1 for a in swarm["agents"].values()
-            if a["status"] in ["active", "idle"]
-        )
+        active_count = sum(1 for a in swarm["agents"].values() if a["status"] in ["active", "idle"])
 
         assert active_count == 3
 
@@ -107,7 +100,10 @@ class TestSwarmManagement:
         swarm = {
             "agents": {
                 "agent-1": {"status": "active", "last_seen": datetime.now(timezone.utc)},
-                "agent-2": {"status": "inactive", "last_seen": datetime.now(timezone.utc) - timedelta(hours=2)}
+                "agent-2": {
+                    "status": "inactive",
+                    "last_seen": datetime.now(timezone.utc) - timedelta(hours=2),
+                },
             }
         }
 
@@ -116,7 +112,8 @@ class TestSwarmManagement:
         now = datetime.now(timezone.utc)
 
         to_remove = [
-            agent_id for agent_id, agent in swarm["agents"].items()
+            agent_id
+            for agent_id, agent in swarm["agents"].items()
             if (now - agent["last_seen"]).total_seconds() > timeout_seconds
         ]
 
@@ -131,6 +128,7 @@ class TestSwarmManagement:
 # Test: Task Distribution
 # =============================================================================
 
+
 class TestTaskDistribution:
     """Testes de distribuição de tarefas."""
 
@@ -141,7 +139,7 @@ class TestTaskDistribution:
             "agents": {
                 "agent-1": {"status": "idle", "capacity": 5},
                 "agent-2": {"status": "idle", "capacity": 3},
-                "agent-3": {"status": "busy", "capacity": 0}
+                "agent-3": {"status": "busy", "capacity": 0},
             }
         }
 
@@ -149,16 +147,14 @@ class TestTaskDistribution:
 
         # Encontrar agente com capacidade disponível
         available_agents = [
-            agent_id for agent_id, agent in swarm["agents"].items()
+            agent_id
+            for agent_id, agent in swarm["agents"].items()
             if agent["status"] == "idle" and agent["capacity"] >= task["complexity"]
         ]
 
         # Escolher o com maior capacidade
         if available_agents:
-            assigned_to = max(
-                available_agents,
-                key=lambda a: swarm["agents"][a]["capacity"]
-            )
+            assigned_to = max(available_agents, key=lambda a: swarm["agents"][a]["capacity"])
         else:
             assigned_to = None
 
@@ -170,7 +166,7 @@ class TestTaskDistribution:
         agents = {
             "agent-1": {"current_load": 8, "max_capacity": 10},
             "agent-2": {"current_load": 3, "max_capacity": 10},
-            "agent-3": {"current_load": 6, "max_capacity": 10}
+            "agent-3": {"current_load": 6, "max_capacity": 10},
         }
 
         # Calcular disponibilidade
@@ -187,11 +183,7 @@ class TestTaskDistribution:
     @pytest.mark.asyncio
     async def test_redistribute_on_agent_failure(self):
         """Deve redistribuir em falha de agente."""
-        assignments = {
-            "agent-1": ["task-1", "task-2"],
-            "agent-2": ["task-3"],
-            "agent-3": []
-        }
+        assignments = {"agent-1": ["task-1", "task-2"], "agent-2": ["task-3"], "agent-3": []}
 
         failed_agent = "agent-1"
         orphaned_tasks = assignments[failed_agent]
@@ -214,6 +206,7 @@ class TestTaskDistribution:
 # Test: Swarm Health Monitoring
 # =============================================================================
 
+
 class TestSwarmHealthMonitoring:
     """Testes de monitoramento de saúde do swarm."""
 
@@ -224,20 +217,13 @@ class TestSwarmHealthMonitoring:
             "agent-1": {"health": "healthy"},
             "agent-2": {"health": "healthy"},
             "agent-3": {"health": "degraded"},
-            "agent-4": {"health": "unhealthy"}
+            "agent-4": {"health": "unhealthy"},
         }
 
         # Score: healthy=1, degraded=0.5, unhealthy=0
-        health_scores = {
-            "healthy": 1.0,
-            "degraded": 0.5,
-            "unhealthy": 0.0
-        }
+        health_scores = {"healthy": 1.0, "degraded": 0.5, "unhealthy": 0.0}
 
-        total_score = sum(
-            health_scores[agent["health"]]
-            for agent in agents.values()
-        ) / len(agents)
+        total_score = sum(health_scores[agent["health"]] for agent in agents.values()) / len(agents)
 
         assert total_score == 0.625  # (1+1+0.5+0)/4
 
@@ -254,15 +240,11 @@ class TestSwarmHealthMonitoring:
     @pytest.mark.asyncio
     async def test_trigger_swarm_recovery(self):
         """Deve disparar recuperação do swarm."""
-        swarm_status = {
-            "health_score": 0.3,
-            "unhealthy_agents": 3,
-            "total_agents": 5
-        }
+        swarm_status = {"health_score": 0.3, "unhealthy_agents": 3, "total_agents": 5}
 
         should_recover = (
-            swarm_status["health_score"] < 0.5 or
-            swarm_status["unhealthy_agents"] > swarm_status["total_agents"] / 2
+            swarm_status["health_score"] < 0.5
+            or swarm_status["unhealthy_agents"] > swarm_status["total_agents"] / 2
         )
 
         assert should_recover is True
@@ -271,6 +253,7 @@ class TestSwarmHealthMonitoring:
 # =============================================================================
 # Test: Agent Lifecycle Management
 # =============================================================================
+
 
 class TestAgentLifecycleManagement:
     """Testes de gerenciamento de ciclo de vida de agentes."""
@@ -283,7 +266,7 @@ class TestAgentLifecycleManagement:
             "agent_id": str(uuid4()),
             "type": agent_type,
             "config": {"timeout": 30},
-            "status": "spawning"
+            "status": "spawning",
         }
 
         assert spawn_request["status"] == "spawning"
@@ -291,10 +274,7 @@ class TestAgentLifecycleManagement:
     @pytest.mark.asyncio
     async def test_terminate_agent(self):
         """Deve terminar agente."""
-        agent = {
-            "agent_id": "worker-1",
-            "status": "running"
-        }
+        agent = {"agent_id": "worker-1", "status": "running"}
 
         agent["status"] = "terminating"
         agent["terminated_at"] = datetime.now(timezone.utc).isoformat()
@@ -327,6 +307,7 @@ class TestAgentLifecycleManagement:
 # Test: Resource Management
 # =============================================================================
 
+
 class TestResourceManagement:
     """Testes de gerenciamento de recursos."""
 
@@ -337,7 +318,7 @@ class TestResourceManagement:
             "cpu_usage_percent": 65,
             "memory_usage_mb": 512,
             "active_connections": 10,
-            "max_connections": 100
+            "max_connections": 100,
         }
 
         assert resources["cpu_usage_percent"] == 65
@@ -346,15 +327,9 @@ class TestResourceManagement:
     @pytest.mark.asyncio
     async def test_detect_resource_exhaustion(self):
         """Deve detectar exaustão de recursos."""
-        resources = {
-            "cpu_usage_percent": 95,
-            "memory_usage_percent": 90
-        }
+        resources = {"cpu_usage_percent": 95, "memory_usage_percent": 90}
 
-        thresholds = {
-            "cpu": 90,
-            "memory": 85
-        }
+        thresholds = {"cpu": 90, "memory": 85}
 
         cpu_exhausted = resources["cpu_usage_percent"] > thresholds["cpu"]
         memory_exhausted = resources["memory_usage_percent"] > thresholds["memory"]
@@ -366,19 +341,13 @@ class TestResourceManagement:
     @pytest.mark.asyncio
     async def test_allocate_resources_to_agent(self):
         """Deve alocar recursos para agente."""
-        pool = {
-            "available_memory_mb": 2048,
-            "available_cpu_cores": 4
-        }
+        pool = {"available_memory_mb": 2048, "available_cpu_cores": 4}
 
-        agent_request = {
-            "memory_mb": 512,
-            "cpu_cores": 1
-        }
+        agent_request = {"memory_mb": 512, "cpu_cores": 1}
 
         can_allocate = (
-            pool["available_memory_mb"] >= agent_request["memory_mb"] and
-            pool["available_cpu_cores"] >= agent_request["cpu_cores"]
+            pool["available_memory_mb"] >= agent_request["memory_mb"]
+            and pool["available_cpu_cores"] >= agent_request["cpu_cores"]
         )
 
         assert can_allocate is True
@@ -394,6 +363,7 @@ class TestResourceManagement:
 # =============================================================================
 # Test: Swarm Coordination
 # =============================================================================
+
 
 class TestSwarmCoordination:
     """Testes de coordenação do swarm."""
@@ -415,26 +385,20 @@ class TestSwarmCoordination:
         agent_results = {
             "agent-1": {"status": "success", "data": {"result": 1}},
             "agent-2": {"status": "success", "data": {"result": 2}},
-            "agent-3": {"status": "failed", "error": "Timeout"}
+            "agent-3": {"status": "failed", "error": "Timeout"},
         }
 
-        successful_results = [
-            r["data"] for r in agent_results.values()
-            if r["status"] == "success"
-        ]
+        successful_results = [r["data"] for r in agent_results.values() if r["status"] == "success"]
 
         assert len(successful_results) == 2
 
     @pytest.mark.asyncio
     async def test_handle_swarm_consensus(self):
         """Deve alcançar consenso no swarm."""
-        votes = {
-            "agent-1": "approve",
-            "agent-2": "approve",
-            "agent-3": "reject"
-        }
+        votes = {"agent-1": "approve", "agent-2": "approve", "agent-3": "reject"}
 
         from collections import Counter
+
         vote_counts = Counter(votes.values())
         consensus = vote_counts.most_common(1)[0][0]
 
@@ -445,6 +409,7 @@ class TestSwarmCoordination:
 # Test: Queen Communication
 # =============================================================================
 
+
 class TestQueenCommunication:
     """Testes de comunicação do Queen."""
 
@@ -454,7 +419,7 @@ class TestQueenCommunication:
         command = {
             "type": "shutdown",
             "from": "queen-1",
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         swarm_agents = ["agent-1", "agent-2", "agent-3"]
@@ -471,14 +436,14 @@ class TestQueenCommunication:
             "agent_id": "agent-1",
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "status": "idle",
-            "completed_tasks": 10
+            "completed_tasks": 10,
         }
 
         # Registrar heartbeat
         agent_status = {
             "agent_id": heartbeat["agent_id"],
             "last_seen": datetime.now(timezone.utc),
-            "status": heartbeat["status"]
+            "status": heartbeat["status"],
         }
 
         assert agent_status["agent_id"] == "agent-1"
@@ -490,7 +455,7 @@ class TestQueenCommunication:
             "to_agent": "worker-1",
             "from": "queen-1",
             "command": "execute_task",
-            "task": {"task_id": str(uuid4()), "type": "query"}
+            "task": {"task_id": str(uuid4()), "type": "query"},
         }
 
         assert directive["to_agent"] == "worker-1"
@@ -500,6 +465,7 @@ class TestQueenCommunication:
 # =============================================================================
 # Test: Swarm Persistence
 # =============================================================================
+
 
 class TestSwarmPersistence:
     """Testes de persistência do swarm."""
@@ -511,7 +477,7 @@ class TestSwarmPersistence:
             "swarm_id": str(uuid4()),
             "queen": "queen-1",
             "agents": ["agent-1", "agent-2"],
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         # Simular salvamento
@@ -522,11 +488,7 @@ class TestSwarmPersistence:
     @pytest.mark.asyncio
     async def test_restore_swarm_state(self):
         """Deve restaurar estado do swarm."""
-        stored_state = {
-            "swarm_id": "swarm-1",
-            "queen": "queen-1",
-            "agents": ["agent-1", "agent-2"]
-        }
+        stored_state = {"swarm_id": "swarm-1", "queen": "queen-1", "agents": ["agent-1", "agent-2"]}
 
         restored = stored_state.copy()
 
@@ -535,15 +497,12 @@ class TestSwarmPersistence:
     @pytest.mark.asyncio
     async def test_migrate_swarm_state(self):
         """Deve migrar estado do swarm."""
-        old_state = {
-            "version": 1,
-            "agents": ["agent-1", "agent-2"]
-        }
+        old_state = {"version": 1, "agents": ["agent-1", "agent-2"]}
 
         new_state = {
             "version": 2,
             "agents": old_state["agents"],
-            "metadata": {"migrated_at": datetime.now(timezone.utc).isoformat()}
+            "metadata": {"migrated_at": datetime.now(timezone.utc).isoformat()},
         }
 
         assert new_state["version"] == 2

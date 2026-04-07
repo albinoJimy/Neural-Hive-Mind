@@ -26,18 +26,19 @@ from datetime import datetime
 
 # Codigos de cor para saida no terminal
 class Colors:
-    RED = '\033[0;31m'
-    GREEN = '\033[0;32m'
-    YELLOW = '\033[1;33m'
-    BLUE = '\033[0;34m'
-    CYAN = '\033[0;36m'
-    NC = '\033[0m'
-    BOLD = '\033[1m'
+    RED = "\033[0;31m"
+    GREEN = "\033[0;32m"
+    YELLOW = "\033[1;33m"
+    BLUE = "\033[0;34m"
+    CYAN = "\033[0;36m"
+    NC = "\033[0m"
+    BOLD = "\033[1m"
 
 
 @dataclass
 class GRPCTestResult:
     """Resultado de um teste de comunicacao gRPC"""
+
     test_name: str
     source_service: str
     target_service: str
@@ -62,18 +63,18 @@ GRPC_SERVICES = {
     "queen-agent": {
         "host_env": "QUEEN_AGENT_HOST",
         "port": 50051,
-        "service_name": "queen_agent.QueenAgent"
+        "service_name": "queen_agent.QueenAgent",
     },
     "service-registry": {
         "host_env": "SERVICE_REGISTRY_HOST",
         "port": 50051,
-        "service_name": "service_registry.ServiceRegistry"
+        "service_name": "service_registry.ServiceRegistry",
     },
     "optimizer-agents": {
         "host_env": "OPTIMIZER_AGENTS_HOST",
         "port": 50051,
-        "service_name": "optimizer_agents.OptimizerAgent"
-    }
+        "service_name": "optimizer_agents.OptimizerAgent",
+    },
 }
 
 
@@ -85,39 +86,32 @@ GRPC_TESTS = [
         "target": "queen-agent",
         "method": "GetSystemStatus",
         "request": {},
-        "validate": lambda r: hasattr(r, 'system_score') or True
+        "validate": lambda r: hasattr(r, "system_score") or True,
     },
     {
         "test_name": "Service Registry Register",
         "source": "worker-agents",
         "target": "service-registry",
         "method": "Register",
-        "request": {
-            "agent_type": "worker",
-            "capabilities": ["python", "bash", "docker"]
-        },
-        "validate": lambda r: hasattr(r, 'agent_id') or True
+        "request": {"agent_type": "worker", "capabilities": ["python", "bash", "docker"]},
+        "validate": lambda r: hasattr(r, "agent_id") or True,
     },
     {
         "test_name": "Service Registry Heartbeat",
         "source": "worker-agents",
         "target": "service-registry",
         "method": "Heartbeat",
-        "request": {
-            "agent_id": "test-agent-001"
-        },
-        "validate": lambda r: True
+        "request": {"agent_id": "test-agent-001"},
+        "validate": lambda r: True,
     },
     {
         "test_name": "Optimizer Load Forecast",
         "source": "orchestrator-dynamic",
         "target": "optimizer-agents",
         "method": "GetLoadForecast",
-        "request": {
-            "horizon_minutes": 60
-        },
-        "validate": lambda r: True
-    }
+        "request": {"horizon_minutes": 60},
+        "validate": lambda r: True,
+    },
 ]
 
 
@@ -143,7 +137,7 @@ async def test_grpc_health_check(service_name: str, config: Dict[str, Any]) -> G
             method="grpc.health.v1.Health/Check",
             success=False,
             latency_ms=0,
-            error="grpcio-health-checking nao instalado"
+            error="grpcio-health-checking nao instalado",
         )
 
     host = os.getenv(config["host_env"], get_service_host(service_name))
@@ -160,10 +154,7 @@ async def test_grpc_health_check(service_name: str, config: Dict[str, Any]) -> G
 
         # Executar health check
         request = health_pb2.HealthCheckRequest(service="")
-        response = await asyncio.wait_for(
-            stub.Check(request),
-            timeout=5.0
-        )
+        response = await asyncio.wait_for(stub.Check(request), timeout=5.0)
 
         latency_ms = (time.time() - start_time) * 1000
 
@@ -181,8 +172,8 @@ async def test_grpc_health_check(service_name: str, config: Dict[str, Any]) -> G
             latency_ms=round(latency_ms, 2),
             response_details={
                 "status": "SERVING" if is_serving else "NOT_SERVING",
-                "address": address
-            }
+                "address": address,
+            },
         )
 
     except asyncio.TimeoutError:
@@ -194,7 +185,7 @@ async def test_grpc_health_check(service_name: str, config: Dict[str, Any]) -> G
             method="grpc.health.v1.Health/Check",
             success=False,
             latency_ms=round(latency_ms, 2),
-            error="Timeout ao conectar ao servico"
+            error="Timeout ao conectar ao servico",
         )
     except Exception as e:
         latency_ms = (time.time() - start_time) * 1000
@@ -205,7 +196,7 @@ async def test_grpc_health_check(service_name: str, config: Dict[str, Any]) -> G
             method="grpc.health.v1.Health/Check",
             success=False,
             latency_ms=round(latency_ms, 2),
-            error=str(e)
+            error=str(e),
         )
 
 
@@ -230,7 +221,7 @@ async def test_grpc_connectivity(service_name: str, config: Dict[str, Any]) -> G
             method="channel_ready",
             success=False,
             latency_ms=0,
-            error="grpcio nao instalado"
+            error="grpcio nao instalado",
         )
 
     host = os.getenv(config["host_env"], get_service_host(service_name))
@@ -243,10 +234,7 @@ async def test_grpc_connectivity(service_name: str, config: Dict[str, Any]) -> G
         channel = grpc.aio.insecure_channel(address)
 
         # Aguardar canal ficar pronto
-        await asyncio.wait_for(
-            channel.channel_ready(),
-            timeout=5.0
-        )
+        await asyncio.wait_for(channel.channel_ready(), timeout=5.0)
 
         latency_ms = (time.time() - start_time) * 1000
 
@@ -262,10 +250,7 @@ async def test_grpc_connectivity(service_name: str, config: Dict[str, Any]) -> G
             method="channel_ready",
             success=True,
             latency_ms=round(latency_ms, 2),
-            response_details={
-                "address": address,
-                "channel_state": str(state)
-            }
+            response_details={"address": address, "channel_state": str(state)},
         )
 
     except asyncio.TimeoutError:
@@ -277,7 +262,7 @@ async def test_grpc_connectivity(service_name: str, config: Dict[str, Any]) -> G
             method="channel_ready",
             success=False,
             latency_ms=round(latency_ms, 2),
-            error="Timeout ao conectar - servico pode estar indisponivel"
+            error="Timeout ao conectar - servico pode estar indisponivel",
         )
     except Exception as e:
         latency_ms = (time.time() - start_time) * 1000
@@ -288,7 +273,7 @@ async def test_grpc_connectivity(service_name: str, config: Dict[str, Any]) -> G
             method="channel_ready",
             success=False,
             latency_ms=round(latency_ms, 2),
-            error=str(e)
+            error=str(e),
         )
 
 
@@ -310,7 +295,7 @@ async def test_queen_agent_grpc() -> GRPCTestResult:
             method="GetSystemStatus",
             success=False,
             latency_ms=0,
-            error="grpcio nao instalado"
+            error="grpcio nao instalado",
         )
 
     config = GRPC_SERVICES["queen-agent"]
@@ -325,17 +310,14 @@ async def test_queen_agent_grpc() -> GRPCTestResult:
         channel = grpc.aio.insecure_channel(address)
 
         # Aguardar canal ficar pronto
-        await asyncio.wait_for(
-            channel.channel_ready(),
-            timeout=5.0
-        )
+        await asyncio.wait_for(channel.channel_ready(), timeout=5.0)
 
         # Importar stubs dinamicamente para evitar dependencia em tempo de importacao
         try:
             import sys
+
             proto_path = os.path.join(
-                os.path.dirname(__file__),
-                "../../services/queen-agent/src/proto"
+                os.path.dirname(__file__), "../../services/queen-agent/src/proto"
             )
             if proto_path not in sys.path:
                 sys.path.insert(0, proto_path)
@@ -347,10 +329,7 @@ async def test_queen_agent_grpc() -> GRPCTestResult:
             stub = QueenAgentStub(channel)
             request = GetSystemStatusRequest()
 
-            response = await asyncio.wait_for(
-                stub.GetSystemStatus(request),
-                timeout=10.0
-            )
+            response = await asyncio.wait_for(stub.GetSystemStatus(request), timeout=10.0)
 
             latency_ms = (time.time() - start_time) * 1000
 
@@ -363,10 +342,10 @@ async def test_queen_agent_grpc() -> GRPCTestResult:
                 latency_ms=round(latency_ms, 2),
                 response_details={
                     "address": address,
-                    "system_score": getattr(response, 'system_score', 'N/A'),
-                    "sla_compliance": getattr(response, 'sla_compliance', 'N/A'),
-                    "active_incidents": getattr(response, 'active_incidents', 'N/A'),
-                }
+                    "system_score": getattr(response, "system_score", "N/A"),
+                    "sla_compliance": getattr(response, "sla_compliance", "N/A"),
+                    "active_incidents": getattr(response, "active_incidents", "N/A"),
+                },
             )
 
         except ImportError as ie:
@@ -381,8 +360,8 @@ async def test_queen_agent_grpc() -> GRPCTestResult:
                 latency_ms=round(latency_ms, 2),
                 response_details={
                     "address": address,
-                    "note": f"Canal conectado (stubs indisponiveis: {ie})"
-                }
+                    "note": f"Canal conectado (stubs indisponiveis: {ie})",
+                },
             )
 
     except asyncio.TimeoutError:
@@ -394,7 +373,7 @@ async def test_queen_agent_grpc() -> GRPCTestResult:
             method="GetSystemStatus",
             success=False,
             latency_ms=round(latency_ms, 2),
-            error="Timeout ao conectar ou executar RPC"
+            error="Timeout ao conectar ou executar RPC",
         )
     except grpc.RpcError as rpc_err:
         latency_ms = (time.time() - start_time) * 1000
@@ -405,7 +384,7 @@ async def test_queen_agent_grpc() -> GRPCTestResult:
             method="GetSystemStatus",
             success=False,
             latency_ms=round(latency_ms, 2),
-            error=f"gRPC Error: {rpc_err.code()} - {rpc_err.details()}"
+            error=f"gRPC Error: {rpc_err.code()} - {rpc_err.details()}",
         )
     except Exception as e:
         latency_ms = (time.time() - start_time) * 1000
@@ -416,7 +395,7 @@ async def test_queen_agent_grpc() -> GRPCTestResult:
             method="GetSystemStatus",
             success=False,
             latency_ms=round(latency_ms, 2),
-            error=str(e)
+            error=str(e),
         )
     finally:
         if channel:
@@ -441,7 +420,7 @@ async def test_service_registry_grpc() -> GRPCTestResult:
             method="ListAgents",
             success=False,
             latency_ms=0,
-            error="grpcio nao instalado"
+            error="grpcio nao instalado",
         )
 
     config = GRPC_SERVICES["service-registry"]
@@ -456,17 +435,14 @@ async def test_service_registry_grpc() -> GRPCTestResult:
         channel = grpc.aio.insecure_channel(address)
 
         # Aguardar canal ficar pronto
-        await asyncio.wait_for(
-            channel.channel_ready(),
-            timeout=5.0
-        )
+        await asyncio.wait_for(channel.channel_ready(), timeout=5.0)
 
         # Importar stubs dinamicamente
         try:
             import sys
+
             proto_path = os.path.join(
-                os.path.dirname(__file__),
-                "../../services/service-registry/src/proto"
+                os.path.dirname(__file__), "../../services/service-registry/src/proto"
             )
             if proto_path not in sys.path:
                 sys.path.insert(0, proto_path)
@@ -479,14 +455,11 @@ async def test_service_registry_grpc() -> GRPCTestResult:
             # Usar AGENT_TYPE_UNSPECIFIED (0) para listar todos os agentes
             request = ListAgentsRequest(agent_type=AgentType.AGENT_TYPE_UNSPECIFIED)
 
-            response = await asyncio.wait_for(
-                stub.ListAgents(request),
-                timeout=10.0
-            )
+            response = await asyncio.wait_for(stub.ListAgents(request), timeout=10.0)
 
             latency_ms = (time.time() - start_time) * 1000
 
-            agent_count = len(response.agents) if hasattr(response, 'agents') else 0
+            agent_count = len(response.agents) if hasattr(response, "agents") else 0
 
             return GRPCTestResult(
                 test_name="Service Registry - ListAgents",
@@ -498,8 +471,10 @@ async def test_service_registry_grpc() -> GRPCTestResult:
                 response_details={
                     "address": address,
                     "agents_found": agent_count,
-                    "agent_ids": [a.agent_id for a in response.agents[:5]] if agent_count > 0 else []
-                }
+                    "agent_ids": [a.agent_id for a in response.agents[:5]]
+                    if agent_count > 0
+                    else [],
+                },
             )
 
         except ImportError as ie:
@@ -514,8 +489,8 @@ async def test_service_registry_grpc() -> GRPCTestResult:
                 latency_ms=round(latency_ms, 2),
                 response_details={
                     "address": address,
-                    "note": f"Canal conectado (stubs indisponiveis: {ie})"
-                }
+                    "note": f"Canal conectado (stubs indisponiveis: {ie})",
+                },
             )
 
     except asyncio.TimeoutError:
@@ -527,7 +502,7 @@ async def test_service_registry_grpc() -> GRPCTestResult:
             method="ListAgents",
             success=False,
             latency_ms=round(latency_ms, 2),
-            error="Timeout ao conectar ou executar RPC"
+            error="Timeout ao conectar ou executar RPC",
         )
     except grpc.RpcError as rpc_err:
         latency_ms = (time.time() - start_time) * 1000
@@ -538,7 +513,7 @@ async def test_service_registry_grpc() -> GRPCTestResult:
             method="ListAgents",
             success=False,
             latency_ms=round(latency_ms, 2),
-            error=f"gRPC Error: {rpc_err.code()} - {rpc_err.details()}"
+            error=f"gRPC Error: {rpc_err.code()} - {rpc_err.details()}",
         )
     except Exception as e:
         latency_ms = (time.time() - start_time) * 1000
@@ -549,7 +524,7 @@ async def test_service_registry_grpc() -> GRPCTestResult:
             method="ListAgents",
             success=False,
             latency_ms=round(latency_ms, 2),
-            error=str(e)
+            error=str(e),
         )
     finally:
         if channel:
@@ -574,7 +549,7 @@ async def test_optimizer_agents_grpc() -> GRPCTestResult:
             method="HealthCheck",
             success=False,
             latency_ms=0,
-            error="grpcio nao instalado"
+            error="grpcio nao instalado",
         )
 
     config = GRPC_SERVICES["optimizer-agents"]
@@ -589,17 +564,14 @@ async def test_optimizer_agents_grpc() -> GRPCTestResult:
         channel = grpc.aio.insecure_channel(address)
 
         # Aguardar canal ficar pronto
-        await asyncio.wait_for(
-            channel.channel_ready(),
-            timeout=5.0
-        )
+        await asyncio.wait_for(channel.channel_ready(), timeout=5.0)
 
         # Importar stubs dinamicamente
         try:
             import sys
+
             proto_path = os.path.join(
-                os.path.dirname(__file__),
-                "../../services/optimizer-agents/src/proto"
+                os.path.dirname(__file__), "../../services/optimizer-agents/src/proto"
             )
             if proto_path not in sys.path:
                 sys.path.insert(0, proto_path)
@@ -611,10 +583,7 @@ async def test_optimizer_agents_grpc() -> GRPCTestResult:
             stub = OptimizerAgentStub(channel)
             request = HealthCheckRequest()
 
-            response = await asyncio.wait_for(
-                stub.HealthCheck(request),
-                timeout=10.0
-            )
+            response = await asyncio.wait_for(stub.HealthCheck(request), timeout=10.0)
 
             latency_ms = (time.time() - start_time) * 1000
 
@@ -627,9 +596,9 @@ async def test_optimizer_agents_grpc() -> GRPCTestResult:
                 latency_ms=round(latency_ms, 2),
                 response_details={
                     "address": address,
-                    "status": getattr(response, 'status', 'N/A'),
-                    "version": getattr(response, 'version', 'N/A'),
-                }
+                    "status": getattr(response, "status", "N/A"),
+                    "version": getattr(response, "version", "N/A"),
+                },
             )
 
         except ImportError as ie:
@@ -644,8 +613,8 @@ async def test_optimizer_agents_grpc() -> GRPCTestResult:
                 latency_ms=round(latency_ms, 2),
                 response_details={
                     "address": address,
-                    "note": f"Canal conectado (stubs indisponiveis: {ie})"
-                }
+                    "note": f"Canal conectado (stubs indisponiveis: {ie})",
+                },
             )
 
     except asyncio.TimeoutError:
@@ -657,7 +626,7 @@ async def test_optimizer_agents_grpc() -> GRPCTestResult:
             method="HealthCheck",
             success=False,
             latency_ms=round(latency_ms, 2),
-            error="Timeout ao conectar ou executar RPC"
+            error="Timeout ao conectar ou executar RPC",
         )
     except grpc.RpcError as rpc_err:
         latency_ms = (time.time() - start_time) * 1000
@@ -668,7 +637,7 @@ async def test_optimizer_agents_grpc() -> GRPCTestResult:
             method="HealthCheck",
             success=False,
             latency_ms=round(latency_ms, 2),
-            error=f"gRPC Error: {rpc_err.code()} - {rpc_err.details()}"
+            error=f"gRPC Error: {rpc_err.code()} - {rpc_err.details()}",
         )
     except Exception as e:
         latency_ms = (time.time() - start_time) * 1000
@@ -679,7 +648,7 @@ async def test_optimizer_agents_grpc() -> GRPCTestResult:
             method="HealthCheck",
             success=False,
             latency_ms=round(latency_ms, 2),
-            error=str(e)
+            error=str(e),
         )
     finally:
         if channel:
@@ -691,7 +660,9 @@ def print_result(result: GRPCTestResult, quiet: bool = False):
     if quiet:
         return
 
-    status = f"{Colors.GREEN}SUCESSO{Colors.NC}" if result.success else f"{Colors.RED}FALHOU{Colors.NC}"
+    status = (
+        f"{Colors.GREEN}SUCESSO{Colors.NC}" if result.success else f"{Colors.RED}FALHOU{Colors.NC}"
+    )
     print(f"  [{status}] {result.test_name}")
     print(f"    {result.source_service} -> {result.target_service}")
     print(f"    Metodo: {result.method}")
@@ -731,7 +702,9 @@ def print_summary(all_results: List[GRPCTestResult], quiet: bool = False):
 async def main():
     """Ponto de entrada principal"""
     parser = argparse.ArgumentParser(description="Valida comunicacao gRPC entre servicos da Fase 2")
-    parser.add_argument("--quiet", action="store_true", help="Suprime saida, retorna apenas codigo de saida")
+    parser.add_argument(
+        "--quiet", action="store_true", help="Suprime saida, retorna apenas codigo de saida"
+    )
     parser.add_argument("--json", action="store_true", help="Saida dos resultados em formato JSON")
     parser.add_argument("--service", type=str, help="Valida apenas servico especifico")
     args = parser.parse_args()
@@ -797,8 +770,8 @@ async def main():
             "summary": {
                 "total": len(all_results),
                 "success": sum(1 for r in all_results if r.success),
-                "failed": sum(1 for r in all_results if not r.success)
-            }
+                "failed": sum(1 for r in all_results if not r.success),
+            },
         }
         print(json.dumps(report, indent=2, ensure_ascii=False))
 

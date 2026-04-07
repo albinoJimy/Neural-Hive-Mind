@@ -95,9 +95,7 @@ class TestOrchestratorReadiness:
 class TestOrchestratorSmokeComplete:
     """Smoke test completo para Orchestrator."""
 
-    async def test_orchestrator_both_endpoints_healthy(
-        self, orchestrator_health_helper
-    ):
+    async def test_orchestrator_both_endpoints_healthy(self, orchestrator_health_helper):
         """
         TEST: [ORCH-005] Smoke test completo
 

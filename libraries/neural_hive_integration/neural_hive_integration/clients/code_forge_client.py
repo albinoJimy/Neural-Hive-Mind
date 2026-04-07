@@ -16,6 +16,7 @@ tracer = trace.get_tracer(__name__)
 
 class GenerationRequest(BaseModel):
     """Code generation request."""
+
     ticket_id: str
     template_id: str
     parameters: Dict[str, Any]
@@ -25,6 +26,7 @@ class GenerationRequest(BaseModel):
 
 class GenerationStatus(BaseModel):
     """Generation status response."""
+
     request_id: str
     status: str
     artifacts: list[Dict[str, Any]] = []
@@ -34,6 +36,7 @@ class GenerationStatus(BaseModel):
 
 class PipelineStatus(BaseModel):
     """CI/CD pipeline status."""
+
     pipeline_id: str
     status: str
     stage: str
@@ -114,9 +117,7 @@ class CodeForgeClient:
         Returns:
             Generation status
         """
-        response = await self.client.get(
-            f"{self.base_url}/api/v1/generate/{request_id}"
-        )
+        response = await self.client.get(f"{self.base_url}/api/v1/generate/{request_id}")
         response.raise_for_status()
 
         return GenerationStatus(**response.json())
@@ -157,9 +158,7 @@ class CodeForgeClient:
         Returns:
             Pipeline status
         """
-        response = await self.client.get(
-            f"{self.base_url}/api/v1/pipelines/{pipeline_id}"
-        )
+        response = await self.client.get(f"{self.base_url}/api/v1/pipelines/{pipeline_id}")
         response.raise_for_status()
 
         return PipelineStatus(**response.json())

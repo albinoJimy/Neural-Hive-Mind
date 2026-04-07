@@ -34,7 +34,11 @@ def sample_execution_ticket():
     return {
         "ticket_id": str(uuid.uuid4()),
         "correlation_id": str(uuid.uuid4()),
-        "task": {"type": "code_generation", "template_id": "test_template", "parameters": {"test": True}},
+        "task": {
+            "type": "code_generation",
+            "template_id": "test_template",
+            "parameters": {"test": True},
+        },
         "status": "PENDING",
         "sla_deadline_ms": int(datetime.now(timezone.utc).timestamp() * 1000) + 3_600_000,
         "worker_id": str(uuid.uuid4()),
@@ -46,7 +50,11 @@ def sample_opa_policy_violation():
     return {
         "ticket_id": str(uuid.uuid4()),
         "correlation_id": str(uuid.uuid4()),
-        "task": {"type": "compute_heavy", "template_id": "violation", "parameters": {"cpu": "8000m"}},
+        "task": {
+            "type": "compute_heavy",
+            "template_id": "violation",
+            "parameters": {"cpu": "8000m"},
+        },
         "status": "PENDING",
         "sla_deadline_ms": int(datetime.now(timezone.utc).timestamp() * 1000) + 60_000,
         "worker_id": str(uuid.uuid4()),
@@ -129,7 +137,7 @@ def complete_cognitive_plan_avro():
         },
         "explainability_token": f"explain-{uuid.uuid4().hex[:12]}",
         "reasoning_summary": "Plano gerado para implementação de API REST com autenticação JWT. "
-                           "Risco médio devido à complexidade de segurança envolvida.",
+        "Risco médio devido à complexidade de segurança envolvida.",
         "status": "validated",
         "created_at": now_ms,
         "valid_until": now_ms + 3600000,  # +1 hora
@@ -172,7 +180,7 @@ def sample_intent_for_avro_flow():
     """
     return {
         "text": "Implementar API REST com autenticação JWT, validação de schemas, "
-               "testes unitários e integração, documentação OpenAPI, e deploy automatizado",
+        "testes unitários e integração, documentação OpenAPI, e deploy automatizado",
         "language": "pt-BR",
         "domain": "INFRASTRUCTURE",
         "priority": "HIGH",
@@ -205,32 +213,34 @@ def sample_specialist_opinions():
 
     reasonings = {
         "technical": "Implementação tecnicamente viável com stack moderna. "
-                    "Recomendo aprovação com atenção às práticas de segurança.",
+        "Recomendo aprovação com atenção às práticas de segurança.",
         "business": "Alinhado com objetivos de negócio. ROI esperado em 3 meses. "
-                   "Custo de implementação dentro do orçamento.",
+        "Custo de implementação dentro do orçamento.",
         "architecture": "Arquitetura proposta segue padrões SOLID e Clean Architecture. "
-                       "Escalabilidade garantida com design modular.",
+        "Escalabilidade garantida com design modular.",
         "behavior": "Comportamento esperado do sistema está bem definido. "
-                   "Casos de uso cobertos adequadamente nos testes.",
+        "Casos de uso cobertos adequadamente nos testes.",
         "evolution": "Sistema preparado para evolução futura. "
-                    "Baixo acoplamento permite extensões sem refatoração.",
+        "Baixo acoplamento permite extensões sem refatoração.",
     }
 
     for i, specialist in enumerate(specialists):
-        opinions.append({
-            "specialist_type": specialist,
-            "opinion_id": f"opinion-{specialist}-{uuid.uuid4().hex[:8]}",
-            "confidence_score": confidence_scores[i],
-            "risk_score": risk_scores[i],
-            "recommendation": "approve",
-            "reasoning": reasonings[specialist],
-            "weight": 1.0 / len(specialists),
-            "processing_time_ms": 150 + (i * 25),
-            "metadata": {
-                "model_version": "v2.1.0",
-                "evaluation_depth": "comprehensive",
-            },
-        })
+        opinions.append(
+            {
+                "specialist_type": specialist,
+                "opinion_id": f"opinion-{specialist}-{uuid.uuid4().hex[:8]}",
+                "confidence_score": confidence_scores[i],
+                "risk_score": risk_scores[i],
+                "recommendation": "approve",
+                "reasoning": reasonings[specialist],
+                "weight": 1.0 / len(specialists),
+                "processing_time_ms": 150 + (i * 25),
+                "metadata": {
+                    "model_version": "v2.1.0",
+                    "evaluation_depth": "comprehensive",
+                },
+            }
+        )
 
     return opinions
 
@@ -268,7 +278,7 @@ def sample_consolidated_decision_avro(complete_cognitive_plan_avro, sample_speci
         },
         "explainability_token": f"explain-decision-{uuid.uuid4().hex[:12]}",
         "reasoning_summary": "Consenso alcançado via método Bayesiano. "
-                           "Todos os especialistas recomendam aprovação com alta confiança.",
+        "Todos os especialistas recomendam aprovação com alta confiança.",
         "compliance_checks": {
             "security_review": True,
             "cost_analysis": True,

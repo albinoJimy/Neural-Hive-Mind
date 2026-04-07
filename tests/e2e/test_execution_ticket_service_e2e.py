@@ -113,7 +113,9 @@ async def execution_ticket_client():
             if response.status_code not in [200, 404]:  # 404 if health endpoint not at /health
                 pytest.skip(f"Execution Ticket Service not healthy: {response.status_code}")
         except httpx.ConnectError:
-            pytest.skip(f"Could not connect to Execution Ticket Service at {EXECUTION_TICKET_SERVICE_URL}")
+            pytest.skip(
+                f"Could not connect to Execution Ticket Service at {EXECUTION_TICKET_SERVICE_URL}"
+            )
 
         yield client
 
@@ -237,7 +239,7 @@ async def test_create_ticket_via_api(
     cursor = postgresql_tickets_conn.cursor()
     cursor.execute(
         "SELECT ticket_id, plan_id, task_type, status FROM execution_tickets WHERE ticket_id = %s",
-        (sample_execution_ticket.ticket_id,)
+        (sample_execution_ticket.ticket_id,),
     )
     row = cursor.fetchone()
     cursor.close()
@@ -301,8 +303,7 @@ async def test_create_ticket_with_dependencies(
     # Validate dependencies in PostgreSQL
     cursor = postgresql_tickets_conn.cursor()
     cursor.execute(
-        "SELECT dependencies FROM execution_tickets WHERE ticket_id = %s",
-        (ticket_b.ticket_id,)
+        "SELECT dependencies FROM execution_tickets WHERE ticket_id = %s", (ticket_b.ticket_id,)
     )
     row = cursor.fetchone()
     cursor.close()
@@ -372,7 +373,9 @@ async def test_list_tickets_by_plan_id(execution_ticket_client):
     assert response.status_code == 200
 
     tickets = response.json()
-    tickets_list = tickets if isinstance(tickets, list) else tickets.get("items", tickets.get("tickets", []))
+    tickets_list = (
+        tickets if isinstance(tickets, list) else tickets.get("items", tickets.get("tickets", []))
+    )
 
     assert len(tickets_list) >= 3, f"Expected at least 3 tickets for plan {plan_id_1}"
 
@@ -399,11 +402,15 @@ async def test_list_tickets_by_status(execution_ticket_client):
     await execution_ticket_client.post("/api/v1/tickets", json=create_ticket_payload(ticket))
 
     # Query by status PENDING
-    response = await execution_ticket_client.get(f"/api/v1/tickets?status=PENDING&plan_id={plan_id}")
+    response = await execution_ticket_client.get(
+        f"/api/v1/tickets?status=PENDING&plan_id={plan_id}"
+    )
     assert response.status_code == 200
 
     tickets = response.json()
-    tickets_list = tickets if isinstance(tickets, list) else tickets.get("items", tickets.get("tickets", []))
+    tickets_list = (
+        tickets if isinstance(tickets, list) else tickets.get("items", tickets.get("tickets", []))
+    )
 
     for ticket_item in tickets_list:
         assert ticket_item["status"] == "PENDING"
@@ -430,7 +437,9 @@ async def test_list_tickets_with_pagination(execution_ticket_client):
         await execution_ticket_client.post("/api/v1/tickets", json=create_ticket_payload(ticket))
 
     # First page
-    response = await execution_ticket_client.get(f"/api/v1/tickets?plan_id={plan_id}&limit=10&offset=0")
+    response = await execution_ticket_client.get(
+        f"/api/v1/tickets?plan_id={plan_id}&limit=10&offset=0"
+    )
     assert response.status_code == 200
 
     data = response.json()
@@ -438,7 +447,9 @@ async def test_list_tickets_with_pagination(execution_ticket_client):
     assert len(first_page) == 10, f"Expected 10 tickets in first page, got {len(first_page)}"
 
     # Second page
-    response = await execution_ticket_client.get(f"/api/v1/tickets?plan_id={plan_id}&limit=10&offset=10")
+    response = await execution_ticket_client.get(
+        f"/api/v1/tickets?plan_id={plan_id}&limit=10&offset=10"
+    )
     assert response.status_code == 200
 
     data = response.json()
@@ -484,8 +495,7 @@ async def test_update_ticket_status(
 
     # Update status to RUNNING
     response = await execution_ticket_client.patch(
-        f"/api/v1/tickets/{ticket_id}/status",
-        json={"status": "RUNNING"}
+        f"/api/v1/tickets/{ticket_id}/status", json={"status": "RUNNING"}
     )
 
     assert response.status_code == 200
@@ -496,8 +506,7 @@ async def test_update_ticket_status(
     # Validate in PostgreSQL
     cursor = postgresql_tickets_conn.cursor()
     cursor.execute(
-        "SELECT status, started_at FROM execution_tickets WHERE ticket_id = %s",
-        (ticket_id,)
+        "SELECT status, started_at FROM execution_tickets WHERE ticket_id = %s", (ticket_id,)
     )
     row = cursor.fetchone()
     cursor.close()
@@ -507,9 +516,11 @@ async def test_update_ticket_status(
 
     # Validate audit trail
     audit_collection = mongodb_tickets_client["execution_tickets_audit"]
-    audit_entries = list(audit_collection.find(
-        {"ticket_id": ticket_id, "action": "status_updated"}
-    ).sort("timestamp", -1))
+    audit_entries = list(
+        audit_collection.find({"ticket_id": ticket_id, "action": "status_updated"}).sort(
+            "timestamp", -1
+        )
+    )
 
     assert len(audit_entries) > 0, "Status update audit entry not found"
     latest_audit = audit_entries[0]
@@ -520,7 +531,9 @@ async def test_update_ticket_status(
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_update_ticket_status_invalid_transition(execution_ticket_client, sample_execution_ticket):
+async def test_update_ticket_status_invalid_transition(
+    execution_ticket_client, sample_execution_ticket
+):
     """
     Testa transicao de status invalida.
 
@@ -537,16 +550,16 @@ async def test_update_ticket_status_invalid_transition(execution_ticket_client, 
 
     # Try invalid transition: PENDING -> COMPLETED
     response = await execution_ticket_client.patch(
-        f"/api/v1/tickets/{ticket_id}/status",
-        json={"status": "COMPLETED"}
+        f"/api/v1/tickets/{ticket_id}/status", json={"status": "COMPLETED"}
     )
 
     assert response.status_code == 400, f"Expected 400, got {response.status_code}"
 
     error_data = response.json()
     error_msg = str(error_data).lower()
-    assert "invalid" in error_msg or "transition" in error_msg, \
-        f"Error should mention invalid transition: {error_data}"
+    assert (
+        "invalid" in error_msg or "transition" in error_msg
+    ), f"Error should mention invalid transition: {error_data}"
 
     logger.info("Invalid status transition correctly rejected")
 
@@ -576,8 +589,7 @@ async def test_update_ticket_status_to_completed(
 
     # Update to RUNNING
     response = await execution_ticket_client.patch(
-        f"/api/v1/tickets/{ticket_id}/status",
-        json={"status": "RUNNING"}
+        f"/api/v1/tickets/{ticket_id}/status", json={"status": "RUNNING"}
     )
     assert response.status_code == 200
 
@@ -586,8 +598,7 @@ async def test_update_ticket_status_to_completed(
 
     # Update to COMPLETED
     response = await execution_ticket_client.patch(
-        f"/api/v1/tickets/{ticket_id}/status",
-        json={"status": "COMPLETED"}
+        f"/api/v1/tickets/{ticket_id}/status", json={"status": "COMPLETED"}
     )
 
     assert response.status_code == 200
@@ -600,7 +611,7 @@ async def test_update_ticket_status_to_completed(
     cursor = postgresql_tickets_conn.cursor()
     cursor.execute(
         "SELECT status, completed_at, actual_duration_ms FROM execution_tickets WHERE ticket_id = %s",
-        (ticket_id,)
+        (ticket_id,),
     )
     row = cursor.fetchone()
     cursor.close()
@@ -641,6 +652,7 @@ async def test_generate_jwt_token(execution_ticket_client, created_ticket):
 
     # Decode token (without verification, just to check structure)
     import base64
+
     parts = token.split(".")
     assert len(parts) == 3, "JWT should have 3 parts"
 
@@ -705,13 +717,11 @@ async def test_get_ticket_history(
 
     # Update status twice
     await execution_ticket_client.patch(
-        f"/api/v1/tickets/{ticket_id}/status",
-        json={"status": "RUNNING"}
+        f"/api/v1/tickets/{ticket_id}/status", json={"status": "RUNNING"}
     )
     await asyncio.sleep(0.5)
     await execution_ticket_client.patch(
-        f"/api/v1/tickets/{ticket_id}/status",
-        json={"status": "COMPLETED"}
+        f"/api/v1/tickets/{ticket_id}/status", json={"status": "COMPLETED"}
     )
 
     # Get history
@@ -719,7 +729,9 @@ async def test_get_ticket_history(
 
     assert response.status_code == 200
     history = response.json()
-    history_list = history if isinstance(history, list) else history.get("items", history.get("history", []))
+    history_list = (
+        history if isinstance(history, list) else history.get("items", history.get("history", []))
+    )
 
     # Should have at least creation + 2 status updates
     assert len(history_list) >= 2, f"Expected at least 2 history entries, got {len(history_list)}"
@@ -765,7 +777,7 @@ async def test_dual_persistence_consistency(
     cursor = postgresql_tickets_conn.cursor()
     cursor.execute(
         "SELECT ticket_id, plan_id, task_type, status FROM execution_tickets WHERE ticket_id = %s",
-        (ticket_id,)
+        (ticket_id,),
     )
     pg_row = cursor.fetchone()
     cursor.close()
@@ -775,10 +787,7 @@ async def test_dual_persistence_consistency(
 
     # Get latest audit from MongoDB
     audit_collection = mongodb_tickets_client["execution_tickets_audit"]
-    mongo_entry = audit_collection.find_one(
-        {"ticket_id": ticket_id},
-        sort=[("timestamp", -1)]
-    )
+    mongo_entry = audit_collection.find_one({"ticket_id": ticket_id}, sort=[("timestamp", -1)])
 
     assert mongo_entry is not None, "Audit entry not found in MongoDB"
 
@@ -841,15 +850,15 @@ async def test_mongodb_failure_does_not_block_postgresql(
         cursor = postgresql_tickets_conn.cursor()
         cursor.execute(
             "SELECT ticket_id, plan_id, task_type, status FROM execution_tickets WHERE ticket_id = %s",
-            (ticket_id,)
+            (ticket_id,),
         )
         row = cursor.fetchone()
         cursor.close()
 
         # Asserção: ticket DEVE existir no PostgreSQL
-        assert row is not None, (
-            f"Ticket {ticket_id} should be persisted in PostgreSQL even when MongoDB is down"
-        )
+        assert (
+            row is not None
+        ), f"Ticket {ticket_id} should be persisted in PostgreSQL even when MongoDB is down"
         assert row[0] == ticket_id, f"Ticket ID mismatch: expected {ticket_id}, got {row[0]}"
         assert row[3] == "PENDING", f"Ticket status should be PENDING, got {row[3]}"
 
@@ -866,6 +875,7 @@ async def test_mongodb_failure_does_not_block_postgresql(
         # Opcional: verificar metricas de circuit breaker ou warning logs
         # Isso indica que o sistema detectou a falha do MongoDB
         from tests.e2e.utils.metrics import get_metric_value
+
         try:
             mongodb_failures = await get_metric_value(
                 PROMETHEUS_ENDPOINT,
@@ -930,7 +940,9 @@ async def test_query_performance_with_indexes(execution_ticket_client, postgresq
     assert response.status_code == 200
     assert status_query_time < 500, f"Status query took {status_query_time}ms, expected < 500ms"
 
-    logger.info(f"Query performance: plan={plan_query_time:.1f}ms, status={status_query_time:.1f}ms")
+    logger.info(
+        f"Query performance: plan={plan_query_time:.1f}ms, status={status_query_time:.1f}ms"
+    )
 
 
 # ============================================
@@ -958,8 +970,11 @@ async def test_create_duplicate_ticket(execution_ticket_client, sample_execution
     response2 = await execution_ticket_client.post("/api/v1/tickets", json=payload)
 
     # Either conflict or idempotent success
-    assert response2.status_code in [200, 201, 409], \
-        f"Expected 200, 201 or 409, got {response2.status_code}"
+    assert response2.status_code in [
+        200,
+        201,
+        409,
+    ], f"Expected 200, 201 or 409, got {response2.status_code}"
 
     logger.info(f"Duplicate ticket handling: {response2.status_code}")
 
@@ -994,8 +1009,7 @@ async def test_update_nonexistent_ticket(execution_ticket_client):
     fake_ticket_id = f"nonexistent-{uuid.uuid4().hex[:8]}"
 
     response = await execution_ticket_client.patch(
-        f"/api/v1/tickets/{fake_ticket_id}/status",
-        json={"status": "RUNNING"}
+        f"/api/v1/tickets/{fake_ticket_id}/status", json={"status": "RUNNING"}
     )
 
     assert response.status_code == 404

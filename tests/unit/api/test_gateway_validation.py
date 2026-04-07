@@ -14,6 +14,7 @@ from pydantic import ValidationError
 # Test: Intent Validation
 # =============================================================================
 
+
 class TestIntentValidation:
     """Testes de validação de intenção."""
 
@@ -24,7 +25,7 @@ class TestIntentValidation:
             "user_id": "user-123",
             "text": "Qual meu saldo?",
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "locale": "pt-BR"
+            "locale": "pt-BR",
         }
 
         required_fields = ["intent_id", "user_id", "text", "timestamp"]
@@ -37,7 +38,7 @@ class TestIntentValidation:
         intent = {
             "intent_id": str(uuid4()),
             # user_id faltando
-            "text": "Qual meu saldo?"
+            "text": "Qual meu saldo?",
         }
 
         required_fields = ["intent_id", "user_id", "text"]
@@ -47,11 +48,7 @@ class TestIntentValidation:
 
     def test_empty_text_validation(self):
         """Deve rejeitar intent com texto vazio."""
-        intent = {
-            "intent_id": str(uuid4()),
-            "user_id": "user-123",
-            "text": ""
-        }
+        intent = {"intent_id": str(uuid4()), "user_id": "user-123", "text": ""}
 
         is_valid = bool(intent.get("text", "").strip())
 
@@ -92,6 +89,7 @@ class TestIntentValidation:
 # Test: NLU Processing
 # =============================================================================
 
+
 class TestNLUProcessing:
     """Testes de processamento NLU."""
 
@@ -109,7 +107,7 @@ class TestNLUProcessing:
         text_to_type = {
             "Qual meu saldo?": "query_balance",
             "Transferir valor": "transfer",
-            "Pagamento de conta": "payment"
+            "Pagamento de conta": "payment",
         }
 
         text = "Qual meu saldo?"
@@ -121,11 +119,7 @@ class TestNLUProcessing:
         """Deve extrair entidades do texto."""
         text = "Transferir R$ 100 para João"
 
-        entities = {
-            "amount": "100",
-            "currency": "BRL",
-            "recipient": "João"
-        }
+        entities = {"amount": "100", "currency": "BRL", "recipient": "João"}
 
         assert "amount" in entities
         assert entities["recipient"] == "João"
@@ -153,6 +147,7 @@ class TestNLUProcessing:
 # Test: Routing Logic
 # =============================================================================
 
+
 class TestRoutingLogic:
     """Testes de lógica de roteamento."""
 
@@ -161,7 +156,7 @@ class TestRoutingLogic:
         intent_type_to_specialist = {
             "query_balance": "business",
             "technical_issue": "technical",
-            "security_concern": "security"
+            "security_concern": "security",
         }
 
         intent_type = "query_balance"
@@ -171,9 +166,7 @@ class TestRoutingLogic:
 
     def test_fallback_routing(self):
         """Deve usar roteamento padrão se não mapeado."""
-        intent_type_to_specialist = {
-            "query_balance": "business"
-        }
+        intent_type_to_specialist = {"query_balance": "business"}
 
         intent_type = "unknown_type"
         specialist = intent_type_to_specialist.get(intent_type, "general")
@@ -185,10 +178,12 @@ class TestRoutingLogic:
         intents = [
             {"id": "1", "priority": "high"},
             {"id": "2", "priority": "low"},
-            {"id": "3", "priority": "high"}
+            {"id": "3", "priority": "high"},
         ]
 
-        priority_order = sorted(intents, key=lambda x: {"high": 0, "medium": 1, "low": 2}[x["priority"]])
+        priority_order = sorted(
+            intents, key=lambda x: {"high": 0, "medium": 1, "low": 2}[x["priority"]]
+        )
 
         assert priority_order[0]["id"] == "1"
         assert priority_order[1]["id"] == "3"
@@ -199,7 +194,7 @@ class TestRoutingLogic:
         user_segments = {
             "premium": ["high_priority_queue"],
             "standard": ["normal_queue"],
-            "basic": ["low_priority_queue"]
+            "basic": ["low_priority_queue"],
         }
 
         user_segment = "premium"
@@ -211,6 +206,7 @@ class TestRoutingLogic:
 # =============================================================================
 # Test: Request Validation
 # =============================================================================
+
 
 class TestRequestValidation:
     """Testes de validação de requisição."""
@@ -237,11 +233,7 @@ class TestRequestValidation:
 
     def test_validate_metadata(self):
         """Deve validar metadados."""
-        metadata = {
-            "source": "web",
-            "device": "mobile",
-            "ip_address": "192.168.1.1"
-        }
+        metadata = {"source": "web", "device": "mobile", "ip_address": "192.168.1.1"}
 
         required_metadata = ["source"]
         is_valid = all(k in metadata for k in required_metadata)
@@ -252,7 +244,7 @@ class TestRequestValidation:
         """Deve validar contexto da requisição."""
         context = {
             "previous_intents": ["query_balance", "transfer"],
-            "current_session_duration": 300
+            "current_session_duration": 300,
         }
 
         has_session_info = "current_session_duration" in context
@@ -264,6 +256,7 @@ class TestRequestValidation:
 # Test: Response Formatting
 # =============================================================================
 
+
 class TestResponseFormatting:
     """Testes de formatação de resposta."""
 
@@ -272,7 +265,7 @@ class TestResponseFormatting:
         response = {
             "status": "success",
             "data": {"balance": "R$ 1.500,00"},
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         is_valid = response["status"] == "success" and "data" in response
@@ -285,7 +278,7 @@ class TestResponseFormatting:
             "status": "error",
             "error_code": "INVALID_INPUT",
             "message": "Campo obrigatório faltando",
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         is_valid = response["status"] == "error" and "error_code" in response
@@ -298,7 +291,7 @@ class TestResponseFormatting:
             "status": "partial",
             "data": {"balance": "R$ 1.500,00"},
             "pending": ["investments"],
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         is_valid = response["status"] == "partial" and "pending" in response
@@ -310,15 +303,13 @@ class TestResponseFormatting:
 # Test: Rate Limiting
 # =============================================================================
 
+
 class TestGatewayRateLimiting:
     """Testes de rate limiting no gateway."""
 
     def test_check_rate_limit(self):
         """Deve verificar rate limit."""
-        user_requests = {
-            "user-123": 50,
-            "user-456": 120
-        }
+        user_requests = {"user-123": 50, "user-456": 120}
         max_requests = 100
 
         is_limited = user_requests["user-123"] > max_requests
@@ -329,11 +320,7 @@ class TestGatewayRateLimiting:
 
     def test_rate_limit_per_user(self):
         """Deve aplicar rate limit por usuário."""
-        user_tier_limits = {
-            "premium": 1000,
-            "standard": 100,
-            "basic": 50
-        }
+        user_tier_limits = {"premium": 1000, "standard": 100, "basic": 50}
 
         user_tier = "premium"
         user_requests = 500
@@ -349,13 +336,12 @@ class TestGatewayRateLimiting:
         requests = [
             {"timestamp": now, "user_id": "user-123"},
             {"timestamp": now, "user_id": "user-123"},
-            {"timestamp": now - timedelta(seconds=70), "user_id": "user-123"}
+            {"timestamp": now - timedelta(seconds=70), "user_id": "user-123"},
         ]
 
         window_seconds = 60
         recent_requests = [
-            r for r in requests
-            if (now - r["timestamp"]).total_seconds() <= window_seconds
+            r for r in requests if (now - r["timestamp"]).total_seconds() <= window_seconds
         ]
 
         assert len(recent_requests) == 2
@@ -364,6 +350,7 @@ class TestGatewayRateLimiting:
 # =============================================================================
 # Test: Caching
 # =============================================================================
+
 
 class TestGatewayCaching:
     """Testes de cache no gateway."""
@@ -380,9 +367,7 @@ class TestGatewayCaching:
 
     def test_cache_hit(self):
         """Deve detectar cache hit."""
-        cache = {
-            "user-123:query_balance": {"balance": "R$ 1.500,00"}
-        }
+        cache = {"user-123:query_balance": {"balance": "R$ 1.500,00"}}
         cache_key = "user-123:query_balance"
 
         is_hit = cache_key in cache
@@ -391,9 +376,7 @@ class TestGatewayCaching:
 
     def test_cache_miss(self):
         """Deve detectar cache miss."""
-        cache = {
-            "user-123:query_balance": {"balance": "R$ 1.500,00"}
-        }
+        cache = {"user-123:query_balance": {"balance": "R$ 1.500,00"}}
         cache_key = "user-456:query_balance"
 
         is_hit = cache_key in cache
@@ -404,7 +387,7 @@ class TestGatewayCaching:
         """Deve verificar TTL do cache."""
         cache_entry = {
             "data": {"balance": "R$ 1.500,00"},
-            "created_at": datetime.now(timezone.utc) - timedelta(seconds=350)
+            "created_at": datetime.now(timezone.utc) - timedelta(seconds=350),
         }
         ttl_seconds = 300
 
@@ -417,6 +400,7 @@ class TestGatewayCaching:
 # =============================================================================
 # Test: Authentication
 # =============================================================================
+
 
 class TestGatewayAuthentication:
     """Testes de autenticação no gateway."""
@@ -432,10 +416,7 @@ class TestGatewayAuthentication:
 
     def test_extract_user_from_token(self):
         """Deve extrair user_id do token."""
-        token_payload = {
-            "user_id": "user-123",
-            "exp": 1234567890
-        }
+        token_payload = {"user_id": "user-123", "exp": 1234567890}
 
         user_id = token_payload.get("user_id")
 
@@ -444,6 +425,7 @@ class TestGatewayAuthentication:
     def test_check_token_expiry(self):
         """Deve verificar expiração do token."""
         import time
+
         current_time = int(time.time())
         token_expiry = current_time - 3600  # Expirou há 1 hora
 
@@ -456,6 +438,7 @@ class TestGatewayAuthentication:
 # Test: Logging and Metrics
 # =============================================================================
 
+
 class TestGatewayObservability:
     """Testes de observabilidade no gateway."""
 
@@ -465,7 +448,7 @@ class TestGatewayObservability:
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "intent_id": str(uuid4()),
             "user_id": "user-123",
-            "action": "request_received"
+            "action": "request_received",
         }
 
         has_required_fields = all(k in log_entry for k in ["timestamp", "intent_id", "action"])
@@ -484,11 +467,7 @@ class TestGatewayObservability:
 
     def test_track_request_count(self):
         """Deve rastrear contagem de requisições."""
-        metrics = {
-            "total_requests": 1000,
-            "successful_requests": 950,
-            "failed_requests": 50
-        }
+        metrics = {"total_requests": 1000, "successful_requests": 950, "failed_requests": 50}
 
         success_rate = metrics["successful_requests"] / metrics["total_requests"]
 

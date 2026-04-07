@@ -26,9 +26,7 @@ mcp = FastMCP(name="Optimizer MCP Server")
 
 # Health check handler
 async def health_check(request):
-    return JSONResponse(
-        {"status": "healthy", "server": "Optimizer MCP Server", "version": "1.0.0"}
-    )
+    return JSONResponse({"status": "healthy", "server": "Optimizer MCP Server", "version": "1.0.0"})
 
 
 # Obter app HTTP do FastMCP (http_app é um método que precisa ser chamado)
@@ -40,6 +38,7 @@ http_app.routes.append(Route("/health", health_check, methods=["GET"]))
 
 class Severity(Enum):
     """Níveis de severidade de problemas."""
+
     INFO = "info"
     LOW = "low"
     MEDIUM = "medium"
@@ -50,6 +49,7 @@ class Severity(Enum):
 @dataclass
 class Issue:
     """Representa um problema encontrado."""
+
     file_path: str
     line: int
     column: int
@@ -62,6 +62,7 @@ class Issue:
 @dataclass
 class FileMetrics:
     """Métricas de um arquivo."""
+
     path: str
     total_lines: int = 0
     code_lines: int = 0
@@ -118,18 +119,20 @@ class PythonAnalyzer(ast.NodeVisitor):
             tree = ast.parse(self.source_code)
             self.visit(tree)
         except SyntaxError as e:
-            self.issues.append(Issue(
-                file_path=self.file_path,
-                line=e.lineno or 0,
-                column=e.offset or 0,
-                severity=Severity.HIGH,
-                category="syntax",
-                message=f"Syntax error: {e.msg}",
-            ))
+            self.issues.append(
+                Issue(
+                    file_path=self.file_path,
+                    line=e.lineno or 0,
+                    column=e.offset or 0,
+                    severity=Severity.HIGH,
+                    category="syntax",
+                    message=f"Syntax error: {e.msg}",
+                )
+            )
 
         metrics = FileMetrics(path=self.file_path)
         # Usar split('\n') em vez de splitlines() para contar linhas vazias no final
-        metrics.total_lines = len(self.source_code.split('\n'))
+        metrics.total_lines = len(self.source_code.split("\n"))
         metrics.code_lines = self._count_code_lines()
         metrics.comment_lines = self._count_comment_lines()
         metrics.blank_lines = self._count_blank_lines()
@@ -177,7 +180,11 @@ class PythonAnalyzer(ast.NodeVisitor):
 
         # Calcular complexidade ciclomática (simplificada)
         complexity = 1  # Base
-        complexity += sum(1 for _ in ast.walk(node) if isinstance(_, (ast.If, ast.For, ast.While, ast.ExceptHandler, ast.With)))
+        complexity += sum(
+            1
+            for _ in ast.walk(node)
+            if isinstance(_, (ast.If, ast.For, ast.While, ast.ExceptHandler, ast.With))
+        )
         self.complexity[func_name] = complexity
 
         # Calcular comprimento da função
@@ -199,37 +206,43 @@ class PythonAnalyzer(ast.NodeVisitor):
 
         # Detectar problemas
         if func_length > 50:
-            self.issues.append(Issue(
-                file_path=self.file_path,
-                line=start_line,
-                column=node.col_offset or 0,
-                severity=Severity.MEDIUM if func_length < 100 else Severity.HIGH,
-                category="function_length",
-                message=f"Function {func_name} is too long ({func_length} lines)",
-                suggestion="Consider splitting into smaller functions",
-            ))
+            self.issues.append(
+                Issue(
+                    file_path=self.file_path,
+                    line=start_line,
+                    column=node.col_offset or 0,
+                    severity=Severity.MEDIUM if func_length < 100 else Severity.HIGH,
+                    category="function_length",
+                    message=f"Function {func_name} is too long ({func_length} lines)",
+                    suggestion="Consider splitting into smaller functions",
+                )
+            )
 
         if complexity > 10:
-            self.issues.append(Issue(
-                file_path=self.file_path,
-                line=start_line,
-                column=node.col_offset or 0,
-                severity=Severity.MEDIUM if complexity < 20 else Severity.HIGH,
-                category="complexity",
-                message=f"Function {func_name} has high cyclomatic complexity ({complexity})",
-                suggestion="Consider simplifying logic or extracting methods",
-            ))
+            self.issues.append(
+                Issue(
+                    file_path=self.file_path,
+                    line=start_line,
+                    column=node.col_offset or 0,
+                    severity=Severity.MEDIUM if complexity < 20 else Severity.HIGH,
+                    category="complexity",
+                    message=f"Function {func_name} has high cyclomatic complexity ({complexity})",
+                    suggestion="Consider simplifying logic or extracting methods",
+                )
+            )
 
         if len(node.args.args) > 7:
-            self.issues.append(Issue(
-                file_path=self.file_path,
-                line=start_line,
-                column=node.col_offset or 0,
-                severity=Severity.LOW,
-                category="parameter_count",
-                message=f"Function {func_name} has too many parameters ({len(node.args.args)})",
-                suggestion="Consider using a dataclass or configuration object",
-            ))
+            self.issues.append(
+                Issue(
+                    file_path=self.file_path,
+                    line=start_line,
+                    column=node.col_offset or 0,
+                    severity=Severity.LOW,
+                    category="parameter_count",
+                    message=f"Function {func_name} has too many parameters ({len(node.args.args)})",
+                    suggestion="Consider using a dataclass or configuration object",
+                )
+            )
 
         self.nesting_level += 1
         self.generic_visit(node)
@@ -248,8 +261,7 @@ class PythonAnalyzer(ast.NodeVisitor):
 
         # Contar métodos
         methods = [
-            n.name for n in node.body
-            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+            n.name for n in node.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
         ]
 
         class_info = {
@@ -267,26 +279,30 @@ class PythonAnalyzer(ast.NodeVisitor):
             class_length = node.end_lineno - node.lineno + 1
 
         if class_length > 300:
-            self.issues.append(Issue(
-                file_path=self.file_path,
-                line=node.lineno,
-                column=node.col_offset or 0,
-                severity=Severity.MEDIUM,
-                category="class_length",
-                message=f"Class {class_name} is too long ({class_length} lines)",
-                suggestion="Consider splitting into smaller classes",
-            ))
+            self.issues.append(
+                Issue(
+                    file_path=self.file_path,
+                    line=node.lineno,
+                    column=node.col_offset or 0,
+                    severity=Severity.MEDIUM,
+                    category="class_length",
+                    message=f"Class {class_name} is too long ({class_length} lines)",
+                    suggestion="Consider splitting into smaller classes",
+                )
+            )
 
         if len(methods) > 20:
-            self.issues.append(Issue(
-                file_path=self.file_path,
-                line=node.lineno,
-                column=node.col_offset or 0,
-                severity=Severity.MEDIUM,
-                category="class_methods",
-                message=f"Class {class_name} has too many methods ({len(methods)})",
-                suggestion="Consider splitting into smaller classes",
-            ))
+            self.issues.append(
+                Issue(
+                    file_path=self.file_path,
+                    line=node.lineno,
+                    column=node.col_offset or 0,
+                    severity=Severity.MEDIUM,
+                    category="class_methods",
+                    message=f"Class {class_name} has too many methods ({len(methods)})",
+                    suggestion="Consider splitting into smaller classes",
+                )
+            )
 
         self.generic_visit(node)
         self.current_class = None
@@ -304,15 +320,17 @@ class PythonAnalyzer(ast.NodeVisitor):
     def visit_For(self, node: ast.For):
         """Visita loop for - detecta nesting profundo."""
         if self.nesting_level >= 3:
-            self.issues.append(Issue(
-                file_path=self.file_path,
-                line=node.lineno,
-                column=node.col_offset or 0,
-                severity=Severity.LOW,
-                category="nesting",
-                message=f"Deep nesting detected (level {self.nesting_level + 1})",
-                suggestion="Consider extracting to a function",
-            ))
+            self.issues.append(
+                Issue(
+                    file_path=self.file_path,
+                    line=node.lineno,
+                    column=node.col_offset or 0,
+                    severity=Severity.LOW,
+                    category="nesting",
+                    message=f"Deep nesting detected (level {self.nesting_level + 1})",
+                    suggestion="Consider extracting to a function",
+                )
+            )
 
         self.nesting_level += 1
         self.generic_visit(node)
@@ -321,15 +339,17 @@ class PythonAnalyzer(ast.NodeVisitor):
     def visit_While(self, node: ast.While):
         """Visita loop while."""
         if self.nesting_level >= 3:
-            self.issues.append(Issue(
-                file_path=self.file_path,
-                line=node.lineno,
-                column=node.col_offset or 0,
-                severity=Severity.LOW,
-                category="nesting",
-                message=f"Deep nesting detected (level {self.nesting_level + 1})",
-                suggestion="Consider extracting to a function",
-            ))
+            self.issues.append(
+                Issue(
+                    file_path=self.file_path,
+                    line=node.lineno,
+                    column=node.col_offset or 0,
+                    severity=Severity.LOW,
+                    category="nesting",
+                    message=f"Deep nesting detected (level {self.nesting_level + 1})",
+                    suggestion="Consider extracting to a function",
+                )
+            )
 
         self.nesting_level += 1
         self.generic_visit(node)
@@ -350,15 +370,17 @@ class PythonAnalyzer(ast.NodeVisitor):
                 break
 
         if conditions >= 5:
-            self.issues.append(Issue(
-                file_path=self.file_path,
-                line=node.lineno,
-                column=node.col_offset or 0,
-                severity=Severity.MEDIUM,
-                category="complex_condition",
-                message=f"Complex if/elif chain ({conditions} conditions)",
-                suggestion="Consider using a dictionary lookup or match statement",
-            ))
+            self.issues.append(
+                Issue(
+                    file_path=self.file_path,
+                    line=node.lineno,
+                    column=node.col_offset or 0,
+                    severity=Severity.MEDIUM,
+                    category="complex_condition",
+                    message=f"Complex if/elif chain ({conditions} conditions)",
+                    suggestion="Consider using a dictionary lookup or match statement",
+                )
+            )
 
         self.generic_visit(node)
 
@@ -366,15 +388,17 @@ class PythonAnalyzer(ast.NodeVisitor):
         """Visita try/except - detecta bare except."""
         for handler in node.handlers:
             if handler.type is None:
-                self.issues.append(Issue(
-                    file_path=self.file_path,
-                    line=handler.lineno,
-                    column=handler.col_offset or 0,
-                    severity=Severity.MEDIUM,
-                    category="bare_except",
-                    message="Bare except clause catches all exceptions",
-                    suggestion="Specify the exception type to catch",
-                ))
+                self.issues.append(
+                    Issue(
+                        file_path=self.file_path,
+                        line=handler.lineno,
+                        column=handler.col_offset or 0,
+                        severity=Severity.MEDIUM,
+                        category="bare_except",
+                        message="Bare except clause catches all exceptions",
+                        suggestion="Specify the exception type to catch",
+                    )
+                )
 
         self.generic_visit(node)
 
@@ -476,14 +500,16 @@ class CodeOptimizer:
                     all_issues.extend(issues)
                 except Exception as e:
                     # Continuar mesmo se houver erro em um arquivo
-                    all_issues.append(Issue(
-                        file_path=rel_path,
-                        line=0,
-                        column=0,
-                        severity=Severity.LOW,
-                        category="analysis_error",
-                        message=f"Failed to analyze: {e}",
-                    ))
+                    all_issues.append(
+                        Issue(
+                            file_path=rel_path,
+                            line=0,
+                            column=0,
+                            severity=Severity.LOW,
+                            category="analysis_error",
+                            message=f"Failed to analyze: {e}",
+                        )
+                    )
 
         # Agregar resultados
         total_files = len(all_metrics)
@@ -506,11 +532,7 @@ class CodeOptimizer:
         for issue in all_issues:
             issues_by_file[issue.file_path].append(issue)
 
-        top_files = sorted(
-            issues_by_file.items(),
-            key=lambda x: len(x[1]),
-            reverse=True
-        )[:10]
+        top_files = sorted(issues_by_file.items(), key=lambda x: len(x[1]), reverse=True)[:10]
 
         return {
             "summary": {
@@ -522,10 +544,7 @@ class CodeOptimizer:
             },
             "severity_breakdown": dict(severity_counts),
             "category_breakdown": dict(category_counts),
-            "top_files": [
-                {"path": path, "issue_count": len(issues)}
-                for path, issues in top_files
-            ],
+            "top_files": [{"path": path, "issue_count": len(issues)} for path, issues in top_files],
             "issues": all_issues[:100],  # Limitar a 100 issues
         }
 
@@ -549,73 +568,83 @@ class CodeOptimizer:
 
         # Alta complexidade
         if severity.get("high", 0) + severity.get("critical", 0) > 5:
-            recommendations.append({
-                "priority": "high",
-                "category": "complexity",
-                "title": "Reduce Code Complexity",
-                "description": f"{severity.get('high', 0) + severity.get('critical', 0)} high/critical complexity issues found",
-                "actions": [
-                    "Extract complex methods into smaller functions",
-                    "Use strategy pattern to replace complex conditionals",
-                    "Consider using guard clauses to reduce nesting",
-                ],
-            })
+            recommendations.append(
+                {
+                    "priority": "high",
+                    "category": "complexity",
+                    "title": "Reduce Code Complexity",
+                    "description": f"{severity.get('high', 0) + severity.get('critical', 0)} high/critical complexity issues found",
+                    "actions": [
+                        "Extract complex methods into smaller functions",
+                        "Use strategy pattern to replace complex conditionals",
+                        "Consider using guard clauses to reduce nesting",
+                    ],
+                }
+            )
 
         # Funções muito longas
         if categories.get("function_length", 0) > 0:
-            recommendations.append({
-                "priority": "medium",
-                "category": "function_length",
-                "title": "Refactor Long Functions",
-                "description": f"{categories['function_length']} functions are too long",
-                "actions": [
-                    "Split functions longer than 50 lines",
-                    "Extract logic into separate helper functions",
-                    "Use early returns to reduce nesting",
-                ],
-            })
+            recommendations.append(
+                {
+                    "priority": "medium",
+                    "category": "function_length",
+                    "title": "Refactor Long Functions",
+                    "description": f"{categories['function_length']} functions are too long",
+                    "actions": [
+                        "Split functions longer than 50 lines",
+                        "Extract logic into separate helper functions",
+                        "Use early returns to reduce nesting",
+                    ],
+                }
+            )
 
         # Classes muito grandes
         if categories.get("class_length", 0) > 0:
-            recommendations.append({
-                "priority": "medium",
-                "category": "class_length",
-                "title": "Break Down Large Classes",
-                "description": f"{categories['class_length']} classes are too long",
-                "actions": [
-                    "Apply Single Responsibility Principle",
-                    "Extract related methods into separate classes",
-                    "Use composition over inheritance",
-                ],
-            })
+            recommendations.append(
+                {
+                    "priority": "medium",
+                    "category": "class_length",
+                    "title": "Break Down Large Classes",
+                    "description": f"{categories['class_length']} classes are too long",
+                    "actions": [
+                        "Apply Single Responsibility Principle",
+                        "Extract related methods into separate classes",
+                        "Use composition over inheritance",
+                    ],
+                }
+            )
 
         # Nested code
         if categories.get("nesting", 0) > 10:
-            recommendations.append({
-                "priority": "low",
-                "category": "nesting",
-                "title": "Reduce Nesting Depth",
-                "description": f"{categories['nesting']} instances of deep nesting found",
-                "actions": [
-                    "Extract nested logic into separate functions",
-                    "Use early return/continue patterns",
-                    "Consider using guard clauses",
-                ],
-            })
+            recommendations.append(
+                {
+                    "priority": "low",
+                    "category": "nesting",
+                    "title": "Reduce Nesting Depth",
+                    "description": f"{categories['nesting']} instances of deep nesting found",
+                    "actions": [
+                        "Extract nested logic into separate functions",
+                        "Use early return/continue patterns",
+                        "Consider using guard clauses",
+                    ],
+                }
+            )
 
         # Bare except
         if categories.get("bare_except", 0) > 0:
-            recommendations.append({
-                "priority": "medium",
-                "category": "error_handling",
-                "title": "Fix Bare Except Clauses",
-                "description": f"{categories['bare_except']} bare except clauses found",
-                "actions": [
-                    "Specify exception types to catch",
-                    "Use logging for unexpected errors",
-                    "Consider re-raising with context",
-                ],
-            })
+            recommendations.append(
+                {
+                    "priority": "medium",
+                    "category": "error_handling",
+                    "title": "Fix Bare Except Clauses",
+                    "description": f"{categories['bare_except']} bare except clauses found",
+                    "actions": [
+                        "Specify exception types to catch",
+                        "Use logging for unexpected errors",
+                        "Consider re-raising with context",
+                    ],
+                }
+            )
 
         return recommendations
 
@@ -634,6 +663,7 @@ def get_optimizer() -> CodeOptimizer:
 
 
 # ============ MCP Tools ============
+
 
 @mcp.tool()
 async def analyze_file_performance(file_path: str) -> dict[str, Any]:
@@ -681,9 +711,17 @@ async def analyze_file_performance(file_path: str) -> dict[str, Any]:
             "issues": issues_dict,
             "issue_count": len(issues_dict),
             "summary": {
-                "complexity": "high" if metrics.max_complexity > 20 else "medium" if metrics.max_complexity > 10 else "low",
-                "maintainability": "good" if len(issues_dict) < 5 else "needs_attention" if len(issues_dict) < 10 else "poor",
-            }
+                "complexity": "high"
+                if metrics.max_complexity > 20
+                else "medium"
+                if metrics.max_complexity > 10
+                else "low",
+                "maintainability": "good"
+                if len(issues_dict) < 5
+                else "needs_attention"
+                if len(issues_dict) < 10
+                else "poor",
+            },
         }
 
     except FileNotFoundError as e:
@@ -785,10 +823,12 @@ async def get_optimization_recommendations(
             "recommendations": recommendations,
             "total_recommendations": len(recommendations),
             "summary": {
-                "high_priority": sum(1 for r in recommendations if r["priority"] in ("critical", "high")),
+                "high_priority": sum(
+                    1 for r in recommendations if r["priority"] in ("critical", "high")
+                ),
                 "medium_priority": sum(1 for r in recommendations if r["priority"] == "medium"),
                 "low_priority": sum(1 for r in recommendations if r["priority"] == "low"),
-            }
+            },
         }
 
     except Exception as e:
@@ -826,7 +866,8 @@ async def detect_code_smells(
         min_severity = severity_order.get(severity, 2)
 
         filtered_issues = [
-            issue for issue in analysis["issues"]
+            issue
+            for issue in analysis["issues"]
             if severity_order.get(issue["severity"], 0) >= min_severity
         ]
 

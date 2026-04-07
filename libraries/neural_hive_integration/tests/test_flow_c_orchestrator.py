@@ -35,10 +35,10 @@ def sample_decision():
                     "template_id": "microservice",
                     "parameters": {"language": "python"},
                     "capabilities": ["python", "fastapi"],
-                    "description": "Generate microservice"
+                    "description": "Generate microservice",
                 }
             ]
-        }
+        },
     }
 
 
@@ -51,15 +51,15 @@ def mock_workers():
             agent_type="worker",
             capabilities=["python", "fastapi"],
             endpoint="http://worker-1:8000",
-            metadata={"version": "1.0.0"}
+            metadata={"version": "1.0.0"},
         ),
         AgentInfo(
             agent_id="worker-2",
             agent_type="worker",
             capabilities=["python", "terraform"],
             endpoint="http://worker-2:8000",
-            metadata={"version": "1.0.0"}
-        )
+            metadata={"version": "1.0.0"},
+        ),
     ]
 
 
@@ -87,14 +87,16 @@ async def test_execute_flow_c_success(orchestrator, sample_decision, mock_worker
         "required_capabilities": ["python", "fastapi"],
         "payload": {"template_id": "microservice", "parameters": {}, "ticket_id": "ticket-001"},
         "sla_deadline": (datetime.now(timezone.utc) + timedelta(hours=4)).isoformat(),
-        "priority": 5
+        "priority": 5,
     }
     orchestrator.ticket_client.create_ticket = AsyncMock(return_value=mock_ticket)
     orchestrator.ticket_client.get_ticket = AsyncMock(return_value=mock_ticket)
     orchestrator.ticket_client.update_ticket_status = AsyncMock()
 
     # Mock worker client assignment
-    with patch('neural_hive_integration.orchestration.flow_c_orchestrator.WorkerAgentClient') as mock_worker_client_class:
+    with patch(
+        "neural_hive_integration.orchestration.flow_c_orchestrator.WorkerAgentClient"
+    ) as mock_worker_client_class:
         mock_worker_instance = AsyncMock()
         mock_worker_instance.assign_task = AsyncMock()
         mock_worker_instance.close = AsyncMock()
@@ -146,7 +148,11 @@ async def test_execute_c2_generate_tickets(orchestrator, sample_decision):
         "priority": "NORMAL",
         "risk_band": "medium",
         "sla": {"deadline": 1704067200000, "timeout_ms": 30000, "max_retries": 3},
-        "qos": {"delivery_mode": "AT_LEAST_ONCE", "consistency": "EVENTUAL", "durability": "PERSISTENT"},
+        "qos": {
+            "delivery_mode": "AT_LEAST_ONCE",
+            "consistency": "EVENTUAL",
+            "durability": "PERSISTENT",
+        },
         "payload": {"template_id": "microservice", "ticket_id": "ticket-001"},
     }
     orchestrator.orchestrator_client.query_workflow = AsyncMock(
@@ -185,7 +191,7 @@ async def test_execute_c3_discover_workers(orchestrator, mock_workers):
 
     tickets = [
         {"required_capabilities": ["python", "fastapi"]},
-        {"required_capabilities": ["terraform"]}
+        {"required_capabilities": ["terraform"]},
     ]
 
     workers = await orchestrator._execute_c3_discover_workers(tickets, MagicMock())
@@ -193,8 +199,7 @@ async def test_execute_c3_discover_workers(orchestrator, mock_workers):
     assert len(workers) == 2
     assert workers[0].agent_id == "worker-1"
     orchestrator.service_registry.discover_agents.assert_called_once_with(
-        capabilities=["python", "fastapi", "terraform"],
-        filters={"status": "healthy"}
+        capabilities=["python", "fastapi", "terraform"], filters={"status": "healthy"}
     )
 
 
@@ -258,22 +263,28 @@ async def test_flow_c_sla_violation(orchestrator, sample_decision, mock_workers)
         "task_type": "code_generation",
         "required_capabilities": ["python"],
         "payload": {"template_id": "test", "ticket_id": "ticket-001"},
-        "sla_deadline": (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat(),  # SLA violado
-        "priority": 5
+        "sla_deadline": (
+            datetime.now(timezone.utc) - timedelta(hours=1)
+        ).isoformat(),  # SLA violado
+        "priority": 5,
     }
     orchestrator.ticket_client.create_ticket = AsyncMock(return_value=mock_ticket)
     orchestrator.ticket_client.get_ticket = AsyncMock(return_value=mock_ticket)
     orchestrator.ticket_client.update_ticket_status = AsyncMock()
     orchestrator.telemetry.publish_event = AsyncMock()
 
-    with patch('neural_hive_integration.orchestration.flow_c_orchestrator.WorkerAgentClient') as mock_worker_client_class:
+    with patch(
+        "neural_hive_integration.orchestration.flow_c_orchestrator.WorkerAgentClient"
+    ) as mock_worker_client_class:
         mock_worker_instance = AsyncMock()
         mock_worker_instance.assign_task = AsyncMock()
         mock_worker_instance.close = AsyncMock()
         mock_worker_client_class.return_value = mock_worker_instance
 
         # Forçar deadline no passado no context
-        with patch('neural_hive_integration.orchestration.flow_c_orchestrator.datetime') as mock_datetime:
+        with patch(
+            "neural_hive_integration.orchestration.flow_c_orchestrator.datetime"
+        ) as mock_datetime:
             past_time = datetime.now(timezone.utc) - timedelta(hours=5)
             mock_datetime.utcnow.return_value = past_time
             mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
@@ -286,7 +297,9 @@ async def test_flow_c_sla_violation(orchestrator, sample_decision, mock_workers)
 @pytest.mark.asyncio
 async def test_flow_c_failure_handling(orchestrator, sample_decision):
     """Testa tratamento de falhas no Flow C."""
-    orchestrator.orchestrator_client.start_workflow = AsyncMock(side_effect=Exception("Workflow failed"))
+    orchestrator.orchestrator_client.start_workflow = AsyncMock(
+        side_effect=Exception("Workflow failed")
+    )
 
     result = await orchestrator.execute_flow_c(sample_decision)
 
@@ -360,11 +373,7 @@ async def test_get_tickets_from_workflow_fallback(orchestrator):
     context.priority = 5
     context.sla_deadline = datetime.now(timezone.utc) + timedelta(hours=4)
 
-    cognitive_plan = {
-        "tasks": [
-            {"type": "code_generation", "description": "Test task"}
-        ]
-    }
+    cognitive_plan = {"tasks": [{"type": "code_generation", "description": "Test task"}]}
 
     tickets = await orchestrator._get_tickets_from_workflow(
         workflow_id="workflow-123",
@@ -380,9 +389,7 @@ async def test_get_tickets_from_workflow_fallback(orchestrator):
 @pytest.mark.asyncio
 async def test_get_tickets_from_workflow_empty_result(orchestrator):
     """Testa fallback quando workflow retorna lista vazia de tickets."""
-    orchestrator.orchestrator_client.query_workflow = AsyncMock(
-        return_value={"tickets": []}
-    )
+    orchestrator.orchestrator_client.query_workflow = AsyncMock(return_value={"tickets": []})
 
     mock_ticket = MagicMock()
     mock_ticket.ticket_id = "fallback-ticket-001"
@@ -421,7 +428,11 @@ def test_validate_ticket_schema_valid(orchestrator):
         "priority": "NORMAL",
         "risk_band": "medium",
         "sla": {"deadline": 1704067200000, "timeout_ms": 30000, "max_retries": 3},
-        "qos": {"delivery_mode": "AT_LEAST_ONCE", "consistency": "EVENTUAL", "durability": "PERSISTENT"},
+        "qos": {
+            "delivery_mode": "AT_LEAST_ONCE",
+            "consistency": "EVENTUAL",
+            "durability": "PERSISTENT",
+        },
         "schema_version": 1,
     }
 
@@ -464,7 +475,11 @@ def test_validate_ticket_schema_invalid_status(orchestrator):
         "priority": "NORMAL",
         "risk_band": "medium",
         "sla": {"deadline": 1704067200000, "timeout_ms": 30000, "max_retries": 3},
-        "qos": {"delivery_mode": "AT_LEAST_ONCE", "consistency": "EVENTUAL", "durability": "PERSISTENT"},
+        "qos": {
+            "delivery_mode": "AT_LEAST_ONCE",
+            "consistency": "EVENTUAL",
+            "durability": "PERSISTENT",
+        },
     }
 
     is_valid, errors = orchestrator._validate_ticket_schema(invalid_ticket)
@@ -490,7 +505,11 @@ def test_validate_ticket_schema_with_sla(orchestrator):
             "timeout_ms": 30000,
             "max_retries": 3,
         },
-        "qos": {"delivery_mode": "AT_LEAST_ONCE", "consistency": "EVENTUAL", "durability": "PERSISTENT"},
+        "qos": {
+            "delivery_mode": "AT_LEAST_ONCE",
+            "consistency": "EVENTUAL",
+            "durability": "PERSISTENT",
+        },
     }
 
     is_valid, errors = orchestrator._validate_ticket_schema(ticket_with_sla)
@@ -515,7 +534,11 @@ def test_validate_ticket_schema_with_incomplete_sla(orchestrator):
             "deadline": 1704067200000,
             # Falta timeout_ms e max_retries
         },
-        "qos": {"delivery_mode": "AT_LEAST_ONCE", "consistency": "EVENTUAL", "durability": "PERSISTENT"},
+        "qos": {
+            "delivery_mode": "AT_LEAST_ONCE",
+            "consistency": "EVENTUAL",
+            "durability": "PERSISTENT",
+        },
     }
 
     is_valid, errors = orchestrator._validate_ticket_schema(ticket_with_bad_sla)
@@ -538,7 +561,11 @@ def test_validate_ticket_schema_numeric_priority(orchestrator):
         "priority": 5,  # Numérico em vez de enum
         "risk_band": "medium",
         "sla": {"deadline": 1704067200000, "timeout_ms": 30000, "max_retries": 3},
-        "qos": {"delivery_mode": "AT_LEAST_ONCE", "consistency": "EVENTUAL", "durability": "PERSISTENT"},
+        "qos": {
+            "delivery_mode": "AT_LEAST_ONCE",
+            "consistency": "EVENTUAL",
+            "durability": "PERSISTENT",
+        },
     }
 
     is_valid, errors = orchestrator._validate_ticket_schema(ticket_with_numeric_priority)

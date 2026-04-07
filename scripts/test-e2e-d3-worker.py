@@ -41,8 +41,8 @@ def submit_build_to_worker_agent():
             "branch": "main",
             "commit_sha": "abc123def456",
             "dockerfile": "Dockerfile",
-            "registry": "local"
-        }
+            "registry": "local",
+        },
     }
 
     # Executar dentro do pod do worker-agent para enviar mensagem Kafka
@@ -69,9 +69,7 @@ producer.close()
     # Usar o pod do worker-agent
     print("Enviando mensagem Kafka...")
     result = kubectl_exec(
-        "neural-hive",
-        "deployment/worker-agents",
-        f'bash -c "cd /app && python3 -c \\"{cmd}\\""'
+        "neural-hive", "deployment/worker-agents", f'bash -c "cd /app && python3 -c \\"{cmd}\\""'
     )
 
     print("Resultado:", result[-200:] if len(result) > 200 else result)
@@ -93,17 +91,17 @@ def check_worker_logs(job_id: str, duration: int = 30):
             f"kubectl logs -n neural-hive deployment/worker-agents --tail=50 | grep -i '{job_id}' || true",
             shell=True,
             capture_output=True,
-            text=True
+            text=True,
         ).stdout
 
-        new_lines = [line for line in logs.split('\n') if line and line not in seen_lines]
+        new_lines = [line for line in logs.split("\n") if line and line not in seen_lines]
         seen_lines.extend(new_lines)
 
         for line in new_lines:
-            if 'completed' in line.lower():
+            if "completed" in line.lower():
                 print(f"✓ {line.strip()}")
                 return True
-            elif 'failed' in line.lower() or 'error' in line.lower():
+            elif "failed" in line.lower() or "error" in line.lower():
                 print(f"✗ {line.strip()}")
                 return False
 
@@ -122,16 +120,17 @@ def check_codeforge_results():
         "kubectl get pods -n neural-hive -l app=code-forge -o json",
         shell=True,
         capture_output=True,
-        text=True
+        text=True,
     )
 
     if result.returncode == 0:
         import json
+
         try:
             pods = json.loads(result.stdout)
-            if pods.get('items'):
-                pod = pods['items'][0]
-                name = pod['metadata']['name']
+            if pods.get("items"):
+                pod = pods["items"][0]
+                name = pod["metadata"]["name"]
                 print(f"CodeForge pod: {name}")
                 print(f"Status: {pod['status']['phase']}")
         except:

@@ -15,6 +15,7 @@ import asyncio
 # Test: gRPC Client Timeout
 # =============================================================================
 
+
 class TestGRPCTimeoutHandling:
     """Testes de timeout em chamadas gRPC."""
 
@@ -56,10 +57,7 @@ class TestGRPCTimeoutHandling:
         mock_call = MagicMock()
         mock_call.__await__ = AsyncMock(return_value="result")
 
-        result = await asyncio.wait_for(
-            mock_call.__await__(),
-            timeout=deadline_seconds
-        )
+        result = await asyncio.wait_for(mock_call.__await__(), timeout=deadline_seconds)
 
         assert result == "result"
 
@@ -67,6 +65,7 @@ class TestGRPCTimeoutHandling:
 # =============================================================================
 # Test: gRPC Server Deadline
 # =============================================================================
+
 
 class TestGRPCServerDeadline:
     """Testes de deadline no servidor gRPC."""
@@ -108,6 +107,7 @@ class TestGRPCServerDeadline:
 # Test: gRPC Retry with Backoff
 # =============================================================================
 
+
 class TestGRPCRetryWithBackoff:
     """Testes de retry com backoff exponencial."""
 
@@ -134,7 +134,7 @@ class TestGRPCRetryWithBackoff:
             except Exception:
                 if attempt == max_retries - 1:
                     raise
-                await asyncio.sleep(2 ** attempt)  # Backoff exponencial
+                await asyncio.sleep(2**attempt)  # Backoff exponencial
 
         assert result == "success"
         assert attempt_count == 3
@@ -147,7 +147,7 @@ class TestGRPCRetryWithBackoff:
 
         delays = []
         for attempt in range(5):
-            delay = min(base_delay * (2 ** attempt), max_delay)
+            delay = min(base_delay * (2**attempt), max_delay)
             delays.append(delay)
 
         assert delays == [1, 2, 4, 8, 16]
@@ -179,6 +179,7 @@ class TestGRPCRetryWithBackoff:
 # Test: gRPC Unary Calls
 # =============================================================================
 
+
 class TestGRPCUnaryCalls:
     """Testes de chamadas unárias gRPC."""
 
@@ -192,9 +193,7 @@ class TestGRPCUnaryCalls:
 
         mock_stub.unary_call = AsyncMock(return_value=mock_response)
 
-        response = await mock_stub.unary_call(
-            MagicMock(request_data="test")
-        )
+        response = await mock_stub.unary_call(MagicMock(request_data="test"))
 
         assert response.success is True
         assert response.data == "test result"
@@ -203,9 +202,7 @@ class TestGRPCUnaryCalls:
     async def test_unary_call_with_error(self):
         """Deve tratar erro em chamada unária."""
         mock_stub = MagicMock()
-        mock_stub.unary_call = AsyncMock(
-            side_effect=Exception("RPC failed")
-        )
+        mock_stub.unary_call = AsyncMock(side_effect=Exception("RPC failed"))
 
         with pytest.raises(Exception):
             await mock_stub.unary_call(MagicMock())
@@ -229,12 +226,14 @@ class TestGRPCUnaryCalls:
 # Test: gRPC Streaming
 # =============================================================================
 
+
 class TestGRPCStreaming:
     """Testes de streaming gRPC."""
 
     @pytest.mark.asyncio
     async def test_server_streaming(self):
         """Deve receber stream do servidor."""
+
         async def mock_stream():
             """Simula stream do servidor."""
             for i in range(5):
@@ -250,6 +249,7 @@ class TestGRPCStreaming:
     @pytest.mark.asyncio
     async def test_client_streaming(self):
         """Deve enviar stream para o servidor."""
+
         async def mock_client_stream_handler(request_iterator):
             """Simula handler de stream do cliente."""
             values = []
@@ -270,6 +270,7 @@ class TestGRPCStreaming:
     @pytest.mark.asyncio
     async def test_bidi_streaming(self):
         """Deve handle streaming bidirecional."""
+
         async def mock_bidi_handler(request_iterator):
             """Simula handler bidirecional."""
             async for request in request_iterator:
@@ -277,10 +278,11 @@ class TestGRPCStreaming:
                 yield MagicMock(
                     original=request.value,
                     echoed=request.value * 2,
-                    timestamp=datetime.now(timezone.utc).isoformat()
+                    timestamp=datetime.now(timezone.utc).isoformat(),
                 )
 
         received = []
+
         async def request_gen():
             for i in range(3):
                 yield MagicMock(value=i)
@@ -315,12 +317,14 @@ class TestGRPCStreaming:
 # Test: gRPC Interceptors
 # =============================================================================
 
+
 class TestGRPCInterceptors:
     """Testes de interceptadores gRPC."""
 
     @pytest.mark.asyncio
     async def test_auth_interceptor_adds_metadata(self):
         """Interceptor de auth deve adicionar token."""
+
         class AuthInterceptor:
             def __init__(self, token):
                 self.token = token
@@ -345,10 +349,9 @@ class TestGRPCInterceptors:
 
         class LoggingInterceptor:
             async def intercept(self, request, metadata):
-                logs.append({
-                    "method": "TestMethod",
-                    "timestamp": datetime.now(timezone.utc).isoformat()
-                })
+                logs.append(
+                    {"method": "TestMethod", "timestamp": datetime.now(timezone.utc).isoformat()}
+                )
                 return request, metadata
 
         interceptor = LoggingInterceptor()
@@ -361,6 +364,7 @@ class TestGRPCInterceptors:
 # =============================================================================
 # Test: gRPC Channel Connectivity
 # =============================================================================
+
 
 class TestGRPCChannelConnectivity:
     """Testes de conectividade de canal gRPC."""
@@ -403,6 +407,7 @@ class TestGRPCChannelConnectivity:
 # Test: gRPC Message Size Limits
 # =============================================================================
 
+
 class TestGRPCMessageSize:
     """Testes de limites de tamanho de mensagem gRPC."""
 
@@ -426,7 +431,7 @@ class TestGRPCMessageSize:
 
         chunks = []
         for i in range(0, len(large_message), chunk_size):
-            chunk = large_message[i:i + chunk_size]
+            chunk = large_message[i : i + chunk_size]
             chunks.append(chunk)
 
         assert len(chunks) == 10
@@ -436,6 +441,7 @@ class TestGRPCMessageSize:
 # =============================================================================
 # Test: gRPC Compression
 # =============================================================================
+
 
 class TestGRPCCompression:
     """Testes de compressão gRPC."""
@@ -462,6 +468,7 @@ class TestGRPCCompression:
 # =============================================================================
 # Test: gRPC Health Check
 # =============================================================================
+
 
 class TestGRPCHealthCheck:
     """Testes de health check gRPC."""

@@ -15,20 +15,17 @@ def config():
     """Configuração de teste."""
     return OnlineLearningConfig(
         online_learning_enabled=True,
-        incremental_algorithm='sgd',
+        incremental_algorithm="sgd",
         mini_batch_size=16,
         learning_rate=0.01,
-        regularization_alpha=0.0001
+        regularization_alpha=0.0001,
     )
 
 
 @pytest.fixture
 def learner(config):
     """IncrementalLearner para testes."""
-    return IncrementalLearner(
-        config=config,
-        specialist_type='feasibility'
-    )
+    return IncrementalLearner(config=config, specialist_type="feasibility")
 
 
 @pytest.fixture
@@ -45,21 +42,21 @@ class TestIncrementalLearnerInitialization:
 
     def test_init_sgd(self, config):
         """Testar inicialização com SGD."""
-        learner = IncrementalLearner(config, 'feasibility')
-        assert learner.specialist_type == 'feasibility'
-        assert learner.algorithm == 'sgd'
+        learner = IncrementalLearner(config, "feasibility")
+        assert learner.specialist_type == "feasibility"
+        assert learner.algorithm == "sgd"
 
     def test_init_passive_aggressive(self):
         """Testar inicialização com PassiveAggressive."""
-        config = OnlineLearningConfig(incremental_algorithm='passive_aggressive')
-        learner = IncrementalLearner(config, 'risk')
-        assert learner.algorithm == 'passive_aggressive'
+        config = OnlineLearningConfig(incremental_algorithm="passive_aggressive")
+        learner = IncrementalLearner(config, "risk")
+        assert learner.algorithm == "passive_aggressive"
 
     def test_init_perceptron(self):
         """Testar inicialização com Perceptron."""
-        config = OnlineLearningConfig(incremental_algorithm='perceptron')
-        learner = IncrementalLearner(config, 'cost')
-        assert learner.algorithm == 'perceptron'
+        config = OnlineLearningConfig(incremental_algorithm="perceptron")
+        learner = IncrementalLearner(config, "cost")
+        assert learner.algorithm == "perceptron"
 
 
 class TestPartialFit:
@@ -73,9 +70,9 @@ class TestPartialFit:
 
         result = learner.partial_fit(batch_X, batch_y, classes=[0, 1])
 
-        assert result['success'] is True
-        assert result['samples_processed'] == 16
-        assert 'loss' in result
+        assert result["success"] is True
+        assert result["samples_processed"] == 16
+        assert "loss" in result
 
     def test_partial_fit_updates_counter(self, learner, sample_data):
         """Testar que partial_fit incrementa contador."""
@@ -102,13 +99,9 @@ class TestPartialFit:
         X, y = sample_data
         weights = np.ones(16) * 0.5
 
-        result = learner.partial_fit(
-            X[:16], y[:16],
-            classes=[0, 1],
-            sample_weight=weights
-        )
+        result = learner.partial_fit(X[:16], y[:16], classes=[0, 1], sample_weight=weights)
 
-        assert result['success'] is True
+        assert result["success"] is True
 
 
 class TestPredict:
@@ -157,7 +150,7 @@ class TestCheckpoint:
             path = learner.save_checkpoint(tmpdir)
 
             assert os.path.exists(path)
-            assert path.endswith('.pkl')
+            assert path.endswith(".pkl")
 
     def test_load_checkpoint(self, learner, sample_data):
         """Testar carregamento de checkpoint."""
@@ -168,10 +161,7 @@ class TestCheckpoint:
             path = learner.save_checkpoint(tmpdir)
 
             # Criar novo learner e carregar
-            new_learner = IncrementalLearner(
-                learner.config,
-                'feasibility'
-            )
+            new_learner = IncrementalLearner(learner.config, "feasibility")
             new_learner.load_checkpoint(path)
 
             # Verificar que predições são iguais
@@ -190,14 +180,14 @@ class TestConvergenceMetrics:
 
         # Treinar alguns batches
         for i in range(5):
-            learner.partial_fit(X[i*16:(i+1)*16], y[i*16:(i+1)*16], classes=[0, 1])
+            learner.partial_fit(X[i * 16 : (i + 1) * 16], y[i * 16 : (i + 1) * 16], classes=[0, 1])
 
         metrics = learner.get_convergence_metrics()
 
-        assert 'average_loss' in metrics
-        assert 'loss_history' in metrics
-        assert 'updates_count' in metrics
-        assert metrics['updates_count'] == 5
+        assert "average_loss" in metrics
+        assert "loss_history" in metrics
+        assert "updates_count" in metrics
+        assert metrics["updates_count"] == 5
 
     def test_convergence_rate(self, learner, sample_data):
         """Testar cálculo de taxa de convergência."""
@@ -205,12 +195,12 @@ class TestConvergenceMetrics:
 
         # Treinar múltiplos batches
         for i in range(10):
-            learner.partial_fit(X[i*10:(i+1)*10], y[i*10:(i+1)*10], classes=[0, 1])
+            learner.partial_fit(X[i * 10 : (i + 1) * 10], y[i * 10 : (i + 1) * 10], classes=[0, 1])
 
         metrics = learner.get_convergence_metrics()
 
-        assert 'convergence_rate' in metrics
-        assert isinstance(metrics['convergence_rate'], float)
+        assert "convergence_rate" in metrics
+        assert isinstance(metrics["convergence_rate"], float)
 
 
 class TestScaler:

@@ -29,18 +29,13 @@ def fix_proto_imports(proto_dir: Path) -> int:
     """
     fixed_count = 0
 
-    for grpc_file in proto_dir.glob('*_pb2_grpc.py'):
+    for grpc_file in proto_dir.glob("*_pb2_grpc.py"):
         content = grpc_file.read_text()
 
         # Pattern: import foo_pb2 as bar
         # Replace: from . import foo_pb2 as bar
         # We only want to match the top-level import, not nested imports
-        fixed = re.sub(
-            r'^import (\w+_pb2) as',
-            r'from . import \1 as',
-            content,
-            flags=re.MULTILINE
-        )
+        fixed = re.sub(r"^import (\w+_pb2) as", r"from . import \1 as", content, flags=re.MULTILINE)
 
         if fixed != content:
             grpc_file.write_text(fixed)
@@ -52,12 +47,12 @@ def fix_proto_imports(proto_dir: Path) -> int:
     return fixed_count
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Proto directories to fix
     proto_dirs = [
-        Path('services/orchestrator-dynamic/src/proto'),
-        Path('services/queen-agent/src/proto'),
-        Path('services/self-healing-engine/src/proto'),
+        Path("services/orchestrator-dynamic/src/proto"),
+        Path("services/queen-agent/src/proto"),
+        Path("services/self-healing-engine/src/proto"),
     ]
 
     total_fixed = 0

@@ -13,41 +13,35 @@ import sys
 from pathlib import Path
 
 # Adicionar path da biblioteca
-sys.path.insert(0, str(Path(__file__).parent.parent / 'libraries' / 'python'))
+sys.path.insert(0, str(Path(__file__).parent.parent / "libraries" / "python"))
 
 from neural_hive_specialists.ledger import DigitalSigner
 import structlog
 
 logger = structlog.get_logger()
 
+
 def main():
     parser = argparse.ArgumentParser(
-        description='Gera par de chaves RSA para assinatura digital do ledger'
+        description="Gera par de chaves RSA para assinatura digital do ledger"
     )
     parser.add_argument(
-        '--output-dir',
-        type=str,
-        required=True,
-        help='Diretório de saída para as chaves'
+        "--output-dir", type=str, required=True, help="Diretório de saída para as chaves"
     )
     parser.add_argument(
-        '--key-size',
+        "--key-size",
         type=int,
         choices=[2048, 4096],
         default=2048,
-        help='Tamanho da chave em bits (padrão: 2048)'
+        help="Tamanho da chave em bits (padrão: 2048)",
     )
     parser.add_argument(
-        '--specialist',
+        "--specialist",
         type=str,
-        default='specialist',
-        help='Nome do especialista (usado no nome do arquivo)'
+        default="specialist",
+        help="Nome do especialista (usado no nome do arquivo)",
     )
-    parser.add_argument(
-        '--force',
-        action='store_true',
-        help='Sobrescrever chaves existentes'
-    )
+    parser.add_argument("--force", action="store_true", help="Sobrescrever chaves existentes")
 
     args = parser.parse_args()
 
@@ -56,8 +50,8 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Definir nomes dos arquivos
-    private_key_path = output_dir / f'{args.specialist}_private_key.pem'
-    public_key_path = output_dir / f'{args.specialist}_public_key.pem'
+    private_key_path = output_dir / f"{args.specialist}_private_key.pem"
+    public_key_path = output_dir / f"{args.specialist}_public_key.pem"
 
     # Verificar se chaves já existem
     if not args.force:
@@ -65,33 +59,29 @@ def main():
             logger.error(
                 "Keys already exist. Use --force to overwrite.",
                 private_key=str(private_key_path),
-                public_key=str(public_key_path)
+                public_key=str(public_key_path),
             )
             sys.exit(1)
 
     # Gerar chaves
-    logger.info(
-        "Generating RSA key pair",
-        key_size=args.key_size,
-        specialist=args.specialist
-    )
+    logger.info("Generating RSA key pair", key_size=args.key_size, specialist=args.specialist)
 
     signer = DigitalSigner(config={})
     private_pem, public_pem = signer.generate_keys(key_size=args.key_size)
 
     # Salvar chaves
-    with open(private_key_path, 'wb') as f:
+    with open(private_key_path, "wb") as f:
         f.write(private_pem)
     os.chmod(private_key_path, 0o600)  # Apenas owner pode ler
 
-    with open(public_key_path, 'wb') as f:
+    with open(public_key_path, "wb") as f:
         f.write(public_pem)
     os.chmod(public_key_path, 0o644)  # Todos podem ler
 
     logger.info(
         "RSA key pair generated successfully",
         private_key=str(private_key_path),
-        public_key=str(public_key_path)
+        public_key=str(public_key_path),
     )
 
     print(f"\n✅ Chaves geradas com sucesso!")
@@ -102,5 +92,6 @@ def main():
     print(f"   LEDGER_PRIVATE_KEY_PATH={private_key_path}")
     print(f"   LEDGER_PUBLIC_KEY_PATH={public_key_path}")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

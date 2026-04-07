@@ -16,6 +16,7 @@ import json
 # Test: Intent Processing
 # =============================================================================
 
+
 class TestIntentProcessing:
     """Testes de processamento de intenções."""
 
@@ -26,7 +27,7 @@ class TestIntentProcessing:
             "intent_id": str(uuid4()),
             "user_id": "user-123",
             "text": "Quero saber o status do meu pedido",
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         assert "intent_id" in request
@@ -42,7 +43,7 @@ class TestIntentProcessing:
             "length": len(intent_text),
             "word_count": len(intent_text.split()),
             "has_number": any(c.isdigit() for c in intent_text),
-            "language": "pt-BR"
+            "language": "pt-BR",
         }
 
         assert features["word_count"] == 7
@@ -51,15 +52,9 @@ class TestIntentProcessing:
     @pytest.mark.asyncio
     async def test_validate_intent_format(self):
         """Deve validar formato da intenção."""
-        valid_intent = {
-            "text": "Qual é o saldo?",
-            "user_id": "user-123",
-            "context": {}
-        }
+        valid_intent = {"text": "Qual é o saldo?", "user_id": "user-123", "context": {}}
 
-        invalid_intent = {
-            "text": ""  # Texto vazio
-        }
+        invalid_intent = {"text": ""}  # Texto vazio
 
         def is_valid(intent):
             return "text" in intent and len(intent.get("text", "")) > 0
@@ -84,6 +79,7 @@ class TestIntentProcessing:
 # Test: NLU Processing
 # =============================================================================
 
+
 class TestNLUProcessing:
     """Testes de processamento NLU."""
 
@@ -93,7 +89,7 @@ class TestNLUProcessing:
         intent_samples = {
             "consulta_saldo": ["Qual meu saldo?", "Quanto tenho?", "Mostrar saldo"],
             "status_pedido": ["Onde está meu pedido?", "Status do pedido 123"],
-            "suporte": ["Preciso de ajuda", "Falar com atendente"]
+            "suporte": ["Preciso de ajuda", "Falar com atendente"],
         }
 
         test_input = "Qual é o saldo da minha conta?"
@@ -126,7 +122,7 @@ class TestNLUProcessing:
         entities = {
             "numbers": [int(s) for s in text.split() if s.isdigit()],
             "names": ["João"],
-            "keywords": ["status", "pedido"]
+            "keywords": ["status", "pedido"],
         }
 
         assert 12345 in entities["numbers"]
@@ -136,11 +132,7 @@ class TestNLUProcessing:
     async def test_calculate_confidence(self):
         """Deve calcular confiança da classificação."""
         # Simular scores de classificação
-        class_scores = {
-            "consulta_saldo": 0.85,
-            "status_pedido": 0.12,
-            "suporte": 0.03
-        }
+        class_scores = {"consulta_saldo": 0.85, "status_pedido": 0.12, "suporte": 0.03}
 
         predicted_class = max(class_scores, key=class_scores.get)
         confidence = class_scores[predicted_class]
@@ -153,22 +145,19 @@ class TestNLUProcessing:
 # Test: STE Communication
 # =============================================================================
 
+
 class TestSTECommunication:
     """Testes de comunicação com STE."""
 
     @pytest.mark.asyncio
     async def test_forward_to_ste(self):
         """Deve encaminhar intenção para STE."""
-        intent = {
-            "intent_id": str(uuid4()),
-            "text": "Teste",
-            "user_id": "user-123"
-        }
+        intent = {"intent_id": str(uuid4()), "text": "Teste", "user_id": "user-123"}
 
         # Simular envio para STE
         ste_request = {
             "original_intent": intent,
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         assert "original_intent" in ste_request
@@ -177,11 +166,8 @@ class TestSTECommunication:
     async def test_handle_ste_response(self):
         """Deve processar resposta do STE."""
         ste_response = {
-            "translated_intent": {
-                "action": "query_balance",
-                "parameters": {"user_id": "user-123"}
-            },
-            "confidence": 0.92
+            "translated_intent": {"action": "query_balance", "parameters": {"user_id": "user-123"}},
+            "confidence": 0.92,
         }
 
         translated = ste_response["translated_intent"]
@@ -217,21 +203,19 @@ class TestSTECommunication:
 # Test: Response Building
 # =============================================================================
 
+
 class TestResponseBuilding:
     """Testes de construção de resposta."""
 
     @pytest.mark.asyncio
     async def test_build_success_response(self):
         """Deve construir resposta de sucesso."""
-        result = {
-            "data": {"balance": 1500.00},
-            "message": "Saldo consultado com sucesso"
-        }
+        result = {"data": {"balance": 1500.00}, "message": "Saldo consultado com sucesso"}
 
         response = {
             "status": "success",
             "result": result,
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         assert response["status"] == "success"
@@ -240,15 +224,12 @@ class TestResponseBuilding:
     @pytest.mark.asyncio
     async def test_build_error_response(self):
         """Deve construir resposta de erro."""
-        error = {
-            "code": "INVALID_INPUT",
-            "message": "Formato de intenção inválido"
-        }
+        error = {"code": "INVALID_INPUT", "message": "Formato de intenção inválido"}
 
         response = {
             "status": "error",
             "error": error,
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         assert response["status"] == "error"
@@ -257,15 +238,12 @@ class TestResponseBuilding:
     @pytest.mark.asyncio
     async def test_add_response_metadata(self):
         """Deve adicionar metadados à resposta."""
-        response = {
-            "status": "success",
-            "data": {"result": "value"}
-        }
+        response = {"status": "success", "data": {"result": "value"}}
 
         response["metadata"] = {
             "processing_time_ms": 150,
             "nlu_confidence": 0.95,
-            "intent_type": "consulta_saldo"
+            "intent_type": "consulta_saldo",
         }
 
         assert "metadata" in response
@@ -276,6 +254,7 @@ class TestResponseBuilding:
 # Test: Request Routing
 # =============================================================================
 
+
 class TestRequestRouting:
     """Testes de roteamento de requisições."""
 
@@ -285,7 +264,7 @@ class TestRequestRouting:
         intent_types = {
             "consulta_saldo": "account-service",
             "status_pedido": "order-service",
-            "suporte": "support-service"
+            "suporte": "support-service",
         }
 
         intent = {"type": "consulta_saldo"}
@@ -302,10 +281,7 @@ class TestRequestRouting:
         is_known = intent["type"] in known_types
 
         if not is_known:
-            fallback_response = {
-                "status": "fallback",
-                "message": "Não entendi sua solicitação"
-            }
+            fallback_response = {"status": "fallback", "message": "Não entendi sua solicitação"}
         else:
             fallback_response = None
 
@@ -317,6 +293,7 @@ class TestRequestRouting:
 # Test: Context Management
 # =============================================================================
 
+
 class TestContextManagement:
     """Testes de gerenciamento de contexto."""
 
@@ -327,15 +304,17 @@ class TestContextManagement:
             "user_id": "user-123",
             "conversation_id": str(uuid4()),
             "history": [],
-            "current_state": "active"
+            "current_state": "active",
         }
 
         # Adicionar ao histórico
-        context["history"].append({
-            "turn": 1,
-            "intent": "consulta_saldo",
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        })
+        context["history"].append(
+            {
+                "turn": 1,
+                "intent": "consulta_saldo",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        )
 
         assert len(context["history"]) == 1
         assert context["history"][0]["turn"] == 1
@@ -345,7 +324,7 @@ class TestContextManagement:
         """Deve extrair contexto do histórico."""
         history = [
             {"intent": "status_pedido", "entity": "pedido-123"},
-            {"intent": "detalhe_pedido", "entity": "pedido-123"}
+            {"intent": "detalhe_pedido", "entity": "pedido-123"},
         ]
 
         # Extrair última entidade mencionada
@@ -358,7 +337,7 @@ class TestContextManagement:
         """Deve limpar contexto expirado."""
         context = {
             "created_at": (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat(),
-            "ttl_minutes": 30
+            "ttl_minutes": 30,
         }
 
         created = datetime.fromisoformat(context["created_at"])
@@ -374,6 +353,7 @@ class TestContextManagement:
 # Test: Rate Limiting
 # =============================================================================
 
+
 class TestGatewayRateLimiting:
     """Testes de rate limiting no gateway."""
 
@@ -381,10 +361,7 @@ class TestGatewayRateLimiting:
     async def test_track_user_requests(self):
         """Deve rastrear requisições por usuário."""
         user_requests = {
-            "user-123": {
-                "count": 5,
-                "last_request": datetime.now(timezone.utc).isoformat()
-            }
+            "user-123": {"count": 5, "last_request": datetime.now(timezone.utc).isoformat()}
         }
 
         assert user_requests["user-123"]["count"] == 5
@@ -392,10 +369,7 @@ class TestGatewayRateLimiting:
     @pytest.mark.asyncio
     async def test_enforce_rate_limit_per_user(self):
         """Deve enforce rate limit por usuário."""
-        limits = {
-            "free": 10,  # 10 requisições por minuto
-            "premium": 100
-        }
+        limits = {"free": 10, "premium": 100}  # 10 requisições por minuto
 
         user_tier = "free"
         current_count = 15
@@ -413,7 +387,7 @@ class TestGatewayRateLimiting:
         counter_state = {
             "count": 50,
             "window_start": (datetime.now(timezone.utc) - timedelta(minutes=2)).isoformat(),
-            "window_minutes": 1
+            "window_minutes": 1,
         }
 
         now = datetime.now(timezone.utc)
@@ -428,6 +402,7 @@ class TestGatewayRateLimiting:
 # Test: Error Handling
 # =============================================================================
 
+
 class TestGatewayErrorHandling:
     """Testes de tratamento de erros."""
 
@@ -438,10 +413,7 @@ class TestGatewayErrorHandling:
         elapsed = 6
 
         if elapsed > timeout_seconds:
-            error = {
-                "type": "timeout",
-                "message": f"Request exceeded {timeout_seconds}s limit"
-            }
+            error = {"type": "timeout", "message": f"Request exceeded {timeout_seconds}s limit"}
         else:
             error = None
 
@@ -451,13 +423,13 @@ class TestGatewayErrorHandling:
     @pytest.mark.asyncio
     async def test_handle_service_unavailable(self):
         """Deve tratar serviço indisponível."""
-        service_status = {
-            "ste": "available",
-            "account": "unavailable"
-        }
+        service_status = {"ste": "available", "account": "unavailable"}
 
         target_service = "account"
-        is_available = service_status.get(f"{target_service}_service", service_status.get(target_service)) == "available"
+        is_available = (
+            service_status.get(f"{target_service}_service", service_status.get(target_service))
+            == "available"
+        )
 
         if not is_available:
             fallback_action = "queue_request"
@@ -474,7 +446,7 @@ class TestGatewayErrorHandling:
             "error_type": "ValidationError",
             "error_message": "Missing required field",
             "stack_trace": "...",
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         assert "intent_id" in error_context
@@ -485,6 +457,7 @@ class TestGatewayErrorHandling:
 # Test: Health Checks
 # =============================================================================
 
+
 class TestGatewayHealthChecks:
     """Testes de health checks do gateway."""
 
@@ -494,7 +467,7 @@ class TestGatewayHealthChecks:
         ste_health = {
             "status": "healthy",
             "last_check": datetime.now(timezone.utc).isoformat(),
-            "response_time_ms": 50
+            "response_time_ms": 50,
         }
 
         assert ste_health["status"] == "healthy"
@@ -503,15 +476,9 @@ class TestGatewayHealthChecks:
     @pytest.mark.asyncio
     async def test_aggregate_service_health(self):
         """Deve agregar saúde dos serviços."""
-        services = {
-            "ste": "healthy",
-            "account": "healthy",
-            "order": "degraded"
-        }
+        services = {"ste": "healthy", "account": "healthy", "order": "degraded"}
 
-        overall_health = "healthy" if all(
-            s == "healthy" for s in services.values()
-        ) else "degraded"
+        overall_health = "healthy" if all(s == "healthy" for s in services.values()) else "degraded"
 
         assert overall_health == "degraded"
 
@@ -520,12 +487,8 @@ class TestGatewayHealthChecks:
         """Deve retornar status de saúde."""
         health_status = {
             "gateway": "healthy",
-            "dependencies": {
-                "ste": "healthy",
-                "mongodb": "healthy",
-                "kafka": "healthy"
-            },
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "dependencies": {"ste": "healthy", "mongodb": "healthy", "kafka": "healthy"},
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         assert health_status["gateway"] == "healthy"

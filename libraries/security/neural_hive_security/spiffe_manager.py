@@ -23,6 +23,7 @@ ENABLE_JWT_VERIFICATION = os.getenv("ENABLE_JWT_VERIFICATION", "false").lower() 
 try:
     from . import workload_pb2
     from . import workload_pb2_grpc
+
     SPIRE_API_AVAILABLE = True
 except ImportError:
     SPIRE_API_AVAILABLE = False
@@ -30,19 +31,13 @@ except ImportError:
 
 # Prometheus metrics
 spiffe_svid_fetch_total = Counter(
-    "spiffe_svid_fetch_total",
-    "Total SPIFFE SVID fetch attempts",
-    ["svid_type", "status"]
+    "spiffe_svid_fetch_total", "Total SPIFFE SVID fetch attempts", ["svid_type", "status"]
 )
 spiffe_svid_fetch_duration_seconds = Histogram(
-    "spiffe_svid_fetch_duration_seconds",
-    "SPIFFE SVID fetch duration in seconds",
-    ["svid_type"]
+    "spiffe_svid_fetch_duration_seconds", "SPIFFE SVID fetch duration in seconds", ["svid_type"]
 )
 spiffe_svid_ttl_seconds = Gauge(
-    "spiffe_svid_ttl_seconds",
-    "TTL (seconds) do SVID retornado",
-    ["svid_type"]
+    "spiffe_svid_ttl_seconds", "TTL (seconds) do SVID retornado", ["svid_type"]
 )
 
 # Import JWT verification module (SEC-008) - lazy import para evitar dependência circular
@@ -57,34 +52,33 @@ spiffe_trust_bundle_updates_total = None
 try:
     # Import dentro de try para evitar falha se módulo não disponível
     from .jwt import JWKValidator, KeyCache
-    from .jwt.metrics import (
-        SPIFFETrustBundleMetrics,
-        spiffe_trust_bundle_updates_total
-    )
+    from .jwt.metrics import SPIFFETrustBundleMetrics, spiffe_trust_bundle_updates_total
+
     JWT_VERIFICATION_AVAILABLE = True
 except ImportError:
     # Criar métrica fallback se módulo JWT não disponível
     spiffe_trust_bundle_updates_total = Counter(
-        "spiffe_trust_bundle_updates_total",
-        "Total de atualizações de trust bundle",
-        ["status"]
+        "spiffe_trust_bundle_updates_total", "Total de atualizações de trust bundle", ["status"]
     )
 
 
 # Custom exceptions
 class SPIFFEConnectionError(Exception):
     """SPIFFE connection error"""
+
     pass
 
 
 class SPIFFEFetchError(Exception):
     """SPIFFE SVID fetch error"""
+
     pass
 
 
 @dataclass
 class JWTSVID:
     """JWT-SVID representation"""
+
     token: str
     spiffe_id: str
     expiry: datetime
@@ -94,6 +88,7 @@ class JWTSVID:
 @dataclass
 class X509SVID:
     """X.509-SVID representation"""
+
     certificate: str
     private_key: str
     spiffe_id: str
@@ -138,9 +133,7 @@ class SPIFFEManager:
             self._key_cache = KeyCache(ttl_seconds=300)  # 5 minutos
             self._trust_bundle_metrics = SPIFFETrustBundleMetrics()
             self.logger.info(
-                "jwt_verification_enabled",
-                feature_flag="ENABLE_JWT_VERIFICATION",
-                ttl_seconds=300
+                "jwt_verification_enabled", feature_flag="ENABLE_JWT_VERIFICATION", ttl_seconds=300
             )
 
         self._refresh_task: Optional[asyncio.Task] = None
@@ -150,7 +143,7 @@ class SPIFFEManager:
         self.logger.info(
             "initializing_spiffe_manager",
             socket=self.config.workload_api_socket,
-            trust_domain=self.config.trust_domain
+            trust_domain=self.config.trust_domain,
         )
 
         try:
@@ -158,8 +151,8 @@ class SPIFFEManager:
             self.channel = grpc.aio.insecure_channel(
                 self.config.workload_api_socket,
                 options=[
-                    ('grpc.default_authority', self.config.trust_domain),
-                ]
+                    ("grpc.default_authority", self.config.trust_domain),
+                ],
             )
 
             # Create Workload API stub if available
@@ -169,7 +162,7 @@ class SPIFFEManager:
             else:
                 self.logger.warning(
                     "spire_api_stubs_unavailable",
-                    message="SPIRE Workload API stubs not available, using fallback mode"
+                    message="SPIRE Workload API stubs not available, using fallback mode",
                 )
 
             # Verify connectivity by fetching initial JWT-SVID
@@ -209,7 +202,9 @@ class SPIFFEManager:
                         return cached
 
                 desired_ttl = ttl_seconds or self.config.jwt_ttl_seconds
-                self.logger.debug("fetching_jwt_svid_from_spire", audience=audience, ttl=desired_ttl)
+                self.logger.debug(
+                    "fetching_jwt_svid_from_spire", audience=audience, ttl=desired_ttl
+                )
 
                 # Attempt to fetch from SPIRE Workload API
                 if SPIRE_API_AVAILABLE and self.stub:
@@ -226,16 +221,14 @@ class SPIFFEManager:
                             token = svid_data.svid
                             expiry = datetime.utcfromtimestamp(svid_data.expires_at)
 
-                            jwt_svid = JWTSVID(
-                                token=token,
-                                spiffe_id=spiffe_id,
-                                expiry=expiry
-                            )
+                            jwt_svid = JWTSVID(token=token, spiffe_id=spiffe_id, expiry=expiry)
 
                             # Cache the SVID
                             self._jwt_svid_cache[audience] = jwt_svid
 
-                            spiffe_svid_fetch_total.labels(svid_type=operation, status="success").inc()
+                            spiffe_svid_fetch_total.labels(
+                                svid_type=operation, status="success"
+                            ).inc()
                             spiffe_svid_ttl_seconds.labels(svid_type=operation).set(
                                 (expiry - datetime.now(timezone.utc)).total_seconds()
                             )
@@ -243,7 +236,7 @@ class SPIFFEManager:
                                 "jwt_svid_fetched_from_spire",
                                 audience=audience,
                                 spiffe_id=spiffe_id,
-                                expiry=expiry.isoformat()
+                                expiry=expiry.isoformat(),
                             )
 
                             return jwt_svid
@@ -255,17 +248,20 @@ class SPIFFEManager:
                             "spire_workload_api_fetch_failed",
                             audience=audience,
                             error=str(e),
-                            fallback="Using environment/file fallback"
+                            fallback="Using environment/file fallback",
                         )
                         # Fall through to fallback mode
 
                 # Fallback: Read from environment or file if SPIRE unavailable
                 import os
+
                 spiffe_id = os.getenv("SPIFFE_ID", f"spiffe://{self.config.trust_domain}/default")
                 desired_ttl = ttl_seconds or self.config.jwt_ttl_seconds
 
                 # Try reading JWT from file (injected by SPIRE agent via volume mount)
-                jwt_token_path = os.getenv("SPIFFE_JWT_TOKEN_PATH", "/var/run/secrets/tokens/spiffe-jwt")
+                jwt_token_path = os.getenv(
+                    "SPIFFE_JWT_TOKEN_PATH", "/var/run/secrets/tokens/spiffe-jwt"
+                )
                 try:
                     with open(jwt_token_path, "r") as f:
                         token = f.read().strip()
@@ -273,13 +269,13 @@ class SPIFFEManager:
                     expiry = datetime.now(timezone.utc) + timedelta(seconds=desired_ttl)
                 except FileNotFoundError:
                     # Check environment - fail in production/staging if no real SVID
-                    if self.config.environment in ['production', 'staging']:
+                    if self.config.environment in ["production", "staging"]:
                         spiffe_svid_fetch_total.labels(svid_type=operation, status="error").inc()
                         self.logger.error(
                             "spiffe_unavailable_in_production",
                             environment=self.config.environment,
                             audience=audience,
-                            message="SPIFFE placeholders disabled in production/staging"
+                            message="SPIFFE placeholders disabled in production/staging",
                         )
                         raise SPIFFEFetchError(
                             f"SPIFFE unavailable in {self.config.environment}; placeholders disabled for security"
@@ -290,7 +286,7 @@ class SPIFFEManager:
                         "jwt_token_file_not_found_using_placeholder",
                         path=jwt_token_path,
                         environment=self.config.environment,
-                        warning="Using placeholder SVID in development - not for production"
+                        warning="Using placeholder SVID in development - not for production",
                     )
                     token = f"eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.placeholder.{audience}"
                     expiry = datetime.now(timezone.utc) + timedelta(seconds=desired_ttl)
@@ -299,7 +295,7 @@ class SPIFFEManager:
                     token=token,
                     spiffe_id=spiffe_id,
                     expiry=expiry,
-                    is_placeholder=True  # Mark as placeholder
+                    is_placeholder=True,  # Mark as placeholder
                 )
 
                 # Cache the SVID
@@ -315,7 +311,7 @@ class SPIFFEManager:
                     spiffe_id=spiffe_id,
                     expiry=expiry.isoformat(),
                     is_placeholder=True,
-                    environment=self.config.environment
+                    environment=self.config.environment,
                 )
 
                 return jwt_svid
@@ -340,7 +336,9 @@ class SPIFFEManager:
             try:
                 # Check cache
                 if self._x509_svid:
-                    if self._x509_svid.expires_at > datetime.now(timezone.utc) + timedelta(minutes=5):
+                    if self._x509_svid.expires_at > datetime.now(timezone.utc) + timedelta(
+                        minutes=5
+                    ):
                         self.logger.debug("using_cached_x509_svid")
                         return self._x509_svid
 
@@ -360,17 +358,21 @@ class SPIFFEManager:
                             if response.svids:
                                 svid_data = response.svids[0]
                                 spiffe_id = svid_data.spiffe_id
-                                certificate = svid_data.x509_svid.decode('utf-8')
-                                private_key = svid_data.x509_svid_key.decode('utf-8')
+                                certificate = svid_data.x509_svid.decode("utf-8")
+                                private_key = svid_data.x509_svid_key.decode("utf-8")
                                 expiry = datetime.utcfromtimestamp(svid_data.expires_at)
-                                bundle_pem = svid_data.bundle.decode('utf-8') if svid_data.bundle else (self._trust_bundle or "")
+                                bundle_pem = (
+                                    svid_data.bundle.decode("utf-8")
+                                    if svid_data.bundle
+                                    else (self._trust_bundle or "")
+                                )
 
                                 x509_svid = X509SVID(
                                     certificate=certificate,
                                     private_key=private_key,
                                     spiffe_id=spiffe_id,
                                     ca_bundle=bundle_pem,
-                                    expires_at=expiry
+                                    expires_at=expiry,
                                 )
 
                                 self._x509_svid = x509_svid
@@ -379,14 +381,16 @@ class SPIFFEManager:
                                 if svid_data.bundle:
                                     self._trust_bundle = bundle_pem
 
-                                spiffe_svid_fetch_total.labels(svid_type=operation, status="success").inc()
+                                spiffe_svid_fetch_total.labels(
+                                    svid_type=operation, status="success"
+                                ).inc()
                                 spiffe_svid_ttl_seconds.labels(svid_type=operation).set(
                                     (expiry - datetime.now(timezone.utc)).total_seconds()
                                 )
                                 self.logger.info(
                                     "x509_svid_fetched_from_spire",
                                     spiffe_id=spiffe_id,
-                                    expiry=expiry.isoformat()
+                                    expiry=expiry.isoformat(),
                                 )
 
                                 return x509_svid
@@ -396,9 +400,7 @@ class SPIFFEManager:
 
                     except Exception as e:
                         self.logger.warning(
-                            "spire_x509_fetch_failed",
-                            error=str(e),
-                            fallback="Using placeholder"
+                            "spire_x509_fetch_failed", error=str(e), fallback="Using placeholder"
                         )
                         # Fall through to fallback
 
@@ -406,12 +408,12 @@ class SPIFFEManager:
                 import os
 
                 # Fail in production/staging if no real X.509-SVID
-                if self.config.environment in ['production', 'staging']:
+                if self.config.environment in ["production", "staging"]:
                     spiffe_svid_fetch_total.labels(svid_type=operation, status="error").inc()
                     self.logger.error(
                         "x509_svid_unavailable_in_production",
                         environment=self.config.environment,
-                        message="X.509-SVID placeholders disabled in production/staging"
+                        message="X.509-SVID placeholders disabled in production/staging",
                     )
                     raise SPIFFEFetchError(
                         f"X.509-SVID unavailable in {self.config.environment}; placeholders disabled for security"
@@ -423,7 +425,7 @@ class SPIFFEManager:
                 self.logger.warning(
                     "x509_svid_using_placeholder",
                     environment=self.config.environment,
-                    warning="Using placeholder X.509-SVID in development - not for production"
+                    warning="Using placeholder X.509-SVID in development - not for production",
                 )
 
                 x509_svid = X509SVID(
@@ -432,7 +434,7 @@ class SPIFFEManager:
                     spiffe_id=spiffe_id,
                     ca_bundle="-----BEGIN CERTIFICATE-----\nplaceholder CA\n-----END CERTIFICATE-----",
                     expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
-                    is_placeholder=True  # Mark as placeholder
+                    is_placeholder=True,  # Mark as placeholder
                 )
 
                 self._x509_svid = x509_svid
@@ -445,7 +447,7 @@ class SPIFFEManager:
                     "x509_svid_fetched_fallback",
                     spiffe_id=spiffe_id,
                     is_placeholder=True,
-                    environment=self.config.environment
+                    environment=self.config.environment,
                 )
 
                 return x509_svid
@@ -480,9 +482,11 @@ class SPIFFEManager:
                     async for bundle_response in response_stream:
                         # Extract trust bundle from response
                         # In real implementation, parse JWKS format
-                        if hasattr(bundle_response, 'bundles'):
+                        if hasattr(bundle_response, "bundles"):
                             # Extract keys from JWKS
-                            trust_domain_bundle = bundle_response.bundles.get(self.config.trust_domain)
+                            trust_domain_bundle = bundle_response.bundles.get(
+                                self.config.trust_domain
+                            )
                             if trust_domain_bundle:
                                 # Store both PEM and parsed keys
                                 self._trust_bundle = str(trust_domain_bundle)
@@ -490,32 +494,43 @@ class SPIFFEManager:
                                 # SEC-008: Parse and validate JWKS
                                 try:
                                     import json
+
                                     jwks_data = json.loads(trust_domain_bundle)
 
                                     # Validar JWKS com JWKValidator
                                     if self._jwk_validator and self._trust_bundle_metrics:
                                         with self._trust_bundle_metrics.time_validation():
-                                            validation_results = self._jwk_validator.validate_jwks(jwks_data)
+                                            validation_results = self._jwk_validator.validate_jwks(
+                                                jwks_data
+                                            )
 
                                         self.logger.info(
                                             "trust_bundle_jwks_validated",
                                             trust_domain=self.config.trust_domain,
                                             valid_count=validation_results.get("valid_count", 0),
-                                            invalid_count=validation_results.get("invalid_count", 0),
-                                            invalid_key_ids=validation_results.get("invalid_key_ids", [])
+                                            invalid_count=validation_results.get(
+                                                "invalid_count", 0
+                                            ),
+                                            invalid_key_ids=validation_results.get(
+                                                "invalid_key_ids", []
+                                            ),
                                         )
 
                                         # Registrar métricas
                                         if self._trust_bundle_metrics:
                                             self._trust_bundle_metrics.record_update(
                                                 status="success",
-                                                keys_validated=validation_results.get("valid_count", 0),
-                                                keys_invalid=validation_results.get("invalid_count", 0)
+                                                keys_validated=validation_results.get(
+                                                    "valid_count", 0
+                                                ),
+                                                keys_invalid=validation_results.get(
+                                                    "invalid_count", 0
+                                                ),
                                             )
 
                                     # Extrair e cachear chaves válidas
-                                    for key in jwks_data.get('keys', []):
-                                        kid = key.get('kid')
+                                    for key in jwks_data.get("keys", []):
+                                        kid = key.get("kid")
                                         if kid:
                                             self._trust_bundle_keys[kid] = key
 
@@ -525,19 +540,17 @@ class SPIFFEManager:
 
                                 except json.JSONDecodeError as e:
                                     self.logger.warning(
-                                        "trust_bundle_json_parse_failed",
-                                        error=str(e)
+                                        "trust_bundle_json_parse_failed", error=str(e)
                                     )
                                 except Exception as e:
                                     self.logger.warning(
-                                        "trust_bundle_validation_failed",
-                                        error=str(e)
+                                        "trust_bundle_validation_failed", error=str(e)
                                     )
 
                                 self.logger.info(
                                     "trust_bundle_fetched_from_spire",
                                     trust_domain=self.config.trust_domain,
-                                    num_keys=len(self._trust_bundle_keys)
+                                    num_keys=len(self._trust_bundle_keys),
                                 )
                                 spiffe_trust_bundle_updates_total.labels(status="success").inc()
 
@@ -548,7 +561,7 @@ class SPIFFEManager:
                     self.logger.warning(
                         "spire_trust_bundle_fetch_failed",
                         error=str(e),
-                        fallback="Using placeholder"
+                        fallback="Using placeholder",
                     )
                     if self._trust_bundle_metrics:
                         self._trust_bundle_metrics.record_update(status="failed")
@@ -589,7 +602,7 @@ class SPIFFEManager:
                 keys_count=len(cached_keys),
                 cache_hits=cache_stats.get("hits"),
                 cache_misses=cache_stats.get("misses"),
-                hit_rate=cache_stats.get("hit_rate")
+                hit_rate=cache_stats.get("hit_rate"),
             )
 
             return cached_keys
@@ -629,7 +642,9 @@ class SPIFFEManager:
                 # Refresh JWT-SVIDs
                 for audience, svid in list(self._jwt_svid_cache.items()):
                     time_until_expiry = (svid.expiry - datetime.now(timezone.utc)).total_seconds()
-                    refresh_threshold = self.config.jwt_ttl_seconds * self.config.svid_refresh_threshold
+                    refresh_threshold = (
+                        self.config.jwt_ttl_seconds * self.config.svid_refresh_threshold
+                    )
 
                     if time_until_expiry < refresh_threshold:
                         self.logger.info("refreshing_jwt_svid", audience=audience)
@@ -637,12 +652,12 @@ class SPIFFEManager:
                             await self.fetch_jwt_svid(audience)
                         except SPIFFEFetchError as e:
                             # In production, refresh failure is critical
-                            if self.config.environment in ['production', 'staging']:
+                            if self.config.environment in ["production", "staging"]:
                                 self.logger.error(
                                     "jwt_svid_refresh_failed_production",
                                     environment=self.config.environment,
                                     audience=audience,
-                                    error=str(e)
+                                    error=str(e),
                                 )
                                 # Re-raise to alert on critical failure
                                 raise
@@ -651,13 +666,17 @@ class SPIFFEManager:
                                 self.logger.warning(
                                     "jwt_svid_refresh_failed_development",
                                     audience=audience,
-                                    error=str(e)
+                                    error=str(e),
                                 )
 
                 # Refresh X.509-SVID if enabled
                 if self.config.enable_x509 and self._x509_svid:
-                    time_until_expiry = (self._x509_svid.expires_at - datetime.now(timezone.utc)).total_seconds()
-                    refresh_threshold = 86400 * self.config.svid_refresh_threshold  # Default 24 hours * 0.8
+                    time_until_expiry = (
+                        self._x509_svid.expires_at - datetime.now(timezone.utc)
+                    ).total_seconds()
+                    refresh_threshold = (
+                        86400 * self.config.svid_refresh_threshold
+                    )  # Default 24 hours * 0.8
 
                     if time_until_expiry < refresh_threshold:
                         self.logger.info("refreshing_x509_svid")
@@ -665,17 +684,16 @@ class SPIFFEManager:
                             await self.fetch_x509_svid()
                         except SPIFFEFetchError as e:
                             # In production, refresh failure is critical
-                            if self.config.environment in ['production', 'staging']:
+                            if self.config.environment in ["production", "staging"]:
                                 self.logger.error(
                                     "x509_svid_refresh_failed_production",
                                     environment=self.config.environment,
-                                    error=str(e)
+                                    error=str(e),
                                 )
                                 raise
                             else:
                                 self.logger.warning(
-                                    "x509_svid_refresh_failed_development",
-                                    error=str(e)
+                                    "x509_svid_refresh_failed_development", error=str(e)
                                 )
 
             except asyncio.CancelledError:

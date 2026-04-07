@@ -181,18 +181,14 @@ class TicketStatusTracker:
         history = self._tracked_tickets[ticket_id]
         start_time = time.time()
 
-        logger.info(
-            f"Aguardando ticket {ticket_id} atingir status {expected_status}"
-        )
+        logger.info(f"Aguardando ticket {ticket_id} atingir status {expected_status}")
 
         while time.time() - start_time < timeout_seconds:
             current_status = await self._query_ticket_status(ticket_id)
 
             if current_status and current_status != history.current_status:
                 history.add_transition(current_status)
-                logger.info(
-                    f"Ticket {ticket_id}: {history.current_status}"
-                )
+                logger.info(f"Ticket {ticket_id}: {history.current_status}")
 
             if current_status == expected_status:
                 logger.info(
@@ -310,11 +306,13 @@ class TicketStatusTracker:
                 to_status = TicketStatus(transition.to_status)
                 valid_next = VALID_TRANSITIONS.get(from_status, set())
                 if to_status not in valid_next:
-                    invalid_transitions.append({
-                        "from": transition.from_status,
-                        "to": transition.to_status,
-                        "timestamp": transition.timestamp.isoformat(),
-                    })
+                    invalid_transitions.append(
+                        {
+                            "from": transition.from_status,
+                            "to": transition.to_status,
+                            "timestamp": transition.timestamp.isoformat(),
+                        }
+                    )
 
         return {
             "valid": len(invalid_transitions) == 0,

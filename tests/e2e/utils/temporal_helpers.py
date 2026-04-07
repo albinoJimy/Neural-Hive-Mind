@@ -133,9 +133,7 @@ class TemporalTestHelper:
             error=error,
         )
 
-    async def query_workflow(
-        self, workflow_id: str, query_name: str, *args: Any
-    ) -> Any:
+    async def query_workflow(self, workflow_id: str, query_name: str, *args: Any) -> Any:
         """
         Execute a query on a workflow.
 
@@ -185,9 +183,7 @@ class TemporalTestHelper:
             f"Workflow {workflow_id} did not complete within {timeout_seconds} seconds"
         )
 
-    async def get_workflow_history(
-        self, workflow_id: str
-    ) -> List[Dict[str, Any]]:
+    async def get_workflow_history(self, workflow_id: str) -> List[Dict[str, Any]]:
         """
         Get the event history of a workflow.
 
@@ -203,42 +199,48 @@ class TemporalTestHelper:
         async for event in handle.fetch_history_events():
             event_dict = {
                 "event_id": event.event_id,
-                "event_type": event.event_type.name if hasattr(event.event_type, 'name') else str(event.event_type),
+                "event_type": event.event_type.name
+                if hasattr(event.event_type, "name")
+                else str(event.event_type),
                 "timestamp": event.event_time,
             }
 
             # Extract activity-specific attributes for scheduled events
-            if hasattr(event, 'activity_task_scheduled_event_attributes'):
+            if hasattr(event, "activity_task_scheduled_event_attributes"):
                 attrs = event.activity_task_scheduled_event_attributes
                 if attrs:
-                    event_dict["activity_type"] = attrs.activity_type.name if hasattr(attrs.activity_type, 'name') else str(attrs.activity_type)
-                    event_dict["activity_id"] = attrs.activity_id if hasattr(attrs, 'activity_id') else None
+                    event_dict["activity_type"] = (
+                        attrs.activity_type.name
+                        if hasattr(attrs.activity_type, "name")
+                        else str(attrs.activity_type)
+                    )
+                    event_dict["activity_id"] = (
+                        attrs.activity_id if hasattr(attrs, "activity_id") else None
+                    )
 
             # Extract scheduled_event_id for started/completed/failed events
-            if hasattr(event, 'activity_task_started_event_attributes'):
+            if hasattr(event, "activity_task_started_event_attributes"):
                 attrs = event.activity_task_started_event_attributes
-                if attrs and hasattr(attrs, 'scheduled_event_id'):
+                if attrs and hasattr(attrs, "scheduled_event_id"):
                     event_dict["scheduled_event_id"] = attrs.scheduled_event_id
 
-            if hasattr(event, 'activity_task_completed_event_attributes'):
+            if hasattr(event, "activity_task_completed_event_attributes"):
                 attrs = event.activity_task_completed_event_attributes
-                if attrs and hasattr(attrs, 'scheduled_event_id'):
+                if attrs and hasattr(attrs, "scheduled_event_id"):
                     event_dict["scheduled_event_id"] = attrs.scheduled_event_id
 
-            if hasattr(event, 'activity_task_failed_event_attributes'):
+            if hasattr(event, "activity_task_failed_event_attributes"):
                 attrs = event.activity_task_failed_event_attributes
-                if attrs and hasattr(attrs, 'scheduled_event_id'):
+                if attrs and hasattr(attrs, "scheduled_event_id"):
                     event_dict["scheduled_event_id"] = attrs.scheduled_event_id
-                    if hasattr(attrs, 'failure'):
+                    if hasattr(attrs, "failure"):
                         event_dict["failure_message"] = str(attrs.failure)
 
             events.append(event_dict)
 
         return events
 
-    async def get_activity_executions(
-        self, workflow_id: str
-    ) -> List[ActivityExecution]:
+    async def get_activity_executions(self, workflow_id: str) -> List[ActivityExecution]:
         """
         Extract activity executions from workflow history.
 

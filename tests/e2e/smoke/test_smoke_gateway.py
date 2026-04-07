@@ -64,9 +64,7 @@ class TestGatewayReadiness:
         """
         result = await gateway_health_helper.check_ready()
 
-        assert (
-            result["available"] is True
-        ), f"Gateway /ready não disponível: {result.get('error')}"
+        assert result["available"] is True, f"Gateway /ready não disponível: {result.get('error')}"
 
     async def test_ready_checks_kafka_connectivity(self, gateway_health_helper):
         """
@@ -141,15 +139,10 @@ class TestGatewayGracefulDegradation:
         # URL inválida propositalmente
         from tests.e2e.smoke.conftest import ServiceHealthHelper
 
-        helper = ServiceHealthHelper(
-            http_client, "http://invalid-service-that-does-not-exist:9999"
-        )
+        helper = ServiceHealthHelper(http_client, "http://invalid-service-that-does-not-exist:9999")
 
         result = await helper.check_health()
 
         assert result["available"] is False
         assert result["status_code"] is None
-        assert (
-            result["error"] in {"timeout", "connection_refused"}
-            or result["error"] is not None
-        )
+        assert result["error"] in {"timeout", "connection_refused"} or result["error"] is not None

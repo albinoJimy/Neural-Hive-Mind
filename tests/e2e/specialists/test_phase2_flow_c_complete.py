@@ -211,9 +211,7 @@ async def validate_service_registry(
 
             if response.status_code == 200:
                 agents = response.json()
-                healthy_agents = [
-                    a for a in agents if a.get("status") == "healthy"
-                ]
+                healthy_agents = [a for a in agents if a.get("status") == "healthy"]
 
                 return {
                     "valid": len(healthy_agents) > 0,
@@ -431,9 +429,7 @@ class FlowCTestResult:
             "started_at": self.started_at.isoformat(),
             "completed_at": self.completed_at.isoformat() if self.completed_at else None,
             "duration_seconds": (
-                (self.completed_at - self.started_at).total_seconds()
-                if self.completed_at
-                else None
+                (self.completed_at - self.started_at).total_seconds() if self.completed_at else None
             ),
             "plan_id": self.plan_id,
             "workflow_id": self.workflow_id,
@@ -506,13 +502,16 @@ async def test_flow_c_complete_execution(
     result.plan_id = decision["plan_id"]
     # Store correlation_id for trace validation
     result.trace_id = decision["correlation_id"]
-    result.add_step("create_decision", {
-        "success": True,
-        "intent_id": decision["intent_id"],
-        "plan_id": decision["plan_id"],
-        "decision_id": decision["decision_id"],
-        "correlation_id": decision["correlation_id"],
-    })
+    result.add_step(
+        "create_decision",
+        {
+            "success": True,
+            "intent_id": decision["intent_id"],
+            "plan_id": decision["plan_id"],
+            "decision_id": decision["decision_id"],
+            "correlation_id": decision["correlation_id"],
+        },
+    )
 
     try:
         # Try to import FlowCOrchestrator
@@ -528,22 +527,25 @@ async def test_flow_c_complete_execution(
         try:
             flow_result = await orchestrator.execute_flow_c(decision)
 
-            result.add_step("execute_flow_c", {
-                "success": flow_result.success,
-                "total_duration_ms": flow_result.total_duration_ms,
-                "tickets_generated": flow_result.tickets_generated,
-                "tickets_completed": flow_result.tickets_completed,
-                "tickets_failed": flow_result.tickets_failed,
-                "telemetry_published": flow_result.telemetry_published,
-                "steps": [
-                    {
-                        "name": s.step_name,
-                        "status": s.status,
-                        "duration_ms": s.duration_ms,
-                    }
-                    for s in flow_result.steps
-                ],
-            })
+            result.add_step(
+                "execute_flow_c",
+                {
+                    "success": flow_result.success,
+                    "total_duration_ms": flow_result.total_duration_ms,
+                    "tickets_generated": flow_result.tickets_generated,
+                    "tickets_completed": flow_result.tickets_completed,
+                    "tickets_failed": flow_result.tickets_failed,
+                    "telemetry_published": flow_result.telemetry_published,
+                    "steps": [
+                        {
+                            "name": s.step_name,
+                            "status": s.status,
+                            "duration_ms": s.duration_ms,
+                        }
+                        for s in flow_result.steps
+                    ],
+                },
+            )
 
             if not flow_result.success:
                 result.add_error(f"Flow C failed: {flow_result.error}")
@@ -559,11 +561,14 @@ async def test_flow_c_complete_execution(
 
     except ImportError as e:
         logger.warning(f"FlowCOrchestrator not available: {e}")
-        result.add_step("execute_flow_c", {
-            "success": False,
-            "skipped": True,
-            "error": str(e),
-        })
+        result.add_step(
+            "execute_flow_c",
+            {
+                "success": False,
+                "skipped": True,
+                "error": str(e),
+            },
+        )
         # Generate synthetic workflow_id for validation tests
         result.workflow_id = f"workflow-e2e-{uuid.uuid4().hex[:8]}"
 
@@ -579,11 +584,14 @@ async def test_flow_c_complete_execution(
             result.add_validation("temporal_workflow", temporal_result)
         except Exception as e:
             logger.warning(f"Temporal validation failed: {e}")
-            result.add_validation("temporal_workflow", {
-                "valid": False,
-                "error": str(e),
-                "skipped": True,
-            })
+            result.add_validation(
+                "temporal_workflow",
+                {
+                    "valid": False,
+                    "error": str(e),
+                    "skipped": True,
+                },
+            )
 
     # Step 4: Validate Temporal activities
     if result.workflow_id:
@@ -605,11 +613,14 @@ async def test_flow_c_complete_execution(
             result.add_validation("temporal_activities", activities_result)
         except Exception as e:
             logger.warning(f"Activities validation failed: {e}")
-            result.add_validation("temporal_activities", {
-                "valid": False,
-                "error": str(e),
-                "skipped": True,
-            })
+            result.add_validation(
+                "temporal_activities",
+                {
+                    "valid": False,
+                    "error": str(e),
+                    "skipped": True,
+                },
+            )
 
     # Step 5: Validate MongoDB persistence
     logger.info("Step 5: Validating MongoDB persistence")
@@ -621,11 +632,14 @@ async def test_flow_c_complete_execution(
         result.add_validation("mongodb_persistence", mongodb_result)
     except Exception as e:
         logger.warning(f"MongoDB validation failed: {e}")
-        result.add_validation("mongodb_persistence", {
-            "valid": False,
-            "error": str(e),
-            "skipped": True,
-        })
+        result.add_validation(
+            "mongodb_persistence",
+            {
+                "valid": False,
+                "error": str(e),
+                "skipped": True,
+            },
+        )
 
     # Step 6: Validate PostgreSQL tickets
     logger.info("Step 6: Validating PostgreSQL persistence")
@@ -639,11 +653,14 @@ async def test_flow_c_complete_execution(
         result.add_validation("postgresql_persistence", postgresql_result)
     except Exception as e:
         logger.warning(f"PostgreSQL validation failed: {e}")
-        result.add_validation("postgresql_persistence", {
-            "valid": False,
-            "error": str(e),
-            "skipped": True,
-        })
+        result.add_validation(
+            "postgresql_persistence",
+            {
+                "valid": False,
+                "error": str(e),
+                "skipped": True,
+            },
+        )
 
     # Step 7: Validate Kafka messages
     logger.info("Step 7: Validating Kafka messages")
@@ -656,11 +673,14 @@ async def test_flow_c_complete_execution(
         result.add_validation("kafka_messages", kafka_result)
     except Exception as e:
         logger.warning(f"Kafka validation failed: {e}")
-        result.add_validation("kafka_messages", {
-            "valid": False,
-            "error": str(e),
-            "skipped": True,
-        })
+        result.add_validation(
+            "kafka_messages",
+            {
+                "valid": False,
+                "error": str(e),
+                "skipped": True,
+            },
+        )
 
     # Step 8: Validate Service Registry
     logger.info("Step 8: Validating Service Registry")
@@ -671,11 +691,14 @@ async def test_flow_c_complete_execution(
         result.add_validation("service_registry", registry_result)
     except Exception as e:
         logger.warning(f"Service Registry validation failed: {e}")
-        result.add_validation("service_registry", {
-            "valid": False,
-            "error": str(e),
-            "skipped": True,
-        })
+        result.add_validation(
+            "service_registry",
+            {
+                "valid": False,
+                "error": str(e),
+                "skipped": True,
+            },
+        )
 
     # Step 9: Validate Code Forge artifacts
     logger.info("Step 9: Validating Code Forge execution")
@@ -687,11 +710,14 @@ async def test_flow_c_complete_execution(
         result.add_validation("code_forge", code_forge_result)
     except Exception as e:
         logger.warning(f"Code Forge validation failed: {e}")
-        result.add_validation("code_forge", {
-            "valid": False,
-            "error": str(e),
-            "skipped": True,
-        })
+        result.add_validation(
+            "code_forge",
+            {
+                "valid": False,
+                "error": str(e),
+                "skipped": True,
+            },
+        )
 
     # Step 10: Validate Prometheus metrics
     logger.info("Step 10: Validating Prometheus metrics")
@@ -702,11 +728,14 @@ async def test_flow_c_complete_execution(
         result.add_validation("prometheus_metrics", prometheus_result)
     except Exception as e:
         logger.warning(f"Prometheus validation failed: {e}")
-        result.add_validation("prometheus_metrics", {
-            "valid": False,
-            "error": str(e),
-            "skipped": True,
-        })
+        result.add_validation(
+            "prometheus_metrics",
+            {
+                "valid": False,
+                "error": str(e),
+                "skipped": True,
+            },
+        )
 
     # Step 11: Validate Jaeger traces
     # Use trace_id from result (set from correlation_id in decision)
@@ -720,18 +749,24 @@ async def test_flow_c_complete_execution(
             result.add_validation("jaeger_traces", jaeger_result)
         except Exception as e:
             logger.warning(f"Jaeger validation failed: {e}")
-            result.add_validation("jaeger_traces", {
-                "valid": False,
-                "error": str(e),
-                "skipped": True,
-            })
+            result.add_validation(
+                "jaeger_traces",
+                {
+                    "valid": False,
+                    "error": str(e),
+                    "skipped": True,
+                },
+            )
     else:
         logger.warning("Step 11: No trace_id available, skipping Jaeger validation")
-        result.add_validation("jaeger_traces", {
-            "valid": False,
-            "error": "No trace_id available",
-            "skipped": True,
-        })
+        result.add_validation(
+            "jaeger_traces",
+            {
+                "valid": False,
+                "error": "No trace_id available",
+                "skipped": True,
+            },
+        )
 
     # Determine overall success
     # Core validations that must pass
@@ -830,9 +865,7 @@ async def run_standalone_test(
 
 def main():
     """Main entry point for standalone execution."""
-    parser = argparse.ArgumentParser(
-        description="Phase 2 Flow C Complete E2E Test"
-    )
+    parser = argparse.ArgumentParser(description="Phase 2 Flow C Complete E2E Test")
     parser.add_argument(
         "--intent-id",
         help="Intent ID to use (generated if not provided)",

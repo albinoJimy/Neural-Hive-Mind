@@ -23,9 +23,7 @@ def config():
 def mock_batch_model():
     """Mock do modelo batch."""
     model = Mock()
-    model.predict_proba = Mock(
-        return_value=np.array([[0.2, 0.8], [0.9, 0.1], [0.4, 0.6]])
-    )
+    model.predict_proba = Mock(return_value=np.array([[0.2, 0.8], [0.9, 0.1], [0.4, 0.6]]))
     model.predict = Mock(return_value=np.array([1, 0, 1]))
     return model
 
@@ -34,9 +32,7 @@ def mock_batch_model():
 def mock_online_learner():
     """Mock do learner online (IncrementalLearner)."""
     learner = Mock()
-    learner.predict_proba = Mock(
-        return_value=np.array([[0.3, 0.7], [0.8, 0.2], [0.5, 0.5]])
-    )
+    learner.predict_proba = Mock(return_value=np.array([[0.3, 0.7], [0.8, 0.2], [0.5, 0.5]]))
     learner.is_fitted = True
     learner.model_version = "v1.0"
     return learner
@@ -108,9 +104,7 @@ class TestPredictProba:
         # Verificar que probabilidades somam 1
         np.testing.assert_array_almost_equal(probas.sum(axis=1), np.ones(3))
 
-    def test_predict_proba_combines_models(
-        self, ensemble, mock_batch_model, mock_online_learner
-    ):
+    def test_predict_proba_combines_models(self, ensemble, mock_batch_model, mock_online_learner):
         """Testar que probabilidades são combinadas corretamente."""
         X = np.random.randn(3, 5)
 
@@ -136,9 +130,7 @@ class TestPredictProba:
 
         probas = ensemble.predict_proba(X)
 
-        np.testing.assert_array_equal(
-            probas, mock_batch_model.predict_proba.return_value
-        )
+        np.testing.assert_array_equal(probas, mock_batch_model.predict_proba.return_value)
 
 
 class TestPredict:
@@ -169,9 +161,7 @@ class TestUpdateWeights:
 
     def test_update_weights_valid(self, ensemble):
         """Testar atualização de pesos válida."""
-        ensemble.update_weights(
-            batch_accuracy=0.6, online_accuracy=0.4, smoothing_factor=1.0
-        )
+        ensemble.update_weights(batch_accuracy=0.6, online_accuracy=0.4, smoothing_factor=1.0)
 
         metrics = ensemble.get_contribution_metrics()
         assert metrics["batch_weight"] == 0.6
@@ -179,9 +169,7 @@ class TestUpdateWeights:
 
     def test_update_weights_normalizes(self, ensemble):
         """Testar que pesos são normalizados."""
-        ensemble.update_weights(
-            batch_accuracy=0.75, online_accuracy=0.25, smoothing_factor=1.0
-        )
+        ensemble.update_weights(batch_accuracy=0.75, online_accuracy=0.25, smoothing_factor=1.0)
 
         metrics = ensemble.get_contribution_metrics()
         # 0.75 / (0.75 + 0.25) = 0.75
@@ -191,9 +179,7 @@ class TestUpdateWeights:
     def test_update_weights_invalid(self, ensemble):
         """Testar atualização com accuracy zero."""
         # Não deve lançar erro, apenas não atualizar se total for zero
-        ensemble.update_weights(
-            batch_accuracy=0.0, online_accuracy=0.0, smoothing_factor=0.1
-        )
+        ensemble.update_weights(batch_accuracy=0.0, online_accuracy=0.0, smoothing_factor=0.1)
         # Peso deve permanecer o mesmo
         metrics = ensemble.get_contribution_metrics()
         assert metrics["batch_weight"] == 0.7
@@ -228,9 +214,7 @@ class TestContributionMetrics:
 class TestDynamicRouting:
     """Testes de dynamic routing."""
 
-    def test_dynamic_routing_high_confidence(
-        self, mock_batch_model, mock_online_learner
-    ):
+    def test_dynamic_routing_high_confidence(self, mock_batch_model, mock_online_learner):
         """Testar routing com alta confiança."""
         config = OnlineLearningConfig(ensemble_strategy="dynamic_routing")
         ensemble = ModelEnsemble(

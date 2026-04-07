@@ -20,44 +20,38 @@ from .config import VaultConfig, AuthMethod
 
 # Prometheus metrics
 vault_requests_total = Counter(
-    "vault_requests_total",
-    "Total Vault API requests",
-    ["operation", "status"]
+    "vault_requests_total", "Total Vault API requests", ["operation", "status"]
 )
 vault_request_duration_seconds = Histogram(
-    "vault_request_duration_seconds",
-    "Vault request duration in seconds",
-    ["operation"]
+    "vault_request_duration_seconds", "Vault request duration in seconds", ["operation"]
 )
 vault_token_renewals_total = Counter(
-    "vault_token_renewals_total",
-    "Total Vault token renewals",
-    ["status"]
+    "vault_token_renewals_total", "Total Vault token renewals", ["status"]
 )
-vault_token_ttl_seconds = Gauge(
-    "vault_token_ttl_seconds",
-    "Current Vault token TTL in seconds"
-)
+vault_token_ttl_seconds = Gauge("vault_token_ttl_seconds", "Current Vault token TTL in seconds")
 vault_credential_renewals_total = Counter(
     "vault_credential_renewals_total",
     "Credential renewals triggered",
-    ["credential_type", "status"]
+    ["credential_type", "status"],
 )
 
 
 # Custom exceptions
 class VaultConnectionError(Exception):
     """Vault connection error"""
+
     pass
 
 
 class VaultAuthenticationError(Exception):
     """Vault authentication error"""
+
     pass
 
 
 class VaultPermissionError(Exception):
     """Vault permission denied error"""
+
     pass
 
 
@@ -94,7 +88,7 @@ class VaultClient:
         self.logger.info(
             "initializing_vault_client",
             address=self.config.address,
-            auth_method=self.config.auth_method.value
+            auth_method=self.config.auth_method.value,
         )
 
         try:
@@ -103,7 +97,9 @@ class VaultClient:
                 base_url=self.config.address,
                 timeout=self.config.timeout_seconds,
                 verify=self.config.tls_verify,
-                headers={"X-Vault-Namespace": self.config.namespace} if self.config.namespace else {}
+                headers={"X-Vault-Namespace": self.config.namespace}
+                if self.config.namespace
+                else {},
             )
 
             # Authenticate
@@ -129,7 +125,9 @@ class VaultClient:
             elif self.config.auth_method == AuthMethod.JWT:
                 await self._authenticate_jwt()
             else:
-                raise VaultAuthenticationError(f"Unsupported auth method: {self.config.auth_method}")
+                raise VaultAuthenticationError(
+                    f"Unsupported auth method: {self.config.auth_method}"
+                )
 
         except Exception as e:
             self.logger.error("vault_authentication_failed", error=str(e))
@@ -146,11 +144,7 @@ class VaultClient:
 
         # Authenticate
         response = await self.client.post(
-            f"/v1/auth/kubernetes/login",
-            json={
-                "role": self.config.kubernetes_role,
-                "jwt": jwt
-            }
+            f"/v1/auth/kubernetes/login", json={"role": self.config.kubernetes_role, "jwt": jwt}
         )
         response.raise_for_status()
         data = response.json()
@@ -164,9 +158,7 @@ class VaultClient:
         vault_token_ttl_seconds.set(lease_duration)
 
         self.logger.info(
-            "kubernetes_auth_successful",
-            role=self.config.kubernetes_role,
-            ttl=lease_duration
+            "kubernetes_auth_successful", role=self.config.kubernetes_role, ttl=lease_duration
         )
 
     async def _authenticate_jwt(self):
@@ -180,11 +172,7 @@ class VaultClient:
 
         # Authenticate
         response = await self.client.post(
-            f"/v1/auth/jwt/login",
-            json={
-                "role": self.config.kubernetes_role,
-                "jwt": jwt
-            }
+            f"/v1/auth/jwt/login", json={"role": self.config.kubernetes_role, "jwt": jwt}
         )
         response.raise_for_status()
         data = response.json()
@@ -198,15 +186,13 @@ class VaultClient:
         vault_token_ttl_seconds.set(lease_duration)
 
         self.logger.info(
-            "jwt_auth_successful",
-            role=self.config.kubernetes_role,
-            ttl=lease_duration
+            "jwt_auth_successful", role=self.config.kubernetes_role, ttl=lease_duration
         )
 
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=1, max=10),
-        retry=retry_if_exception_type(httpx.RequestError)
+        retry=retry_if_exception_type(httpx.RequestError),
     )
     async def read_secret(self, path: str) -> Dict[str, Any]:
         """
@@ -257,10 +243,7 @@ class VaultClient:
                 full_path = f"/v1/{self.config.mount_path_kv}/data/{path}"
                 self.logger.debug("writing_secret", path=full_path)
 
-                response = await self.client.post(
-                    full_path,
-                    json={"data": data}
-                )
+                response = await self.client.post(full_path, json={"data": data})
                 response.raise_for_status()
 
                 vault_requests_total.labels(operation=operation, status="success").inc()
@@ -296,16 +279,14 @@ class VaultClient:
                 vault_requests_total.labels(operation=operation, status="success").inc()
 
                 self.logger.info(
-                    "database_credentials_generated",
-                    role=role,
-                    ttl=data["lease_duration"]
+                    "database_credentials_generated", role=role, ttl=data["lease_duration"]
                 )
                 vault_credential_renewals_total.labels(credential_type=role, status="success").inc()
 
                 return {
                     "username": data["data"]["username"],
                     "password": data["data"]["password"],
-                    "ttl": data["lease_duration"]
+                    "ttl": data["lease_duration"],
                 }
 
             except httpx.HTTPStatusError as e:
@@ -334,11 +315,7 @@ class VaultClient:
                 self.logger.debug("issuing_certificate", common_name=common_name, ttl=ttl)
 
                 response = await self.client.post(
-                    full_path,
-                    json={
-                        "common_name": common_name,
-                        "ttl": ttl
-                    }
+                    full_path, json={"common_name": common_name, "ttl": ttl}
                 )
                 response.raise_for_status()
 
@@ -350,7 +327,7 @@ class VaultClient:
                 return {
                     "certificate": data["data"]["certificate"],
                     "private_key": data["data"]["private_key"],
-                    "ca_chain": data["data"]["ca_chain"][0] if data["data"].get("ca_chain") else ""
+                    "ca_chain": data["data"]["ca_chain"][0] if data["data"].get("ca_chain") else "",
                 }
 
             except httpx.HTTPStatusError as e:
@@ -391,13 +368,14 @@ class VaultClient:
             try:
                 if self.token_expiry:
                     # Calculate time until renewal
-                    time_until_expiry = (self.token_expiry - datetime.now(timezone.utc)).total_seconds()
+                    time_until_expiry = (
+                        self.token_expiry - datetime.now(timezone.utc)
+                    ).total_seconds()
                     renewal_time = time_until_expiry * (1 - self.config.token_renew_threshold)
 
                     if renewal_time > 0:
                         self.logger.debug(
-                            "scheduling_token_renewal",
-                            renewal_in_seconds=renewal_time
+                            "scheduling_token_renewal", renewal_in_seconds=renewal_time
                         )
                         await asyncio.sleep(renewal_time)
 

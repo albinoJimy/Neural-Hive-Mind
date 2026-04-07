@@ -174,9 +174,7 @@ class TestTaskFactoryTests:
 
     def test_create_with_dependencies(self):
         """Testa criação de tarefa com dependências."""
-        main_task, dependencies = TestTaskFactory.create_with_dependencies(
-            dependency_count=2
-        )
+        main_task, dependencies = TestTaskFactory.create_with_dependencies(dependency_count=2)
         assert len(dependencies) == 2
         assert len(main_task["dependencies"]) == 2
 
@@ -242,10 +240,7 @@ class TestAssertions:
         assert_no_circular_dependencies([task_a, task_b, task_c])  # OK
 
         # Circular
-        task_circular = {
-            "task_id": "task-circular",
-            "dependencies": ["task-circular"]
-        }
+        task_circular = {"task_id": "task-circular", "dependencies": ["task-circular"]}
         with pytest.raises(AssertionError):
             assert_no_circular_dependencies([task_circular])
 

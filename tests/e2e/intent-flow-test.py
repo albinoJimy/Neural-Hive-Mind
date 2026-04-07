@@ -11,11 +11,9 @@ import uuid
 from datetime import datetime, timezone
 from typing import Dict, Any
 
+
 def create_intent_envelope(
-    text: str,
-    domain: str = "BUSINESS",
-    actor_id: str = "test-user-001",
-    priority: str = "NORMAL"
+    text: str, domain: str = "BUSINESS", actor_id: str = "test-user-001", priority: str = "NORMAL"
 ) -> Dict[str, Any]:
     """
     Cria um Intent Envelope válido conforme schema Avro.
@@ -41,11 +39,7 @@ def create_intent_envelope(
         "correlationId": correlation_id,
         "traceId": trace_id,
         "spanId": span_id,
-        "actor": {
-            "id": actor_id,
-            "actorType": "HUMAN",
-            "name": "Test User"
-        },
+        "actor": {"id": actor_id, "actorType": "HUMAN", "name": "Test User"},
         "intent": {
             "text": text,
             "domain": domain,
@@ -53,7 +47,7 @@ def create_intent_envelope(
             "originalLanguage": "pt-BR",
             "processedText": text,
             "entities": [],
-            "keywords": text.lower().split()[:10]  # Primeiras 10 palavras
+            "keywords": text.lower().split()[:10],  # Primeiras 10 palavras
         },
         "confidence": 0.85,
         "context": {
@@ -67,8 +61,8 @@ def create_intent_envelope(
                 "country": "BR",
                 "region": "SP",
                 "city": "São Paulo",
-                "timezone": "America/Sao_Paulo"
-            }
+                "timezone": "America/Sao_Paulo",
+            },
         },
         "constraints": {
             "priority": priority,
@@ -76,19 +70,16 @@ def create_intent_envelope(
             "maxRetries": 3,
             "timeoutMs": 30000,
             "requiredCapabilities": ["semantic-translation", "risk-analysis"],
-            "securityLevel": "INTERNAL"
+            "securityLevel": "INTERNAL",
         },
         "qos": {
             "deliveryMode": "EXACTLY_ONCE",
             "durability": "PERSISTENT",
-            "consistency": "STRONG"
+            "consistency": "STRONG",
         },
         "timestamp": now,
         "schemaVersion": 1,
-        "metadata": {
-            "source": "automated-test",
-            "test_id": f"test_{uuid.uuid4().hex[:8]}"
-        }
+        "metadata": {"source": "automated-test", "test_id": f"test_{uuid.uuid4().hex[:8]}"},
     }
 
     return intent_envelope
@@ -98,12 +89,19 @@ def test_kafka_connection():
     """Testa conexão com Kafka."""
     try:
         import subprocess
+
         result = subprocess.run(
-            ["docker", "exec", "kafka", "kafka-broker-api-versions",
-             "--bootstrap-server", "localhost:9092"],
+            [
+                "docker",
+                "exec",
+                "kafka",
+                "kafka-broker-api-versions",
+                "--bootstrap-server",
+                "localhost:9092",
+            ],
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=5,
         )
         return result.returncode == 0
     except Exception as e:
@@ -115,11 +113,12 @@ def test_redis_connection():
     """Testa conexão com Redis."""
     try:
         import subprocess
+
         result = subprocess.run(
             ["docker", "exec", "redis", "redis-cli", "ping"],
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=5,
         )
         return result.stdout.strip() == "PONG"
     except Exception as e:
@@ -141,13 +140,21 @@ def publish_to_kafka_json(topic: str, message: Dict[str, Any]):
 
     try:
         process = subprocess.Popen(
-            ["docker", "exec", "-i", "kafka", "kafka-console-producer",
-             "--bootstrap-server", "localhost:9092",
-             "--topic", topic],
+            [
+                "docker",
+                "exec",
+                "-i",
+                "kafka",
+                "kafka-console-producer",
+                "--bootstrap-server",
+                "localhost:9092",
+                "--topic",
+                topic,
+            ],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
         )
 
         stdout, stderr = process.communicate(input=message_json, timeout=10)
@@ -175,7 +182,7 @@ def store_in_redis(key: str, value: str):
             ["docker", "exec", "redis", "redis-cli", "SET", key, value],
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=5,
         )
         return result.stdout.strip() == "OK"
     except Exception as e:
@@ -200,7 +207,7 @@ def retrieve_from_redis(key: str) -> str:
             ["docker", "exec", "redis", "redis-cli", "GET", key],
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=5,
         )
         return result.stdout.strip()
     except Exception as e:
@@ -251,13 +258,15 @@ def main():
 
         # 3. Armazenar metadata no Redis
         redis_key = f"intent:{intent_id}:metadata"
-        metadata = json.dumps({
-            "id": intent_id,
-            "domain": domain,
-            "priority": priority,
-            "created_at": envelope["timestamp"],
-            "status": "published"
-        })
+        metadata = json.dumps(
+            {
+                "id": intent_id,
+                "domain": domain,
+                "priority": priority,
+                "created_at": envelope["timestamp"],
+                "status": "published",
+            }
+        )
 
         redis_stored = store_in_redis(redis_key, metadata)
         print(f"   Redis Storage: {'✓' if redis_stored else '✗'}")
@@ -266,12 +275,14 @@ def main():
         success, error = publish_to_kafka_json("intents.raw", envelope)
         print(f"   Kafka Publish: {'✓' if success else f'✗ ({error})'}")
 
-        results.append({
-            "intent_id": intent_id,
-            "domain": domain,
-            "redis_ok": redis_stored,
-            "kafka_ok": success
-        })
+        results.append(
+            {
+                "intent_id": intent_id,
+                "domain": domain,
+                "redis_ok": redis_stored,
+                "kafka_ok": success,
+            }
+        )
 
         time.sleep(0.5)  # Evitar sobrecarga
 

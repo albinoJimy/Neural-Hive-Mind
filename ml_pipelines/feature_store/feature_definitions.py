@@ -11,6 +11,7 @@ from enum import Enum
 
 class FeatureType(Enum):
     """Tipos de features."""
+
     NUMERIC = "numeric"
     CATEGORICAL = "categorical"
     EMBEDDING = "embedding"
@@ -20,6 +21,7 @@ class FeatureType(Enum):
 @dataclass
 class FeatureDefinition:
     """Definição de uma feature."""
+
     name: str
     feature_type: FeatureType
     description: str
@@ -35,26 +37,26 @@ METADATA_FEATURES = [
         name="num_tasks",
         feature_type=FeatureType.NUMERIC,
         description="Número de tarefas no plano",
-        source="metadata"
+        source="metadata",
     ),
     FeatureDefinition(
         name="priority_score",
         feature_type=FeatureType.NUMERIC,
         description="Score numérico de prioridade (0.0-1.0)",
         source="metadata",
-        validation_rules={"min": 0.0, "max": 1.0}
+        validation_rules={"min": 0.0, "max": 1.0},
     ),
     FeatureDefinition(
         name="total_duration_ms",
         feature_type=FeatureType.NUMERIC,
         description="Duração total estimada em milissegundos",
-        source="metadata"
+        source="metadata",
     ),
     FeatureDefinition(
         name="avg_duration_ms",
         feature_type=FeatureType.NUMERIC,
         description="Duração média por tarefa",
-        source="metadata"
+        source="metadata",
     ),
     FeatureDefinition(
         name="risk_score",
@@ -62,15 +64,15 @@ METADATA_FEATURES = [
         description="Score de risco do plano",
         source="metadata",
         nullable=True,
-        validation_rules={"min": 0.0, "max": 1.0}
+        validation_rules={"min": 0.0, "max": 1.0},
     ),
     FeatureDefinition(
         name="complexity_score",
         feature_type=FeatureType.NUMERIC,
         description="Score de complexidade do plano",
         source="metadata",
-        nullable=True
-    )
+        nullable=True,
+    ),
 ]
 
 # Features de Ontologia
@@ -80,39 +82,39 @@ ONTOLOGY_FEATURES = [
         feature_type=FeatureType.NUMERIC,
         description="Peso de risco do domínio",
         source="ontology",
-        validation_rules={"min": 0.0, "max": 1.0}
+        validation_rules={"min": 0.0, "max": 1.0},
     ),
     FeatureDefinition(
         name="avg_task_complexity_factor",
         feature_type=FeatureType.NUMERIC,
         description="Fator médio de complexidade de tarefas",
-        source="ontology"
+        source="ontology",
     ),
     FeatureDefinition(
         name="num_patterns_detected",
         feature_type=FeatureType.NUMERIC,
         description="Número de padrões arquiteturais detectados",
-        source="ontology"
+        source="ontology",
     ),
     FeatureDefinition(
         name="num_anti_patterns_detected",
         feature_type=FeatureType.NUMERIC,
         description="Número de anti-padrões detectados",
-        source="ontology"
+        source="ontology",
     ),
     FeatureDefinition(
         name="avg_pattern_quality",
         feature_type=FeatureType.NUMERIC,
         description="Qualidade média dos padrões detectados",
         source="ontology",
-        validation_rules={"min": 0.0, "max": 1.0}
+        validation_rules={"min": 0.0, "max": 1.0},
     ),
     FeatureDefinition(
         name="total_anti_pattern_penalty",
         feature_type=FeatureType.NUMERIC,
         description="Penalidade total de anti-padrões",
-        source="ontology"
-    )
+        source="ontology",
+    ),
 ]
 
 # Features de Grafo
@@ -121,70 +123,70 @@ GRAPH_FEATURES = [
         name="num_nodes",
         feature_type=FeatureType.NUMERIC,
         description="Número de nós no grafo",
-        source="graph"
+        source="graph",
     ),
     FeatureDefinition(
         name="num_edges",
         feature_type=FeatureType.NUMERIC,
         description="Número de arestas no grafo",
-        source="graph"
+        source="graph",
     ),
     FeatureDefinition(
         name="density",
         feature_type=FeatureType.NUMERIC,
         description="Densidade do grafo",
         source="graph",
-        validation_rules={"min": 0.0, "max": 1.0}
+        validation_rules={"min": 0.0, "max": 1.0},
     ),
     FeatureDefinition(
         name="avg_in_degree",
         feature_type=FeatureType.NUMERIC,
         description="Grau de entrada médio",
-        source="graph"
+        source="graph",
     ),
     FeatureDefinition(
         name="max_in_degree",
         feature_type=FeatureType.NUMERIC,
         description="Grau de entrada máximo",
-        source="graph"
+        source="graph",
     ),
     FeatureDefinition(
         name="critical_path_length",
         feature_type=FeatureType.NUMERIC,
         description="Comprimento do caminho crítico",
-        source="graph"
+        source="graph",
     ),
     FeatureDefinition(
         name="max_parallelism",
         feature_type=FeatureType.NUMERIC,
         description="Paralelismo máximo possível",
-        source="graph"
+        source="graph",
     ),
     FeatureDefinition(
         name="num_levels",
         feature_type=FeatureType.NUMERIC,
         description="Número de níveis no DAG",
-        source="graph"
+        source="graph",
     ),
     FeatureDefinition(
         name="avg_coupling",
         feature_type=FeatureType.NUMERIC,
         description="Acoplamento médio",
-        source="graph"
+        source="graph",
     ),
     FeatureDefinition(
         name="num_bottlenecks",
         feature_type=FeatureType.NUMERIC,
         description="Número de gargalos identificados",
-        source="graph"
+        source="graph",
     ),
     FeatureDefinition(
         name="graph_complexity_score",
         feature_type=FeatureType.NUMERIC,
         description="Score de complexidade do grafo",
         source="graph",
-        validation_rules={"min": 0.0, "max": 1.0}
-    )
+        validation_rules={"min": 0.0, "max": 1.0},
+    ),
 ]
 
 # Features de Embeddings
@@ -193,29 +195,24 @@ EMBEDDING_FEATURES = [
         name="mean_norm",
         feature_type=FeatureType.NUMERIC,
         description="Norma média dos embeddings",
-        source="embedding"
+        source="embedding",
     ),
     FeatureDefinition(
         name="std_norm",
         feature_type=FeatureType.NUMERIC,
         description="Desvio padrão da norma",
-        source="embedding"
+        source="embedding",
     ),
     FeatureDefinition(
         name="avg_diversity",
         feature_type=FeatureType.NUMERIC,
         description="Diversidade média entre embeddings",
-        source="embedding"
-    )
+        source="embedding",
+    ),
 ]
 
 # Todas as features
-ALL_FEATURES = (
-    METADATA_FEATURES +
-    ONTOLOGY_FEATURES +
-    GRAPH_FEATURES +
-    EMBEDDING_FEATURES
-)
+ALL_FEATURES = METADATA_FEATURES + ONTOLOGY_FEATURES + GRAPH_FEATURES + EMBEDDING_FEATURES
 
 
 def get_feature_schema() -> Dict[str, Any]:
@@ -223,11 +220,11 @@ def get_feature_schema() -> Dict[str, Any]:
     schema = {}
     for feature in ALL_FEATURES:
         schema[feature.name] = {
-            'type': feature.feature_type.value,
-            'description': feature.description,
-            'source': feature.source,
-            'nullable': feature.nullable,
-            'validation_rules': feature.validation_rules or {}
+            "type": feature.feature_type.value,
+            "description": feature.description,
+            "source": feature.source,
+            "nullable": feature.nullable,
+            "validation_rules": feature.validation_rules or {},
         }
     return schema
 

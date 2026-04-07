@@ -61,9 +61,7 @@ class TestSTEReadiness:
         """
         result = await ste_health_helper.check_ready()
 
-        assert (
-            result["available"] is True
-        ), f"STE /ready não disponível: {result.get('error')}"
+        assert result["available"] is True, f"STE /ready não disponível: {result.get('error')}"
         assert "checks" in result["response"]
 
     async def test_ready_checks_kafka_producer(self, ste_health_helper):
@@ -261,7 +259,4 @@ class TestSTEGracefulDegradation:
 
         assert result["available"] is False
         assert result["status_code"] is None
-        assert (
-            result["error"] in {"timeout", "connection_refused"}
-            or result["error"] is not None
-        )
+        assert result["error"] in {"timeout", "connection_refused"} or result["error"] is not None

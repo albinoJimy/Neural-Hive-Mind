@@ -14,6 +14,7 @@ from uuid import uuid4
 # Test: MongoDB Connection
 # =============================================================================
 
+
 class TestMongoDBConnection:
     """Testes de conexão MongoDB."""
 
@@ -24,7 +25,7 @@ class TestMongoDBConnection:
             "host": "localhost",
             "port": 27017,
             "database": "neural_hive",
-            "replica_set": "rs0"
+            "replica_set": "rs0",
         }
 
         connection_string = f"mongodb://{connection_config['host']}:{connection_config['port']}/{connection_config['database']}?replicaSet={connection_config['replica_set']}"
@@ -54,11 +55,7 @@ class TestMongoDBConnection:
     @pytest.mark.asyncio
     async def test_connection_pooling(self):
         """Deve usar pool de conexões."""
-        pool_config = {
-            "max_pool_size": 100,
-            "min_pool_size": 10,
-            "idle_timeout_ms": 10000
-        }
+        pool_config = {"max_pool_size": 100, "min_pool_size": 10, "idle_timeout_ms": 10000}
 
         assert pool_config["max_pool_size"] == 100
         assert pool_config["min_pool_size"] == 10
@@ -67,6 +64,7 @@ class TestMongoDBConnection:
 # =============================================================================
 # Test: CRUD Operations
 # =============================================================================
+
 
 class TestMongoDBCRUD:
     """Testes de operações CRUD."""
@@ -80,7 +78,7 @@ class TestMongoDBCRUD:
             "specialist_type": "business",
             "verdict": "approve",
             "confidence": 0.85,
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         # Simular inserção
@@ -97,7 +95,7 @@ class TestMongoDBCRUD:
         # Simular busca
         mock_results = [
             {"opinion_id": "op-1", "specialist_type": "business"},
-            {"opinion_id": "op-2", "specialist_type": "business"}
+            {"opinion_id": "op-2", "specialist_type": "business"},
         ]
 
         found = len(mock_results)
@@ -132,6 +130,7 @@ class TestMongoDBCRUD:
 # Test: Query Operations
 # =============================================================================
 
+
 class TestMongoDBQueries:
     """Testes de consultas MongoDB."""
 
@@ -139,15 +138,12 @@ class TestMongoDBQueries:
     async def test_query_with_filter(self):
         """Deve consultar com filtro."""
         collection = "opinions"
-        filter_query = {
-            "specialist_type": "business",
-            "confidence": {"$gte": 0.8}
-        }
+        filter_query = {"specialist_type": "business", "confidence": {"$gte": 0.8}}
 
         # Simular resultado
         results = [
             {"opinion_id": "op-1", "confidence": 0.85},
-            {"opinion_id": "op-2", "confidence": 0.90}
+            {"opinion_id": "op-2", "confidence": 0.90},
         ]
 
         assert all(r["confidence"] >= 0.8 for r in results)
@@ -160,9 +156,7 @@ class TestMongoDBQueries:
         projection = {"opinion_id": 1, "verdict": 1, "_id": 0}
 
         # Simular resultado
-        results = [
-            {"opinion_id": "op-1", "verdict": "approve"}
-        ]
+        results = [{"opinion_id": "op-1", "verdict": "approve"}]
 
         assert "_id" not in results[0]
         assert "opinion_id" in results[0]
@@ -178,12 +172,12 @@ class TestMongoDBQueries:
         results = [
             {"opinion_id": "op-1", "confidence": 0.9},
             {"opinion_id": "op-2", "confidence": 0.7},
-            {"opinion_id": "op-3", "confidence": 0.5}
+            {"opinion_id": "op-3", "confidence": 0.5},
         ]
 
         # Verificar ordenação
         is_sorted = all(
-            results[i]["confidence"] >= results[i+1]["confidence"]
+            results[i]["confidence"] >= results[i + 1]["confidence"]
             for i in range(len(results) - 1)
         )
 
@@ -208,6 +202,7 @@ class TestMongoDBQueries:
 # Test: Aggregation Pipeline
 # =============================================================================
 
+
 class TestMongoDBAggregation:
     """Testes de pipeline de agregação."""
 
@@ -216,17 +211,19 @@ class TestMongoDBAggregation:
         """Deve agregar agrupando por campo."""
         collection = "opinions"
         pipeline = [
-            {"$group": {
-                "_id": "$specialist_type",
-                "count": {"$sum": 1},
-                "avg_confidence": {"$avg": "$confidence"}
-            }}
+            {
+                "$group": {
+                    "_id": "$specialist_type",
+                    "count": {"$sum": 1},
+                    "avg_confidence": {"$avg": "$confidence"},
+                }
+            }
         ]
 
         # Simular resultado
         results = [
             {"_id": "business", "count": 10, "avg_confidence": 0.82},
-            {"_id": "technical", "count": 8, "avg_confidence": 0.78}
+            {"_id": "technical", "count": 8, "avg_confidence": 0.78},
         ]
 
         assert results[0]["_id"] == "business"
@@ -238,14 +235,11 @@ class TestMongoDBAggregation:
         collection = "opinions"
         pipeline = [
             {"$match": {"confidence": {"$gte": 0.8}}},
-            {"$group": {"_id": "$verdict", "count": {"$sum": 1}}}
+            {"$group": {"_id": "$verdict", "count": {"$sum": 1}}},
         ]
 
         # Simular resultado
-        results = [
-            {"_id": "approve", "count": 15},
-            {"_id": "reject", "count": 3}
-        ]
+        results = [{"_id": "approve", "count": 15}, {"_id": "reject", "count": 3}]
 
         assert sum(r["count"] for r in results) == 18
 
@@ -253,16 +247,10 @@ class TestMongoDBAggregation:
     async def test_aggregate_unwind(self):
         """Deve agregar com unwind."""
         collection = "plans"
-        pipeline = [
-            {"$unwind": "$steps"},
-            {"$group": {"_id": "$steps.type", "count": {"$sum": 1}}}
-        ]
+        pipeline = [{"$unwind": "$steps"}, {"$group": {"_id": "$steps.type", "count": {"$sum": 1}}}]
 
         # Simular resultado
-        results = [
-            {"_id": "query", "count": 5},
-            {"_id": "transform", "count": 3}
-        ]
+        results = [{"_id": "query", "count": 5}, {"_id": "transform", "count": 3}]
 
         assert "query" in [r["_id"] for r in results]
 
@@ -270,6 +258,7 @@ class TestMongoDBAggregation:
 # =============================================================================
 # Test: Index Management
 # =============================================================================
+
 
 class TestMongoDBIndexes:
     """Testes de gerenciamento de índices."""
@@ -291,7 +280,7 @@ class TestMongoDBIndexes:
         collection = "opinions"
         indexes = [
             {"name": "_id_", "key": {"_id": 1}},
-            {"name": "specialist_type_1", "key": {"specialist_type": 1}}
+            {"name": "specialist_type_1", "key": {"specialist_type": 1}},
         ]
 
         assert len(indexes) == 2
@@ -312,6 +301,7 @@ class TestMongoDBIndexes:
 # Test: Transaction Management
 # =============================================================================
 
+
 class TestMongoDBTransactions:
     """Testes de gerenciamento de transações."""
 
@@ -321,7 +311,7 @@ class TestMongoDBTransactions:
         session = {
             "session_id": str(uuid4()),
             "in_transaction": True,
-            "transaction_id": str(uuid4())
+            "transaction_id": str(uuid4()),
         }
 
         assert session["in_transaction"] is True
@@ -333,9 +323,9 @@ class TestMongoDBTransactions:
             "transaction_id": str(uuid4()),
             "operations": [
                 {"op": "insert", "collection": "opinions"},
-                {"op": "update", "collection": "plans"}
+                {"op": "update", "collection": "plans"},
             ],
-            "status": "in_progress"
+            "status": "in_progress",
         }
 
         # Commit
@@ -350,7 +340,7 @@ class TestMongoDBTransactions:
         transaction = {
             "transaction_id": str(uuid4()),
             "operations": [{"op": "insert"}],
-            "status": "in_progress"
+            "status": "in_progress",
         }
 
         # Rollback
@@ -364,6 +354,7 @@ class TestMongoDBTransactions:
 # Test: Change Streams
 # =============================================================================
 
+
 class TestMongoDBChangeStreams:
     """Testes de change streams."""
 
@@ -374,14 +365,14 @@ class TestMongoDBChangeStreams:
         change_stream = {
             "collection": collection,
             "started_at": datetime.now(timezone.utc).isoformat(),
-            "resume_token": None
+            "resume_token": None,
         }
 
         # Simular evento de mudança
         change_event = {
             "operation_type": "insert",
             "document_key": {"_id": str(uuid4())},
-            "full_document": {"specialist_type": "business"}
+            "full_document": {"specialist_type": "business"},
         }
 
         assert change_event["operation_type"] == "insert"
@@ -389,15 +380,13 @@ class TestMongoDBChangeStreams:
     @pytest.mark.asyncio
     async def test_filter_change_events(self):
         """Deve filtrar eventos de mudança."""
-        pipeline = [
-            {"$match": {"operationType": {"$in": ["insert", "update"]}}}
-        ]
+        pipeline = [{"$match": {"operationType": {"$in": ["insert", "update"]}}}]
 
         # Eventos que passariam pelo filtro
         events = [
             {"operationType": "insert"},
             {"operationType": "update"},
-            {"operationType": "delete"}  # Não passaria
+            {"operationType": "delete"},  # Não passaria
         ]
 
         filtered = [e for e in events if e["operationType"] in ["insert", "update"]]
@@ -408,6 +397,7 @@ class TestMongoDBChangeStreams:
 # =============================================================================
 # Test: GridFS (File Storage)
 # =============================================================================
+
 
 class TestMongoDBGridFS:
     """Testes de armazenamento de arquivos GridFS."""
@@ -447,6 +437,7 @@ class TestMongoDBGridFS:
 # Test: TTL Indexes
 # =============================================================================
 
+
 class TestMongoDBTTL:
     """Testes de índices TTL."""
 
@@ -467,7 +458,7 @@ class TestMongoDBTTL:
         """Deve expirar documento após TTL."""
         document = {
             "data": "temp",
-            "created_at": datetime.now(timezone.utc) - timedelta(seconds=3700)
+            "created_at": datetime.now(timezone.utc) - timedelta(seconds=3700),
         }
 
         ttl_seconds = 3600
@@ -483,6 +474,7 @@ class TestMongoDBTTL:
 # Test: Bulk Operations
 # =============================================================================
 
+
 class TestMongoDBBulkOperations:
     """Testes de operações em lote."""
 
@@ -492,7 +484,7 @@ class TestMongoDBBulkOperations:
         documents = [
             {"id": 1, "name": "doc1"},
             {"id": 2, "name": "doc2"},
-            {"id": 3, "name": "doc3"}
+            {"id": 3, "name": "doc3"},
         ]
 
         inserted_count = len(documents)
@@ -504,7 +496,7 @@ class TestMongoDBBulkOperations:
         """Deve atualizar em lote."""
         updates = [
             {"filter": {"id": 1}, "update": {"$set": {"status": "done"}}},
-            {"filter": {"id": 2}, "update": {"$set": {"status": "done"}}}
+            {"filter": {"id": 2}, "update": {"$set": {"status": "done"}}},
         ]
 
         modified_count = len(updates)
@@ -517,7 +509,7 @@ class TestMongoDBBulkOperations:
         operations = [
             {"operation": "insert", "document": {"id": 1}},
             {"operation": "update", "filter": {"id": 1}, "update": {"$set": {"status": "done"}}},
-            {"operation": "delete", "filter": {"id": 2}}
+            {"operation": "delete", "filter": {"id": 2}},
         ]
 
         executed_in_order = True
@@ -528,6 +520,7 @@ class TestMongoDBBulkOperations:
 # =============================================================================
 # Test: MongoDB Service Integration
 # =============================================================================
+
 
 class TestMongoDBServiceIntegration:
     """Testes de integração de serviços com MongoDB."""
@@ -540,7 +533,7 @@ class TestMongoDBServiceIntegration:
             "specialist_type": "business",
             "verdict": "approve",
             "confidence": 0.85,
-            "plan_id": str(uuid4())
+            "plan_id": str(uuid4()),
         }
 
         collection = "specialist_opinions"
@@ -556,12 +549,13 @@ class TestMongoDBServiceIntegration:
         opinions = [
             {"specialist_type": "business", "verdict": "approve"},
             {"specialist_type": "technical", "verdict": "approve"},
-            {"specialist_type": "security", "verdict": "reject"}
+            {"specialist_type": "security", "verdict": "reject"},
         ]
 
         # Agregar
         verdicts = [o["verdict"] for o in opinions]
         from collections import Counter
+
         final_verdict = Counter(verdicts).most_common(1)[0][0]
 
         assert final_verdict == "approve"
@@ -573,7 +567,7 @@ class TestMongoDBServiceIntegration:
             "workflow_id": str(uuid4()),
             "status": "running",
             "current_step": "query_execution",
-            "steps_completed": ["validation"]
+            "steps_completed": ["validation"],
         }
 
         collection = "workflow_states"

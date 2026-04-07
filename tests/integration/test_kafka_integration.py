@@ -16,6 +16,7 @@ import json
 # Test: Kafka Producer Integration
 # =============================================================================
 
+
 class TestKafkaProducerIntegration:
     """Testes de integração do produtor Kafka."""
 
@@ -26,7 +27,7 @@ class TestKafkaProducerIntegration:
             "event_type": "CognitivePlanCreated",
             "plan_id": str(uuid4()),
             "intent": "test_intent",
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         topic = "cognitive-plans"
@@ -43,7 +44,7 @@ class TestKafkaProducerIntegration:
             "opinion_id": str(uuid4()),
             "specialist_type": "business",
             "verdict": "approve",
-            "confidence": 0.85
+            "confidence": 0.85,
         }
 
         topic = "specialist-opinions"
@@ -59,7 +60,7 @@ class TestKafkaProducerIntegration:
             "event_type": "DecisionConsolidated",
             "decision_id": str(uuid4()),
             "final_verdict": "approved",
-            "consensus_score": 0.92
+            "consensus_score": 0.92,
         }
 
         topic = "consensus-decisions"
@@ -73,6 +74,7 @@ class TestKafkaProducerIntegration:
 # Test: Kafka Consumer Integration
 # =============================================================================
 
+
 class TestKafkaConsumerIntegration:
     """Testes de integração do consumidor Kafka."""
 
@@ -82,15 +84,12 @@ class TestKafkaConsumerIntegration:
         raw_message = {
             "event_type": "CognitivePlanCreated",
             "plan_id": str(uuid4()),
-            "intent": "query_balance"
+            "intent": "query_balance",
         }
 
         # Simular processamento
         if raw_message["event_type"] == "CognitivePlanCreated":
-            processed = {
-                "plan_id": raw_message["plan_id"],
-                "action": "route_to_specialists"
-            }
+            processed = {"plan_id": raw_message["plan_id"], "action": "route_to_specialists"}
 
         assert processed["action"] == "route_to_specialists"
 
@@ -100,7 +99,7 @@ class TestKafkaConsumerIntegration:
         raw_message = {
             "event_type": "SpecialistOpinion",
             "specialist_type": "technical",
-            "verdict": "approve"
+            "verdict": "approve",
         }
 
         # Agregar opinião
@@ -108,7 +107,7 @@ class TestKafkaConsumerIntegration:
             processed = {
                 "specialist": raw_message["specialist_type"],
                 "verdict": raw_message["verdict"],
-                "aggregated": True
+                "aggregated": True,
             }
 
         assert processed["aggregated"] is True
@@ -116,9 +115,7 @@ class TestKafkaConsumerIntegration:
     @pytest.mark.asyncio
     async def test_handle_invalid_message(self):
         """Deve tratar mensagem inválida."""
-        invalid_message = {
-            "event_type": "UnknownEvent"
-        }
+        invalid_message = {"event_type": "UnknownEvent"}
 
         # Verificar se é um tipo conhecido
         known_types = ["CognitivePlanCreated", "SpecialistOpinion", "DecisionConsolidated"]
@@ -134,6 +131,7 @@ class TestKafkaConsumerIntegration:
 # Test: Service Communication via Kafka
 # =============================================================================
 
+
 class TestServiceCommunication:
     """Testes de comunicação entre serviços via Kafka."""
 
@@ -144,7 +142,7 @@ class TestServiceCommunication:
             "from_service": "gateway-intencoes",
             "to_service": "semantic-translation-engine",
             "intent_text": "Qual meu saldo?",
-            "correlation_id": str(uuid4())
+            "correlation_id": str(uuid4()),
         }
 
         response_topic = "ste-responses"
@@ -159,17 +157,10 @@ class TestServiceCommunication:
         message = {
             "from_service": "consensus-engine",
             "broadcast": True,
-            "payload": {
-                "plan_id": str(uuid4()),
-                "context": {"user_id": "user-123"}
-            }
+            "payload": {"plan_id": str(uuid4()), "context": {"user_id": "user-123"}},
         }
 
-        specialist_topics = [
-            "business-specialist",
-            "technical-specialist",
-            "security-specialist"
-        ]
+        specialist_topics = ["business-specialist", "technical-specialist", "security-specialist"]
 
         assert len(specialist_topics) == 3
 
@@ -179,11 +170,7 @@ class TestServiceCommunication:
         message = {
             "from_service": "orchestrator-dynamic",
             "to_service": "worker-agents",
-            "task": {
-                "type": "query",
-                "collection": "users",
-                "filter": {"active": True}
-            }
+            "task": {"type": "query", "collection": "users", "filter": {"active": True}},
         }
 
         assert message["task"]["type"] == "query"
@@ -192,6 +179,7 @@ class TestServiceCommunication:
 # =============================================================================
 # Test: Event Sourcing
 # =============================================================================
+
 
 class TestEventSourcing:
     """Testes de event sourcing."""
@@ -206,7 +194,7 @@ class TestEventSourcing:
             "event_id": str(uuid4()),
             "type": "OpinionReceived",
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "data": {"specialist": "business"}
+            "data": {"specialist": "business"},
         }
 
         events.append(event)
@@ -221,7 +209,7 @@ class TestEventSourcing:
             {"type": "PlanCreated", "sequence": 1},
             {"type": "OpinionReceived", "sequence": 2},
             {"type": "OpinionReceived", "sequence": 3},
-            {"type": "DecisionConsolidated", "sequence": 4}
+            {"type": "DecisionConsolidated", "sequence": 4},
         ]
 
         # Reproduzir eventos
@@ -240,20 +228,12 @@ class TestEventSourcing:
     @pytest.mark.asyncio
     async def test_event_versioning(self):
         """Deve versionar eventos."""
-        event_v1 = {
-            "type": "OpinionReceived",
-            "version": 1,
-            "data": {"verdict": "approve"}
-        }
+        event_v1 = {"type": "OpinionReceived", "version": 1, "data": {"verdict": "approve"}}
 
         event_v2 = {
             "type": "OpinionReceived",
             "version": 2,
-            "data": {
-                "verdict": "approve",
-                "confidence": 0.85,
-                "reasoning": "Low risk"
-            }
+            "data": {"verdict": "approve", "confidence": 0.85, "reasoning": "Low risk"},
         }
 
         assert event_v1["version"] == 1
@@ -265,17 +245,14 @@ class TestEventSourcing:
 # Test: Message Serialization
 # =============================================================================
 
+
 class TestMessageSerialization:
     """Testes de serialização de mensagens."""
 
     @pytest.mark.asyncio
     async def test_serialize_to_json(self):
         """Deve serializar para JSON."""
-        message = {
-            "event_id": str(uuid4()),
-            "type": "TestEvent",
-            "data": {"key": "value"}
-        }
+        message = {"event_id": str(uuid4()), "type": "TestEvent", "data": {"key": "value"}}
 
         serialized = json.dumps(message)
 
@@ -295,14 +272,11 @@ class TestMessageSerialization:
     @pytest.mark.asyncio
     async def test_handle_serialization_error(self):
         """Deve tratar erro de serialização."""
+
         class UnserializableObject:
             pass
 
-        message = {
-            "event_id": str(uuid4()),
-            "type": "TestEvent",
-            "data": UnserializableObject()
-        }
+        message = {"event_id": str(uuid4()), "type": "TestEvent", "data": UnserializableObject()}
 
         try:
             serialized = json.dumps(message)
@@ -319,6 +293,7 @@ class TestMessageSerialization:
 # Test: Topic Management
 # =============================================================================
 
+
 class TestTopicManagement:
     """Testes de gerenciamento de tópicos."""
 
@@ -330,7 +305,7 @@ class TestTopicManagement:
             "specialist-opinions",
             "consensus-decisions",
             "orchestration-commands",
-            "worker-tasks"
+            "worker-tasks",
         ]
 
         assert len(topics) == 5
@@ -345,7 +320,7 @@ class TestTopicManagement:
         topic_config = {
             "name": new_topic,
             "partitions": partitions,
-            "replication_factor": replication_factor
+            "replication_factor": replication_factor,
         }
 
         assert topic_config["partitions"] == 3
@@ -365,6 +340,7 @@ class TestTopicManagement:
 # Test: Consumer Group Management
 # =============================================================================
 
+
 class TestConsumerGroupManagement:
     """Testes de gerenciamento de grupos de consumidores."""
 
@@ -374,7 +350,7 @@ class TestConsumerGroupManagement:
         consumer_group = {
             "group_id": "specialist-consumers",
             "members": ["specialist-1", "specialist-2", "specialist-3"],
-            "topic": "cognitive-plans"
+            "topic": "cognitive-plans",
         }
 
         assert consumer_group["group_id"] == "specialist-consumers"
@@ -404,7 +380,7 @@ class TestConsumerGroupManagement:
         consumers = {
             "consumer-1": {"status": "active", "partitions": [0, 1]},
             "consumer-2": {"status": "failed", "partitions": [2, 3]},
-            "consumer-3": {"status": "active", "partitions": [4, 5]}
+            "consumer-3": {"status": "active", "partitions": [4, 5]},
         }
 
         # Rebalance: reatribuir partições do consumidor falho
@@ -413,8 +389,7 @@ class TestConsumerGroupManagement:
 
         # Redistribuir para consumidores ativos
         active_consumers = [
-            c for c, s in consumers.items()
-            if s["status"] == "active" and c != failed_consumer
+            c for c, s in consumers.items() if s["status"] == "active" and c != failed_consumer
         ]
 
         # Redistribuir
@@ -430,6 +405,7 @@ class TestConsumerGroupManagement:
 # Test: Offset Management
 # =============================================================================
 
+
 class TestOffsetManagement:
     """Testes de gerenciamento de offsets."""
 
@@ -440,7 +416,7 @@ class TestOffsetManagement:
             "topic": "cognitive-plans",
             "partition": 0,
             "offset": 100,
-            "consumer_group": "specialist-consumers"
+            "consumer_group": "specialist-consumers",
         }
 
         assert offset_commit["offset"] == 100
@@ -452,7 +428,7 @@ class TestOffsetManagement:
             "topic": "cognitive-plans",
             "partition": 0,
             "current_offset": 100,
-            "new_offset": 0  # Reset para início
+            "new_offset": 0,  # Reset para início
         }
 
         assert offset_reset["new_offset"] == 0
@@ -472,6 +448,7 @@ class TestOffsetManagement:
 # Test: Dead Letter Queue
 # =============================================================================
 
+
 class TestDeadLetterQueue:
     """Testes de Dead Letter Queue."""
 
@@ -482,7 +459,7 @@ class TestDeadLetterQueue:
             "original_topic": "cognitive-plans",
             "error": "Deserialization failed",
             "payload": "corrupted_data",
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         dlq_topic = "cognitive-plans-dlq"
@@ -494,7 +471,7 @@ class TestDeadLetterQueue:
         """Deve rastrear mensagens na DLQ."""
         dlq_messages = [
             {"message_id": "1", "error": "Parse error"},
-            {"message_id": "2", "error": "Validation error"}
+            {"message_id": "2", "error": "Validation error"},
         ]
 
         assert len(dlq_messages) == 2
@@ -506,7 +483,7 @@ class TestDeadLetterQueue:
             "message_id": "1",
             "original_topic": "cognitive-plans",
             "retry_count": 0,
-            "max_retries": 3
+            "max_retries": 3,
         }
 
         can_retry = dlq_message["retry_count"] < dlq_message["max_retries"]

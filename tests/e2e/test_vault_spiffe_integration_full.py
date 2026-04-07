@@ -10,6 +10,7 @@ if not REAL_E2E:
 
 # Adicionar path do orchestrator-dynamic ao PYTHONPATH
 from pathlib import Path
+
 ROOT_DIR = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT_DIR / "services/orchestrator-dynamic"))
 
@@ -39,13 +40,15 @@ async def test_orchestrator_to_service_registry_jwt_auth(spiffe_manager):
     require_real_env()
     config = build_test_settings()
     config.spiffe_enabled = True
-    config.service_registry_host = os.getenv('SERVICE_REGISTRY_HOST', config.service_registry_host)
-    config.service_registry_port = int(os.getenv('SERVICE_REGISTRY_PORT', config.service_registry_port))
+    config.service_registry_host = os.getenv("SERVICE_REGISTRY_HOST", config.service_registry_host)
+    config.service_registry_port = int(
+        os.getenv("SERVICE_REGISTRY_PORT", config.service_registry_port)
+    )
 
     client = ServiceRegistryClient(config, spiffe_manager=spiffe_manager)
     try:
         await client.initialize()
-        agents = await client.discover_agents(capabilities=['python'], filters={}, max_results=1)
+        agents = await client.discover_agents(capabilities=["python"], filters={}, max_results=1)
         assert isinstance(agents, list)
     except grpc.RpcError as e:
         if e.code() in (grpc.StatusCode.UNAVAILABLE, grpc.StatusCode.DEADLINE_EXCEEDED):
@@ -64,13 +67,15 @@ async def test_worker_to_service_registry_jwt_auth(spiffe_manager):
     require_real_env()
     config = build_test_settings()
     config.spiffe_enabled = True
-    config.service_registry_host = os.getenv('SERVICE_REGISTRY_HOST', config.service_registry_host)
-    config.service_registry_port = int(os.getenv('SERVICE_REGISTRY_PORT', config.service_registry_port))
+    config.service_registry_host = os.getenv("SERVICE_REGISTRY_HOST", config.service_registry_host)
+    config.service_registry_port = int(
+        os.getenv("SERVICE_REGISTRY_PORT", config.service_registry_port)
+    )
 
     client = ServiceRegistryClient(config, spiffe_manager=spiffe_manager)
     try:
         await client.initialize()
-        agents = await client.discover_agents(capabilities=['deploy'], filters={}, max_results=1)
+        agents = await client.discover_agents(capabilities=["deploy"], filters={}, max_results=1)
         assert isinstance(agents, list)
     except grpc.RpcError as e:
         if e.code() in (grpc.StatusCode.UNAVAILABLE, grpc.StatusCode.DEADLINE_EXCEEDED):
@@ -90,16 +95,22 @@ async def test_orchestrator_to_execution_ticket_jwt_auth(spiffe_manager):
     config = build_test_settings()
     config.spiffe_enabled = True
     config.execution_ticket_service_host = os.getenv(
-        'EXECUTION_TICKET_HOST',
-        getattr(config, 'execution_ticket_service_host', 'execution-ticket-service.neural-hive-execution.svc.cluster.local')
+        "EXECUTION_TICKET_HOST",
+        getattr(
+            config,
+            "execution_ticket_service_host",
+            "execution-ticket-service.neural-hive-execution.svc.cluster.local",
+        ),
     )
-    config.execution_ticket_service_port = int(os.getenv('EXECUTION_TICKET_PORT', getattr(config, 'execution_ticket_service_port', 50052)))
+    config.execution_ticket_service_port = int(
+        os.getenv("EXECUTION_TICKET_PORT", getattr(config, "execution_ticket_service_port", 50052))
+    )
 
     client = ExecutionTicketClient(config, spiffe_manager=spiffe_manager)
     try:
         await client.initialize()
         response = await client.list_tickets(limit=1)
-        assert 'tickets' in response
+        assert "tickets" in response
     except grpc.RpcError as e:
         if e.code() in (grpc.StatusCode.UNAVAILABLE, grpc.StatusCode.DEADLINE_EXCEEDED):
             pytest.skip(f"Execution Ticket Service indisponível: {e}")
@@ -112,7 +123,9 @@ async def test_orchestrator_to_execution_ticket_jwt_auth(spiffe_manager):
 
 
 @pytest.mark.asyncio
-async def test_end_to_end_credentials_and_auth(vault_client, orchestrator_vault_client, spiffe_manager):
+async def test_end_to_end_credentials_and_auth(
+    vault_client, orchestrator_vault_client, spiffe_manager
+):
     """Fluxo ponta-a-ponta: segredos no Vault + autenticação gRPC com JWT-SVID."""
     require_real_env()
 
@@ -127,20 +140,22 @@ async def test_end_to_end_credentials_and_auth(vault_client, orchestrator_vault_
 
     # JWT-SVID
     jwt_svid = await spiffe_manager.fetch_jwt_svid(
-        audience=os.getenv('SPIFFE_JWT_AUDIENCE', 'vault.neural-hive.local')
+        audience=os.getenv("SPIFFE_JWT_AUDIENCE", "vault.neural-hive.local")
     )
     assert jwt_svid.token
 
     # gRPC call com JWT
     config = build_test_settings()
     config.spiffe_enabled = True
-    config.service_registry_host = os.getenv('SERVICE_REGISTRY_HOST', config.service_registry_host)
-    config.service_registry_port = int(os.getenv('SERVICE_REGISTRY_PORT', config.service_registry_port))
+    config.service_registry_host = os.getenv("SERVICE_REGISTRY_HOST", config.service_registry_host)
+    config.service_registry_port = int(
+        os.getenv("SERVICE_REGISTRY_PORT", config.service_registry_port)
+    )
 
     client = ServiceRegistryClient(config, spiffe_manager=spiffe_manager)
     try:
         await client.initialize()
-        agents = await client.discover_agents(capabilities=['python'], filters={}, max_results=1)
+        agents = await client.discover_agents(capabilities=["python"], filters={}, max_results=1)
         assert isinstance(agents, list)
     except grpc.RpcError as e:
         if e.code() in (grpc.StatusCode.UNAVAILABLE, grpc.StatusCode.DEADLINE_EXCEEDED):

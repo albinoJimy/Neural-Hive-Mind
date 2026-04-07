@@ -43,45 +43,46 @@ def _init_prometheus_metrics():
         return
 
     online_updates_total = Counter(
-        'neural_hive_online_updates_total',
-        'Total de atualizações online',
-        ['specialist_type', 'status']
+        "neural_hive_online_updates_total",
+        "Total de atualizações online",
+        ["specialist_type", "status"],
     )
     online_update_duration = Histogram(
-        'neural_hive_online_update_duration_seconds',
-        'Duração de atualizações online',
-        ['specialist_type']
+        "neural_hive_online_update_duration_seconds",
+        "Duração de atualizações online",
+        ["specialist_type"],
     )
     online_model_loss = Gauge(
-        'neural_hive_online_model_loss',
-        'Loss atual do modelo online',
-        ['specialist_type']
+        "neural_hive_online_model_loss", "Loss atual do modelo online", ["specialist_type"]
     )
     online_model_updates_count = Gauge(
-        'neural_hive_online_model_updates_count',
-        'Número total de updates do modelo',
-        ['specialist_type']
+        "neural_hive_online_model_updates_count",
+        "Número total de updates do modelo",
+        ["specialist_type"],
     )
     online_checkpoint_size_bytes = Gauge(
-        'neural_hive_online_checkpoint_size_bytes',
-        'Tamanho do último checkpoint em bytes',
-        ['specialist_type']
+        "neural_hive_online_checkpoint_size_bytes",
+        "Tamanho do último checkpoint em bytes",
+        ["specialist_type"],
     )
     _online_metrics_initialized = True
 
 
 class IncrementalLearnerError(Exception):
     """Exceção base para erros de incremental learning."""
+
     pass
 
 
 class ModelNotInitializedError(IncrementalLearnerError):
     """Exceção quando modelo não está inicializado."""
+
     pass
 
 
 class CheckpointError(IncrementalLearnerError):
     """Exceção para erros de checkpoint."""
+
     pass
 
 
@@ -102,33 +103,28 @@ class IncrementalLearner:
     """
 
     SUPPORTED_ALGORITHMS = {
-        'sgd': SGDClassifier,
-        'passive_aggressive': PassiveAggressiveClassifier,
-        'perceptron': Perceptron
+        "sgd": SGDClassifier,
+        "passive_aggressive": PassiveAggressiveClassifier,
+        "perceptron": Perceptron,
     }
 
     DEFAULT_ALGORITHM_PARAMS = {
-        'sgd': {
-            'loss': 'log_loss',
-            'penalty': 'l2',
-            'alpha': 0.0001,
-            'learning_rate': 'adaptive',
-            'eta0': 0.001,
-            'warm_start': True,
-            'random_state': 42
+        "sgd": {
+            "loss": "log_loss",
+            "penalty": "l2",
+            "alpha": 0.0001,
+            "learning_rate": "adaptive",
+            "eta0": 0.001,
+            "warm_start": True,
+            "random_state": 42,
         },
-        'passive_aggressive': {
-            'C': 1.0,
-            'fit_intercept': True,
-            'warm_start': True,
-            'random_state': 42
+        "passive_aggressive": {
+            "C": 1.0,
+            "fit_intercept": True,
+            "warm_start": True,
+            "random_state": 42,
         },
-        'perceptron': {
-            'penalty': 'l2',
-            'alpha': 0.0001,
-            'warm_start': True,
-            'random_state': 42
-        }
+        "perceptron": {"penalty": "l2", "alpha": 0.0001, "warm_start": True, "random_state": 42},
     }
 
     def __init__(
@@ -136,7 +132,7 @@ class IncrementalLearner:
         config: OnlineLearningConfig,
         specialist_type: str,
         classes: Optional[List[Any]] = None,
-        feature_names: Optional[List[str]] = None
+        feature_names: Optional[List[str]] = None,
     ):
         """
         Inicializa IncrementalLearner.
@@ -152,7 +148,7 @@ class IncrementalLearner:
 
         self.config = config
         self.specialist_type = specialist_type
-        self.classes = classes or ['approve', 'reject', 'review_required']
+        self.classes = classes or ["approve", "reject", "review_required"]
         self.feature_names = feature_names
         self.algorithm = config.incremental_algorithm
 
@@ -175,7 +171,7 @@ class IncrementalLearner:
             specialist_type=specialist_type,
             algorithm=config.incremental_algorithm,
             classes=self.classes,
-            model_version=self._model_version
+            model_version=self._model_version,
         )
 
     @property
@@ -203,8 +199,8 @@ class IncrementalLearner:
         params = self.DEFAULT_ALGORITHM_PARAMS[algorithm].copy()
 
         # Aplicar learning rate da configuração para SGD
-        if algorithm == 'sgd':
-            params['eta0'] = self.config.learning_rate
+        if algorithm == "sgd":
+            params["eta0"] = self.config.learning_rate
 
         # Criar modelo
         self._model = model_class(**params)
@@ -216,7 +212,7 @@ class IncrementalLearner:
             "model_initialized",
             algorithm=algorithm,
             params=params,
-            specialist_type=self.specialist_type
+            specialist_type=self.specialist_type,
         )
 
     def _compute_loss(self, X: np.ndarray, y: np.ndarray) -> float:
@@ -231,7 +227,7 @@ class IncrementalLearner:
             Loss (log loss para classificação)
         """
         if not self._is_fitted:
-            return float('inf')
+            return float("inf")
 
         try:
             # Normalizar features
@@ -252,11 +248,9 @@ class IncrementalLearner:
 
         except Exception as e:
             logger.warning(
-                "loss_computation_failed",
-                error=str(e),
-                specialist_type=self.specialist_type
+                "loss_computation_failed", error=str(e), specialist_type=self.specialist_type
             )
-            return float('inf')
+            return float("inf")
 
     def _compute_gradient_norm(self) -> float:
         """
@@ -265,21 +259,21 @@ class IncrementalLearner:
         Returns:
             Norma L2 dos coeficientes (proxy para gradient norm)
         """
-        if not self._is_fitted or not hasattr(self._model, 'coef_'):
-            return float('inf')
+        if not self._is_fitted or not hasattr(self._model, "coef_"):
+            return float("inf")
 
         try:
             coef = self._model.coef_
             return float(np.linalg.norm(coef))
         except Exception:
-            return float('inf')
+            return float("inf")
 
     def partial_fit(
         self,
         X: np.ndarray,
         y: np.ndarray,
         sample_weight: Optional[np.ndarray] = None,
-        classes: Optional[List[Any]] = None
+        classes: Optional[List[Any]] = None,
     ) -> Dict[str, Any]:
         """
         Executa atualização incremental do modelo.
@@ -318,7 +312,7 @@ class IncrementalLearner:
                 raise ValueError("Batch vazio não é permitido")
 
             # Calcular loss antes do update
-            loss_before = self._compute_loss(X, y) if self._is_fitted else float('inf')
+            loss_before = self._compute_loss(X, y) if self._is_fitted else float("inf")
 
             # Atualizar scaler incrementalmente
             if not self._is_fitted:
@@ -333,12 +327,7 @@ class IncrementalLearner:
 
             # Executar partial_fit - usa classes do parâmetro se fornecidas
             fit_classes = classes if classes is not None else self.classes
-            self._model.partial_fit(
-                X_scaled,
-                y,
-                classes=fit_classes,
-                sample_weight=sample_weight
-            )
+            self._model.partial_fit(X_scaled, y, classes=fit_classes, sample_weight=sample_weight)
 
             self._is_fitted = True
             self._update_count += 1
@@ -347,7 +336,7 @@ class IncrementalLearner:
 
             # Calcular loss após update
             loss_after = self._compute_loss(X, y)
-            loss_reduction = loss_before - loss_after if loss_before != float('inf') else 0.0
+            loss_reduction = loss_before - loss_after if loss_before != float("inf") else 0.0
 
             # Calcular gradient norm
             gradient_norm = self._compute_gradient_norm()
@@ -366,40 +355,33 @@ class IncrementalLearner:
 
             # Emitir métricas Prometheus
             online_updates_total.labels(
-                specialist_type=self.specialist_type,
-                status='success'
+                specialist_type=self.specialist_type, status="success"
             ).inc()
-            online_update_duration.labels(
-                specialist_type=self.specialist_type
-            ).observe(duration_ms / 1000)
-            online_model_loss.labels(
-                specialist_type=self.specialist_type
-            ).set(loss_after)
-            online_model_updates_count.labels(
-                specialist_type=self.specialist_type
-            ).set(self._update_count)
+            online_update_duration.labels(specialist_type=self.specialist_type).observe(
+                duration_ms / 1000
+            )
+            online_model_loss.labels(specialist_type=self.specialist_type).set(loss_after)
+            online_model_updates_count.labels(specialist_type=self.specialist_type).set(
+                self._update_count
+            )
 
             result = {
-                'success': True,
-                'update_count': self._update_count,
-                'samples_in_batch': len(y),
-                'samples_processed': len(y),  # Alias para compatibilidade
-                'total_samples_seen': self._total_samples_seen,
-                'loss_before': loss_before,
-                'loss_after': loss_after,
-                'loss': loss_after,  # Alias para compatibilidade
-                'loss_reduction': loss_reduction,
-                'gradient_norm': gradient_norm,
-                'duration_ms': duration_ms,
-                'model_version': self._model_version,
-                'timestamp': self._last_update_time.isoformat()
+                "success": True,
+                "update_count": self._update_count,
+                "samples_in_batch": len(y),
+                "samples_processed": len(y),  # Alias para compatibilidade
+                "total_samples_seen": self._total_samples_seen,
+                "loss_before": loss_before,
+                "loss_after": loss_after,
+                "loss": loss_after,  # Alias para compatibilidade
+                "loss_reduction": loss_reduction,
+                "gradient_norm": gradient_norm,
+                "duration_ms": duration_ms,
+                "model_version": self._model_version,
+                "timestamp": self._last_update_time.isoformat(),
             }
 
-            logger.info(
-                "partial_fit_completed",
-                specialist_type=self.specialist_type,
-                **result
-            )
+            logger.info("partial_fit_completed", specialist_type=self.specialist_type, **result)
 
             # Verificar se deve salvar checkpoint
             if self._update_count % self.config.checkpoint_interval_updates == 0:
@@ -408,16 +390,13 @@ class IncrementalLearner:
             return result
 
         except Exception as e:
-            online_updates_total.labels(
-                specialist_type=self.specialist_type,
-                status='failed'
-            ).inc()
+            online_updates_total.labels(specialist_type=self.specialist_type, status="failed").inc()
 
             logger.error(
                 "partial_fit_failed",
                 specialist_type=self.specialist_type,
                 error=str(e),
-                samples=len(y) if 'y' in locals() else 0
+                samples=len(y) if "y" in locals() else 0,
             )
             raise IncrementalLearnerError(f"Falha no partial_fit: {str(e)}") from e
 
@@ -432,9 +411,7 @@ class IncrementalLearner:
             Predições (shape: [n_samples])
         """
         if not self._is_fitted:
-            raise ModelNotInitializedError(
-                "Modelo não está fitted. Execute partial_fit primeiro."
-            )
+            raise ModelNotInitializedError("Modelo não está fitted. Execute partial_fit primeiro.")
 
         X = np.asarray(X)
         X_scaled = self._scaler.transform(X)
@@ -451,9 +428,7 @@ class IncrementalLearner:
             Probabilidades (shape: [n_samples, n_classes])
         """
         if not self._is_fitted:
-            raise ModelNotInitializedError(
-                "Modelo não está fitted. Execute partial_fit primeiro."
-            )
+            raise ModelNotInitializedError("Modelo não está fitted. Execute partial_fit primeiro.")
 
         X = np.asarray(X)
         X_scaled = self._scaler.transform(X)
@@ -473,11 +448,11 @@ class IncrementalLearner:
         """
         if len(self._loss_history) < 2:
             return {
-                'is_converging': False,
-                'loss_trend': 0.0,
-                'average_loss_reduction': 0.0,
-                'current_loss': self._loss_history[-1] if self._loss_history else float('inf'),
-                'updates_since_improvement': 0
+                "is_converging": False,
+                "loss_trend": 0.0,
+                "average_loss_reduction": 0.0,
+                "current_loss": self._loss_history[-1] if self._loss_history else float("inf"),
+                "updates_since_improvement": 0,
             }
 
         # Calcular tendência de loss (últimos 100 updates)
@@ -492,7 +467,7 @@ class IncrementalLearner:
         # Calcular redução média
         reductions = []
         for i in range(1, len(recent_losses)):
-            reductions.append(recent_losses[i-1] - recent_losses[i])
+            reductions.append(recent_losses[i - 1] - recent_losses[i])
         avg_reduction = np.mean(reductions) if reductions else 0.0
 
         # Encontrar último improvement
@@ -500,16 +475,18 @@ class IncrementalLearner:
         updates_since_improvement = len(recent_losses) - recent_losses.index(min_loss) - 1
 
         return {
-            'is_converging': loss_trend < 0,
-            'loss_trend': float(loss_trend),
-            'convergence_rate': float(loss_trend),  # Alias para compatibilidade
-            'average_loss_reduction': float(avg_reduction),
-            'current_loss': float(recent_losses[-1]),
-            'average_loss': float(recent_losses[-1]),  # Alias para compatibilidade
-            'loss_history': list(recent_losses),  # Histórico completo
-            'updates_count': self._update_count,  # Quantidade de updates
-            'updates_since_improvement': updates_since_improvement,
-            'gradient_norm': self._gradient_norm_history[-1] if self._gradient_norm_history else float('inf')
+            "is_converging": loss_trend < 0,
+            "loss_trend": float(loss_trend),
+            "convergence_rate": float(loss_trend),  # Alias para compatibilidade
+            "average_loss_reduction": float(avg_reduction),
+            "current_loss": float(recent_losses[-1]),
+            "average_loss": float(recent_losses[-1]),  # Alias para compatibilidade
+            "loss_history": list(recent_losses),  # Histórico completo
+            "updates_count": self._update_count,  # Quantidade de updates
+            "updates_since_improvement": updates_since_improvement,
+            "gradient_norm": self._gradient_norm_history[-1]
+            if self._gradient_norm_history
+            else float("inf"),
         }
 
     def save_checkpoint(self, path: Optional[str] = None) -> str:
@@ -523,46 +500,43 @@ class IncrementalLearner:
             Path do checkpoint salvo
         """
         if not self._is_fitted:
-            raise ModelNotInitializedError(
-                "Modelo não está fitted. Nada a salvar."
-            )
+            raise ModelNotInitializedError("Modelo não está fitted. Nada a salvar.")
 
         if path is None:
             os.makedirs(self.config.checkpoint_storage_path, exist_ok=True)
             timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
             path = os.path.join(
                 self.config.checkpoint_storage_path,
-                f"{self.specialist_type}_{self._model_version}_{timestamp}.pkl"
+                f"{self.specialist_type}_{self._model_version}_{timestamp}.pkl",
             )
         elif os.path.isdir(path):
             # Se path é um diretório, criar nome de arquivo
             timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
             path = os.path.join(
-                path,
-                f"{self.specialist_type}_{self._model_version}_{timestamp}.pkl"
+                path, f"{self.specialist_type}_{self._model_version}_{timestamp}.pkl"
             )
 
         checkpoint = {
-            'model': self._model,
-            'scaler': self._scaler,
-            'classes': self.classes,
-            'feature_names': self.feature_names,
-            'update_count': self._update_count,
-            'total_samples_seen': self._total_samples_seen,
-            'loss_history': self._loss_history[-100:],  # Últimos 100
-            'model_version': self._model_version,
-            'specialist_type': self.specialist_type,
-            'algorithm': self.config.incremental_algorithm,
-            'saved_at': datetime.now(timezone.utc).isoformat(),
-            'config': {
-                'learning_rate': self.config.learning_rate,
-                'mini_batch_size': self.config.mini_batch_size
-            }
+            "model": self._model,
+            "scaler": self._scaler,
+            "classes": self.classes,
+            "feature_names": self.feature_names,
+            "update_count": self._update_count,
+            "total_samples_seen": self._total_samples_seen,
+            "loss_history": self._loss_history[-100:],  # Últimos 100
+            "model_version": self._model_version,
+            "specialist_type": self.specialist_type,
+            "algorithm": self.config.incremental_algorithm,
+            "saved_at": datetime.now(timezone.utc).isoformat(),
+            "config": {
+                "learning_rate": self.config.learning_rate,
+                "mini_batch_size": self.config.mini_batch_size,
+            },
         }
 
         # Calcular hash do modelo para integridade
         model_bytes = pickle.dumps(self._model)
-        checkpoint['model_hash'] = hashlib.sha256(model_bytes).hexdigest()
+        checkpoint["model_hash"] = hashlib.sha256(model_bytes).hexdigest()
 
         # Salvar checkpoint
         joblib.dump(checkpoint, path)
@@ -576,13 +550,13 @@ class IncrementalLearner:
                 "checkpoint_exceeds_max_size",
                 specialist_type=self.specialist_type,
                 size_mb=checkpoint_size / (1024 * 1024),
-                max_mb=self.config.max_checkpoint_size_mb
+                max_mb=self.config.max_checkpoint_size_mb,
             )
 
         # Emitir métrica
-        online_checkpoint_size_bytes.labels(
-            specialist_type=self.specialist_type
-        ).set(checkpoint_size)
+        online_checkpoint_size_bytes.labels(specialist_type=self.specialist_type).set(
+            checkpoint_size
+        )
 
         logger.info(
             "checkpoint_saved",
@@ -590,7 +564,7 @@ class IncrementalLearner:
             path=path,
             size_bytes=checkpoint_size,
             update_count=self._update_count,
-            model_hash=checkpoint['model_hash'][:16]
+            model_hash=checkpoint["model_hash"][:16],
         )
 
         return path
@@ -601,9 +575,7 @@ class IncrementalLearner:
             self.save_checkpoint()
         except Exception as e:
             logger.error(
-                "async_checkpoint_failed",
-                specialist_type=self.specialist_type,
-                error=str(e)
+                "async_checkpoint_failed", specialist_type=self.specialist_type, error=str(e)
             )
 
     def load_checkpoint(self, path: str) -> Dict[str, Any]:
@@ -623,24 +595,23 @@ class IncrementalLearner:
             checkpoint = joblib.load(path)
 
             # Verificar integridade
-            model_bytes = pickle.dumps(checkpoint['model'])
+            model_bytes = pickle.dumps(checkpoint["model"])
             computed_hash = hashlib.sha256(model_bytes).hexdigest()
 
-            if computed_hash != checkpoint.get('model_hash'):
+            if computed_hash != checkpoint.get("model_hash"):
                 raise CheckpointError(
-                    f"Hash do modelo não corresponde. "
-                    f"Checkpoint pode estar corrompido."
+                    f"Hash do modelo não corresponde. " f"Checkpoint pode estar corrompido."
                 )
 
             # Restaurar estado
-            self._model = checkpoint['model']
-            self._scaler = checkpoint['scaler']
-            self.classes = checkpoint['classes']
-            self.feature_names = checkpoint.get('feature_names')
-            self._update_count = checkpoint['update_count']
-            self._total_samples_seen = checkpoint['total_samples_seen']
-            self._loss_history = checkpoint.get('loss_history', [])
-            self._model_version = checkpoint['model_version']
+            self._model = checkpoint["model"]
+            self._scaler = checkpoint["scaler"]
+            self.classes = checkpoint["classes"]
+            self.feature_names = checkpoint.get("feature_names")
+            self._update_count = checkpoint["update_count"]
+            self._total_samples_seen = checkpoint["total_samples_seen"]
+            self._loss_history = checkpoint.get("loss_history", [])
+            self._model_version = checkpoint["model_version"]
             self._is_fitted = True
 
             logger.info(
@@ -649,15 +620,15 @@ class IncrementalLearner:
                 path=path,
                 update_count=self._update_count,
                 total_samples_seen=self._total_samples_seen,
-                model_version=self._model_version
+                model_version=self._model_version,
             )
 
             return {
-                'model_version': self._model_version,
-                'update_count': self._update_count,
-                'total_samples_seen': self._total_samples_seen,
-                'saved_at': checkpoint.get('saved_at'),
-                'algorithm': checkpoint.get('algorithm')
+                "model_version": self._model_version,
+                "update_count": self._update_count,
+                "total_samples_seen": self._total_samples_seen,
+                "saved_at": checkpoint.get("saved_at"),
+                "algorithm": checkpoint.get("algorithm"),
             }
 
         except Exception as e:
@@ -671,15 +642,17 @@ class IncrementalLearner:
             Dict com estado do modelo
         """
         return {
-            'is_fitted': self._is_fitted,
-            'model_version': self._model_version,
-            'update_count': self._update_count,
-            'total_samples_seen': self._total_samples_seen,
-            'last_update_time': self._last_update_time.isoformat() if self._last_update_time else None,
-            'algorithm': self.config.incremental_algorithm,
-            'classes': self.classes,
-            'feature_count': len(self.feature_names) if self.feature_names else None,
-            'convergence': self.get_convergence_metrics() if self._is_fitted else None
+            "is_fitted": self._is_fitted,
+            "model_version": self._model_version,
+            "update_count": self._update_count,
+            "total_samples_seen": self._total_samples_seen,
+            "last_update_time": self._last_update_time.isoformat()
+            if self._last_update_time
+            else None,
+            "algorithm": self.config.incremental_algorithm,
+            "classes": self.classes,
+            "feature_count": len(self.feature_names) if self.feature_names else None,
+            "convergence": self.get_convergence_metrics() if self._is_fitted else None,
         }
 
     def reset(self):
@@ -694,9 +667,7 @@ class IncrementalLearner:
         self._model_version = f"online-{uuid.uuid4().hex[:8]}"
 
         logger.info(
-            "model_reset",
-            specialist_type=self.specialist_type,
-            new_version=self._model_version
+            "model_reset", specialist_type=self.specialist_type, new_version=self._model_version
         )
 
     @property

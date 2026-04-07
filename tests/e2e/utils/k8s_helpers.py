@@ -4,10 +4,14 @@ from typing import List
 from kubernetes.client import CoreV1Api
 
 
-async def wait_for_pod_ready(k8s_client: CoreV1Api, namespace: str, label_selector: str, timeout: int = 300) -> List[str]:
+async def wait_for_pod_ready(
+    k8s_client: CoreV1Api, namespace: str, label_selector: str, timeout: int = 300
+) -> List[str]:
     end_time = asyncio.get_event_loop().time() + timeout
     while asyncio.get_event_loop().time() < end_time:
-        pods = k8s_client.list_namespaced_pod(namespace=namespace, label_selector=label_selector).items
+        pods = k8s_client.list_namespaced_pod(
+            namespace=namespace, label_selector=label_selector
+        ).items
         ready = []
         for pod in pods:
             conditions = pod.status.conditions or []
@@ -55,6 +59,10 @@ def get_pod_logs(
     return k8s_client.read_namespaced_pod_log(**kwargs)
 
 
-def scale_deployment(k8s_client: CoreV1Api, namespace: str, deployment_name: str, replicas: int) -> None:
+def scale_deployment(
+    k8s_client: CoreV1Api, namespace: str, deployment_name: str, replicas: int
+) -> None:
     body = {"spec": {"replicas": replicas}}
-    k8s_client.patch_namespaced_deployment_scale(name=deployment_name, namespace=namespace, body=body)
+    k8s_client.patch_namespaced_deployment_scale(
+        name=deployment_name, namespace=namespace, body=body
+    )

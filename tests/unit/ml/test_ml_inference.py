@@ -16,6 +16,7 @@ from typing import Dict, Any, List
 # Test: Load Predictor Inference
 # =============================================================================
 
+
 class TestLoadPredictorInference:
     """Testes de inferência do LoadPredictor."""
 
@@ -27,15 +28,15 @@ class TestLoadPredictorInference:
             "task_complexity": 0.5,
             "resource_availability": 0.8,
             "queue_length": 10,
-            "processing_time_avg": 150
+            "processing_time_avg": 150,
         }
 
         # Simular predição
         predicted_load = (
-            features["current_load"] * 0.4 +
-            features["task_complexity"] * 0.2 +
-            (1 - features["resource_availability"]) * 0.3 +
-            min(features["queue_length"] / 100, 1) * 0.1
+            features["current_load"] * 0.4
+            + features["task_complexity"] * 0.2
+            + (1 - features["resource_availability"]) * 0.3
+            + min(features["queue_length"] / 100, 1) * 0.1
         )
 
         assert 0 <= predicted_load <= 1
@@ -47,14 +48,10 @@ class TestLoadPredictorInference:
         features = {
             "current_load": 0.6,
             # task_complexity faltando
-            "resource_availability": 0.7
+            "resource_availability": 0.7,
         }
 
-        defaults = {
-            "task_complexity": 0.5,
-            "queue_length": 0,
-            "processing_time_avg": 100
-        }
+        defaults = {"task_complexity": 0.5, "queue_length": 0, "processing_time_avg": 100}
 
         # Adicionar defaults
         for key, value in defaults.items():
@@ -71,7 +68,7 @@ class TestLoadPredictorInference:
             "predicted_load": 0.75,
             "confidence": 0.85,
             "model_version": "v1.2.0",
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         assert 0 <= prediction["predicted_load"] <= 1
@@ -86,15 +83,18 @@ class TestLoadPredictorInference:
             "task_complexity": 0.9,
             "resource_availability": 0.1,
             "queue_length": 150,
-            "processing_time_avg": 500
+            "processing_time_avg": 500,
         }
 
         # Alta carga deve resultar em predição alta
-        predicted_load = min(0.99, (
-            features["current_load"] * 0.5 +
-            features["task_complexity"] * 0.3 +
-            (1 - features["resource_availability"]) * 0.2
-        ))
+        predicted_load = min(
+            0.99,
+            (
+                features["current_load"] * 0.5
+                + features["task_complexity"] * 0.3
+                + (1 - features["resource_availability"]) * 0.2
+            ),
+        )
 
         assert predicted_load > 0.8
 
@@ -102,6 +102,7 @@ class TestLoadPredictorInference:
 # =============================================================================
 # Test: Scheduling Predictor Inference
 # =============================================================================
+
 
 class TestSchedulingPredictorInference:
     """Testes de inferência do SchedulingPredictor."""
@@ -115,7 +116,7 @@ class TestSchedulingPredictorInference:
             "day_of_week": datetime.now(timezone.utc).weekday(),
             "current_load": 0.4,
             "estimated_duration": 1800,  # 30 minutos
-            "priority": "high"
+            "priority": "high",
         }
 
         # Horário fora de pico (ex: madrugada) tem prioridade
@@ -140,7 +141,7 @@ class TestSchedulingPredictorInference:
             "current_time": datetime.now(timezone.utc),
             "sla_deadline": sla_deadline,
             "estimated_duration": estimated_duration.total_seconds(),
-            "buffer_ratio": 0.8  # Usar 80% do tempo disponível
+            "buffer_ratio": 0.8,  # Usar 80% do tempo disponível
         }
 
         time_until_deadline = (sla_deadline - features["current_time"]).total_seconds()
@@ -155,7 +156,7 @@ class TestSchedulingPredictorInference:
             {"duration": 600, "priority": "high"},
             {"duration": 1200, "priority": "medium"},
             {"duration": 300, "priority": "high"},
-            {"duration": 900, "priority": "low"}
+            {"duration": 900, "priority": "low"},
         ]
 
         # Ordenar por prioridade e duração
@@ -170,24 +171,20 @@ class TestSchedulingPredictorInference:
 # Test: Drift Detection Inference
 # =============================================================================
 
+
 class TestDriftDetectionInference:
     """Testes de detecção de drift em modelos."""
 
     @pytest.mark.asyncio
     async def test_detect_data_drift(self):
         """Deve detectar drift nos dados de entrada."""
-        baseline_stats = {
-            "mean": 0.5,
-            "std": 0.1,
-            "min": 0.2,
-            "max": 0.8
-        }
+        baseline_stats = {"mean": 0.5, "std": 0.1, "min": 0.2, "max": 0.8}
 
         current_stats = {
             "mean": 0.75,  # Mudou significativamente (25% de diferença)
             "std": 0.16,  # Mudou significativamente
             "min": 0.3,
-            "max": 0.95
+            "max": 0.95,
         }
 
         # Calcular diferença
@@ -202,15 +199,9 @@ class TestDriftDetectionInference:
     @pytest.mark.asyncio
     async def test_no_drift_with_stable_data(self):
         """Não deve detectar drift com dados estáveis."""
-        baseline_stats = {
-            "mean": 0.5,
-            "std": 0.1
-        }
+        baseline_stats = {"mean": 0.5, "std": 0.1}
 
-        current_stats = {
-            "mean": 0.52,  # Pequena variação
-            "std": 0.11
-        }
+        current_stats = {"mean": 0.52, "std": 0.11}  # Pequena variação
 
         mean_diff = abs(current_stats["mean"] - baseline_stats["mean"])
 
@@ -223,7 +214,7 @@ class TestDriftDetectionInference:
         """Deve calcular score de drift."""
         distributions = {
             "baseline": [0.1, 0.2, 0.3, 0.2, 0.1, 0.05, 0.05],
-            "current": [0.05, 0.15, 0.35, 0.25, 0.1, 0.05, 0.05]
+            "current": [0.05, 0.15, 0.35, 0.25, 0.1, 0.05, 0.05],
         }
 
         # Simular cálculo de distância (ex: Hellinger distance)
@@ -242,6 +233,7 @@ class TestDriftDetectionInference:
 # Test: Anomaly Detection Inference
 # =============================================================================
 
+
 class TestAnomalyDetectionInference:
     """Testes de detecção de anomalias."""
 
@@ -253,7 +245,7 @@ class TestAnomalyDetectionInference:
             "latency_p95": 100,
             "latency_p99": 200,
             "error_rate": 0.01,
-            "throughput": 1000
+            "throughput": 1000,
         }
 
         current_metrics = {
@@ -261,7 +253,7 @@ class TestAnomalyDetectionInference:
             "latency_p95": 250,  # Anômalamente alto
             "latency_p99": 500,  # Anômalamente alto
             "error_rate": 0.08,  # Anômalamente alto
-            "throughput": 800
+            "throughput": 800,
         }
 
         # Detectar anomalias (> 2x baseline)
@@ -279,41 +271,31 @@ class TestAnomalyDetectionInference:
     @pytest.mark.asyncio
     async def test_anomaly_score_calculation(self):
         """Deve calcular score de anomalia."""
-        deviations = {
-            "latency": 2.5,  # 2.5x desvio padrão
-            "error_rate": 1.8,
-            "throughput": 0.9
-        }
+        deviations = {"latency": 2.5, "error_rate": 1.8, "throughput": 0.9}  # 2.5x desvio padrão
 
         # Score = média ponderada de desvios
         weights = {"latency": 0.4, "error_rate": 0.4, "throughput": 0.2}
-        anomaly_score = sum(
-            deviations.get(k, 0) * w
-            for k, w in weights.items()
-        ) / sum(weights.values())
+        anomaly_score = sum(deviations.get(k, 0) * w for k, w in weights.items()) / sum(
+            weights.values()
+        )
 
         assert anomaly_score > 1.5  # Alta anomalia
 
     @pytest.mark.asyncio
     async def test_no_anomaly_with_normal_metrics(self):
         """Não deve detectar anomalia com métricas normais."""
-        baseline_metrics = {
-            "latency_p95": 100,
-            "error_rate": 0.01,
-            "throughput": 1000
-        }
+        baseline_metrics = {"latency_p95": 100, "error_rate": 0.01, "throughput": 1000}
 
         current_metrics = {
             "latency_p95": 105,  # 5% acima
             "error_rate": 0.012,  # 20% acima
-            "throughput": 950  # 5% abaixo
+            "throughput": 950,  # 5% abaixo
         }
 
         # Calcular razão de variação
         threshold = 1.3  # 30% variação permitida
         has_anomaly = any(
-            current_metrics[k] / baseline_metrics[k] > threshold
-            for k in current_metrics
+            current_metrics[k] / baseline_metrics[k] > threshold for k in current_metrics
         )
 
         assert has_anomaly is False
@@ -322,6 +304,7 @@ class TestAnomalyDetectionInference:
 # =============================================================================
 # Test: Feature Engineering
 # =============================================================================
+
 
 class TestFeatureEngineering:
     """Testes de engenharia de features."""
@@ -337,7 +320,7 @@ class TestFeatureEngineering:
             "day_of_month": timestamp.day,
             "month": timestamp.month,
             "is_weekend": timestamp.weekday() >= 5,
-            "is_business_hours": 9 <= timestamp.hour < 18
+            "is_business_hours": 9 <= timestamp.hour < 18,
         }
 
         assert features["hour"] == 14
@@ -348,17 +331,9 @@ class TestFeatureEngineering:
     @pytest.mark.asyncio
     async def test_normalize_features(self):
         """Deve normalizar features para escala 0-1."""
-        raw_features = {
-            "load": 85,  # 0-100
-            "latency": 250,  # 0-500ms
-            "queue_length": 50  # 0-200
-        }
+        raw_features = {"load": 85, "latency": 250, "queue_length": 50}  # 0-100  # 0-500ms  # 0-200
 
-        feature_ranges = {
-            "load": (0, 100),
-            "latency": (0, 500),
-            "queue_length": (0, 200)
-        }
+        feature_ranges = {"load": (0, 100), "latency": (0, 500), "queue_length": (0, 200)}
 
         normalized = {}
         for key, value in raw_features.items():
@@ -373,18 +348,11 @@ class TestFeatureEngineering:
     async def test_encode_categorical_features(self):
         """Deve codificar features categóricas."""
         categories = ["priority", "task_type", "resource_type"]
-        values = {
-            "priority": "high",
-            "task_type": "query",
-            "resource_type": "gpu"
-        }
+        values = {"priority": "high", "task_type": "query", "resource_type": "gpu"}
 
         # One-hot encoding
         priority_values = ["low", "medium", "high"]
-        encoded = {
-            f"priority_{v}": 1 if values["priority"] == v else 0
-            for v in priority_values
-        }
+        encoded = {f"priority_{v}": 1 if values["priority"] == v else 0 for v in priority_values}
 
         assert encoded["priority_high"] == 1
         assert encoded["priority_medium"] == 0
@@ -395,6 +363,7 @@ class TestFeatureEngineering:
 # Test: Model Version Management
 # =============================================================================
 
+
 class TestModelVersionManagement:
     """Testes de gerenciamento de versão de modelos."""
 
@@ -404,7 +373,7 @@ class TestModelVersionManagement:
         available_models = [
             {"version": "v1.0.0", "accuracy": 0.85, "created_at": "2026-01-01"},
             {"version": "v1.1.0", "accuracy": 0.87, "created_at": "2026-02-01"},
-            {"version": "v1.2.0", "accuracy": 0.89, "created_at": "2026-03-01"}
+            {"version": "v1.2.0", "accuracy": 0.89, "created_at": "2026-03-01"},
         ]
 
         # Selecionar modelo mais recente com maior acurácia
@@ -435,11 +404,12 @@ class TestModelVersionManagement:
         """Deve suportar A/B testing de modelos."""
         models = {
             "model_a": {"version": "v1.2.0", "traffic_split": 0.8},
-            "model_b": {"version": "v1.3.0-beta", "traffic_split": 0.2}
+            "model_b": {"version": "v1.3.0-beta", "traffic_split": 0.2},
         }
 
         # Simular seleção baseada em split
         import random
+
         random.seed(42)  # Para testabilidade
         selector = random.random()
 
@@ -454,6 +424,7 @@ class TestModelVersionManagement:
 # =============================================================================
 # Test: Prediction Cache
 # =============================================================================
+
 
 class TestPredictionCache:
     """Testes de cache de predições."""
@@ -483,13 +454,10 @@ class TestPredictionCache:
 
         old_entry = {
             "prediction": 0.75,
-            "cached_at": datetime.now(timezone.utc) - timedelta(seconds=400)
+            "cached_at": datetime.now(timezone.utc) - timedelta(seconds=400),
         }
 
-        new_entry = {
-            "prediction": 0.80,
-            "cached_at": datetime.now(timezone.utc)
-        }
+        new_entry = {"prediction": 0.80, "cached_at": datetime.now(timezone.utc)}
 
         cache["old_key"] = old_entry
         cache["new_key"] = new_entry
@@ -497,8 +465,7 @@ class TestPredictionCache:
         # Remover entradas expiradas
         now = datetime.now(timezone.utc)
         expired_keys = [
-            k for k, v in cache.items()
-            if (now - v["cached_at"]).total_seconds() > ttl_seconds
+            k for k, v in cache.items() if (now - v["cached_at"]).total_seconds() > ttl_seconds
         ]
 
         for k in expired_keys:
@@ -512,15 +479,14 @@ class TestPredictionCache:
         """Deve invalidar cache ao atualizar modelo."""
         cache = {
             "key1": {"prediction": 0.75, "model_version": "v1.0"},
-            "key2": {"prediction": 0.80, "model_version": "v1.0"}
+            "key2": {"prediction": 0.80, "model_version": "v1.0"},
         }
 
         new_model_version = "v1.1"
 
         # Invalidar todas as entradas da versão antiga
         keys_to_invalidate = [
-            k for k, v in cache.items()
-            if v["model_version"] != new_model_version
+            k for k, v in cache.items() if v["model_version"] != new_model_version
         ]
 
         for k in keys_to_invalidate:

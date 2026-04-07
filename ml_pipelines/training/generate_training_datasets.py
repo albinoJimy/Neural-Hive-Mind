@@ -37,6 +37,7 @@ try:
     import avro.schema
     import avro.io
     import io as iolib
+
     AVRO_AVAILABLE = True
 except ImportError:
     AVRO_AVAILABLE = False
@@ -56,12 +57,13 @@ try:
         DescriptionQualityValidator,
         get_validator,
     )
+
     _SHARED_VALIDATOR_AVAILABLE = True
 except ImportError:
     _SHARED_VALIDATOR_AVAILABLE = False
     logger.warning(
         "shared_validator_not_available",
-        reason="neural_hive_specialists.validation not found, using inline fallback"
+        reason="neural_hive_specialists.validation not found, using inline fallback",
     )
 
 # Importar schema de features centralizado
@@ -71,6 +73,7 @@ from feature_store.feature_definitions import get_feature_names, get_feature_sch
 
 # Fallback: definir classe localmente se o módulo compartilhado não estiver disponível
 if not _SHARED_VALIDATOR_AVAILABLE:
+
     class DescriptionQualityValidator:
         """
         Fallback: Validador de qualidade de descrições de tarefas para dados de treinamento.
@@ -81,69 +84,219 @@ if not _SHARED_VALIDATOR_AVAILABLE:
         # Keywords expandidas com sinônimos para melhor matching
         # Isso aumenta a taxa de aceitação de descrições geradas por LLM
         DOMAIN_KEYWORDS: Dict[str, List[str]] = {
-            'security-analysis': [
+            "security-analysis": [
                 # Keywords originais
-                'auth', 'security', 'validate', 'encrypt', 'audit', 'permission',
-                'credential', 'token', 'sanitize', 'injection', 'access', 'role',
+                "auth",
+                "security",
+                "validate",
+                "encrypt",
+                "audit",
+                "permission",
+                "credential",
+                "token",
+                "sanitize",
+                "injection",
+                "access",
+                "role",
                 # Sinônimos e termos relacionados adicionados
-                'authentication', 'authorization', 'password', 'oauth', 'jwt',
-                'ssl', 'tls', 'https', 'certificate', 'vulnerability', 'threat',
-                'protect', 'secure', 'firewall', 'xss', 'csrf', 'sql', 'hash',
-                'cipher', 'decrypt', 'key', 'secret', 'private', 'public'
+                "authentication",
+                "authorization",
+                "password",
+                "oauth",
+                "jwt",
+                "ssl",
+                "tls",
+                "https",
+                "certificate",
+                "vulnerability",
+                "threat",
+                "protect",
+                "secure",
+                "firewall",
+                "xss",
+                "csrf",
+                "sql",
+                "hash",
+                "cipher",
+                "decrypt",
+                "key",
+                "secret",
+                "private",
+                "public",
             ],
-            'architecture-review': [
+            "architecture-review": [
                 # Keywords originais
-                'service', 'interface', 'pattern', 'design', 'module', 'component',
-                'api', 'integration', 'layer', 'dependency', 'contract', 'schema',
+                "service",
+                "interface",
+                "pattern",
+                "design",
+                "module",
+                "component",
+                "api",
+                "integration",
+                "layer",
+                "dependency",
+                "contract",
+                "schema",
                 # Sinônimos e termos relacionados adicionados
-                'microservice', 'monolith', 'architecture', 'structure', 'system',
-                'class', 'function', 'method', 'endpoint', 'rest', 'grpc', 'graphql',
-                'database', 'queue', 'message', 'event', 'handler', 'controller',
-                'repository', 'factory', 'singleton', 'adapter', 'facade', 'proxy'
+                "microservice",
+                "monolith",
+                "architecture",
+                "structure",
+                "system",
+                "class",
+                "function",
+                "method",
+                "endpoint",
+                "rest",
+                "grpc",
+                "graphql",
+                "database",
+                "queue",
+                "message",
+                "event",
+                "handler",
+                "controller",
+                "repository",
+                "factory",
+                "singleton",
+                "adapter",
+                "facade",
+                "proxy",
             ],
-            'performance-optimization': [
+            "performance-optimization": [
                 # Keywords originais
-                'cache', 'index', 'optimize', 'parallel', 'async', 'batch',
-                'latency', 'throughput', 'memory', 'pool', 'query', 'buffer',
+                "cache",
+                "index",
+                "optimize",
+                "parallel",
+                "async",
+                "batch",
+                "latency",
+                "throughput",
+                "memory",
+                "pool",
+                "query",
+                "buffer",
                 # Sinônimos e termos relacionados adicionados
-                'performance', 'speed', 'fast', 'slow', 'bottleneck', 'profil',
-                'benchmark', 'scale', 'concurrent', 'thread', 'process', 'cpu',
-                'disk', 'network', 'io', 'response', 'time', 'load', 'stress',
-                'efficient', 'resource', 'consumption', 'allocation', 'garbage'
+                "performance",
+                "speed",
+                "fast",
+                "slow",
+                "bottleneck",
+                "profil",
+                "benchmark",
+                "scale",
+                "concurrent",
+                "thread",
+                "process",
+                "cpu",
+                "disk",
+                "network",
+                "io",
+                "response",
+                "time",
+                "load",
+                "stress",
+                "efficient",
+                "resource",
+                "consumption",
+                "allocation",
+                "garbage",
             ],
-            'code-quality': [
+            "code-quality": [
                 # Keywords originais
-                'test', 'error', 'log', 'document', 'refactor', 'lint',
-                'coverage', 'exception', 'debug', 'trace', 'monitor', 'metric',
+                "test",
+                "error",
+                "log",
+                "document",
+                "refactor",
+                "lint",
+                "coverage",
+                "exception",
+                "debug",
+                "trace",
+                "monitor",
+                "metric",
                 # Sinônimos e termos relacionados adicionados
-                'quality', 'clean', 'readable', 'maintain', 'review', 'comment',
-                'unit', 'integration', 'e2e', 'mock', 'stub', 'assert', 'verify',
-                'sonar', 'eslint', 'pylint', 'format', 'style', 'convention',
-                'typing', 'type', 'annotation', 'docstring', 'readme', 'spec'
+                "quality",
+                "clean",
+                "readable",
+                "maintain",
+                "review",
+                "comment",
+                "unit",
+                "integration",
+                "e2e",
+                "mock",
+                "stub",
+                "assert",
+                "verify",
+                "sonar",
+                "eslint",
+                "pylint",
+                "format",
+                "style",
+                "convention",
+                "typing",
+                "type",
+                "annotation",
+                "docstring",
+                "readme",
+                "spec",
             ],
-            'business-logic': [
+            "business-logic": [
                 # Keywords originais
-                'workflow', 'kpi', 'cost', 'efficiency', 'process', 'metric',
-                'rule', 'policy', 'compliance', 'approval', 'transaction', 'pipeline',
+                "workflow",
+                "kpi",
+                "cost",
+                "efficiency",
+                "process",
+                "metric",
+                "rule",
+                "policy",
+                "compliance",
+                "approval",
+                "transaction",
+                "pipeline",
                 # Sinônimos e termos relacionados adicionados
-                'business', 'logic', 'domain', 'entity', 'value', 'aggregate',
-                'event', 'command', 'handler', 'saga', 'state', 'machine',
-                'validation', 'constraint', 'requirement', 'specification', 'use case',
-                'customer', 'order', 'payment', 'invoice', 'product', 'inventory'
-            ]
+                "business",
+                "logic",
+                "domain",
+                "entity",
+                "value",
+                "aggregate",
+                "event",
+                "command",
+                "handler",
+                "saga",
+                "state",
+                "machine",
+                "validation",
+                "constraint",
+                "requirement",
+                "specification",
+                "use case",
+                "customer",
+                "order",
+                "payment",
+                "invoice",
+                "product",
+                "inventory",
+            ],
         }
 
         SECURITY_KEYWORDS: Dict[str, List[str]] = {
-            'confidential': ['encrypt', 'auth', 'audit', 'permission', 'sanitize', 'secure'],
-            'restricted': ['encrypt', 'auth', 'audit', 'permission', 'sanitize', 'secure'],
-            'internal': ['validate', 'verify', 'check', 'access'],
-            'public': []
+            "confidential": ["encrypt", "auth", "audit", "permission", "sanitize", "secure"],
+            "restricted": ["encrypt", "auth", "audit", "permission", "sanitize", "secure"],
+            "internal": ["validate", "verify", "check", "access"],
+            "public": [],
         }
 
         QOS_KEYWORDS: Dict[str, List[str]] = {
-            'exactly_once': ['idempotent', 'transaction', 'rollback', 'dedup', 'deduplication'],
-            'at_least_once': ['retry', 'acknowledge', 'redelivery'],
-            'at_most_once': ['fire-and-forget', 'best-effort'],
+            "exactly_once": ["idempotent", "transaction", "rollback", "dedup", "deduplication"],
+            "at_least_once": ["retry", "acknowledge", "redelivery"],
+            "at_most_once": ["fire-and-forget", "best-effort"],
         }
 
         MIN_WORDS = 15
@@ -154,7 +307,7 @@ if not _SHARED_VALIDATOR_AVAILABLE:
             description: str,
             domain: str,
             security_level: Optional[str] = None,
-            qos: Optional[str] = None
+            qos: Optional[str] = None,
         ) -> Dict:
             """Valida qualidade de uma descrição de tarefa."""
             issues: List[str] = []
@@ -174,9 +327,32 @@ if not _SHARED_VALIDATOR_AVAILABLE:
 
             # Score de diversidade léxica
             if word_count > 0:
-                stopwords = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for',
-                            'of', 'with', 'by', 'from', 'is', 'are', 'was', 'were', 'be', 'been'}
-                meaningful_words = [w.lower() for w in words if w.lower() not in stopwords and len(w) > 2]
+                stopwords = {
+                    "the",
+                    "a",
+                    "an",
+                    "and",
+                    "or",
+                    "but",
+                    "in",
+                    "on",
+                    "at",
+                    "to",
+                    "for",
+                    "of",
+                    "with",
+                    "by",
+                    "from",
+                    "is",
+                    "are",
+                    "was",
+                    "were",
+                    "be",
+                    "been",
+                }
+                meaningful_words = [
+                    w.lower() for w in words if w.lower() not in stopwords and len(w) > 2
+                ]
                 if meaningful_words:
                     unique_ratio = len(set(meaningful_words)) / len(meaningful_words)
                     diversity_score = min(1.0, unique_ratio / 0.7)
@@ -203,7 +379,7 @@ if not _SHARED_VALIDATOR_AVAILABLE:
 
             # Score de segurança
             security_score = 1.0
-            if security_level in ['confidential', 'restricted']:
+            if security_level in ["confidential", "restricted"]:
                 sec_kws = self.SECURITY_KEYWORDS.get(security_level, [])
                 found_security = sum(1 for kw in sec_kws if kw in description_lower)
                 if found_security >= 2:
@@ -229,60 +405,65 @@ if not _SHARED_VALIDATOR_AVAILABLE:
             # Reduzido peso de domain_score (era 30%, agora 20%) pois era o maior causador de rejeições
             # Aumentado peso de length_score e diversity_score que são mais confiáveis
             overall_score = (
-                0.30 * length_score +     # Aumentado de 0.25 (comprimento é fácil de atingir)
-                0.25 * diversity_score +  # Aumentado de 0.20 (diversidade léxica)
-                0.20 * domain_score +     # Reduzido de 0.30 (keywords de domínio - era muito restritivo)
-                0.15 * security_score +   # Mantido
-                0.10 * qos_score          # Mantido
+                0.30 * length_score
+                + 0.25 * diversity_score  # Aumentado de 0.25 (comprimento é fácil de atingir)
+                + 0.20 * domain_score  # Aumentado de 0.20 (diversidade léxica)
+                + 0.15  # Reduzido de 0.30 (keywords de domínio - era muito restritivo)
+                * security_score
+                + 0.10 * qos_score  # Mantido  # Mantido
             )
 
             return {
-                'score': round(overall_score, 3),
-                'issues': issues,
-                'suggestions': [],
-                'metrics': {
-                    'length_score': round(length_score, 3),
-                    'diversity_score': round(diversity_score, 3),
-                    'domain_score': round(domain_score, 3),
-                    'security_score': round(security_score, 3),
-                    'qos_score': round(qos_score, 3),
-                    'word_count': word_count,
-                    'domain_keywords_found': keyword_count
-                }
+                "score": round(overall_score, 3),
+                "issues": issues,
+                "suggestions": [],
+                "metrics": {
+                    "length_score": round(length_score, 3),
+                    "diversity_score": round(diversity_score, 3),
+                    "domain_score": round(domain_score, 3),
+                    "security_score": round(security_score, 3),
+                    "qos_score": round(qos_score, 3),
+                    "word_count": word_count,
+                    "domain_keywords_found": keyword_count,
+                },
             }
 
         def validate_plan_descriptions(
             self,
             cognitive_plan: Dict[str, Any],
-            min_quality_score: float = 0.5  # Reduzido de 0.6 para 0.5 para maior taxa de aceitação
+            min_quality_score: float = 0.5,  # Reduzido de 0.6 para 0.5 para maior taxa de aceitação
         ) -> Dict:
             """Valida qualidade de todas as descrições em um cognitive plan."""
-            tasks = cognitive_plan.get('tasks', [])
-            domain = cognitive_plan.get('original_domain', 'code-quality')
-            security_level = cognitive_plan.get('original_security_level', 'internal')
-            qos = cognitive_plan.get('qos')
+            tasks = cognitive_plan.get("tasks", [])
+            domain = cognitive_plan.get("original_domain", "code-quality")
+            security_level = cognitive_plan.get("original_security_level", "internal")
+            qos = cognitive_plan.get("qos")
 
             task_scores = []
             all_issues = []
             low_quality_tasks = []
 
             for task in tasks:
-                description = task.get('description', '')
+                description = task.get("description", "")
                 result = self.validate_description(description, domain, security_level, qos)
-                task_scores.append(result['score'])
+                task_scores.append(result["score"])
 
-                if result['issues']:
-                    all_issues.extend([f"Task {task.get('task_id')}: {issue}" for issue in result['issues']])
+                if result["issues"]:
+                    all_issues.extend(
+                        [f"Task {task.get('task_id')}: {issue}" for issue in result["issues"]]
+                    )
 
                 # Usar threshold mais baixo para tarefas individuais (0.4 ao invés de min_quality_score)
                 # Isso permite que algumas tarefas tenham score menor desde que a média seja boa
                 individual_threshold = min(min_quality_score - 0.1, 0.4)
-                if result['score'] < individual_threshold:
-                    low_quality_tasks.append({
-                        'task_id': task.get('task_id'),
-                        'description': description[:100],
-                        'score': result['score']
-                    })
+                if result["score"] < individual_threshold:
+                    low_quality_tasks.append(
+                        {
+                            "task_id": task.get("task_id"),
+                            "description": description[:100],
+                            "score": result["score"],
+                        }
+                    )
 
             avg_score = sum(task_scores) / len(task_scores) if task_scores else 0.0
             # Validação mais flexível: aceita se média é boa OU se não tem tarefas muito ruins
@@ -291,11 +472,11 @@ if not _SHARED_VALIDATOR_AVAILABLE:
             is_valid = avg_score >= min_quality_score
 
             return {
-                'is_valid': is_valid,
-                'avg_score': round(avg_score, 3),
-                'task_scores': task_scores,
-                'issues': all_issues,
-                'low_quality_tasks': low_quality_tasks
+                "is_valid": is_valid,
+                "avg_score": round(avg_score, 3),
+                "task_scores": task_scores,
+                "issues": all_issues,
+                "low_quality_tasks": low_quality_tasks,
             }
 
 
@@ -335,9 +516,7 @@ class DatasetGenerator:
 
         # Carregar templates de prompts
         self.cognitive_plan_template = self._load_template("cognitive_plan_template.txt")
-        self.specialist_template = self._load_template(
-            f"specialist_{specialist_type}_template.txt"
-        )
+        self.specialist_template = self._load_template(f"specialist_{specialist_type}_template.txt")
 
         # Inicializar validador de qualidade de descrições
         self.description_validator = DescriptionQualityValidator()
@@ -350,7 +529,12 @@ class DatasetGenerator:
             "validation_errors": 0,
             "description_quality_rejections": 0,
             "description_quality_scores": [],
-            "label_distribution": {"approve": 0, "reject": 0, "review_required": 0, "conditional": 0},
+            "label_distribution": {
+                "approve": 0,
+                "reject": 0,
+                "review_required": 0,
+                "conditional": 0,
+            },
         }
 
     def _load_template(self, filename: str) -> str:
@@ -372,19 +556,25 @@ class DatasetGenerator:
                 self.cognitive_plan_schema = avro.schema.parse(f.read())
 
             # Carregar schema de specialist opinion
-            specialist_opinion_schema_path = schemas_dir / "specialist-opinion" / "specialist-opinion.avsc"
+            specialist_opinion_schema_path = (
+                schemas_dir / "specialist-opinion" / "specialist-opinion.avsc"
+            )
             with open(specialist_opinion_schema_path, "r", encoding="utf-8") as f:
                 self.specialist_opinion_schema = avro.schema.parse(f.read())
 
-            logger.info("avro_schemas_loaded",
-                       cognitive_plan_schema=str(cognitive_plan_schema_path),
-                       specialist_opinion_schema=str(specialist_opinion_schema_path))
+            logger.info(
+                "avro_schemas_loaded",
+                cognitive_plan_schema=str(cognitive_plan_schema_path),
+                specialist_opinion_schema=str(specialist_opinion_schema_path),
+            )
 
         except Exception as e:
             logger.error("failed_to_load_avro_schemas", error=str(e))
             self.validate_schemas = False
 
-    def _validate_against_avro_schema(self, data: Dict[str, Any], schema: avro.schema.Schema, schema_name: str) -> bool:
+    def _validate_against_avro_schema(
+        self, data: Dict[str, Any], schema: avro.schema.Schema, schema_name: str
+    ) -> bool:
         """
         Valida dados contra schema Avro.
 
@@ -414,7 +604,7 @@ class DatasetGenerator:
                 f"{schema_name}_validation_failed",
                 error=str(e),
                 error_type=type(e).__name__,
-                data_keys=list(data.keys())
+                data_keys=list(data.keys()),
             )
             self.stats["validation_errors"] += 1
             return False
@@ -463,14 +653,17 @@ class DatasetGenerator:
             plan_json["original_domain"] = domain
 
             # Validar contra schema Avro
-            if not self._validate_against_avro_schema(plan_json, self.cognitive_plan_schema, "cognitive_plan"):
-                logger.warning("cognitive_plan_failed_avro_validation", plan_id=plan_json.get("plan_id"))
+            if not self._validate_against_avro_schema(
+                plan_json, self.cognitive_plan_schema, "cognitive_plan"
+            ):
+                logger.warning(
+                    "cognitive_plan_failed_avro_validation", plan_id=plan_json.get("plan_id")
+                )
                 return None
 
             # Validar qualidade das descrições de tarefas
             quality_result = self.description_validator.validate_plan_descriptions(
-                cognitive_plan=plan_json,
-                min_quality_score=self.min_quality_score
+                cognitive_plan=plan_json, min_quality_score=self.min_quality_score
             )
 
             # Registrar score médio de qualidade
@@ -482,7 +675,7 @@ class DatasetGenerator:
                     plan_id=plan_json.get("plan_id"),
                     avg_score=quality_result["avg_score"],
                     low_quality_tasks=quality_result["low_quality_tasks"],
-                    issues=quality_result["issues"][:5]  # Limitar logs
+                    issues=quality_result["issues"][:5],  # Limitar logs
                 )
                 self.stats["description_quality_rejections"] += 1
                 return None
@@ -490,7 +683,7 @@ class DatasetGenerator:
             logger.debug(
                 "cognitive_plan_description_quality_passed",
                 plan_id=plan_json.get("plan_id"),
-                avg_score=quality_result["avg_score"]
+                avg_score=quality_result["avg_score"],
             )
 
             return plan_json
@@ -537,10 +730,14 @@ class DatasetGenerator:
                 opinion_json["evaluated_at"] = int(datetime.now().timestamp() * 1000)
 
             # Validar contra schema Avro
-            if not self._validate_against_avro_schema(opinion_json, self.specialist_opinion_schema, "specialist_opinion"):
-                logger.warning("specialist_opinion_failed_avro_validation",
-                             opinion_id=opinion_json.get("opinion_id"),
-                             specialist_type=self.specialist_type)
+            if not self._validate_against_avro_schema(
+                opinion_json, self.specialist_opinion_schema, "specialist_opinion"
+            ):
+                logger.warning(
+                    "specialist_opinion_failed_avro_validation",
+                    opinion_id=opinion_json.get("opinion_id"),
+                    specialist_type=self.specialist_type,
+                )
                 return None
 
             return opinion_json
@@ -572,7 +769,7 @@ class DatasetGenerator:
 
             # Usar FeatureExtractor para extrair features estruturadas
             features_structured = self.feature_extractor.extract_features(cognitive_plan)
-            features_extracted = features_structured['aggregated_features']
+            features_extracted = features_structured["aggregated_features"]
 
             # Criar dict com schema consistente (padding com 0.0 para features ausentes)
             features = {name: 0.0 for name in expected_feature_names}
@@ -585,62 +782,62 @@ class DatasetGenerator:
                     logger.warning(
                         "unexpected_feature_extracted",
                         feature_name=key,
-                        plan_id=cognitive_plan.get('plan_id')
+                        plan_id=cognitive_plan.get("plan_id"),
                     )
 
             # === PASSO 5.2: Enhanced Feature Engineering ===
 
             # Feature Engineering 1: Task Complexity Features
-            tasks = cognitive_plan.get('tasks', [])
+            tasks = cognitive_plan.get("tasks", [])
             if tasks:
                 # Calculate task depth (longest dependency chain)
                 task_depth = self._calculate_task_depth(tasks)
-                features['task_depth_max'] = float(task_depth)
+                features["task_depth_max"] = float(task_depth)
 
                 # Calculate branching factor (avg number of dependents)
                 branching = self._calculate_branching_factor(tasks)
-                features['branching_factor_avg'] = float(branching)
+                features["branching_factor_avg"] = float(branching)
 
                 # Calculate critical path length
                 critical_path = self._calculate_critical_path(tasks)
-                features['critical_path_length'] = float(critical_path)
+                features["critical_path_length"] = float(critical_path)
 
             # Feature Engineering 2: Dependency Features
-            features['has_cyclic_dependencies'] = float(
+            features["has_cyclic_dependencies"] = float(
                 1.0 if self._has_cyclic_dependencies(tasks) else 0.0
             )
-            features['weak_dependency_ratio'] = float(
-                self._calculate_weak_dependency_ratio(tasks)
-            )
+            features["weak_dependency_ratio"] = float(self._calculate_weak_dependency_ratio(tasks))
 
             # Feature Engineering 3: Temporal Features
             if tasks:
-                durations = [t.get('estimated_duration', 0) for t in tasks if t.get('estimated_duration')]
+                durations = [
+                    t.get("estimated_duration", 0) for t in tasks if t.get("estimated_duration")
+                ]
                 if durations:
-                    features['duration_variance'] = float(np.var(durations) / 1000)  # Normalize to ms
-                    features['duration_coefficient_of_variation'] = float(
+                    features["duration_variance"] = float(
+                        np.var(durations) / 1000
+                    )  # Normalize to ms
+                    features["duration_coefficient_of_variation"] = float(
                         np.std(durations) / np.mean(durations) if np.mean(durations) > 0 else 0.0
                     )
 
                 # Parallelization potential (ratio of independent tasks)
-                features['parallelization_potential'] = float(
+                features["parallelization_potential"] = float(
                     self._calculate_parallelization_potential(tasks)
                 )
 
             # Feature Engineering 4: Resource/Capability Features
-            features['capability_diversity'] = float(
-                self._calculate_capability_diversity(tasks)
-            )
-            features['workload_distribution_score'] = float(
+            features["capability_diversity"] = float(self._calculate_capability_diversity(tasks))
+            features["workload_distribution_score"] = float(
                 self._calculate_workload_distribution(tasks)
             )
 
             # Feature Engineering 5: Risk-Adjusted Features
-            risk_score = cognitive_plan.get('risk_score', 0.5)
-            complexity_score = cognitive_plan.get('complexity_score', 0.5)
-            features['risk_complexity_product'] = float(risk_score * complexity_score)
-            features['risk_adjusted_duration_estimate'] = float(
-                cognitive_plan.get('estimated_duration', 0) * (1 + risk_score)
+            risk_score = cognitive_plan.get("risk_score", 0.5)
+            complexity_score = cognitive_plan.get("complexity_score", 0.5)
+            features["risk_complexity_product"] = float(risk_score * complexity_score)
+            features["risk_adjusted_duration_estimate"] = float(
+                cognitive_plan.get("estimated_duration", 0) * (1 + risk_score)
             )
 
             # Validar que temos features suficientes
@@ -650,7 +847,7 @@ class DatasetGenerator:
                     "insufficient_features_populated",
                     num_populated=num_populated,
                     expected=len(expected_feature_names),
-                    plan_id=cognitive_plan.get('plan_id')
+                    plan_id=cognitive_plan.get("plan_id"),
                 )
 
             return features
@@ -665,7 +862,7 @@ class DatasetGenerator:
             return 0
 
         # Build adjacency list for dependencies
-        task_map = {t['task_id']: t for t in tasks if 'task_id' in t}
+        task_map = {t["task_id"]: t for t in tasks if "task_id" in t}
         depth_map = {tid: 0 for tid in task_map}
 
         # Calculate depth using DFS
@@ -674,7 +871,7 @@ class DatasetGenerator:
                 return depth_map[task_id]
 
             task = task_map.get(task_id, {})
-            deps = task.get('depends_on', [])
+            deps = task.get("depends_on", [])
             if not deps:
                 depth_map[task_id] = 1
                 return 1
@@ -697,12 +894,12 @@ class DatasetGenerator:
         # Count dependents for each task
         dependent_counts = {}
         for task in tasks:
-            task_id = task.get('task_id')
+            task_id = task.get("task_id")
             if task_id:
                 dependent_counts[task_id] = 0
 
         for task in tasks:
-            for dep_id in task.get('depends_on', []):
+            for dep_id in task.get("depends_on", []):
                 if dep_id in dependent_counts:
                     dependent_counts[dep_id] += 1
 
@@ -716,12 +913,12 @@ class DatasetGenerator:
         if not tasks:
             return 0
 
-        task_map = {t['task_id']: t for t in tasks if 'task_id' in t}
+        task_map = {t["task_id"]: t for t in tasks if "task_id" in t}
 
         def longest_path(task_id):
             task = task_map.get(task_id, {})
-            duration = task.get('estimated_duration', 0)
-            deps = task.get('depends_on', [])
+            duration = task.get("estimated_duration", 0)
+            deps = task.get("depends_on", [])
 
             if not deps:
                 return duration
@@ -756,13 +953,13 @@ class DatasetGenerator:
         weak_deps = 0
 
         for task in tasks:
-            deps = task.get('depends_on', [])
+            deps = task.get("depends_on", [])
             total_deps += len(deps)
 
             # Count "weak" dependencies (e.g., optional, suggested)
             for dep in deps:
                 if isinstance(dep, dict):
-                    if dep.get('type', 'strong') == 'weak':
+                    if dep.get("type", "strong") == "weak":
                         weak_deps += 1
 
         return weak_deps / total_deps if total_deps > 0 else 0.0
@@ -773,7 +970,7 @@ class DatasetGenerator:
             return 0.0
 
         # Tasks with no dependencies can run in parallel
-        independent_tasks = sum(1 for t in tasks if not t.get('depends_on'))
+        independent_tasks = sum(1 for t in tasks if not t.get("depends_on"))
         return independent_tasks / len(tasks) if tasks else 0.0
 
     def _calculate_capability_diversity(self, tasks: List[Dict]) -> float:
@@ -783,7 +980,7 @@ class DatasetGenerator:
 
         all_capabilities = set()
         for task in tasks:
-            caps = task.get('required_capabilities', [])
+            caps = task.get("required_capabilities", [])
             if isinstance(caps, list):
                 all_capabilities.update(caps)
 
@@ -795,7 +992,7 @@ class DatasetGenerator:
         if not tasks:
             return 0.0
 
-        durations = [t.get('estimated_duration', 0) for t in tasks]
+        durations = [t.get("estimated_duration", 0) for t in tasks]
         if not durations or sum(durations) == 0:
             return 0.0
 
@@ -842,7 +1039,7 @@ class DatasetGenerator:
             from neural_hive_specialists.feature_extraction.graph_analyzer import GraphAnalyzer
             import networkx as nx
 
-            tasks = cognitive_plan.get('tasks', [])
+            tasks = cognitive_plan.get("tasks", [])
             if not tasks:
                 return True
 
@@ -856,7 +1053,7 @@ class DatasetGenerator:
                 logger.warning(
                     "cognitive_plan_contains_cycles",
                     plan_id=cognitive_plan.get("plan_id"),
-                    num_tasks=len(tasks)
+                    num_tasks=len(tasks),
                 )
 
             return is_dag
@@ -899,7 +1096,7 @@ class DatasetGenerator:
                     "risk_correlation_invalid",
                     recommendation=recommendation,
                     opinion_risk=opinion_risk,
-                    reason="approve com risk extremamente alto"
+                    reason="approve com risk extremamente alto",
                 )
                 return False
 
@@ -910,7 +1107,7 @@ class DatasetGenerator:
                     "risk_correlation_invalid",
                     recommendation=recommendation,
                     opinion_risk=opinion_risk,
-                    reason="reject com risk extremamente baixo"
+                    reason="reject com risk extremamente baixo",
                 )
                 return False
 
@@ -921,7 +1118,7 @@ class DatasetGenerator:
                     "risk_scores_divergent",
                     plan_risk=plan_risk,
                     opinion_risk=opinion_risk,
-                    diff=risk_diff
+                    diff=risk_diff,
                 )
 
             return True
@@ -950,7 +1147,13 @@ class DatasetGenerator:
         samples = []
 
         # Definir variações de domínios e parâmetros para diversidade
-        domains = ["security-analysis", "architecture-review", "performance-optimization", "code-quality", "business-logic"]
+        domains = [
+            "security-analysis",
+            "architecture-review",
+            "performance-optimization",
+            "code-quality",
+            "business-logic",
+        ]
         complexities = ["low", "medium", "high"]
         risk_levels = ["low", "medium", "high", "critical"]
         priorities = ["low", "normal", "high", "critical"]
@@ -981,7 +1184,9 @@ class DatasetGenerator:
             domain = domains[i % len(domains)]
             complexity = complexities[(i // len(domains)) % len(complexities)]
             risk_level = risk_levels[(i // (len(domains) * len(complexities))) % len(risk_levels)]
-            priority = priorities[(i // (len(domains) * len(complexities) * len(risk_levels))) % len(priorities)]
+            priority = priorities[
+                (i // (len(domains) * len(complexities) * len(risk_levels))) % len(priorities)
+            ]
 
             # Gerar cognitive plan
             cognitive_plan = await self.generate_cognitive_plan(
@@ -1010,7 +1215,7 @@ class DatasetGenerator:
                 logger.warning(
                     "risk_correlation_failed",
                     plan_id=cognitive_plan.get("plan_id"),
-                    opinion_id=specialist_opinion.get("opinion_id")
+                    opinion_id=specialist_opinion.get("opinion_id"),
                 )
                 self.stats["failed"] += 1
                 continue
@@ -1053,7 +1258,8 @@ class DatasetGenerator:
             shortfall_pct = (shortfall / num_samples) * 100
             quality_rejection_rate = (
                 (self.stats["description_quality_rejections"] / attempts * 100)
-                if attempts > 0 else 0
+                if attempts > 0
+                else 0
             )
 
             logger.warning(
@@ -1069,7 +1275,7 @@ class DatasetGenerator:
                 quality_rejection_rate=round(quality_rejection_rate, 2),
                 min_quality_score=self.min_quality_score,
                 reason="max_attempts_reached_due_to_quality_rejections",
-                suggestion="Consider lowering --min-quality-score or improving LLM prompts for richer descriptions"
+                suggestion="Consider lowering --min-quality-score or improving LLM prompts for richer descriptions",
             )
 
             if strict_sample_count:
@@ -1093,7 +1299,10 @@ class DatasetGenerator:
             actual_distribution=label_counts,
             attempts=attempts,
             quality_rejection_rate=round(
-                (self.stats["description_quality_rejections"] / attempts * 100) if attempts > 0 else 0, 2
+                (self.stats["description_quality_rejections"] / attempts * 100)
+                if attempts > 0
+                else 0,
+                2,
             ),
         )
 
@@ -1113,7 +1322,7 @@ class DatasetGenerator:
 
             # Validar schema de features
             expected_feature_names = get_feature_names()
-            expected_columns = set(expected_feature_names + ['label'])
+            expected_columns = set(expected_feature_names + ["label"])
             actual_columns = set(df.columns)
 
             # Validar que todas as features esperadas estão presentes
@@ -1122,7 +1331,7 @@ class DatasetGenerator:
                 logger.error(
                     "missing_features_in_dataset",
                     missing=list(missing_features),
-                    output_path=str(output_path)
+                    output_path=str(output_path),
                 )
                 raise ValueError(f"Dataset missing features: {missing_features}")
 
@@ -1133,7 +1342,7 @@ class DatasetGenerator:
                     "extra_columns_in_dataset",
                     extra=list(extra_columns),
                     expected=list(expected_columns),
-                    output_path=str(output_path)
+                    output_path=str(output_path),
                 )
                 raise ValueError(
                     f"Dataset contains unexpected columns: {extra_columns}. "
@@ -1142,7 +1351,7 @@ class DatasetGenerator:
                 )
 
             # Reordenar colunas para consistência (features + label)
-            ordered_columns = expected_feature_names + ['label']
+            ordered_columns = expected_feature_names + ["label"]
             df = df[ordered_columns]
 
             # Salvar em Parquet
@@ -1154,7 +1363,7 @@ class DatasetGenerator:
                 size_mb=output_path.stat().st_size / 1024 / 1024,
                 num_samples=len(df),
                 num_features=len(expected_feature_names),
-                feature_names=expected_feature_names[:5] + ['...']
+                feature_names=expected_feature_names[:5] + ["..."],
             )
 
         except Exception as e:
@@ -1169,11 +1378,13 @@ class DatasetGenerator:
         print(f"Total gerado: {self.stats['total_generated']}")
         print(f"Sucesso: {self.stats['successful']}")
         print(f"Falhas: {self.stats['failed']}")
-        print(f"Taxa de sucesso: {self.stats['successful'] / max(self.stats['total_generated'], 1) * 100:.1f}%")
+        print(
+            f"Taxa de sucesso: {self.stats['successful'] / max(self.stats['total_generated'], 1) * 100:.1f}%"
+        )
 
         # Estatísticas de qualidade de descrições
         print("\n📝 Qualidade de Descrições:")
-        quality_scores = self.stats['description_quality_scores']
+        quality_scores = self.stats["description_quality_scores"]
         if quality_scores:
             avg_quality = sum(quality_scores) / len(quality_scores)
             min_quality = min(quality_scores)
@@ -1218,7 +1429,16 @@ async def main():
         "--llm-provider",
         type=str,
         default=os.getenv("LLM_PROVIDER", "local"),
-        choices=["openai", "anthropic", "local", "deepseek", "groq", "together", "openrouter", "azure_openai"],
+        choices=[
+            "openai",
+            "anthropic",
+            "local",
+            "deepseek",
+            "groq",
+            "together",
+            "openrouter",
+            "azure_openai",
+        ],
         help="Provider do LLM (openai, anthropic, local, deepseek, groq, together, openrouter, azure_openai)",
     )
     parser.add_argument(
@@ -1273,9 +1493,7 @@ async def main():
     # Log feature schema para rastreabilidade
     expected_features = get_feature_names()
     logger.info(
-        "feature_schema_loaded",
-        num_features=len(expected_features),
-        features=expected_features
+        "feature_schema_loaded", num_features=len(expected_features), features=expected_features
     )
     print(f"📋 Feature Schema: {len(expected_features)} features")
     print(f"   {', '.join(expected_features[:10])}...")

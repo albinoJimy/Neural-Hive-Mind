@@ -114,10 +114,14 @@ class ExemplarCollector:
         """
         self.max_exemplars_per_metric = max_exemplars_per_metric
         self.max_age_seconds = max_age_seconds
-        self._exemplars: Dict[str, deque] = defaultdict(lambda: deque(maxlen=max_exemplars_per_metric))
+        self._exemplars: Dict[str, deque] = defaultdict(
+            lambda: deque(maxlen=max_exemplars_per_metric)
+        )
         self._lock = Lock()
 
-        logger.info(f"ExemplarCollector iniciado: max_exemplars={max_exemplars_per_metric}, max_age={max_age_seconds}s")
+        logger.info(
+            f"ExemplarCollector iniciado: max_exemplars={max_exemplars_per_metric}, max_age={max_age_seconds}s"
+        )
 
     def add_exemplar(
         self,
@@ -128,7 +132,7 @@ class ExemplarCollector:
         span_id: Optional[str] = None,
         correlation_context: Optional[Dict[str, str]] = None,
         timestamp: Optional[float] = None,
-        **metadata
+        **metadata,
     ) -> Exemplar:
         """
         Adiciona exemplar para uma métrica.
@@ -199,14 +203,15 @@ class ExemplarCollector:
         # Filtrar exemplars expirados
         current_time = time.time()
         valid_exemplars = [
-            ex for ex in exemplars
-            if current_time - ex.timestamp <= self.max_age_seconds
+            ex for ex in exemplars if current_time - ex.timestamp <= self.max_age_seconds
         ]
 
         # Atualizar cache se necessário
         if len(valid_exemplars) != len(exemplars):
             with self._lock:
-                self._exemplars[metric_name] = deque(valid_exemplars, maxlen=self.max_exemplars_per_metric)
+                self._exemplars[metric_name] = deque(
+                    valid_exemplars, maxlen=self.max_exemplars_per_metric
+                )
 
         return valid_exemplars
 
@@ -247,12 +252,13 @@ class ExemplarCollector:
 
                 # Filtrar exemplars válidos
                 valid_exemplars = [
-                    ex for ex in exemplars
-                    if current_time - ex.timestamp <= self.max_age_seconds
+                    ex for ex in exemplars if current_time - ex.timestamp <= self.max_age_seconds
                 ]
 
                 if len(valid_exemplars) != original_length:
-                    self._exemplars[metric_name] = deque(valid_exemplars, maxlen=self.max_exemplars_per_metric)
+                    self._exemplars[metric_name] = deque(
+                        valid_exemplars, maxlen=self.max_exemplars_per_metric
+                    )
                     removed_count += original_length - len(valid_exemplars)
 
                 # Remover métricas sem exemplars
@@ -296,7 +302,7 @@ def create_exemplar(
     labels: Optional[Dict[str, str]] = None,
     trace_id: Optional[str] = None,
     span_id: Optional[str] = None,
-    **metadata
+    **metadata,
 ) -> Optional[Exemplar]:
     """
     Função utilitária para criar exemplar.
@@ -319,7 +325,7 @@ def create_exemplar(
         labels=labels,
         trace_id=trace_id,
         span_id=span_id,
-        **metadata
+        **metadata,
     )
 
 
@@ -356,10 +362,7 @@ def get_trace_context_from_otel():
 
 
 def create_exemplar_from_current_context(
-    metric_name: str,
-    value: float,
-    labels: Optional[Dict[str, str]] = None,
-    **metadata
+    metric_name: str, value: float, labels: Optional[Dict[str, str]] = None, **metadata
 ) -> Optional[Exemplar]:
     """
     Cria exemplar usando contexto atual de trace e correlação.
@@ -383,5 +386,5 @@ def create_exemplar_from_current_context(
         labels=labels,
         trace_id=trace_id,
         span_id=span_id,
-        **metadata
+        **metadata,
     )

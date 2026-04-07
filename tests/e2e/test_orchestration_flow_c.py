@@ -165,9 +165,10 @@ async def test_c1_to_c6_status_transitions(
         if tickets:
             # Validar que tickets foram criados com status PENDING
             for ticket in tickets:
-                assert ticket.get("status") in ["PENDING", "pending"], (
-                    f"Ticket {ticket.get('ticket_id')} deve iniciar como PENDING"
-                )
+                assert ticket.get("status") in [
+                    "PENDING",
+                    "pending",
+                ], f"Ticket {ticket.get('ticket_id')} deve iniciar como PENDING"
                 status_tracker.track_ticket(ticket.get("ticket_id"))
                 logger.info(f"Ticket {ticket.get('ticket_id')} criado com status PENDING")
 
@@ -214,9 +215,7 @@ async def test_c1_to_c6_status_transitions(
         except Exception as e:
             logger.warning(f"Erro aguardando conclusão de {ticket_id}: {e}")
 
-    logger.info(
-        f"C5 concluído: {completed_count} completados, {failed_count} falharam"
-    )
+    logger.info(f"C5 concluído: {completed_count} completados, {failed_count} falharam")
 
     # C6: Validar telemetria
     logger.info("C6: Validando telemetria")
@@ -231,7 +230,9 @@ async def test_c1_to_c6_status_transitions(
         )
 
         if telemetry_messages.messages_found > 0:
-            logger.info(f"C6: Encontrada(s) {telemetry_messages.messages_found} mensagem(ns) de telemetria")
+            logger.info(
+                f"C6: Encontrada(s) {telemetry_messages.messages_found} mensagem(ns) de telemetria"
+            )
         else:
             logger.warning("C6: Nenhuma mensagem de telemetria encontrada")
 
@@ -241,9 +242,9 @@ async def test_c1_to_c6_status_transitions(
     # Validar sequências de status
     for ticket_id in ticket_ids[:3]:
         validation = status_tracker.validate_transitions(ticket_id)
-        assert validation["valid"], (
-            f"Transições inválidas para {ticket_id}: {validation.get('invalid_transitions')}"
-        )
+        assert validation[
+            "valid"
+        ], f"Transições inválidas para {ticket_id}: {validation.get('invalid_transitions')}"
 
 
 @pytest.mark.e2e
@@ -277,6 +278,7 @@ async def test_worker_agent_ticket_processing(
 
         # Nota: Em ambiente real, usaria AvroSerializer
         import json
+
         producer.produce(
             topic="execution.tickets",
             value=json.dumps(ticket).encode("utf-8"),
@@ -312,9 +314,10 @@ async def test_worker_agent_ticket_processing(
             timeout_seconds=120,
         )
 
-        assert final_status in ["COMPLETED", "FAILED"], (
-            f"Ticket deve terminar com COMPLETED ou FAILED, não {final_status}"
-        )
+        assert final_status in [
+            "COMPLETED",
+            "FAILED",
+        ], f"Ticket deve terminar com COMPLETED ou FAILED, não {final_status}"
 
         # Validar resultado publicado
         from tests.e2e.utils.kafka_helpers import wait_for_avro_message
@@ -435,7 +438,9 @@ async def test_c6_telemetry_publishing(
             pytest.skip("Nenhuma mensagem de telemetria encontrada")
 
         # Pegar primeira mensagem para validação
-        telemetry = telemetry_validation.sample_messages[0] if telemetry_validation.sample_messages else {}
+        telemetry = (
+            telemetry_validation.sample_messages[0] if telemetry_validation.sample_messages else {}
+        )
 
         # Validar completude
         completeness = validate_telemetry_completeness(telemetry)
@@ -448,9 +453,9 @@ async def test_c6_telemetry_publishing(
             logger.info(f"Métricas de etapas: {step_metrics.details}")
 
         # Validar trace_id e span_id
-        assert telemetry.get("trace_id") or telemetry.get("correlation_id"), (
-            "Telemetria deve incluir trace_id ou correlation_id"
-        )
+        assert telemetry.get("trace_id") or telemetry.get(
+            "correlation_id"
+        ), "Telemetria deve incluir trace_id ou correlation_id"
 
         # Validar campos de SLA se presentes
         if "sla" in telemetry:
@@ -581,14 +586,19 @@ async def test_dependency_failure_scenario(
     history_2 = ticket_status_tracker.get_status_history(ticket_2_id)
 
     assert history_1.current_status == "FAILED", "Task 1 deve ter falhado"
-    assert history_2.current_status == "PENDING", (
-        "Task 2 deve permanecer PENDING quando dependência falha"
-    )
+    assert (
+        history_2.current_status == "PENDING"
+    ), "Task 2 deve permanecer PENDING quando dependência falha"
 
     # Validar cadeia de dependências
     tickets = [
         {"ticket_id": ticket_1_id, "status": "FAILED", "dependencies": [], "started_at": 1},
-        {"ticket_id": ticket_2_id, "status": "PENDING", "dependencies": [ticket_1_id], "started_at": 2},
+        {
+            "ticket_id": ticket_2_id,
+            "status": "PENDING",
+            "dependencies": [ticket_1_id],
+            "started_at": 2,
+        },
     ]
 
     # A validação deve detectar que task_2 não deveria ter iniciado

@@ -37,7 +37,7 @@ structlog.configure(
     processors=[
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.add_log_level,
-        structlog.processors.JSONRenderer()
+        structlog.processors.JSONRenderer(),
     ]
 )
 logger = structlog.get_logger()
@@ -53,29 +53,29 @@ def get_environment_config() -> Dict[str, Any]:
     config = {}
 
     # Bootstrap servers (obrigatório)
-    config['bootstrap_servers'] = os.getenv('KAFKA_BOOTSTRAP_SERVERS', '')
+    config["bootstrap_servers"] = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "")
 
     # Consumer group
-    config['consumer_group'] = os.getenv('KAFKA_CONSUMER_GROUP_ID', 'ste-consumer-group')
+    config["consumer_group"] = os.getenv("KAFKA_CONSUMER_GROUP_ID", "ste-consumer-group")
 
     # Security protocol
-    config['security_protocol'] = os.getenv('KAFKA_SECURITY_PROTOCOL', 'PLAINTEXT')
+    config["security_protocol"] = os.getenv("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT")
 
     # Parsear tópicos (pode ser JSON ou CSV)
     # Baseado em services/semantic-translation-engine/src/config/settings.py:114-128
-    kafka_topics_raw = os.getenv('KAFKA_TOPICS', '[]')
+    kafka_topics_raw = os.getenv("KAFKA_TOPICS", "[]")
 
     try:
         # Tentar parsear como JSON primeiro
-        config['topics'] = json.loads(kafka_topics_raw)
-        logger.info("Tópicos parseados como JSON", topics=config['topics'])
+        config["topics"] = json.loads(kafka_topics_raw)
+        logger.info("Tópicos parseados como JSON", topics=config["topics"])
     except json.JSONDecodeError:
         # Se falhar, tentar como CSV
         if kafka_topics_raw:
-            config['topics'] = [t.strip() for t in kafka_topics_raw.split(',') if t.strip()]
-            logger.info("Tópicos parseados como CSV", topics=config['topics'])
+            config["topics"] = [t.strip() for t in kafka_topics_raw.split(",") if t.strip()]
+            logger.info("Tópicos parseados como CSV", topics=config["topics"])
         else:
-            config['topics'] = []
+            config["topics"] = []
             logger.warning("KAFKA_TOPICS vazio ou inválido")
 
     logger.info("Configuração do ambiente carregada", config=config)
@@ -96,17 +96,17 @@ def test_tcp_connectivity(bootstrap_servers: str) -> Tuple[bool, str]:
         return False, "KAFKA_BOOTSTRAP_SERVERS não configurado"
 
     # Parsear múltiplos servidores
-    servers = [s.strip() for s in bootstrap_servers.split(',')]
+    servers = [s.strip() for s in bootstrap_servers.split(",")]
     results = []
 
     for server in servers:
         try:
             # Extrair host e porta
-            if ':' not in server:
+            if ":" not in server:
                 results.append(f"❌ {server} - Formato inválido (esperado host:porta)")
                 continue
 
-            host, port_str = server.rsplit(':', 1)
+            host, port_str = server.rsplit(":", 1)
             port = int(port_str)
 
             # Tentar conexão TCP
@@ -128,7 +128,7 @@ def test_tcp_connectivity(bootstrap_servers: str) -> Tuple[bool, str]:
             logger.error("Erro ao testar conectividade", server=server, error=str(e))
 
     # Determinar sucesso geral
-    all_ok = all('✅' in r for r in results)
+    all_ok = all("✅" in r for r in results)
     message = "\n".join(results)
 
     return all_ok, message
@@ -150,9 +150,9 @@ def list_kafka_topics(bootstrap_servers: str) -> Tuple[bool, List[str], str]:
     try:
         # Criar AdminClient
         admin_config = {
-            'bootstrap.servers': bootstrap_servers,
-            'socket.timeout.ms': 10000,
-            'api.timeout.ms': 10000
+            "bootstrap.servers": bootstrap_servers,
+            "socket.timeout.ms": 10000,
+            "api.timeout.ms": 10000,
         }
         admin_client = AdminClient(admin_config)
 
@@ -161,7 +161,7 @@ def list_kafka_topics(bootstrap_servers: str) -> Tuple[bool, List[str], str]:
         topics = list(metadata.topics.keys())
 
         # Filtrar tópicos internos do Kafka
-        topics = [t for t in topics if not t.startswith('__')]
+        topics = [t for t in topics if not t.startswith("__")]
 
         logger.info("Tópicos listados com sucesso", count=len(topics))
         return True, sorted(topics), ""
@@ -199,25 +199,27 @@ def compare_topics(configured_topics: List[str], available_topics: List[str]) ->
     possible_matches = []
     for conf_topic in missing:
         # Tentar substituir '.' por '-' e vice-versa
-        variant1 = conf_topic.replace('.', '-')
-        variant2 = conf_topic.replace('-', '.')
+        variant1 = conf_topic.replace(".", "-")
+        variant2 = conf_topic.replace("-", ".")
 
         for avail_topic in available_topics:
             if avail_topic in exact_matches:
                 continue
 
             if avail_topic == variant1 or avail_topic == variant2:
-                possible_matches.append({
-                    'configured': conf_topic,
-                    'available': avail_topic,
-                    'reason': 'Diferença de nomenclatura (. vs -)'
-                })
+                possible_matches.append(
+                    {
+                        "configured": conf_topic,
+                        "available": avail_topic,
+                        "reason": "Diferença de nomenclatura (. vs -)",
+                    }
+                )
 
     result = {
-        'exact_matches': sorted(list(exact_matches)),
-        'missing': sorted(list(missing)),
-        'extra': sorted(list(extra)),
-        'possible_matches': possible_matches
+        "exact_matches": sorted(list(exact_matches)),
+        "missing": sorted(list(missing)),
+        "extra": sorted(list(extra)),
+        "possible_matches": possible_matches,
     }
 
     logger.info("Comparação de tópicos concluída", result=result)
@@ -232,10 +234,10 @@ def generate_markdown_report(results: Dict[str, Any], output_path: str) -> None:
         results: Dict com todos os resultados das análises
         output_path: Caminho para salvar o relatório
     """
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     # Determinar status geral
-    status = "✅ OK" if results.get('overall_success', False) else "❌ ERRO"
+    status = "✅ OK" if results.get("overall_success", False) else "❌ ERRO"
 
     report_lines = [
         "# Relatório de Debug - STE Kafka Connection",
@@ -250,82 +252,96 @@ def generate_markdown_report(results: Dict[str, Any], output_path: str) -> None:
     ]
 
     # Sumário executivo
-    if results.get('overall_success', False):
+    if results.get("overall_success", False):
         report_lines.append("✅ Todos os tópicos configurados estão disponíveis no Kafka.")
         report_lines.append("✅ Conectividade TCP OK.")
     else:
         report_lines.append("❌ Problemas identificados:")
-        if not results.get('tcp_success', False):
+        if not results.get("tcp_success", False):
             report_lines.append("  - Falha na conectividade TCP")
-        if results.get('comparison', {}).get('missing'):
-            report_lines.append(f"  - {len(results['comparison']['missing'])} tópicos configurados não encontrados")
-        if results.get('comparison', {}).get('possible_matches'):
-            report_lines.append(f"  - {len(results['comparison']['possible_matches'])} possíveis mismatches de nomenclatura detectados")
+        if results.get("comparison", {}).get("missing"):
+            report_lines.append(
+                f"  - {len(results['comparison']['missing'])} tópicos configurados não encontrados"
+            )
+        if results.get("comparison", {}).get("possible_matches"):
+            report_lines.append(
+                f"  - {len(results['comparison']['possible_matches'])} possíveis mismatches de nomenclatura detectados"
+            )
 
-    report_lines.extend([
-        "",
-        "---",
-        "",
-        "## 2. Configuração do STE",
-        "",
-        "### Variáveis de Ambiente",
-        "",
-        f"- **KAFKA_BOOTSTRAP_SERVERS**: `{results['config']['bootstrap_servers']}`",
-        f"- **KAFKA_CONSUMER_GROUP_ID**: `{results['config']['consumer_group']}`",
-        f"- **KAFKA_SECURITY_PROTOCOL**: `{results['config']['security_protocol']}`",
-        "",
-        "### Tópicos Configurados",
-        "",
-    ])
+    report_lines.extend(
+        [
+            "",
+            "---",
+            "",
+            "## 2. Configuração do STE",
+            "",
+            "### Variáveis de Ambiente",
+            "",
+            f"- **KAFKA_BOOTSTRAP_SERVERS**: `{results['config']['bootstrap_servers']}`",
+            f"- **KAFKA_CONSUMER_GROUP_ID**: `{results['config']['consumer_group']}`",
+            f"- **KAFKA_SECURITY_PROTOCOL**: `{results['config']['security_protocol']}`",
+            "",
+            "### Tópicos Configurados",
+            "",
+        ]
+    )
 
-    if results['config']['topics']:
+    if results["config"]["topics"]:
         report_lines.append("```json")
-        report_lines.append(json.dumps(results['config']['topics'], indent=2))
+        report_lines.append(json.dumps(results["config"]["topics"], indent=2))
         report_lines.append("```")
     else:
         report_lines.append("⚠️ Nenhum tópico configurado")
 
-    report_lines.extend([
-        "",
-        "---",
-        "",
-        "## 3. Teste de Conectividade TCP",
-        "",
-    ])
+    report_lines.extend(
+        [
+            "",
+            "---",
+            "",
+            "## 3. Teste de Conectividade TCP",
+            "",
+        ]
+    )
 
-    report_lines.append(results['tcp_message'])
+    report_lines.append(results["tcp_message"])
 
-    report_lines.extend([
-        "",
-        "---",
-        "",
-        "## 4. Tópicos Disponíveis no Kafka",
-        "",
-    ])
+    report_lines.extend(
+        [
+            "",
+            "---",
+            "",
+            "## 4. Tópicos Disponíveis no Kafka",
+            "",
+        ]
+    )
 
-    if results.get('kafka_topics_success', False):
+    if results.get("kafka_topics_success", False):
         report_lines.append(f"**Total**: {len(results['kafka_topics'])} tópicos")
         report_lines.append("")
-        for topic in results['kafka_topics']:
+        for topic in results["kafka_topics"]:
             report_lines.append(f"- `{topic}`")
     else:
-        report_lines.append(f"❌ **Erro ao listar tópicos**: {results.get('kafka_topics_error', 'Erro desconhecido')}")
+        report_lines.append(
+            f"❌ **Erro ao listar tópicos**: {results.get('kafka_topics_error', 'Erro desconhecido')}"
+        )
 
-    report_lines.extend([
-        "",
-        "---",
-        "",
-        "## 5. Análise de Comparação",
-        "",
-    ])
+    report_lines.extend(
+        [
+            "",
+            "---",
+            "",
+            "## 5. Análise de Comparação",
+            "",
+        ]
+    )
 
-    comparison = results.get('comparison', {})
+    comparison = results.get("comparison", {})
 
     # Exact matches
     report_lines.append("### ✅ Tópicos Configurados e Disponíveis (Exact Matches)")
     report_lines.append("")
-    if comparison.get('exact_matches'):
-        for topic in comparison['exact_matches']:
+    if comparison.get("exact_matches"):
+        for topic in comparison["exact_matches"]:
             report_lines.append(f"- `{topic}`")
     else:
         report_lines.append("_Nenhum_")
@@ -334,8 +350,8 @@ def generate_markdown_report(results: Dict[str, Any], output_path: str) -> None:
     # Missing topics
     report_lines.append("### ❌ Tópicos Configurados NÃO Encontrados (Missing)")
     report_lines.append("")
-    if comparison.get('missing'):
-        for topic in comparison['missing']:
+    if comparison.get("missing"):
+        for topic in comparison["missing"]:
             report_lines.append(f"- `{topic}`")
     else:
         report_lines.append("_Nenhum_")
@@ -344,11 +360,13 @@ def generate_markdown_report(results: Dict[str, Any], output_path: str) -> None:
     # Possible matches
     report_lines.append("### ⚠️ Possíveis Matches com Nomenclatura Diferente")
     report_lines.append("")
-    if comparison.get('possible_matches'):
+    if comparison.get("possible_matches"):
         report_lines.append("| Configurado | Disponível | Motivo |")
         report_lines.append("|-------------|------------|--------|")
-        for match in comparison['possible_matches']:
-            report_lines.append(f"| `{match['configured']}` | `{match['available']}` | {match['reason']} |")
+        for match in comparison["possible_matches"]:
+            report_lines.append(
+                f"| `{match['configured']}` | `{match['available']}` | {match['reason']} |"
+            )
     else:
         report_lines.append("_Nenhum_")
     report_lines.append("")
@@ -356,160 +374,178 @@ def generate_markdown_report(results: Dict[str, Any], output_path: str) -> None:
     # Extra topics
     report_lines.append("### ℹ️ Tópicos Disponíveis NÃO Configurados (Extra)")
     report_lines.append("")
-    if comparison.get('extra'):
-        for topic in comparison['extra']:
+    if comparison.get("extra"):
+        for topic in comparison["extra"]:
             report_lines.append(f"- `{topic}`")
     else:
         report_lines.append("_Nenhum_")
     report_lines.append("")
 
-    report_lines.extend([
-        "---",
-        "",
-        "## 6. Diagnóstico e Recomendações",
-        "",
-    ])
+    report_lines.extend(
+        [
+            "---",
+            "",
+            "## 6. Diagnóstico e Recomendações",
+            "",
+        ]
+    )
 
     # Gerar recomendações baseadas nos resultados
-    if results.get('overall_success', False):
-        report_lines.append("✅ Nenhum problema detectado. O STE está corretamente configurado para consumir dos tópicos Kafka.")
+    if results.get("overall_success", False):
+        report_lines.append(
+            "✅ Nenhum problema detectado. O STE está corretamente configurado para consumir dos tópicos Kafka."
+        )
     else:
         report_lines.append("### Problemas Identificados e Soluções:")
         report_lines.append("")
 
-        if not results.get('tcp_success', False):
-            report_lines.extend([
-                "#### 1. Falha de Conectividade TCP",
-                "",
-                "**Problema**: Não foi possível estabelecer conexão TCP aos bootstrap servers.",
-                "",
-                "**Possíveis Causas**:",
-                "- DNS não resolve os hostnames do Kafka",
-                "- Firewall ou Network Policy bloqueando a conexão",
-                "- Kafka não está rodando ou indisponível",
-                "",
-                "**Solução**:",
-                "```bash",
-                "# Testar DNS",
-                "nslookup kafka-bootstrap.kafka.svc.cluster.local",
-                "",
-                "# Testar conectividade",
-                "telnet kafka-bootstrap.kafka.svc.cluster.local 9092",
-                "",
-                "# Verificar Network Policies",
-                "kubectl get networkpolicies -n semantic-translation",
-                "```",
-                "",
-            ])
+        if not results.get("tcp_success", False):
+            report_lines.extend(
+                [
+                    "#### 1. Falha de Conectividade TCP",
+                    "",
+                    "**Problema**: Não foi possível estabelecer conexão TCP aos bootstrap servers.",
+                    "",
+                    "**Possíveis Causas**:",
+                    "- DNS não resolve os hostnames do Kafka",
+                    "- Firewall ou Network Policy bloqueando a conexão",
+                    "- Kafka não está rodando ou indisponível",
+                    "",
+                    "**Solução**:",
+                    "```bash",
+                    "# Testar DNS",
+                    "nslookup kafka-bootstrap.kafka.svc.cluster.local",
+                    "",
+                    "# Testar conectividade",
+                    "telnet kafka-bootstrap.kafka.svc.cluster.local 9092",
+                    "",
+                    "# Verificar Network Policies",
+                    "kubectl get networkpolicies -n semantic-translation",
+                    "```",
+                    "",
+                ]
+            )
 
-        if comparison.get('missing'):
-            report_lines.extend([
-                "#### 2. Tópicos Configurados Não Encontrados",
-                "",
-                f"**Problema**: {len(comparison['missing'])} tópico(s) configurado(s) no STE não existe(m) no Kafka.",
-                "",
-                "**Tópicos faltando**:",
-            ])
-            for topic in comparison['missing']:
+        if comparison.get("missing"):
+            report_lines.extend(
+                [
+                    "#### 2. Tópicos Configurados Não Encontrados",
+                    "",
+                    f"**Problema**: {len(comparison['missing'])} tópico(s) configurado(s) no STE não existe(m) no Kafka.",
+                    "",
+                    "**Tópicos faltando**:",
+                ]
+            )
+            for topic in comparison["missing"]:
                 report_lines.append(f"- `{topic}`")
-            report_lines.extend([
-                "",
-                "**Solução**:",
-                "```bash",
-                "# Criar tópicos manualmente",
-                "kubectl exec -n kafka kafka-0 -- kafka-topics \\",
-                "  --bootstrap-server localhost:9092 \\",
-                "  --create --topic <topic-name> \\",
-                "  --partitions 3 --replication-factor 2",
-                "",
-                "# Ou aplicar via Helm/Kubernetes",
-                "kubectl apply -f k8s/kafka-topics/",
-                "```",
-                "",
-            ])
+            report_lines.extend(
+                [
+                    "",
+                    "**Solução**:",
+                    "```bash",
+                    "# Criar tópicos manualmente",
+                    "kubectl exec -n kafka kafka-0 -- kafka-topics \\",
+                    "  --bootstrap-server localhost:9092 \\",
+                    "  --create --topic <topic-name> \\",
+                    "  --partitions 3 --replication-factor 2",
+                    "",
+                    "# Ou aplicar via Helm/Kubernetes",
+                    "kubectl apply -f k8s/kafka-topics/",
+                    "```",
+                    "",
+                ]
+            )
 
-        if comparison.get('possible_matches'):
-            report_lines.extend([
-                "#### 3. Mismatch de Nomenclatura Detectado",
-                "",
-                f"**Problema**: {len(comparison['possible_matches'])} tópico(s) com nomenclatura diferente detectado(s).",
-                "",
-                "**Matches possíveis**:",
-            ])
-            for match in comparison['possible_matches']:
-                report_lines.append(f"- Configurado: `{match['configured']}` → Disponível: `{match['available']}`")
-            report_lines.extend([
-                "",
-                "**Solução**: Atualizar variável de ambiente `KAFKA_TOPICS` no deployment do STE:",
-                "```bash",
-                "# Editar ConfigMap ou Deployment",
-                "kubectl edit deployment semantic-translation-engine -n semantic-translation",
-                "",
-                "# Ou atualizar values.yaml do Helm chart e fazer upgrade",
-                "helm upgrade semantic-translation-engine ./helm-charts/semantic-translation-engine \\",
-                "  --namespace semantic-translation \\",
-                "  --set kafka.topics='[\"intentions-business\",\"intentions-technical\",...]'",
-                "```",
-                "",
-            ])
+        if comparison.get("possible_matches"):
+            report_lines.extend(
+                [
+                    "#### 3. Mismatch de Nomenclatura Detectado",
+                    "",
+                    f"**Problema**: {len(comparison['possible_matches'])} tópico(s) com nomenclatura diferente detectado(s).",
+                    "",
+                    "**Matches possíveis**:",
+                ]
+            )
+            for match in comparison["possible_matches"]:
+                report_lines.append(
+                    f"- Configurado: `{match['configured']}` → Disponível: `{match['available']}`"
+                )
+            report_lines.extend(
+                [
+                    "",
+                    "**Solução**: Atualizar variável de ambiente `KAFKA_TOPICS` no deployment do STE:",
+                    "```bash",
+                    "# Editar ConfigMap ou Deployment",
+                    "kubectl edit deployment semantic-translation-engine -n semantic-translation",
+                    "",
+                    "# Ou atualizar values.yaml do Helm chart e fazer upgrade",
+                    "helm upgrade semantic-translation-engine ./helm-charts/semantic-translation-engine \\",
+                    "  --namespace semantic-translation \\",
+                    '  --set kafka.topics=\'["intentions-business","intentions-technical",...]\'',
+                    "```",
+                    "",
+                ]
+            )
 
-    report_lines.extend([
-        "---",
-        "",
-        "## 7. Comandos Úteis para Troubleshooting",
-        "",
-        "### Listar Tópicos no Kafka",
-        "```bash",
-        "kubectl exec -n kafka kafka-0 -- kafka-topics \\",
-        "  --bootstrap-server localhost:9092 --list",
-        "```",
-        "",
-        "### Descrever Tópico Específico",
-        "```bash",
-        "kubectl exec -n kafka kafka-0 -- kafka-topics \\",
-        "  --bootstrap-server localhost:9092 \\",
-        "  --describe --topic <topic-name>",
-        "```",
-        "",
-        "### Verificar Consumer Groups",
-        "```bash",
-        "kubectl exec -n kafka kafka-0 -- kafka-consumer-groups \\",
-        "  --bootstrap-server localhost:9092 --list",
-        "",
-        "kubectl exec -n kafka kafka-0 -- kafka-consumer-groups \\",
-        "  --bootstrap-server localhost:9092 \\",
-        "  --describe --group ste-consumer-group",
-        "```",
-        "",
-        "### Ver Logs do STE",
-        "```bash",
-        "kubectl logs -n semantic-translation deployment/semantic-translation-engine --tail=100 -f",
-        "```",
-        "",
-        "### Testar Consumo Manual",
-        "```bash",
-        "kubectl exec -n kafka kafka-0 -- kafka-console-consumer \\",
-        "  --bootstrap-server localhost:9092 \\",
-        "  --topic intentions-business \\",
-        "  --from-beginning --max-messages 10",
-        "```",
-        "",
-        "---",
-        "",
-        "## 8. Referências",
-        "",
-        "- **Código do STE**: `services/semantic-translation-engine/src/consumers/intent_consumer.py`",
-        "- **Configuração do STE**: `services/semantic-translation-engine/src/config/settings.py`",
-        "- **Relatório de Teste E2E**: `reports/teste-e2e-manual-20251124.md`",
-        "- **Script de Teste EOS**: `scripts/kafka/test-eos.py`",
-        "",
-    ])
+    report_lines.extend(
+        [
+            "---",
+            "",
+            "## 7. Comandos Úteis para Troubleshooting",
+            "",
+            "### Listar Tópicos no Kafka",
+            "```bash",
+            "kubectl exec -n kafka kafka-0 -- kafka-topics \\",
+            "  --bootstrap-server localhost:9092 --list",
+            "```",
+            "",
+            "### Descrever Tópico Específico",
+            "```bash",
+            "kubectl exec -n kafka kafka-0 -- kafka-topics \\",
+            "  --bootstrap-server localhost:9092 \\",
+            "  --describe --topic <topic-name>",
+            "```",
+            "",
+            "### Verificar Consumer Groups",
+            "```bash",
+            "kubectl exec -n kafka kafka-0 -- kafka-consumer-groups \\",
+            "  --bootstrap-server localhost:9092 --list",
+            "",
+            "kubectl exec -n kafka kafka-0 -- kafka-consumer-groups \\",
+            "  --bootstrap-server localhost:9092 \\",
+            "  --describe --group ste-consumer-group",
+            "```",
+            "",
+            "### Ver Logs do STE",
+            "```bash",
+            "kubectl logs -n semantic-translation deployment/semantic-translation-engine --tail=100 -f",
+            "```",
+            "",
+            "### Testar Consumo Manual",
+            "```bash",
+            "kubectl exec -n kafka kafka-0 -- kafka-console-consumer \\",
+            "  --bootstrap-server localhost:9092 \\",
+            "  --topic intentions-business \\",
+            "  --from-beginning --max-messages 10",
+            "```",
+            "",
+            "---",
+            "",
+            "## 8. Referências",
+            "",
+            "- **Código do STE**: `services/semantic-translation-engine/src/consumers/intent_consumer.py`",
+            "- **Configuração do STE**: `services/semantic-translation-engine/src/config/settings.py`",
+            "- **Relatório de Teste E2E**: `reports/teste-e2e-manual-20251124.md`",
+            "- **Script de Teste EOS**: `scripts/kafka/test-eos.py`",
+            "",
+        ]
+    )
 
     # Salvar relatório
     try:
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        with open(output_path, 'w', encoding='utf-8') as f:
-            f.write('\n'.join(report_lines))
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(report_lines))
         logger.info("Relatório Markdown gerado", path=output_path)
     except Exception as e:
         logger.error("Erro ao salvar relatório", path=output_path, error=str(e))
@@ -534,25 +570,27 @@ def main() -> int:
         # 1. Ler configuração do ambiente
         print("1. Lendo configuração do ambiente...")
         config = get_environment_config()
-        results['config'] = config
+        results["config"] = config
         print(f"   ✓ Bootstrap servers: {config['bootstrap_servers']}")
         print(f"   ✓ Tópicos configurados: {len(config['topics'])}")
         print()
 
         # 2. Testar conectividade TCP
         print("2. Testando conectividade TCP aos bootstrap servers...")
-        tcp_success, tcp_message = test_tcp_connectivity(config['bootstrap_servers'])
-        results['tcp_success'] = tcp_success
-        results['tcp_message'] = tcp_message
+        tcp_success, tcp_message = test_tcp_connectivity(config["bootstrap_servers"])
+        results["tcp_success"] = tcp_success
+        results["tcp_message"] = tcp_message
         print(tcp_message)
         print()
 
         # 3. Listar tópicos do Kafka
         print("3. Listando tópicos disponíveis no Kafka...")
-        kafka_topics_success, kafka_topics, kafka_topics_error = list_kafka_topics(config['bootstrap_servers'])
-        results['kafka_topics_success'] = kafka_topics_success
-        results['kafka_topics'] = kafka_topics
-        results['kafka_topics_error'] = kafka_topics_error
+        kafka_topics_success, kafka_topics, kafka_topics_error = list_kafka_topics(
+            config["bootstrap_servers"]
+        )
+        results["kafka_topics_success"] = kafka_topics_success
+        results["kafka_topics"] = kafka_topics
+        results["kafka_topics_error"] = kafka_topics_error
 
         if kafka_topics_success:
             print(f"   ✓ {len(kafka_topics)} tópicos encontrados")
@@ -563,36 +601,41 @@ def main() -> int:
         # 4. Comparar tópicos
         print("4. Comparando tópicos configurados vs. disponíveis...")
         if kafka_topics_success:
-            comparison = compare_topics(config['topics'], kafka_topics)
-            results['comparison'] = comparison
+            comparison = compare_topics(config["topics"], kafka_topics)
+            results["comparison"] = comparison
 
             print(f"   ✓ Exact matches: {len(comparison['exact_matches'])}")
             print(f"   ✗ Missing: {len(comparison['missing'])}")
             print(f"   ⚠ Possible matches: {len(comparison['possible_matches'])}")
             print(f"   ℹ Extra: {len(comparison['extra'])}")
 
-            if comparison['possible_matches']:
+            if comparison["possible_matches"]:
                 print("\n   Possíveis mismatches de nomenclatura detectados:")
-                for match in comparison['possible_matches']:
+                for match in comparison["possible_matches"]:
                     print(f"     • {match['configured']} → {match['available']}")
         else:
-            comparison = {'exact_matches': [], 'missing': config['topics'], 'extra': [], 'possible_matches': []}
-            results['comparison'] = comparison
+            comparison = {
+                "exact_matches": [],
+                "missing": config["topics"],
+                "extra": [],
+                "possible_matches": [],
+            }
+            results["comparison"] = comparison
             print("   ✗ Não foi possível comparar (falha ao listar tópicos)")
         print()
 
         # 5. Determinar status geral
         overall_success = (
-            tcp_success and
-            kafka_topics_success and
-            len(comparison['missing']) == 0 and
-            len(comparison['possible_matches']) == 0
+            tcp_success
+            and kafka_topics_success
+            and len(comparison["missing"]) == 0
+            and len(comparison["possible_matches"]) == 0
         )
-        results['overall_success'] = overall_success
+        results["overall_success"] = overall_success
 
         # 6. Gerar relatório
         print("5. Gerando relatório Markdown...")
-        output_path = '/reports/ste-kafka-debug-results.md'
+        output_path = "/reports/ste-kafka-debug-results.md"
         generate_markdown_report(results, output_path)
         print(f"   ✓ Relatório salvo em: {output_path}")
         print()
@@ -609,10 +652,12 @@ def main() -> int:
             print("Problemas detectados:")
             if not tcp_success:
                 print("  - Falha na conectividade TCP")
-            if comparison['missing']:
+            if comparison["missing"]:
                 print(f"  - {len(comparison['missing'])} tópicos configurados não encontrados")
-            if comparison['possible_matches']:
-                print(f"  - {len(comparison['possible_matches'])} possíveis mismatches de nomenclatura")
+            if comparison["possible_matches"]:
+                print(
+                    f"  - {len(comparison['possible_matches'])} possíveis mismatches de nomenclatura"
+                )
             print(f"\nConsulte o relatório para mais detalhes: {output_path}")
         print("=" * 60)
 
@@ -624,5 +669,5 @@ def main() -> int:
         return 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

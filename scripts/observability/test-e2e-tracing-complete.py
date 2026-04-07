@@ -40,6 +40,7 @@ class TestStatus(Enum):
 @dataclass
 class SpanValidation:
     """Validation result for a single span"""
+
     operation_name: str
     service_name: str
     found: bool
@@ -53,6 +54,7 @@ class SpanValidation:
 @dataclass
 class ScenarioResult:
     """Result for a single test scenario"""
+
     name: str
     status: TestStatus
     intent_id: str
@@ -73,6 +75,7 @@ class ScenarioResult:
 @dataclass
 class ValidationReport:
     """Complete validation report"""
+
     timestamp: str
     duration_seconds: float
     gateway_url: str
@@ -92,17 +95,13 @@ class JaegerClient:
     """Client for Jaeger Query API"""
 
     def __init__(self, base_url: str, timeout: int = 30):
-        self.base_url = base_url.rstrip('/')
+        self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.session = self._create_session()
 
     def _create_session(self) -> requests.Session:
         session = requests.Session()
-        retry = Retry(
-            total=3,
-            backoff_factor=1,
-            status_forcelist=[429, 500, 502, 503, 504]
-        )
+        retry = Retry(total=3, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
         adapter = HTTPAdapter(max_retries=retry)
         session.mount("http://", adapter)
         session.mount("https://", adapter)
@@ -111,10 +110,7 @@ class JaegerClient:
     def health_check(self) -> bool:
         """Check if Jaeger Query API is available"""
         try:
-            response = self.session.get(
-                f"{self.base_url}/api/services",
-                timeout=self.timeout
-            )
+            response = self.session.get(f"{self.base_url}/api/services", timeout=self.timeout)
             return response.status_code == 200
         except requests.RequestException:
             return False
@@ -122,10 +118,7 @@ class JaegerClient:
     def get_services(self) -> list:
         """Get list of services with traces"""
         try:
-            response = self.session.get(
-                f"{self.base_url}/api/services",
-                timeout=self.timeout
-            )
+            response = self.session.get(f"{self.base_url}/api/services", timeout=self.timeout)
             response.raise_for_status()
             return response.json().get("data", [])
         except requests.RequestException:
@@ -137,22 +130,16 @@ class JaegerClient:
         tag_value: str,
         service: str = None,
         limit: int = 20,
-        lookback_hours: int = 1
+        lookback_hours: int = 1,
     ) -> list:
         """Find traces by tag (e.g., neural.hive.intent.id)"""
-        params = {
-            "tag": f"{tag_key}:{tag_value}",
-            "limit": limit,
-            "lookback": f"{lookback_hours}h"
-        }
+        params = {"tag": f"{tag_key}:{tag_value}", "limit": limit, "lookback": f"{lookback_hours}h"}
         if service:
             params["service"] = service
 
         try:
             response = self.session.get(
-                f"{self.base_url}/api/traces",
-                params=params,
-                timeout=self.timeout
+                f"{self.base_url}/api/traces", params=params, timeout=self.timeout
             )
             response.raise_for_status()
             return response.json().get("data", [])
@@ -164,8 +151,7 @@ class JaegerClient:
         """Get a specific trace by ID"""
         try:
             response = self.session.get(
-                f"{self.base_url}/api/traces/{trace_id}",
-                timeout=self.timeout
+                f"{self.base_url}/api/traces/{trace_id}", timeout=self.timeout
             )
             response.raise_for_status()
             data = response.json().get("data", [])
@@ -178,17 +164,14 @@ class GatewayClient:
     """Client for Gateway Intencoes API"""
 
     def __init__(self, base_url: str, timeout: int = 30):
-        self.base_url = base_url.rstrip('/')
+        self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.session = requests.Session()
 
     def health_check(self) -> bool:
         """Check if Gateway is available"""
         try:
-            response = self.session.get(
-                f"{self.base_url}/health",
-                timeout=self.timeout
-            )
+            response = self.session.get(f"{self.base_url}/health", timeout=self.timeout)
             return response.status_code == 200
         except requests.RequestException:
             return False
@@ -199,7 +182,7 @@ class GatewayClient:
         intent_id: str,
         user_id: str = "test-user",
         session_id: str = None,
-        specialist_type: str = None
+        specialist_type: str = None,
     ) -> tuple[Optional[dict], Optional[str]]:
         """
         Send intent to gateway and return response with trace_id
@@ -219,7 +202,7 @@ class GatewayClient:
             "context": {
                 "user_id": user_id,
                 "session_id": session_id,
-            }
+            },
         }
 
         if specialist_type:
@@ -227,10 +210,7 @@ class GatewayClient:
 
         try:
             response = self.session.post(
-                f"{self.base_url}/intents/text",
-                json=payload,
-                headers=headers,
-                timeout=self.timeout
+                f"{self.base_url}/intents/text", json=payload, headers=headers, timeout=self.timeout
             )
 
             # Extract trace_id from response headers (traceparent format)
@@ -264,17 +244,12 @@ class E2ETracingValidator:
 
     # Expected spans per service
     EXPECTED_SPANS = {
-        "gateway-intencoes": [
-            "POST /intents/text",
-            "asr.process",
-            "nlu.process",
-            "kafka.produce"
-        ],
+        "gateway-intencoes": ["POST /intents/text", "asr.process", "nlu.process", "kafka.produce"],
         "orchestrator-dynamic": [
             "kafka.consume",
             "orchestration_workflow.run",
             "generate_execution_tickets",
-            "allocate_resources"
+            "allocate_resources",
         ],
         "specialist-business": ["Evaluate", "model.predict"],
         "specialist-technical": ["Evaluate", "model.predict"],
@@ -288,14 +263,11 @@ class E2ETracingValidator:
         "neural.hive.intent.id",
         "neural.hive.plan.id",
         "neural.hive.component",
-        "neural.hive.layer"
+        "neural.hive.layer",
     ]
 
     # Optional but recommended attributes
-    OPTIONAL_ATTRIBUTES = [
-        "neural.hive.user.id",
-        "neural.hive.domain"
-    ]
+    OPTIONAL_ATTRIBUTES = ["neural.hive.user.id", "neural.hive.domain"]
 
     # Services that must have plan_id propagated
     PLAN_ID_REQUIRED_SERVICES = [
@@ -304,7 +276,7 @@ class E2ETracingValidator:
         "specialist-technical",
         "specialist-architecture",
         "specialist-behavior",
-        "specialist-evolution"
+        "specialist-evolution",
     ]
 
     # Test scenarios covering all specialists
@@ -313,32 +285,32 @@ class E2ETracingValidator:
             "name": "Business Analysis Intent",
             "text": "Analyze the business impact of launching a new product line for enterprise customers",
             "specialist_type": "business",
-            "expected_domain": "business"
+            "expected_domain": "business",
         },
         {
             "name": "Technical Implementation Intent",
             "text": "Implement a high-performance caching layer using Redis with cluster mode enabled",
             "specialist_type": "technical",
-            "expected_domain": "technical"
+            "expected_domain": "technical",
         },
         {
             "name": "Architecture Design Intent",
             "text": "Design a microservices architecture for a real-time analytics platform with event sourcing",
             "specialist_type": "architecture",
-            "expected_domain": "architecture"
+            "expected_domain": "architecture",
         },
         {
             "name": "Behavior Optimization Intent",
             "text": "Optimize user onboarding flow to reduce drop-off rate and improve engagement metrics",
             "specialist_type": "behavior",
-            "expected_domain": "behavior"
+            "expected_domain": "behavior",
         },
         {
             "name": "Evolution Strategy Intent",
             "text": "Plan the evolution strategy for migrating legacy monolith to cloud-native architecture",
             "specialist_type": "evolution",
-            "expected_domain": "evolution"
-        }
+            "expected_domain": "evolution",
+        },
     ]
 
     def __init__(
@@ -347,7 +319,7 @@ class E2ETracingValidator:
         jaeger_url: str,
         timeout: int = 60,
         async_wait_seconds: int = 35,
-        verbose: bool = False
+        verbose: bool = False,
     ):
         self.gateway = GatewayClient(gateway_url, timeout)
         self.jaeger = JaegerClient(jaeger_url, timeout)
@@ -365,7 +337,7 @@ class E2ETracingValidator:
                 "INFO": "\033[0m",
                 "SUCCESS": "\033[92m",
                 "WARN": "\033[93m",
-                "ERROR": "\033[91m"
+                "ERROR": "\033[91m",
             }.get(level, "\033[0m")
             reset = "\033[0m"
             print(f"[{timestamp}] {color}{level}{reset}: {message}")
@@ -422,19 +394,14 @@ class E2ETracingValidator:
                 "logs": span.get("logs", []),
                 "warnings": span.get("warnings", []),
                 "has_error": any(
-                    t["key"] == "error" and t["value"] == True
-                    for t in span.get("tags", [])
-                )
+                    t["key"] == "error" and t["value"] == True for t in span.get("tags", [])
+                ),
             }
             spans_by_service[service_name].append(span_info)
 
         return spans_by_service
 
-    def validate_span_attributes(
-        self,
-        span: dict,
-        intent_id: str
-    ) -> SpanValidation:
+    def validate_span_attributes(self, span: dict, intent_id: str) -> SpanValidation:
         """Validate Neural Hive attributes in a span"""
         tags = span.get("tags", {})
 
@@ -443,7 +410,7 @@ class E2ETracingValidator:
             service_name="",  # Will be set by caller
             found=True,
             duration_ms=span["duration_ms"],
-            has_error=span["has_error"]
+            has_error=span["has_error"],
         )
 
         # Check required attributes
@@ -468,9 +435,7 @@ class E2ETracingValidator:
         return validation
 
     def validate_context_propagation(
-        self,
-        spans_by_service: dict,
-        intent_id: str
+        self, spans_by_service: dict, intent_id: str
     ) -> tuple[bool, list, bool, list]:
         """
         Validate context propagation across services.
@@ -493,13 +458,17 @@ class E2ETracingValidator:
                     break
 
         # Check gateway has intent_id
-        if "gateway-intencoes" in spans_by_service and \
-           "gateway-intencoes" not in services_with_intent_id:
+        if (
+            "gateway-intencoes" in spans_by_service
+            and "gateway-intencoes" not in services_with_intent_id
+        ):
             intent_warnings.append("intent_id not found in gateway-intencoes spans")
 
         # Check orchestrator has intent_id
-        if "orchestrator-dynamic" in spans_by_service and \
-           "orchestrator-dynamic" not in services_with_intent_id:
+        if (
+            "orchestrator-dynamic" in spans_by_service
+            and "orchestrator-dynamic" not in services_with_intent_id
+        ):
             intent_warnings.append("intent_id not propagated to orchestrator-dynamic")
 
         # Check specialists have intent_id
@@ -527,9 +496,7 @@ class E2ETracingValidator:
         return intent_valid, intent_warnings, plan_valid, plan_warnings
 
     def validate_trace_continuity(
-        self,
-        traces: list,
-        expected_trace_id: Optional[str]
+        self, traces: list, expected_trace_id: Optional[str]
     ) -> tuple[bool, list]:
         """
         Validate trace continuity - all spans should share the same trace_id.
@@ -557,9 +524,7 @@ class E2ETracingValidator:
 
         # Check if expected trace_id is present
         if expected_trace_id and expected_trace_id not in trace_ids:
-            errors.append(
-                f"Expected trace_id '{expected_trace_id}' not found in traces"
-            )
+            errors.append(f"Expected trace_id '{expected_trace_id}' not found in traces")
 
         # Validate parent-child relationships within each trace
         for trace in traces:
@@ -584,10 +549,7 @@ class E2ETracingValidator:
         is_valid = len(errors) == 0
         return is_valid, errors
 
-    def check_spans_for_errors(
-        self,
-        spans_by_service: dict
-    ) -> tuple[bool, list]:
+    def check_spans_for_errors(self, spans_by_service: dict) -> tuple[bool, list]:
         """
         Check if any spans have error tags.
 
@@ -600,9 +562,7 @@ class E2ETracingValidator:
             for span in spans:
                 if span.get("has_error"):
                     error_msg = span.get("tags", {}).get("error.message", "Unknown error")
-                    error_details.append(
-                        f"{service_name}.{span['operation_name']}: {error_msg}"
-                    )
+                    error_details.append(f"{service_name}.{span['operation_name']}: {error_msg}")
 
         has_errors = len(error_details) > 0
         return has_errors, error_details
@@ -612,11 +572,7 @@ class E2ETracingValidator:
         intent_id = f"intent-{uuid.uuid4()}"
         user_id = f"test-user-{uuid.uuid4().hex[:8]}"
 
-        result = ScenarioResult(
-            name=scenario["name"],
-            status=TestStatus.FAIL,
-            intent_id=intent_id
-        )
+        result = ScenarioResult(name=scenario["name"], status=TestStatus.FAIL, intent_id=intent_id)
 
         start_time = time.time()
 
@@ -626,7 +582,7 @@ class E2ETracingValidator:
             text=scenario["text"],
             intent_id=intent_id,
             user_id=user_id,
-            specialist_type=scenario.get("specialist_type")
+            specialist_type=scenario.get("specialist_type"),
         )
 
         if not response_data:
@@ -647,9 +603,7 @@ class E2ETracingValidator:
         # Step 3: Query Jaeger for traces
         self.log(f"Querying Jaeger for intent_id={intent_id}")
         traces = self.jaeger.find_traces_by_tag(
-            tag_key="neural.hive.intent.id",
-            tag_value=intent_id,
-            limit=20
+            tag_key="neural.hive.intent.id", tag_value=intent_id, limit=20
         )
 
         # Fallback to trace_id if intent_id search fails
@@ -661,9 +615,7 @@ class E2ETracingValidator:
 
         if not traces:
             result.errors.append("No traces found in Jaeger")
-            result.warnings.append(
-                "Check: sampling rate, OTEL export, Jaeger connectivity"
-            )
+            result.warnings.append("Check: sampling rate, OTEL export, Jaeger connectivity")
             result.duration_ms = (time.time() - start_time) * 1000
             return result
 
@@ -705,10 +657,7 @@ class E2ETracingValidator:
 
             for expected_op in expected_ops:
                 # Check if operation exists (partial match)
-                found = any(
-                    expected_op.lower() in op.lower()
-                    for op in service_operations
-                )
+                found = any(expected_op.lower() in op.lower() for op in service_operations)
 
                 if found:
                     result.spans_found.append(f"{service_name}.{expected_op}")
@@ -723,9 +672,12 @@ class E2ETracingValidator:
                     result.spans_missing.append(f"{service_name}.{expected_op}")
 
         # Step 8: Validate context propagation (intent_id and plan_id)
-        intent_valid, intent_warnings, plan_valid, plan_warnings = self.validate_context_propagation(
-            all_spans_by_service, intent_id
-        )
+        (
+            intent_valid,
+            intent_warnings,
+            plan_valid,
+            plan_warnings,
+        ) = self.validate_context_propagation(all_spans_by_service, intent_id)
         result.context_propagation_valid = intent_valid
         result.plan_id_propagation_valid = plan_valid
         result.warnings.extend(intent_warnings)
@@ -739,7 +691,8 @@ class E2ETracingValidator:
 
         # Step 9: Determine final status
         total_expected = sum(
-            len(ops) for service, ops in self.EXPECTED_SPANS.items()
+            len(ops)
+            for service, ops in self.EXPECTED_SPANS.items()
             if not service.startswith("specialist-") or service == expected_specialist
         )
 
@@ -747,13 +700,15 @@ class E2ETracingValidator:
         coverage = found_count / total_expected if total_expected > 0 else 0
 
         # Determine status based on multiple factors
-        critical_errors = (
-            has_span_errors or
-            not continuity_valid or
-            not plan_valid
-        )
+        critical_errors = has_span_errors or not continuity_valid or not plan_valid
 
-        if coverage >= 0.8 and intent_valid and plan_valid and not result.errors and not critical_errors:
+        if (
+            coverage >= 0.8
+            and intent_valid
+            and plan_valid
+            and not result.errors
+            and not critical_errors
+        ):
             result.status = TestStatus.PASS
         elif critical_errors:
             # Critical errors always result in FAIL
@@ -768,7 +723,7 @@ class E2ETracingValidator:
         status_icon = {
             TestStatus.PASS: "\033[92m[PASS]\033[0m",
             TestStatus.WARN: "\033[93m[WARN]\033[0m",
-            TestStatus.FAIL: "\033[91m[FAIL]\033[0m"
+            TestStatus.FAIL: "\033[91m[FAIL]\033[0m",
         }[result.status]
 
         propagation_status = []
@@ -825,52 +780,70 @@ class E2ETracingValidator:
             if count > total_scenarios / 2:
                 service = span.split(".")[0]
                 operation = span.split(".")[-1]
-                recommendations.append({
-                    "issue": f"Span '{span}' missing in {count}/{total_scenarios} scenarios",
-                    "recommendation": f"Verify instrumentation in {service} for '{operation}' operation",
-                    "severity": "high" if count == total_scenarios else "medium"
-                })
+                recommendations.append(
+                    {
+                        "issue": f"Span '{span}' missing in {count}/{total_scenarios} scenarios",
+                        "recommendation": f"Verify instrumentation in {service} for '{operation}' operation",
+                        "severity": "high" if count == total_scenarios else "medium",
+                    }
+                )
 
         # Recommendation: intent_id propagation
         if intent_propagation_failures > 0:
-            recommendations.append({
-                "issue": f"intent_id propagation failed in {intent_propagation_failures}/{total_scenarios} scenarios",
-                "recommendation": "Check baggage/header injection in Kafka producer and extraction in consumers",
-                "severity": "high" if intent_propagation_failures == total_scenarios else "medium"
-            })
+            recommendations.append(
+                {
+                    "issue": f"intent_id propagation failed in {intent_propagation_failures}/{total_scenarios} scenarios",
+                    "recommendation": "Check baggage/header injection in Kafka producer and extraction in consumers",
+                    "severity": "high"
+                    if intent_propagation_failures == total_scenarios
+                    else "medium",
+                }
+            )
 
         # Recommendation: plan_id propagation (critical)
         if plan_propagation_failures > 0:
-            recommendations.append({
-                "issue": f"plan_id propagation failed in {plan_propagation_failures}/{total_scenarios} scenarios",
-                "recommendation": "Ensure orchestrator-dynamic sets plan_id in baggage and propagates to specialists via gRPC metadata",
-                "severity": "critical" if plan_propagation_failures == total_scenarios else "high"
-            })
+            recommendations.append(
+                {
+                    "issue": f"plan_id propagation failed in {plan_propagation_failures}/{total_scenarios} scenarios",
+                    "recommendation": "Ensure orchestrator-dynamic sets plan_id in baggage and propagates to specialists via gRPC metadata",
+                    "severity": "critical"
+                    if plan_propagation_failures == total_scenarios
+                    else "high",
+                }
+            )
 
         # Recommendation: Span errors
         if span_error_count > 0:
-            recommendations.append({
-                "issue": f"Spans with errors found in {span_error_count}/{total_scenarios} scenarios",
-                "recommendation": "Review error logs and fix underlying service issues before validating tracing",
-                "severity": "critical" if span_error_count == total_scenarios else "high"
-            })
+            recommendations.append(
+                {
+                    "issue": f"Spans with errors found in {span_error_count}/{total_scenarios} scenarios",
+                    "recommendation": "Review error logs and fix underlying service issues before validating tracing",
+                    "severity": "critical" if span_error_count == total_scenarios else "high",
+                }
+            )
 
         # Recommendation: Trace continuity
         if trace_continuity_failures > 0:
-            recommendations.append({
-                "issue": f"Trace continuity issues in {trace_continuity_failures}/{total_scenarios} scenarios",
-                "recommendation": "Check context propagation between services (Kafka headers, gRPC metadata) - traces are fragmented",
-                "severity": "critical" if trace_continuity_failures == total_scenarios else "high"
-            })
+            recommendations.append(
+                {
+                    "issue": f"Trace continuity issues in {trace_continuity_failures}/{total_scenarios} scenarios",
+                    "recommendation": "Check context propagation between services (Kafka headers, gRPC metadata) - traces are fragmented",
+                    "severity": "critical"
+                    if trace_continuity_failures == total_scenarios
+                    else "high",
+                }
+            )
 
         # Recommendation: No traces
         no_traces = sum(1 for r in results if not r.spans_found)
         if no_traces > 0:
-            recommendations.append({
-                "issue": f"No traces found in {no_traces}/{total_scenarios} scenarios",
-                "recommendation": "Check OTEL Collector export, Jaeger connectivity, and sampling configuration",
-                "severity": "critical" if no_traces == total_scenarios else "high"
-            })
+            recommendations.append(
+                {
+                    "issue": f"No traces found in {no_traces}/{total_scenarios} scenarios",
+                    "recommendation": "Check OTEL Collector export, Jaeger connectivity, and sampling configuration",
+                    "severity": "critical" if no_traces == total_scenarios else "high",
+                }
+            )
 
         return recommendations
 
@@ -878,9 +851,9 @@ class E2ETracingValidator:
         """Run complete E2E validation"""
         start_time = time.time()
 
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("Neural Hive E2E Tracing Validation")
-        print("="*60 + "\n")
+        print("=" * 60 + "\n")
 
         # Validate connectivity
         if not self.validate_connectivity():
@@ -897,17 +870,19 @@ class E2ETracingValidator:
                 avg_e2e_latency_ms=0.0,
                 span_coverage_percent=0.0,
                 results=[],
-                recommendations=[{
-                    "issue": "Connectivity validation failed",
-                    "recommendation": "Ensure Gateway and Jaeger are accessible",
-                    "severity": "critical"
-                }]
+                recommendations=[
+                    {
+                        "issue": "Connectivity validation failed",
+                        "recommendation": "Ensure Gateway and Jaeger are accessible",
+                        "severity": "critical",
+                    }
+                ],
             )
 
         # Run scenarios
-        print("\n" + "-"*40)
+        print("\n" + "-" * 40)
         print("Running Test Scenarios")
-        print("-"*40 + "\n")
+        print("-" * 40 + "\n")
 
         results = []
         for scenario in self.TEST_SCENARIOS:
@@ -921,13 +896,12 @@ class E2ETracingValidator:
         warned = sum(1 for r in results if r.status == TestStatus.WARN)
 
         total_spans_found = sum(len(r.spans_found) for r in results)
-        total_spans_expected = sum(
-            len(r.spans_found) + len(r.spans_missing)
-            for r in results
-        )
+        total_spans_expected = sum(len(r.spans_found) + len(r.spans_missing) for r in results)
 
         avg_latency = sum(r.duration_ms for r in results) / len(results) if results else 0
-        span_coverage = (total_spans_found / total_spans_expected * 100) if total_spans_expected > 0 else 0
+        span_coverage = (
+            (total_spans_found / total_spans_expected * 100) if total_spans_expected > 0 else 0
+        )
 
         # Generate recommendations
         recommendations = self.generate_recommendations(results)
@@ -946,13 +920,13 @@ class E2ETracingValidator:
             avg_e2e_latency_ms=avg_latency,
             span_coverage_percent=span_coverage,
             results=[asdict(r) for r in results],
-            recommendations=recommendations
+            recommendations=recommendations,
         )
 
         # Print summary
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("Validation Summary")
-        print("="*60)
+        print("=" * 60)
         print(f"\nScenarios: {passed} passed, {warned} warned, {failed} failed")
         print(f"Success Rate: {report.success_rate:.1f}%")
         print(f"Span Coverage: {span_coverage:.1f}%")
@@ -960,65 +934,50 @@ class E2ETracingValidator:
         print(f"Total Duration: {report.duration_seconds:.1f}s")
 
         if recommendations:
-            print("\n" + "-"*40)
+            print("\n" + "-" * 40)
             print("Recommendations:")
             for rec in recommendations:
                 severity_color = {
                     "critical": "\033[91m",
                     "high": "\033[93m",
-                    "medium": "\033[0m"
+                    "medium": "\033[0m",
                 }.get(rec["severity"], "\033[0m")
                 print(f"\n{severity_color}[{rec['severity'].upper()}]\033[0m {rec['issue']}")
                 print(f"  -> {rec['recommendation']}")
 
-        status_color = "\033[92m" if report.success_rate >= 80 else (
-            "\033[93m" if report.success_rate >= 50 else "\033[91m"
+        status_color = (
+            "\033[92m"
+            if report.success_rate >= 80
+            else ("\033[93m" if report.success_rate >= 50 else "\033[91m")
         )
-        print(f"\n{status_color}Overall Status: {'PASS' if report.success_rate >= 80 else 'FAIL'}\033[0m\n")
+        print(
+            f"\n{status_color}Overall Status: {'PASS' if report.success_rate >= 80 else 'FAIL'}\033[0m\n"
+        )
 
         return report
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="E2E Tracing Validation for Neural Hive"
-    )
+    parser = argparse.ArgumentParser(description="E2E Tracing Validation for Neural Hive")
     parser.add_argument(
         "--gateway-url",
         default=os.environ.get("GATEWAY_URL", "http://gateway-intencoes:8000"),
-        help="Gateway Intencoes URL"
+        help="Gateway Intencoes URL",
     )
     parser.add_argument(
         "--jaeger-url",
         default=os.environ.get("JAEGER_URL", "http://jaeger-query:16686"),
-        help="Jaeger Query API URL"
+        help="Jaeger Query API URL",
     )
     parser.add_argument(
-        "--namespace",
-        default="neural-hive",
-        help="Kubernetes namespace (for auto-detection)"
+        "--namespace", default="neural-hive", help="Kubernetes namespace (for auto-detection)"
     )
+    parser.add_argument("--timeout", type=int, default=60, help="Timeout for API calls (seconds)")
     parser.add_argument(
-        "--timeout",
-        type=int,
-        default=60,
-        help="Timeout for API calls (seconds)"
+        "--async-wait", type=int, default=35, help="Wait time for async processing (seconds)"
     )
-    parser.add_argument(
-        "--async-wait",
-        type=int,
-        default=35,
-        help="Wait time for async processing (seconds)"
-    )
-    parser.add_argument(
-        "--verbose", "-v",
-        action="store_true",
-        help="Enable verbose output"
-    )
-    parser.add_argument(
-        "--output-json",
-        help="Path to save JSON report"
-    )
+    parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose output")
+    parser.add_argument("--output-json", help="Path to save JSON report")
 
     args = parser.parse_args()
 
@@ -1028,7 +987,7 @@ def main():
         jaeger_url=args.jaeger_url,
         timeout=args.timeout,
         async_wait_seconds=args.async_wait,
-        verbose=args.verbose
+        verbose=args.verbose,
     )
 
     # Run validation
@@ -1042,7 +1001,11 @@ def main():
         # Convert enums to strings
         report_dict = asdict(report)
         for result in report_dict["results"]:
-            result["status"] = result["status"].value if isinstance(result["status"], TestStatus) else result["status"]
+            result["status"] = (
+                result["status"].value
+                if isinstance(result["status"], TestStatus)
+                else result["status"]
+            )
 
         with open(output_path, "w") as f:
             json.dump(report_dict, f, indent=2, default=str)

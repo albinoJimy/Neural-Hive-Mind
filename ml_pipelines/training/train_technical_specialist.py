@@ -37,7 +37,9 @@ sys.path.insert(0, str(REPO_ROOT / "libraries" / "python"))
 logger = structlog.get_logger()
 
 
-def generate_technical_dataset(n_samples: int = 1000, random_seed: int = 42) -> Tuple[pd.DataFrame, pd.Series]:
+def generate_technical_dataset(
+    n_samples: int = 1000, random_seed: int = 42
+) -> Tuple[pd.DataFrame, pd.Series]:
     """
     Gera dataset sintético para especialista technical.
 
@@ -50,28 +52,30 @@ def generate_technical_dataset(n_samples: int = 1000, random_seed: int = 42) -> 
     """
     np.random.seed(random_seed)
 
-    X = pd.DataFrame({
-        "code_quality_score": np.random.uniform(0, 1, n_samples),
-        "security_score": np.random.uniform(0, 1, n_samples),
-        "performance_score": np.random.uniform(0, 1, n_samples),
-        "architecture_compliance": np.random.uniform(0, 1, n_samples),
-        "tech_debt_risk": np.random.uniform(0, 1, n_samples),
-        "complexity_score": np.random.uniform(0, 1, n_samples),
-    })
+    X = pd.DataFrame(
+        {
+            "code_quality_score": np.random.uniform(0, 1, n_samples),
+            "security_score": np.random.uniform(0, 1, n_samples),
+            "performance_score": np.random.uniform(0, 1, n_samples),
+            "architecture_compliance": np.random.uniform(0, 1, n_samples),
+            "tech_debt_risk": np.random.uniform(0, 1, n_samples),
+            "complexity_score": np.random.uniform(0, 1, n_samples),
+        }
+    )
 
     # Regra: approve se security + architecture > 1.3 E complexidade < 0.7
     # Com peso adicional para code_quality
     y = (
-        ((X["security_score"] + X["architecture_compliance"]) > 1.3) &
-        (X["complexity_score"] < 0.7) &
-        (X["code_quality_score"] > 0.5)
+        ((X["security_score"] + X["architecture_compliance"]) > 1.3)
+        & (X["complexity_score"] < 0.7)
+        & (X["code_quality_score"] > 0.5)
     ).astype(int)
 
     logger.info(
         "technical_dataset_generated",
         n_samples=n_samples,
         approve_ratio=y.mean(),
-        reject_ratio=1 - y.mean()
+        reject_ratio=1 - y.mean(),
     )
 
     return X, y
@@ -82,7 +86,7 @@ def train_technical_model(
     test_size: float = 0.2,
     n_estimators: int = 100,
     max_depth: int = 5,
-    random_seed: int = 42
+    random_seed: int = 42,
 ) -> GradientBoostingClassifier:
     """
     Treina modelo GradientBoosting para technical specialist.
@@ -110,14 +114,12 @@ def train_technical_model(
         train_size=len(X_train),
         test_size=len(X_test),
         train_distribution=y_train.mean(),
-        test_distribution=y_test.mean()
+        test_distribution=y_test.mean(),
     )
 
     # Criar e treinar modelo
     model = GradientBoostingClassifier(
-        n_estimators=n_estimators,
-        max_depth=max_depth,
-        random_state=random_seed
+        n_estimators=n_estimators, max_depth=max_depth, random_state=random_seed
     )
 
     model.fit(X_train, y_train)
@@ -131,7 +133,7 @@ def train_technical_model(
         "model_trained",
         accuracy=accuracy,
         f1_score=f1,
-        feature_importances=dict(zip(X.columns, model.feature_importances_.tolist()))
+        feature_importances=dict(zip(X.columns, model.feature_importances_.tolist())),
     )
 
     print("\n=== Technical Specialist - Classification Report ===")
@@ -145,55 +147,28 @@ def train_technical_model(
 
 def main():
     """Função principal para execução via CLI."""
-    parser = argparse.ArgumentParser(
-        description="Treinar modelo ML para Technical Specialist"
-    )
+    parser = argparse.ArgumentParser(description="Treinar modelo ML para Technical Specialist")
     parser.add_argument(
-        "--n-samples",
-        type=int,
-        default=1000,
-        help="Numero de amostras do dataset sintético"
+        "--n-samples", type=int, default=1000, help="Numero de amostras do dataset sintético"
     )
+    parser.add_argument("--test-size", type=float, default=0.2, help="Proporção para teste (0-1)")
     parser.add_argument(
-        "--test-size",
-        type=float,
-        default=0.2,
-        help="Proporção para teste (0-1)"
+        "--n-estimators", type=int, default=100, help="Numero de estimadores do GradientBoosting"
     )
-    parser.add_argument(
-        "--n-estimators",
-        type=int,
-        default=100,
-        help="Numero de estimadores do GradientBoosting"
-    )
-    parser.add_argument(
-        "--max-depth",
-        type=int,
-        default=5,
-        help="Profundidade máxima das árvores"
-    )
-    parser.add_argument(
-        "--random-seed",
-        type=int,
-        default=42,
-        help="Semente aleatória"
-    )
-    parser.add_argument(
-        "--mlflow-enabled",
-        action="store_true",
-        help="Habilitar logging no MLflow"
-    )
+    parser.add_argument("--max-depth", type=int, default=5, help="Profundidade máxima das árvores")
+    parser.add_argument("--random-seed", type=int, default=42, help="Semente aleatória")
+    parser.add_argument("--mlflow-enabled", action="store_true", help="Habilitar logging no MLflow")
     parser.add_argument(
         "--experiment-name",
         type=str,
         default="technical_specialist",
-        help="Nome do experimento MLflow"
+        help="Nome do experimento MLflow",
     )
     parser.add_argument(
         "--model-name",
         type=str,
         default="TechnicalSpecialistModel",
-        help="Nome do modelo registrado no MLflow"
+        help="Nome do modelo registrado no MLflow",
     )
 
     args = parser.parse_args()
@@ -205,9 +180,7 @@ def main():
         mlflow.set_experiment(args.experiment_name)
 
         logger.info(
-            "mlflow_configured",
-            tracking_uri=mlflow_tracking_uri,
-            experiment=args.experiment_name
+            "mlflow_configured", tracking_uri=mlflow_tracking_uri, experiment=args.experiment_name
         )
 
     # Iniciar run MLflow
@@ -218,18 +191,20 @@ def main():
             test_size=args.test_size,
             n_estimators=args.n_estimators,
             max_depth=args.max_depth,
-            random_seed=args.random_seed
+            random_seed=args.random_seed,
         )
 
         # Log parâmetros e métricas no MLflow
         if args.mlflow_enabled:
-            mlflow.log_params({
-                "n_samples": args.n_samples,
-                "test_size": args.test_size,
-                "n_estimators": args.n_estimators,
-                "max_depth": args.max_depth,
-                "random_seed": args.random_seed
-            })
+            mlflow.log_params(
+                {
+                    "n_samples": args.n_samples,
+                    "test_size": args.test_size,
+                    "n_estimators": args.n_estimators,
+                    "max_depth": args.max_depth,
+                    "random_seed": args.random_seed,
+                }
+            )
 
             # Re-calcular métricas para logging
             X, y = generate_technical_dataset(args.n_samples, args.random_seed)
@@ -238,30 +213,33 @@ def main():
             )
             y_pred = model.predict(X_test)
 
-            mlflow.log_metrics({
-                "accuracy": accuracy_score(y_test, y_pred),
-                "f1_score": f1_score(y_test, y_pred)
-            })
+            mlflow.log_metrics(
+                {"accuracy": accuracy_score(y_test, y_pred), "f1_score": f1_score(y_test, y_pred)}
+            )
 
             # Log feature importances
             for feature, importance in zip(
-                ["code_quality_score", "security_score", "performance_score",
-                 "architecture_compliance", "tech_debt_risk", "complexity_score"],
-                model.feature_importances_
+                [
+                    "code_quality_score",
+                    "security_score",
+                    "performance_score",
+                    "architecture_compliance",
+                    "tech_debt_risk",
+                    "complexity_score",
+                ],
+                model.feature_importances_,
             ):
                 mlflow.log_metric(f"feature_importance_{feature}", importance)
 
             # Log e registrar modelo
             mlflow.sklearn.log_model(
-                model,
-                "technical_specialist_model",
-                registered_model_name=args.model_name
+                model, "technical_specialist_model", registered_model_name=args.model_name
             )
 
             logger.info(
                 "model_registered_in_mlflow",
                 model_name=args.model_name,
-                run_id=mlflow.active_run().info.run_id
+                run_id=mlflow.active_run().info.run_id,
             )
 
     print("\n=== Treino Technical Specialist concluído ===")

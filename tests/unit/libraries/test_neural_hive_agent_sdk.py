@@ -16,6 +16,7 @@ import json
 # Test: Agent Creation
 # =============================================================================
 
+
 class TestAgentCreation:
     """Testes de criação de agentes."""
 
@@ -26,7 +27,7 @@ class TestAgentCreation:
             "agent_id": str(uuid4()),
             "name": "TestAgent",
             "type": "analyst",
-            "version": "1.0.0"
+            "version": "1.0.0",
         }
 
         assert agent_config["agent_id"] is not None
@@ -39,13 +40,10 @@ class TestAgentCreation:
             "can_query": True,
             "can_transform": True,
             "can_validate": False,
-            "supported_data_types": ["json", "csv", "xml"]
+            "supported_data_types": ["json", "csv", "xml"],
         }
 
-        agent = {
-            "agent_id": str(uuid4()),
-            "capabilities": capabilities
-        }
+        agent = {"agent_id": str(uuid4()), "capabilities": capabilities}
 
         assert agent["capabilities"]["can_query"] is True
         assert "json" in agent["capabilities"]["supported_data_types"]
@@ -53,22 +51,17 @@ class TestAgentCreation:
     @pytest.mark.asyncio
     async def test_validate_agent_config(self):
         """Deve validar configuração do agente."""
-        valid_config = {
-            "name": "MyAgent",
-            "type": "analyst",
-            "version": "1.0.0"
-        }
+        valid_config = {"name": "MyAgent", "type": "analyst", "version": "1.0.0"}
 
-        invalid_config = {
-            "name": "",  # Nome vazio
-            "type": "unknown_type"
-        }
+        invalid_config = {"name": "", "type": "unknown_type"}  # Nome vazio
 
         def is_valid(config):
-            return (
-                len(config.get("name", "")) > 0 and
-                config.get("type") in ["analyst", "scout", "guard", "optimizer"]
-            )
+            return len(config.get("name", "")) > 0 and config.get("type") in [
+                "analyst",
+                "scout",
+                "guard",
+                "optimizer",
+            ]
 
         assert is_valid(valid_config) is True
         assert is_valid(invalid_config) is False
@@ -78,16 +71,14 @@ class TestAgentCreation:
 # Test: Agent Lifecycle
 # =============================================================================
 
+
 class TestAgentLifecycle:
     """Testes de ciclo de vida do agente."""
 
     @pytest.mark.asyncio
     async def test_initialize_agent(self):
         """Deve inicializar agente."""
-        agent = {
-            "agent_id": str(uuid4()),
-            "status": "created"
-        }
+        agent = {"agent_id": str(uuid4()), "status": "created"}
 
         agent["status"] = "initialized"
         agent["initialized_at"] = datetime.now(timezone.utc).isoformat()
@@ -97,10 +88,7 @@ class TestAgentLifecycle:
     @pytest.mark.asyncio
     async def test_start_agent(self):
         """Deve iniciar agente."""
-        agent = {
-            "agent_id": str(uuid4()),
-            "status": "initialized"
-        }
+        agent = {"agent_id": str(uuid4()), "status": "initialized"}
 
         agent["status"] = "running"
         agent["started_at"] = datetime.now(timezone.utc).isoformat()
@@ -110,10 +98,7 @@ class TestAgentLifecycle:
     @pytest.mark.asyncio
     async def test_stop_agent(self):
         """Deve parar agente."""
-        agent = {
-            "agent_id": str(uuid4()),
-            "status": "running"
-        }
+        agent = {"agent_id": str(uuid4()), "status": "running"}
 
         agent["status"] = "stopped"
         agent["stopped_at"] = datetime.now(timezone.utc).isoformat()
@@ -126,7 +111,7 @@ class TestAgentLifecycle:
         agent = {
             "agent_id": str(uuid4()),
             "status": "running",
-            "last_heartbeat": datetime.now(timezone.utc).isoformat()
+            "last_heartbeat": datetime.now(timezone.utc).isoformat(),
         }
 
         now = datetime.now(timezone.utc)
@@ -142,6 +127,7 @@ class TestAgentLifecycle:
 # Test: Agent Communication
 # =============================================================================
 
+
 class TestAgentCommunication:
     """Testes de comunicação do agente."""
 
@@ -153,7 +139,7 @@ class TestAgentCommunication:
             "from_agent": "orchestrator",
             "to_agent": "analyst-1",
             "payload": {"task": "analyze_data"},
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         assert message["from_agent"] == "orchestrator"
@@ -166,7 +152,7 @@ class TestAgentCommunication:
             "message_id": str(uuid4()),
             "from_agent": "analyst-1",
             "payload": {"result": "analysis_complete"},
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         received = True
@@ -182,7 +168,7 @@ class TestAgentCommunication:
             "message_id": str(uuid4()),
             "from_agent": "orchestrator",
             "payload": {"shutdown": True},
-            "recipients": ["analyst-1", "scout-1", "guard-1"]
+            "recipients": ["analyst-1", "scout-1", "guard-1"],
         }
 
         assert len(message["recipients"]) == 3
@@ -193,7 +179,7 @@ class TestAgentCommunication:
         message = {
             "message_id": str(uuid4()),
             "sent_at": (datetime.now(timezone.utc) - timedelta(seconds=35)).isoformat(),
-            "timeout_seconds": 30
+            "timeout_seconds": 30,
         }
 
         sent = datetime.fromisoformat(message["sent_at"])
@@ -208,6 +194,7 @@ class TestAgentCommunication:
 # Test: Task Execution
 # =============================================================================
 
+
 class TestTaskExecution:
     """Testes de execução de tarefas."""
 
@@ -219,7 +206,7 @@ class TestTaskExecution:
             "type": "query",
             "agent_id": "analyst-1",
             "status": "assigned",
-            "payload": {"collection": "users", "filter": {}}
+            "payload": {"collection": "users", "filter": {}},
         }
 
         assert task["status"] == "assigned"
@@ -230,7 +217,7 @@ class TestTaskExecution:
         task = {
             "task_id": str(uuid4()),
             "status": "assigned",
-            "payload": {"operation": "add", "a": 5, "b": 3}
+            "payload": {"operation": "add", "a": 5, "b": 3},
         }
 
         task["status"] = "running"
@@ -244,10 +231,7 @@ class TestTaskExecution:
     @pytest.mark.asyncio
     async def test_fail_task(self):
         """Deve falhar tarefa."""
-        task = {
-            "task_id": str(uuid4()),
-            "status": "running"
-        }
+        task = {"task_id": str(uuid4()), "status": "running"}
 
         error = {"message": "Division by zero", "code": "MATH_ERROR"}
         task["status"] = "failed"
@@ -259,12 +243,7 @@ class TestTaskExecution:
     @pytest.mark.asyncio
     async def test_retry_failed_task(self):
         """Deve retentar tarefa falha."""
-        task = {
-            "task_id": str(uuid4()),
-            "status": "failed",
-            "attempts": 1,
-            "max_retries": 3
-        }
+        task = {"task_id": str(uuid4()), "status": "failed", "attempts": 1, "max_retries": 3}
 
         if task["attempts"] < task["max_retries"]:
             task["status"] = "pending_retry"
@@ -278,6 +257,7 @@ class TestTaskExecution:
 # Test: Agent Discovery
 # =============================================================================
 
+
 class TestAgentDiscovery:
     """Testes de descoberta de agentes."""
 
@@ -289,7 +269,7 @@ class TestAgentDiscovery:
             "type": "analyst",
             "endpoint": "http://analyst-1:8000",
             "capabilities": ["query", "analyze"],
-            "registered_at": datetime.now(timezone.utc).isoformat()
+            "registered_at": datetime.now(timezone.utc).isoformat(),
         }
 
         registry = {}
@@ -304,13 +284,11 @@ class TestAgentDiscovery:
             "analyst-1": {"type": "analyst"},
             "analyst-2": {"type": "analyst"},
             "scout-1": {"type": "scout"},
-            "guard-1": {"type": "guard"}
+            "guard-1": {"type": "guard"},
         }
 
         analyst_agents = {
-            agent_id: info
-            for agent_id, info in registry.items()
-            if info["type"] == "analyst"
+            agent_id: info for agent_id, info in registry.items() if info["type"] == "analyst"
         }
 
         assert len(analyst_agents) == 2
@@ -321,12 +299,13 @@ class TestAgentDiscovery:
         registry = {
             "agent-1": {"capabilities": ["query", "transform"]},
             "agent-2": {"capabilities": ["validate"]},
-            "agent-3": {"capabilities": ["query", "analyze"]}
+            "agent-3": {"capabilities": ["query", "analyze"]},
         }
 
         required_capability = "query"
         capable_agents = [
-            agent_id for agent_id, info in registry.items()
+            agent_id
+            for agent_id, info in registry.items()
             if required_capability in info["capabilities"]
         ]
 
@@ -335,10 +314,7 @@ class TestAgentDiscovery:
     @pytest.mark.asyncio
     async def test_unregister_agent(self):
         """Deve remover registro do agente."""
-        registry = {
-            "analyst-1": {"type": "analyst"},
-            "scout-1": {"type": "scout"}
-        }
+        registry = {"analyst-1": {"type": "analyst"}, "scout-1": {"type": "scout"}}
 
         agent_to_remove = "analyst-1"
         if agent_to_remove in registry:
@@ -351,6 +327,7 @@ class TestAgentDiscovery:
 # =============================================================================
 # Test: Agent Coordination
 # =============================================================================
+
 
 class TestAgentCoordination:
     """Testes de coordenação de agentes."""
@@ -390,13 +367,13 @@ class TestAgentCoordination:
         agent_results = {
             "agent-1": {"score": 0.8},
             "agent-2": {"score": 0.7},
-            "agent-3": {"score": 0.9}
+            "agent-3": {"score": 0.9},
         }
 
         aggregated = {
             "average_score": sum(r["score"] for r in agent_results.values()) / len(agent_results),
             "max_score": max(r["score"] for r in agent_results.values()),
-            "min_score": min(r["score"] for r in agent_results.values())
+            "min_score": min(r["score"] for r in agent_results.values()),
         }
 
         assert aggregated["average_score"] == pytest.approx(0.8, rel=0.01)
@@ -407,6 +384,7 @@ class TestAgentCoordination:
 # Test: Agent State Management
 # =============================================================================
 
+
 class TestAgentStateManagement:
     """Testes de gerenciamento de estado do agente."""
 
@@ -415,11 +393,7 @@ class TestAgentStateManagement:
         """Deve salvar estado do agente."""
         agent = {
             "agent_id": str(uuid4()),
-            "state": {
-                "current_task": "task-1",
-                "processed_count": 10,
-                "last_position": 5
-            }
+            "state": {"current_task": "task-1", "processed_count": 10, "last_position": 5},
         }
 
         # Simular salvamento
@@ -430,10 +404,7 @@ class TestAgentStateManagement:
     @pytest.mark.asyncio
     async def test_load_agent_state(self):
         """Deve carregar estado do agente."""
-        stored_state = {
-            "agent_id": "agent-1",
-            "state": {"current_task": "task-1"}
-        }
+        stored_state = {"agent_id": "agent-1", "state": {"current_task": "task-1"}}
 
         loaded_state = stored_state["state"]
 
@@ -442,10 +413,7 @@ class TestAgentStateManagement:
     @pytest.mark.asyncio
     async def test_reset_agent_state(self):
         """Deve resetar estado do agente."""
-        agent = {
-            "agent_id": str(uuid4()),
-            "state": {"current_task": "task-1", "processed": 10}
-        }
+        agent = {"agent_id": str(uuid4()), "state": {"current_task": "task-1", "processed": 10}}
 
         agent["state"] = {}
         agent["state"]["reset_at"] = datetime.now(timezone.utc).isoformat()
@@ -457,6 +425,7 @@ class TestAgentStateManagement:
 # =============================================================================
 # Test: Agent Configuration
 # =============================================================================
+
 
 class TestAgentConfiguration:
     """Testes de configuração do agente."""
@@ -470,7 +439,7 @@ class TestAgentConfiguration:
                 "type": "analyst",
                 "timeout": 30,
                 "max_retries": 3,
-                "log_level": "INFO"
+                "log_level": "INFO",
             }
         }
 
@@ -480,10 +449,7 @@ class TestAgentConfiguration:
     @pytest.mark.asyncio
     async def test_update_agent_config(self):
         """Deve atualizar configuração do agente."""
-        config = {
-            "timeout": 30,
-            "max_retries": 3
-        }
+        config = {"timeout": 30, "max_retries": 3}
 
         config["timeout"] = 60
         config["max_retries"] = 5
@@ -494,11 +460,7 @@ class TestAgentConfiguration:
     @pytest.mark.asyncio
     async def test_validate_config(self):
         """Deve validar configuração."""
-        config = {
-            "timeout": 30,
-            "max_retries": 3,
-            "log_level": "INFO"
-        }
+        config = {"timeout": 30, "max_retries": 3, "log_level": "INFO"}
 
         required_fields = ["timeout", "max_retries"]
         is_valid = all(field in config for field in required_fields)
@@ -509,6 +471,7 @@ class TestAgentConfiguration:
 # =============================================================================
 # Test: Agent Monitoring
 # =============================================================================
+
 
 class TestAgentMonitoring:
     """Testes de monitoramento do agente."""
@@ -521,12 +484,11 @@ class TestAgentMonitoring:
             "tasks_completed": 100,
             "tasks_failed": 5,
             "avg_processing_time_ms": 250,
-            "uptime_seconds": 3600
+            "uptime_seconds": 3600,
         }
 
-        success_rate = (
-            metrics["tasks_completed"] /
-            (metrics["tasks_completed"] + metrics["tasks_failed"])
+        success_rate = metrics["tasks_completed"] / (
+            metrics["tasks_completed"] + metrics["tasks_failed"]
         )
 
         assert success_rate > 0.95
@@ -536,7 +498,7 @@ class TestAgentMonitoring:
         """Deve rastrear erros do agente."""
         errors = [
             {"timestamp": "T10:00", "error": "Connection timeout"},
-            {"timestamp": "T10:05", "error": "Data validation failed"}
+            {"timestamp": "T10:05", "error": "Data validation failed"},
         ]
 
         assert len(errors) == 2
@@ -544,15 +506,11 @@ class TestAgentMonitoring:
     @pytest.mark.asyncio
     async def test_calculate_agent_performance(self):
         """Deve calcular performance do agente."""
-        stats = {
-            "total_tasks": 100,
-            "successful_tasks": 95,
-            "total_processing_time_ms": 25000
-        }
+        stats = {"total_tasks": 100, "successful_tasks": 95, "total_processing_time_ms": 25000}
 
         performance = {
             "success_rate": stats["successful_tasks"] / stats["total_tasks"],
-            "avg_time_ms": stats["total_processing_time_ms"] / stats["total_tasks"]
+            "avg_time_ms": stats["total_processing_time_ms"] / stats["total_tasks"],
         }
 
         assert performance["success_rate"] == 0.95
@@ -562,6 +520,7 @@ class TestAgentMonitoring:
 # =============================================================================
 # Test: Agent Events
 # =============================================================================
+
 
 class TestAgentEvents:
     """Testes de eventos do agente."""
@@ -573,7 +532,7 @@ class TestAgentEvents:
             "event_type": "TaskCompleted",
             "agent_id": "agent-1",
             "task_id": "task-1",
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         assert event["event_type"] == "TaskCompleted"
@@ -583,13 +542,12 @@ class TestAgentEvents:
         """Deve inscrever em eventos do agente."""
         subscribers = {
             "orchestrator": ["TaskCompleted", "TaskFailed"],
-            "monitor": ["*"]  # Todos os eventos
+            "monitor": ["*"],  # Todos os eventos
         }
 
         event_type = "TaskCompleted"
         interested = [
-            sub for sub, events in subscribers.items()
-            if event_type in events or "*" in events
+            sub for sub, events in subscribers.items() if event_type in events or "*" in events
         ]
 
         assert len(interested) == 2
@@ -597,15 +555,9 @@ class TestAgentEvents:
     @pytest.mark.asyncio
     async def test_handle_agent_lifecycle_event(self):
         """Deve tratar evento de ciclo de vida."""
-        event = {
-            "event_type": "AgentStarted",
-            "agent_id": "agent-1"
-        }
+        event = {"event_type": "AgentStarted", "agent_id": "agent-1"}
 
-        handlers = {
-            "AgentStarted": "on_start_handler",
-            "AgentStopped": "on_stop_handler"
-        }
+        handlers = {"AgentStarted": "on_start_handler", "AgentStopped": "on_stop_handler"}
 
         handler = handlers.get(event["event_type"])
 
@@ -616,16 +568,14 @@ class TestAgentEvents:
 # Test: Agent Security
 # =============================================================================
 
+
 class TestAgentSecurity:
     """Testes de segurança do agente."""
 
     @pytest.mark.asyncio
     async def test_authenticate_agent(self):
         """Deve autenticar agente."""
-        agent_creds = {
-            "agent_id": "agent-1",
-            "api_key": "key-abc123"
-        }
+        agent_creds = {"agent_id": "agent-1", "api_key": "key-abc123"}
 
         valid_keys = {"key-abc123", "key-def456"}
 
@@ -636,17 +586,13 @@ class TestAgentSecurity:
     @pytest.mark.asyncio
     async def test_authorize_agent_action(self):
         """Deve autorizar ação do agente."""
-        agent_permissions = {
-            "agent-1": ["read", "write"],
-            "agent-2": ["read"]
-        }
+        agent_permissions = {"agent-1": ["read", "write"], "agent-2": ["read"]}
 
         agent_id = "agent-1"
         requested_action = "write"
 
         is_authorized = (
-            agent_id in agent_permissions and
-            requested_action in agent_permissions[agent_id]
+            agent_id in agent_permissions and requested_action in agent_permissions[agent_id]
         )
 
         assert is_authorized is True
@@ -654,11 +600,7 @@ class TestAgentSecurity:
     @pytest.mark.asyncio
     async def test_validate_agent_message(self):
         """Deve validar mensagem do agente."""
-        message = {
-            "from_agent": "agent-1",
-            "signature": "abc123",
-            "payload": {"data": "value"}
-        }
+        message = {"from_agent": "agent-1", "signature": "abc123", "payload": {"data": "value"}}
 
         # Simular verificação de assinatura
         signature_valid = message["signature"] == "abc123"
@@ -670,6 +612,7 @@ class TestAgentSecurity:
 # Test: Agent Client
 # =============================================================================
 
+
 class TestAgentClient:
     """Testes do cliente do agente."""
 
@@ -680,7 +623,7 @@ class TestAgentClient:
             "client_id": str(uuid4()),
             "target_agent": "analyst-1",
             "endpoint": "http://analyst-1:8000",
-            "timeout": 30
+            "timeout": 30,
         }
 
         assert client["target_agent"] == "analyst-1"
@@ -688,27 +631,17 @@ class TestAgentClient:
     @pytest.mark.asyncio
     async def test_client_send_request(self):
         """Deve enviar requisição via cliente."""
-        request = {
-            "method": "POST",
-            "endpoint": "/api/v1/analyze",
-            "body": {"data": "value"}
-        }
+        request = {"method": "POST", "endpoint": "/api/v1/analyze", "body": {"data": "value"}}
 
         # Simular envio
-        response = {
-            "status_code": 200,
-            "body": {"result": "success"}
-        }
+        response = {"status_code": 200, "body": {"result": "success"}}
 
         assert response["status_code"] == 200
 
     @pytest.mark.asyncio
     async def test_client_handle_response(self):
         """Deve tratar resposta do cliente."""
-        response = {
-            "status_code": 200,
-            "body": {"result": "analyzed"}
-        }
+        response = {"status_code": 200, "body": {"result": "analyzed"}}
 
         if response["status_code"] == 200:
             result = response["body"]
@@ -722,17 +655,14 @@ class TestAgentClient:
 # Test: Agent Connection Pool
 # =============================================================================
 
+
 class TestAgentConnectionPool:
     """Testes de pool de conexões do agente."""
 
     @pytest.mark.asyncio
     async def test_connection_pool_init(self):
         """Deve inicializar pool de conexões."""
-        pool = {
-            "max_connections": 10,
-            "active_connections": 0,
-            "idle_connections": []
-        }
+        pool = {"max_connections": 10, "active_connections": 0, "idle_connections": []}
 
         assert pool["max_connections"] == 10
         assert pool["active_connections"] == 0
@@ -743,7 +673,7 @@ class TestAgentConnectionPool:
         pool = {
             "max_connections": 5,
             "active_connections": 2,
-            "idle_connections": ["conn1", "conn2"]
+            "idle_connections": ["conn1", "conn2"],
         }
 
         if pool["idle_connections"]:
@@ -756,11 +686,7 @@ class TestAgentConnectionPool:
     @pytest.mark.asyncio
     async def test_release_connection(self):
         """Deve liberar conexão de volta ao pool."""
-        pool = {
-            "max_connections": 5,
-            "active_connections": 3,
-            "idle_connections": []
-        }
+        pool = {"max_connections": 5, "active_connections": 3, "idle_connections": []}
 
         pool["active_connections"] -= 1
         pool["idle_connections"].append("conn3")
@@ -771,10 +697,7 @@ class TestAgentConnectionPool:
     @pytest.mark.asyncio
     async def test_pool_exhausted(self):
         """Deve tratar pool esgotado."""
-        pool = {
-            "max_connections": 5,
-            "active_connections": 5
-        }
+        pool = {"max_connections": 5, "active_connections": 5}
 
         available = pool["max_connections"] - pool["active_connections"]
 
@@ -786,14 +709,15 @@ class TestAgentConnectionPool:
         pool = {
             "idle_connections": [
                 {"conn": "c1", "last_used": datetime.now(timezone.utc) - timedelta(seconds=300)},
-                {"conn": "c2", "last_used": datetime.now(timezone.utc) - timedelta(seconds=30)}
+                {"conn": "c2", "last_used": datetime.now(timezone.utc) - timedelta(seconds=30)},
             ],
-            "max_idle_time": 60  # segundos
+            "max_idle_time": 60,  # segundos
         }
 
         now = datetime.now(timezone.utc)
         active_connections = [
-            c for c in pool["idle_connections"]
+            c
+            for c in pool["idle_connections"]
             if (now - c["last_used"]).total_seconds() <= pool["max_idle_time"]
         ]
 
@@ -805,6 +729,7 @@ class TestAgentConnectionPool:
 # Test: Agent Discovery
 # =============================================================================
 
+
 class TestAgentDiscovery:
     """Testes de descoberta de agentes."""
 
@@ -814,13 +739,10 @@ class TestAgentDiscovery:
         registry = {
             "analyst-1": {"endpoint": "http://analyst-1:8000", "status": "healthy"},
             "analyst-2": {"endpoint": "http://analyst-2:8000", "status": "healthy"},
-            "scout-1": {"endpoint": "http://scout-1:8000", "status": "unhealthy"}
+            "scout-1": {"endpoint": "http://scout-1:8000", "status": "unhealthy"},
         }
 
-        healthy_agents = {
-            k: v for k, v in registry.items()
-            if v["status"] == "healthy"
-        }
+        healthy_agents = {k: v for k, v in registry.items() if v["status"] == "healthy"}
 
         assert len(healthy_agents) == 2
         assert "analyst-1" in healthy_agents
@@ -834,7 +756,7 @@ class TestAgentDiscovery:
         registry[agent_id] = {
             "endpoint": f"http://{agent_id}:8000",
             "status": "healthy",
-            "registered_at": datetime.now(timezone.utc).isoformat()
+            "registered_at": datetime.now(timezone.utc).isoformat(),
         }
 
         assert agent_id in registry
@@ -845,7 +767,7 @@ class TestAgentDiscovery:
         """Deve remover registro do agente."""
         registry = {
             "agent-1": {"endpoint": "http://agent-1:8000"},
-            "agent-2": {"endpoint": "http://agent-2:8000"}
+            "agent-2": {"endpoint": "http://agent-2:8000"},
         }
 
         del registry["agent-1"]
@@ -856,11 +778,7 @@ class TestAgentDiscovery:
     @pytest.mark.asyncio
     async def test_health_check_agent(self):
         """Deve verificar saúde do agente."""
-        agent = {
-            "endpoint": "http://agent-1:8000",
-            "last_check": None,
-            "status": "unknown"
-        }
+        agent = {"endpoint": "http://agent-1:8000", "last_check": None, "status": "unknown"}
 
         # Simular health check
         agent["last_check"] = datetime.now(timezone.utc).isoformat()
@@ -875,14 +793,11 @@ class TestAgentDiscovery:
         agents = {
             "analyst-1": {"capabilities": ["text_analysis", "code_analysis"]},
             "analyst-2": {"capabilities": ["text_analysis"]},
-            "scout-1": {"capabilities": ["data_discovery"]}
+            "scout-1": {"capabilities": ["data_discovery"]},
         }
 
         required_capability = "code_analysis"
-        matching_agents = [
-            k for k, v in agents.items()
-            if required_capability in v["capabilities"]
-        ]
+        matching_agents = [k for k, v in agents.items() if required_capability in v["capabilities"]]
 
         assert matching_agents == ["analyst-1"]
 
@@ -890,6 +805,7 @@ class TestAgentDiscovery:
 # =============================================================================
 # Test: Agent Communication
 # =============================================================================
+
 
 class TestAgentCommunication:
     """Testes de comunicação entre agentes."""
@@ -902,7 +818,7 @@ class TestAgentCommunication:
             "to": "agent-2",
             "type": "analysis_request",
             "payload": {"data": "test"},
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         sent = True
@@ -915,7 +831,7 @@ class TestAgentCommunication:
         """Deve receber mensagem."""
         inbox = [
             {"from": "agent-1", "payload": {"data": "test1"}},
-            {"from": "agent-2", "payload": {"data": "test2"}}
+            {"from": "agent-2", "payload": {"data": "test2"}},
         ]
 
         message = inbox.pop(0)
@@ -926,11 +842,7 @@ class TestAgentCommunication:
     @pytest.mark.asyncio
     async def test_broadcast_message(self):
         """Deve broadcast mensagem para múltiplos agentes."""
-        message = {
-            "from": "coordinator",
-            "type": "shutdown",
-            "payload": {"reason": "maintenance"}
-        }
+        message = {"from": "coordinator", "type": "shutdown", "payload": {"reason": "maintenance"}}
 
         recipients = ["agent-1", "agent-2", "agent-3"]
         sent_count = 0
@@ -943,11 +855,7 @@ class TestAgentCommunication:
     @pytest.mark.asyncio
     async def test_message_acknowledgment(self):
         """Deve confirmar recebimento de mensagem."""
-        message = {
-            "id": str(uuid4()),
-            "payload": {"data": "test"},
-            "acknowledged": False
-        }
+        message = {"id": str(uuid4()), "payload": {"data": "test"}, "acknowledged": False}
 
         # Simular acknowledge
         message["acknowledged"] = True
@@ -961,7 +869,7 @@ class TestAgentCommunication:
         message = {
             "sent_at": datetime.now(timezone.utc) - timedelta(seconds=65),
             "timeout": 60,
-            "status": "pending"
+            "status": "pending",
         }
 
         elapsed = (datetime.now(timezone.utc) - message["sent_at"]).total_seconds()
@@ -974,6 +882,7 @@ class TestAgentCommunication:
 # Test: Agent Lifecycle
 # =============================================================================
 
+
 class TestAgentLifecycle:
     """Testes de ciclo de vida do agente."""
 
@@ -984,7 +893,7 @@ class TestAgentLifecycle:
             "id": str(uuid4()),
             "type": "analyst",
             "status": "initialized",
-            "config": {"timeout": 30}
+            "config": {"timeout": 30},
         }
 
         assert agent["status"] == "initialized"
@@ -1013,10 +922,7 @@ class TestAgentLifecycle:
     @pytest.mark.asyncio
     async def test_agent_restart(self):
         """Deve reiniciar agente."""
-        agent = {
-            "status": "stopped",
-            "restart_count": 0
-        }
+        agent = {"status": "stopped", "restart_count": 0}
 
         agent["status"] = "running"
         agent["restart_count"] += 1
@@ -1028,10 +934,7 @@ class TestAgentLifecycle:
     @pytest.mark.asyncio
     async def test_agent_heartbeat(self):
         """Deve enviar heartbeat do agente."""
-        agent = {
-            "id": "agent-1",
-            "last_heartbeat": None
-        }
+        agent = {"id": "agent-1", "last_heartbeat": None}
 
         agent["last_heartbeat"] = datetime.now(timezone.utc).isoformat()
 
@@ -1042,17 +945,14 @@ class TestAgentLifecycle:
 # Test: Agent Configuration
 # =============================================================================
 
+
 class TestAgentConfiguration:
     """Testes de configuração do agente."""
 
     @pytest.mark.asyncio
     async def test_load_config(self):
         """Deve carregar configuração."""
-        config = {
-            "timeout": 30,
-            "retry_attempts": 3,
-            "backoff": "exponential"
-        }
+        config = {"timeout": 30, "retry_attempts": 3, "backoff": "exponential"}
 
         assert config["timeout"] == 30
         assert config["retry_attempts"] == 3
@@ -1072,8 +972,10 @@ class TestAgentConfiguration:
         config = {"timeout": 30, "retry_attempts": 3}
 
         is_valid = (
-            isinstance(config["timeout"], int) and config["timeout"] > 0
-            and isinstance(config["retry_attempts"], int) and config["retry_attempts"] >= 0
+            isinstance(config["timeout"], int)
+            and config["timeout"] > 0
+            and isinstance(config["retry_attempts"], int)
+            and config["retry_attempts"] >= 0
         )
 
         assert is_valid is True
@@ -1085,7 +987,7 @@ class TestAgentConfiguration:
             "timeout": 30,
             "retry_attempts": 3,
             "backoff": "exponential",
-            "max_concurrent": 10
+            "max_concurrent": 10,
         }
 
         user_config = {}
@@ -1110,17 +1012,14 @@ class TestAgentConfiguration:
 # Test: Agent Metrics
 # =============================================================================
 
+
 class TestAgentMetrics:
     """Testes de métricas do agente."""
 
     @pytest.mark.asyncio
     async def test_track_requests(self):
         """Deve rastrear requisições."""
-        metrics = {
-            "total_requests": 0,
-            "successful_requests": 0,
-            "failed_requests": 0
-        }
+        metrics = {"total_requests": 0, "successful_requests": 0, "failed_requests": 0}
 
         metrics["total_requests"] += 1
         metrics["successful_requests"] += 1
@@ -1159,10 +1058,7 @@ class TestAgentMetrics:
     @pytest.mark.asyncio
     async def test_track_active_connections(self):
         """Deve rastrear conexões ativas."""
-        metrics = {
-            "active_connections": 0,
-            "max_connections": 10
-        }
+        metrics = {"active_connections": 0, "max_connections": 10}
 
         metrics["active_connections"] = 5
 
@@ -1172,11 +1068,7 @@ class TestAgentMetrics:
     @pytest.mark.asyncio
     async def test_reset_metrics(self):
         """Deve resetar métricas."""
-        metrics = {
-            "total_requests": 100,
-            "successful_requests": 95,
-            "failed_requests": 5
-        }
+        metrics = {"total_requests": 100, "successful_requests": 95, "failed_requests": 5}
 
         metrics = {k: 0 for k in metrics}
 
@@ -1186,6 +1078,7 @@ class TestAgentMetrics:
 # =============================================================================
 # Test: Agent Error Handling
 # =============================================================================
+
 
 class TestAgentErrorHandling:
     """Testes de tratamento de erros do agente."""
@@ -1225,11 +1118,13 @@ class TestAgentErrorHandling:
         error_log = []
 
         error = Exception("Test error")
-        error_log.append({
-            "error": str(error),
-            "type": type(error).__name__,
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        })
+        error_log.append(
+            {
+                "error": str(error),
+                "type": type(error).__name__,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        )
 
         assert len(error_log) == 1
         assert error_log[0]["error"] == "Test error"

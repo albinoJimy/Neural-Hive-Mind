@@ -20,6 +20,7 @@ from prometheus_client import Counter, Histogram, Gauge
 # Redis para cache (opcional)
 try:
     import redis.asyncio as aioredis
+
     REDIS_AVAILABLE = True
 except ImportError:
     aioredis = None
@@ -40,6 +41,7 @@ try:
         create_secure_grpc_channel,
         get_grpc_metadata_with_jwt,
     )
+
     SECURITY_LIB_AVAILABLE = True
 except ImportError:
     SECURITY_LIB_AVAILABLE = False
@@ -72,6 +74,7 @@ registry_cache_misses = Counter(
 
 class AgentInfo(BaseModel):
     """Agent registration information."""
+
     agent_id: str
     agent_type: str
     capabilities: List[str]
@@ -81,6 +84,7 @@ class AgentInfo(BaseModel):
 
 class HealthStatus(BaseModel):
     """Agent health status."""
+
     status: str  # healthy, degraded, unhealthy
     last_heartbeat: str
     metrics: Dict[str, float] = {}
@@ -122,7 +126,7 @@ class ServiceRegistryClient:
         self.stub = None
         self.spiffe_manager = None
         self._initialized = False
-        
+
         # Cache Redis (opcional)
         self.redis_url = redis_url
         self.cache_ttl = cache_ttl
@@ -138,7 +142,7 @@ class ServiceRegistryClient:
             spiffe_x509_enabled = (
                 self.spiffe_enabled
                 and self.spiffe_config
-                and getattr(self.spiffe_config, 'enable_x509', False)
+                and getattr(self.spiffe_config, "enable_x509", False)
                 and SECURITY_LIB_AVAILABLE
             )
 
@@ -148,32 +152,30 @@ class ServiceRegistryClient:
                 await self.spiffe_manager.initialize()
 
                 # Permitir fallback inseguro apenas em ambientes de desenvolvimento
-                is_dev_env = self.environment.lower() in ('dev', 'development')
+                is_dev_env = self.environment.lower() in ("dev", "development")
                 self.channel = await create_secure_grpc_channel(
                     target=self.address,
                     spiffe_config=self.spiffe_config,
                     spiffe_manager=self.spiffe_manager,
-                    fallback_insecure=is_dev_env
+                    fallback_insecure=is_dev_env,
                 )
 
                 self.logger.info(
-                    'mtls_channel_configured',
-                    target=self.address,
-                    environment=self.environment
+                    "mtls_channel_configured", target=self.address, environment=self.environment
                 )
             else:
                 # Fallback para canal inseguro (apenas desenvolvimento)
-                if self.environment in ['production', 'staging', 'prod']:
+                if self.environment in ["production", "staging", "prod"]:
                     raise RuntimeError(
                         f"mTLS is required in {self.environment} but SPIFFE X.509 is disabled. "
                         "Set spiffe_enabled=True and configure spiffe_config with enable_x509=True."
                     )
 
                 self.logger.warning(
-                    'using_insecure_channel',
+                    "using_insecure_channel",
                     target=self.address,
                     environment=self.environment,
-                    warning='mTLS disabled - not for production use'
+                    warning="mTLS disabled - not for production use",
                 )
                 self.channel = grpc.aio.insecure_channel(self.address)
 
@@ -183,24 +185,21 @@ class ServiceRegistryClient:
             # Inicializar Redis cache se configurado
             if self.redis_url and REDIS_AVAILABLE:
                 try:
-                    self.redis = await aioredis.from_url(
-                        self.redis_url,
-                        decode_responses=True
-                    )
+                    self.redis = await aioredis.from_url(self.redis_url, decode_responses=True)
                     await self.redis.ping()
-                    self.logger.info('redis_cache_initialized', redis_url=self.redis_url)
+                    self.logger.info("redis_cache_initialized", redis_url=self.redis_url)
                 except Exception as redis_error:
                     self.logger.warning(
-                        'redis_cache_init_failed',
+                        "redis_cache_init_failed",
                         error=str(redis_error),
-                        message='Continuando sem cache'
+                        message="Continuando sem cache",
                     )
                     self.redis = None
 
-            self.logger.info('service_registry_client_initialized', target=self.address)
+            self.logger.info("service_registry_client_initialized", target=self.address)
 
         except Exception as e:
-            self.logger.error('service_registry_client_init_failed', error=str(e))
+            self.logger.error("service_registry_client_init_failed", error=str(e))
             raise
 
     async def _get_grpc_metadata(self) -> List[Tuple[str, str]]:
@@ -216,13 +215,11 @@ class ServiceRegistryClient:
         try:
             audience = f"service-registry.{self.spiffe_config.trust_domain}"
             return await get_grpc_metadata_with_jwt(
-                spiffe_manager=self.spiffe_manager,
-                audience=audience,
-                environment=self.environment
+                spiffe_manager=self.spiffe_manager, audience=audience, environment=self.environment
             )
         except Exception as e:
-            self.logger.warning('jwt_svid_fetch_failed', error=str(e))
-            if self.environment in ['production', 'staging', 'prod']:
+            self.logger.warning("jwt_svid_fetch_failed", error=str(e))
+            if self.environment in ["production", "staging", "prod"]:
                 raise
             return []
 
@@ -263,24 +260,27 @@ class ServiceRegistryClient:
             try:
                 # Mapear agent_type string para enum
                 agent_type_map = {
-                    'worker': service_registry_pb2.WORKER,
-                    'scout': service_registry_pb2.SCOUT,
-                    'guard': service_registry_pb2.GUARD,
-                    'analyst': service_registry_pb2.ANALYST if hasattr(service_registry_pb2, 'ANALYST') else service_registry_pb2.WORKER,
-                    'specialist': service_registry_pb2.SPECIALIST if hasattr(service_registry_pb2, 'SPECIALIST') else service_registry_pb2.WORKER,
+                    "worker": service_registry_pb2.WORKER,
+                    "scout": service_registry_pb2.SCOUT,
+                    "guard": service_registry_pb2.GUARD,
+                    "analyst": service_registry_pb2.ANALYST
+                    if hasattr(service_registry_pb2, "ANALYST")
+                    else service_registry_pb2.WORKER,
+                    "specialist": service_registry_pb2.SPECIALIST
+                    if hasattr(service_registry_pb2, "SPECIALIST")
+                    else service_registry_pb2.WORKER,
                 }
                 agent_type_enum = agent_type_map.get(
-                    agent_info.agent_type.lower(),
-                    service_registry_pb2.AGENT_TYPE_UNSPECIFIED
+                    agent_info.agent_type.lower(), service_registry_pb2.AGENT_TYPE_UNSPECIFIED
                 )
 
                 request = service_registry_pb2.RegisterRequest(
                     agent_type=agent_type_enum,
                     capabilities=agent_info.capabilities,
                     metadata=agent_info.metadata,
-                    namespace=agent_info.metadata.get('namespace', 'default'),
-                    cluster=agent_info.metadata.get('cluster', 'default'),
-                    version=agent_info.metadata.get('version', '1.0.0'),
+                    namespace=agent_info.metadata.get("namespace", "default"),
+                    cluster=agent_info.metadata.get("cluster", "default"),
+                    version=agent_info.metadata.get("version", "1.0.0"),
                 )
 
                 # Obter metadata com JWT-SVID
@@ -344,8 +344,8 @@ class ServiceRegistryClient:
                 grpc_filters = filters or {}
 
                 # Por padrão, filtrar apenas agentes saudáveis
-                if 'status' not in grpc_filters:
-                    grpc_filters['status'] = 'healthy'
+                if "status" not in grpc_filters:
+                    grpc_filters["status"] = "healthy"
 
                 request = service_registry_pb2.DiscoverRequest(
                     capabilities=capabilities,
@@ -367,7 +367,7 @@ class ServiceRegistryClient:
                             agent_id=agent_proto.agent_id,
                             agent_type=self._agent_type_to_string(agent_proto.agent_type),
                             capabilities=list(agent_proto.capabilities),
-                            endpoint=agent_proto.metadata.get('endpoint', ''),
+                            endpoint=agent_proto.metadata.get("endpoint", ""),
                             metadata=dict(agent_proto.metadata),
                         )
                         agents.append(agent)
@@ -443,11 +443,7 @@ class ServiceRegistryClient:
         if self.redis and agents:
             try:
                 agents_data = [agent.model_dump() for agent in agents]
-                await self.redis.setex(
-                    cache_key,
-                    self.cache_ttl,
-                    json.dumps(agents_data)
-                )
+                await self.redis.setex(cache_key, self.cache_ttl, json.dumps(agents_data))
                 self.logger.debug(
                     "discovery_cached",
                     cache_key=cache_key,
@@ -480,17 +476,17 @@ class ServiceRegistryClient:
     def _agent_type_to_string(self, agent_type: int) -> str:
         """Converter enum AgentType para string."""
         type_map = {
-            service_registry_pb2.WORKER: 'worker',
-            service_registry_pb2.SCOUT: 'scout',
-            service_registry_pb2.GUARD: 'guard',
+            service_registry_pb2.WORKER: "worker",
+            service_registry_pb2.SCOUT: "scout",
+            service_registry_pb2.GUARD: "guard",
         }
         # Adicionar ANALYST se disponível no proto
-        if hasattr(service_registry_pb2, 'ANALYST'):
-            type_map[service_registry_pb2.ANALYST] = 'analyst'
+        if hasattr(service_registry_pb2, "ANALYST"):
+            type_map[service_registry_pb2.ANALYST] = "analyst"
         # Adicionar SPECIALIST se disponível no proto
-        if hasattr(service_registry_pb2, 'SPECIALIST'):
-            type_map[service_registry_pb2.SPECIALIST] = 'specialist'
-        return type_map.get(agent_type, 'unknown')
+        if hasattr(service_registry_pb2, "SPECIALIST"):
+            type_map[service_registry_pb2.SPECIALIST] = "specialist"
+        return type_map.get(agent_type, "unknown")
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
     @tracer.start_as_current_span("service_registry.update_health")
@@ -512,11 +508,11 @@ class ServiceRegistryClient:
             try:
                 # Criar telemetria a partir das métricas
                 telemetry = service_registry_pb2.AgentTelemetry(
-                    success_rate=health_status.metrics.get('success_rate', 0.0),
-                    avg_duration_ms=int(health_status.metrics.get('avg_duration_ms', 0)),
-                    total_executions=int(health_status.metrics.get('total_executions', 0)),
-                    failed_executions=int(health_status.metrics.get('failed_executions', 0)),
-                    last_execution_at=int(health_status.metrics.get('last_execution_at', 0)),
+                    success_rate=health_status.metrics.get("success_rate", 0.0),
+                    avg_duration_ms=int(health_status.metrics.get("avg_duration_ms", 0)),
+                    total_executions=int(health_status.metrics.get("total_executions", 0)),
+                    failed_executions=int(health_status.metrics.get("failed_executions", 0)),
+                    last_execution_at=int(health_status.metrics.get("last_execution_at", 0)),
                 )
 
                 request = service_registry_pb2.HeartbeatRequest(

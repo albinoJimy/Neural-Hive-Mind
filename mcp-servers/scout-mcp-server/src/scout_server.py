@@ -26,6 +26,7 @@ mcp = FastMCP(name="Scout MCP Server")
 @dataclass
 class ScanResult:
     """Resultado de scan de diretório."""
+
     path: str
     total_files: int = 0
     total_dirs: int = 0
@@ -233,6 +234,7 @@ class CodeScanner:
         package_json = full_path / "package.json"
         if package_json.exists():
             import json
+
             with open(package_json) as f:
                 data = json.load(f)
                 deps = data.get("dependencies", {})
@@ -273,6 +275,7 @@ def get_scanner() -> CodeScanner:
 
 # ============ MCP Tools ============
 
+
 @mcp.tool()
 async def scan_directory(
     path: str = ".",
@@ -306,9 +309,11 @@ async def scan_directory(
         "languages": result.languages,
         "frameworks": result.frameworks,
         "summary": {
-            "primary_language": max(result.languages.items(), key=lambda x: x[1])[0] if result.languages else "unknown",
+            "primary_language": max(result.languages.items(), key=lambda x: x[1])[0]
+            if result.languages
+            else "unknown",
             "total_languages": len(result.languages),
-        }
+        },
     }
 
 
@@ -363,10 +368,7 @@ async def detect_dependencies(path: str = ".") -> dict[str, Any]:
     try:
         dependencies = scanner.detect_dependencies(path=path)
 
-        summary = {
-            ecosystem: len(deps)
-            for ecosystem, deps in dependencies.items()
-        }
+        summary = {ecosystem: len(deps) for ecosystem, deps in dependencies.items()}
 
         return {
             "path": path,
@@ -432,7 +434,9 @@ async def analyze_project_structure(path: str = ".") -> dict[str, Any]:
                 "total_files": scan_result.total_files,
                 "total_dirs": scan_result.total_dirs,
                 "languages": scan_result.languages,
-                "primary_language": max(scan_result.languages.items(), key=lambda x: x[1])[0] if scan_result.languages else "unknown",
+                "primary_language": max(scan_result.languages.items(), key=lambda x: x[1])[0]
+                if scan_result.languages
+                else "unknown",
             },
             "dependencies": dependencies,
             "common_files": found_files,
@@ -469,7 +473,9 @@ def _generate_recommendations(
     # Check dependencies size
     for ecosystem, deps in dependencies.items():
         if len(deps) > 50:
-            recommendations.append(f"Review {ecosystem} dependencies - {len(deps)} packages detected")
+            recommendations.append(
+                f"Review {ecosystem} dependencies - {len(deps)} packages detected"
+            )
 
     return recommendations
 
@@ -524,6 +530,7 @@ def _format_size(size_bytes: int) -> str:
 
 
 # ============ Health Check ============
+
 
 @mcp.tool()
 async def health_check() -> dict[str, str]:

@@ -45,11 +45,9 @@ def mock_mongodb():
 
     # Mock collection incidents
     incidents_collection = MagicMock()
-    incidents_collection.find_one = AsyncMock(return_value={
-        "event_id": "test-event-123",
-        "anomaly_detected": True,
-        "anomaly_score": 0.85
-    })
+    incidents_collection.find_one = AsyncMock(
+        return_value={"event_id": "test-event-123", "anomaly_detected": True, "anomaly_score": 0.85}
+    )
     incidents_collection.insert_one = AsyncMock()
 
     db.incidents = incidents_collection
@@ -79,18 +77,13 @@ class TestMLPipelineE2E:
         training_result = {
             "model_type": "anomaly",
             "algorithm": "isolation_forest",
-            "metrics": {
-                "f1_score": 0.72,
-                "precision": 0.78,
-                "recall": 0.67
-            },
-            "registered": True
+            "metrics": {"f1_score": 0.72, "precision": 0.78, "recall": 0.67},
+            "registered": True,
         }
 
         # Verifica modelo registrado
         versions = mock_mlflow_client.get_latest_versions(
-            "anomaly-detector-isolation_forest",
-            stages=["Production"]
+            "anomaly-detector-isolation_forest", stages=["Production"]
         )
 
         assert len(versions) > 0
@@ -110,7 +103,7 @@ class TestMLPipelineE2E:
             "deployment": "guard-agents",
             "status": "restarted",
             "model_loaded": True,
-            "model_version": 1
+            "model_version": 1,
         }
 
         # Verifica que modelo foi carregado
@@ -123,11 +116,7 @@ class TestMLPipelineE2E:
 
     @pytest.mark.e2e
     @pytest.mark.asyncio
-    async def test_anomaly_event_detected_via_kafka(
-        self,
-        mock_kafka_producer,
-        mock_mongodb
-    ):
+    async def test_anomaly_event_detected_via_kafka(self, mock_kafka_producer, mock_mongodb):
         """
         Testa que evento anomalo enviado via Kafka e detectado.
         """
@@ -140,7 +129,7 @@ class TestMLPipelineE2E:
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "estimated_duration_ms": 30000,
             "actual_duration_ms": 180000,  # Anomalia: 6x duracao
-            "retry_count": 5  # Anomalia: muitos retries
+            "retry_count": 5,  # Anomalia: muitos retries
         }
 
         # Envia via Kafka
@@ -176,12 +165,12 @@ class TestMLPipelineE2E:
                         "metric": {
                             "__name__": "guard_agent_anomaly_detection_total",
                             "model_type": "isolation_forest",
-                            "is_anomaly": "true"
+                            "is_anomaly": "true",
                         },
-                        "value": [1704672000, "42"]
+                        "value": [1704672000, "42"],
                     }
-                ]
-            }
+                ],
+            },
         }
 
         # Verifica que metrica existe e tem valor > 0
@@ -207,7 +196,7 @@ class TestMLPipelineE2E:
             "drift_score": 0.35,
             "drifted_features": ["anomaly_score", "risk_weight"],
             "timestamp": datetime.now(timezone.utc),
-            "threshold_psi": 0.2
+            "threshold_psi": 0.2,
         }
 
         # Simula verificacao de drift
@@ -221,7 +210,7 @@ class TestMLPipelineE2E:
             "model_type": "anomaly",
             "trigger": "drift",
             "success": True,
-            "new_version": 2
+            "new_version": 2,
         }
 
         assert retraining_result["success"] is True
@@ -270,8 +259,7 @@ class TestMLPipelineE2E:
         """
         # Versao no MLflow
         mlflow_versions = mock_mlflow_client.get_latest_versions(
-            "anomaly-detector-isolation_forest",
-            stages=["Production"]
+            "anomaly-detector-isolation_forest", stages=["Production"]
         )
         mlflow_version = mlflow_versions[0].version if mlflow_versions else 0
 
@@ -301,10 +289,7 @@ class TestMLPipelineResilience:
         model_available = False
 
         # Evento que seria anomalo por heuristicas
-        event = {
-            "anomaly_score": 0.85,  # Acima do threshold heuristico (0.75)
-            "retry_count": 5
-        }
+        event = {"anomaly_score": 0.85, "retry_count": 5}  # Acima do threshold heuristico (0.75)
 
         # Deteccao por heuristica
         heuristic_threshold = 0.75

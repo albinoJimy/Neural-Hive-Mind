@@ -14,11 +14,11 @@ logger = logging.getLogger(__name__)
 
 
 async def test_anomaly_detector_accuracy(
-    mongo_uri: str = 'mongodb://localhost:27017',
-    mlflow_uri: str = 'http://localhost:5000',
-    model_type: str = 'isolation_forest',
+    mongo_uri: str = "mongodb://localhost:27017",
+    mlflow_uri: str = "http://localhost:5000",
+    model_type: str = "isolation_forest",
     days_back: int = 7,
-    max_samples: int = 1000
+    max_samples: int = 1000,
 ) -> Dict[str, Any]:
     """
     Testa acurácia do AnomalyDetector em produção.
@@ -42,40 +42,32 @@ async def test_anomaly_detector_accuracy(
     db = mongo_client.neural_hive
 
     # Carregar modelo de produção
-    model_registry = ModelRegistry(
-        tracking_uri=mlflow_uri,
-        experiment_prefix='neural-hive-ml'
-    )
+    model_registry = ModelRegistry(tracking_uri=mlflow_uri, experiment_prefix="neural-hive-ml")
 
     detector = AnomalyDetector(
-        config={
-            'model_name': 'anomaly-detector',
-            'model_type': model_type,
-            'contamination': 0.05
-        },
-        model_registry=model_registry
+        config={"model_name": "anomaly-detector", "model_type": model_type, "contamination": 0.05},
+        model_registry=model_registry,
     )
 
     await detector.initialize()
 
     if not detector.model:
         logger.error("Modelo não carregado")
-        return {'error': 'Modelo não carregado'}
+        return {"error": "Modelo não carregado"}
 
     # Buscar tickets recentes
     cutoff_date = datetime.now() - timedelta(days=days_back)
     cutoff_timestamp = cutoff_date.timestamp()
 
-    cursor = db.execution_tickets.find({
-        'status': 'COMPLETED',
-        'completed_at': {'$gte': cutoff_timestamp}
-    }).limit(max_samples)
+    cursor = db.execution_tickets.find(
+        {"status": "COMPLETED", "completed_at": {"$gte": cutoff_timestamp}}
+    ).limit(max_samples)
 
     tickets = await cursor.to_list(length=max_samples)
 
     if len(tickets) < 10:
         logger.warning(f"Poucos tickets para teste: {len(tickets)}")
-        return {'error': f'Poucos tickets: {len(tickets)}', 'min_required': 10}
+        return {"error": f"Poucos tickets: {len(tickets)}", "min_required": 10}
 
     logger.info(f"Testando com {len(tickets)} tickets")
 
@@ -91,9 +83,9 @@ async def test_anomaly_detector_accuracy(
 
         # Predição do modelo
         result = await detector.detect_anomaly(ticket)
-        is_anomaly_pred = result.get('is_anomaly', False)
+        is_anomaly_pred = result.get("is_anomaly", False)
         predictions.append(-1 if is_anomaly_pred else 1)
-        scores.append(result.get('anomaly_score', 0))
+        scores.append(result.get("anomaly_score", 0))
 
     # Calcular métricas
     precision = precision_score(true_labels, predictions, pos_label=-1, zero_division=0)
@@ -102,20 +94,20 @@ async def test_anomaly_detector_accuracy(
     cm = confusion_matrix(true_labels, predictions, labels=[1, -1])
 
     metrics = {
-        'precision': float(precision),
-        'recall': float(recall),
-        'f1_score': float(f1),
-        'total_samples': len(tickets),
-        'true_anomalies': sum(1 for l in true_labels if l == -1),
-        'predicted_anomalies': sum(1 for p in predictions if p == -1),
-        'confusion_matrix': {
-            'true_negatives': int(cm[0][0]),
-            'false_positives': int(cm[0][1]),
-            'false_negatives': int(cm[1][0]),
-            'true_positives': int(cm[1][1])
+        "precision": float(precision),
+        "recall": float(recall),
+        "f1_score": float(f1),
+        "total_samples": len(tickets),
+        "true_anomalies": sum(1 for l in true_labels if l == -1),
+        "predicted_anomalies": sum(1 for p in predictions if p == -1),
+        "confusion_matrix": {
+            "true_negatives": int(cm[0][0]),
+            "false_positives": int(cm[0][1]),
+            "false_negatives": int(cm[1][0]),
+            "true_positives": int(cm[1][1]),
         },
-        'model_type': model_type,
-        'days_back': days_back
+        "model_type": model_type,
+        "days_back": days_back,
     }
 
     # Fechar conexões
@@ -136,10 +128,10 @@ def _is_anomaly_heuristic(ticket: Dict[str, Any]) -> bool:
     Returns:
         True se é anomalia, False caso contrário
     """
-    capabilities_count = len(ticket.get('capabilities', []))
-    risk_weight = ticket.get('risk_weight', 0)
-    actual_duration = ticket.get('actual_duration_ms', 0)
-    estimated_duration = ticket.get('estimated_duration_ms', 1)
+    capabilities_count = len(ticket.get("capabilities", []))
+    risk_weight = ticket.get("risk_weight", 0)
+    actual_duration = ticket.get("actual_duration_ms", 0)
+    estimated_duration = ticket.get("estimated_duration_ms", 1)
 
     # Regra 1: Capabilities excessivas
     if capabilities_count > 12:
@@ -152,16 +144,16 @@ def _is_anomaly_heuristic(ticket: Dict[str, Any]) -> bool:
             return True
 
     # Regra 3: Alto risco sem retries (suspeito)
-    if risk_weight > 75 and ticket.get('retry_count', 0) == 0:
+    if risk_weight > 75 and ticket.get("retry_count", 0) == 0:
         return True
 
     # Regra 4: QoS inconsistente com risco
-    qos = ticket.get('qos', {})
-    if qos.get('consistency') == 'EXACTLY_ONCE' and risk_weight < 30:
+    qos = ticket.get("qos", {})
+    if qos.get("consistency") == "EXACTLY_ONCE" and risk_weight < 30:
         return True
 
     # Regra 5: Timeout muito próximo da duração
-    sla_timeout = ticket.get('sla_timeout_ms', 300000)
+    sla_timeout = ticket.get("sla_timeout_ms", 300000)
     if sla_timeout > 0 and estimated_duration > 0:
         if estimated_duration / sla_timeout > 0.95:
             return True
@@ -183,7 +175,7 @@ def print_metrics(metrics: Dict[str, Any]) -> None:
     print(f"F1-Score: {metrics.get('f1_score', 0):.3f}")
     print("-" * 50)
     print("Confusion Matrix:")
-    cm = metrics.get('confusion_matrix', {})
+    cm = metrics.get("confusion_matrix", {})
     print(f"  True Negatives:  {cm.get('true_negatives', 0)}")
     print(f"  False Positives: {cm.get('false_positives', 0)}")
     print(f"  False Negatives: {cm.get('false_negatives', 0)}")
@@ -194,7 +186,7 @@ def print_metrics(metrics: Dict[str, Any]) -> None:
     print("=" * 50 + "\n")
 
     # Avaliação
-    f1 = metrics.get('f1_score', 0)
+    f1 = metrics.get("f1_score", 0)
     if f1 >= 0.80:
         print("✅ EXCELENTE: F1-Score >= 0.80")
     elif f1 >= 0.70:
@@ -206,35 +198,17 @@ def print_metrics(metrics: Dict[str, Any]) -> None:
 
 
 async def main():
-    parser = argparse.ArgumentParser(description='Testar acurácia de modelos ML')
+    parser = argparse.ArgumentParser(description="Testar acurácia de modelos ML")
+    parser.add_argument("--mongo-uri", default="mongodb://localhost:27017", help="URI do MongoDB")
+    parser.add_argument("--mlflow-uri", default="http://localhost:5000", help="URI do MLflow")
     parser.add_argument(
-        '--mongo-uri',
-        default='mongodb://localhost:27017',
-        help='URI do MongoDB'
+        "--model-type",
+        choices=["isolation_forest", "autoencoder"],
+        default="isolation_forest",
+        help="Tipo do modelo",
     )
-    parser.add_argument(
-        '--mlflow-uri',
-        default='http://localhost:5000',
-        help='URI do MLflow'
-    )
-    parser.add_argument(
-        '--model-type',
-        choices=['isolation_forest', 'autoencoder'],
-        default='isolation_forest',
-        help='Tipo do modelo'
-    )
-    parser.add_argument(
-        '--days-back',
-        type=int,
-        default=7,
-        help='Dias de histórico para teste'
-    )
-    parser.add_argument(
-        '--max-samples',
-        type=int,
-        default=1000,
-        help='Máximo de amostras'
-    )
+    parser.add_argument("--days-back", type=int, default=7, help="Dias de histórico para teste")
+    parser.add_argument("--max-samples", type=int, default=1000, help="Máximo de amostras")
 
     args = parser.parse_args()
 
@@ -243,10 +217,10 @@ async def main():
         mlflow_uri=args.mlflow_uri,
         model_type=args.model_type,
         days_back=args.days_back,
-        max_samples=args.max_samples
+        max_samples=args.max_samples,
     )
 
-    if 'error' in metrics:
+    if "error" in metrics:
         logger.error(f"Erro: {metrics['error']}")
         return 1
 
@@ -254,6 +228,6 @@ async def main():
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     exit_code = asyncio.run(main())
     exit(exit_code)

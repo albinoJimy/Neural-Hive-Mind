@@ -14,6 +14,7 @@ from enum import Enum
 # Test: Approval Request Validation
 # =============================================================================
 
+
 class TestApprovalRequestValidation:
     """Testes de validação de requisição de aprovação."""
 
@@ -25,8 +26,8 @@ class TestApprovalRequestValidation:
             "confidence": 0.85,
             "specialist_opinions": [
                 {"specialist": "business", "verdict": "approve"},
-                {"specialist": "technical", "verdict": "approve"}
-            ]
+                {"specialist": "technical", "verdict": "approve"},
+            ],
         }
 
         required_fields = ["plan_id", "consensus_verdict", "confidence"]
@@ -65,10 +66,7 @@ class TestApprovalRequestValidation:
 
     def test_empty_specialist_opinions(self):
         """Deve rejeitar opiniões vazias."""
-        request = {
-            "plan_id": str(uuid4()),
-            "specialist_opinions": []
-        }
+        request = {"plan_id": str(uuid4()), "specialist_opinions": []}
 
         has_opinions = len(request["specialist_opinions"]) > 0
 
@@ -78,6 +76,7 @@ class TestApprovalRequestValidation:
 # =============================================================================
 # Test: Approval Decision
 # =============================================================================
+
 
 class TestApprovalDecision:
     """Testes de decisão de aprovação."""
@@ -119,11 +118,12 @@ class TestApprovalDecision:
         """Deve escalar em caso de empate."""
         opinions = [
             {"specialist": "business", "verdict": "approve"},
-            {"specialist": "technical", "verdict": "reject"}
+            {"specialist": "technical", "verdict": "reject"},
         ]
 
         verdicts = [o["verdict"] for o in opinions]
         from collections import Counter
+
         counts = Counter(verdicts)
 
         needs_escalation = len(set(verdicts)) == len(verdicts)
@@ -134,6 +134,7 @@ class TestApprovalDecision:
 # =============================================================================
 # Test: Feedback Collection
 # =============================================================================
+
 
 class TestFeedbackCollection:
     """Testes de coleta de feedback."""
@@ -146,7 +147,7 @@ class TestFeedbackCollection:
             "original_verdict": "approve",
             "actual_outcome": "approved",
             "correct": True,
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         assert feedback["correct"] is True
@@ -157,7 +158,7 @@ class TestFeedbackCollection:
             {"predicted": "approve", "actual": "approve"},
             {"predicted": "approve", "actual": "approve"},
             {"predicted": "reject", "actual": "approve"},  # erro
-            {"predicted": "reject", "actual": "reject"}
+            {"predicted": "reject", "actual": "reject"},
         ]
 
         correct = sum(1 for p in predictions if p["predicted"] == p["actual"])
@@ -170,12 +171,11 @@ class TestFeedbackCollection:
         predictions = [
             {"predicted": "approve", "actual": "reject"},  # FP
             {"predicted": "approve", "actual": "approve"},
-            {"predicted": "reject", "actual": "reject"}
+            {"predicted": "reject", "actual": "reject"},
         ]
 
         false_positives = sum(
-            1 for p in predictions
-            if p["predicted"] == "approve" and p["actual"] == "reject"
+            1 for p in predictions if p["predicted"] == "approve" and p["actual"] == "reject"
         )
 
         assert false_positives == 1
@@ -185,12 +185,11 @@ class TestFeedbackCollection:
         predictions = [
             {"predicted": "reject", "actual": "approve"},  # FN
             {"predicted": "approve", "actual": "approve"},
-            {"predicted": "reject", "actual": "reject"}
+            {"predicted": "reject", "actual": "reject"},
         ]
 
         false_negatives = sum(
-            1 for p in predictions
-            if p["predicted"] == "reject" and p["actual"] == "approve"
+            1 for p in predictions if p["predicted"] == "reject" and p["actual"] == "approve"
         )
 
         assert false_negatives == 1
@@ -199,6 +198,7 @@ class TestFeedbackCollection:
 # =============================================================================
 # Test: Approval Queue
 # =============================================================================
+
 
 class TestApprovalQueue:
     """Testes de fila de aprovação."""
@@ -217,7 +217,7 @@ class TestApprovalQueue:
         queue = [
             {"plan_id": "2", "priority": "low"},
             {"plan_id": "1", "priority": "high"},
-            {"plan_id": "3", "priority": "medium"}
+            {"plan_id": "3", "priority": "medium"},
         ]
 
         priority_order = {"high": 0, "medium": 1, "low": 2}
@@ -249,15 +249,13 @@ class TestApprovalQueue:
 # Test: Human Review Assignment
 # =============================================================================
 
+
 class TestHumanReviewAssignment:
     """Testes de atribuição de revisão humana."""
 
     def test_assign_reviewer(self):
         """Deve atribuir revisor."""
-        request = {
-            "plan_id": str(uuid4()),
-            "assigned_to": None
-        }
+        request = {"plan_id": str(uuid4()), "assigned_to": None}
 
         reviewer_id = "reviewer-123"
         request["assigned_to"] = reviewer_id
@@ -269,7 +267,7 @@ class TestHumanReviewAssignment:
         reviewers = {
             "reviewer-1": {"active_reviews": 5},
             "reviewer-2": {"active_reviews": 3},
-            "reviewer-3": {"active_reviews": 7}
+            "reviewer-3": {"active_reviews": 7},
         }
 
         least_busy = min(reviewers.items(), key=lambda x: x[1]["active_reviews"])
@@ -279,15 +277,9 @@ class TestHumanReviewAssignment:
     def test_assign_by_expertise(self):
         """Deve atribuir por expertise."""
         request_type = "transfer"
-        reviewers = {
-            "reviewer-1": ["transfer", "payment"],
-            "reviewer-2": ["balance", "statement"]
-        }
+        reviewers = {"reviewer-1": ["transfer", "payment"], "reviewer-2": ["balance", "statement"]}
 
-        qualified_reviewers = [
-            r for r, types in reviewers.items()
-            if request_type in types
-        ]
+        qualified_reviewers = [r for r, types in reviewers.items() if request_type in types]
 
         assert qualified_reviewers == ["reviewer-1"]
 
@@ -295,6 +287,7 @@ class TestHumanReviewAssignment:
 # =============================================================================
 # Test: Approval Notification
 # =============================================================================
+
 
 class TestApprovalNotification:
     """Testes de notificação de aprovação."""
@@ -305,7 +298,7 @@ class TestApprovalNotification:
             "type": "approval_required",
             "recipient": "approver-123",
             "plan_id": str(uuid4()),
-            "sent_at": datetime.now(timezone.utc).isoformat()
+            "sent_at": datetime.now(timezone.utc).isoformat(),
         }
 
         assert notification["type"] == "approval_required"
@@ -315,7 +308,7 @@ class TestApprovalNotification:
         notifications = [
             {"id": "1", "status": "delivered"},
             {"id": "2", "status": "pending"},
-            {"id": "3", "status": "failed"}
+            {"id": "3", "status": "failed"},
         ]
 
         delivered_count = sum(1 for n in notifications if n["status"] == "delivered")
@@ -341,6 +334,7 @@ class TestApprovalNotification:
 # Test: Approval History
 # =============================================================================
 
+
 class TestApprovalHistory:
     """Testes de histórico de aprovação."""
 
@@ -351,7 +345,7 @@ class TestApprovalHistory:
             "plan_id": str(uuid4()),
             "action": "approved",
             "actor": "approver-123",
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         assert event["action"] == "approved"
@@ -361,7 +355,7 @@ class TestApprovalHistory:
         events = [
             {"action": "created", "actor": "system"},
             {"action": "approved", "actor": "approver-1"},
-            {"action": "approved", "actor": "approver-2"}
+            {"action": "approved", "actor": "approver-2"},
         ]
 
         approvers = [e["actor"] for e in events if e["action"] == "approved"]
@@ -373,7 +367,7 @@ class TestApprovalHistory:
         events = [
             {"action": "created", "timestamp": "T10:00:00"},
             {"action": "assigned", "timestamp": "T10:01:00"},
-            {"action": "approved", "timestamp": "T10:05:00"}
+            {"action": "approved", "timestamp": "T10:05:00"},
         ]
 
         is_complete = len(events) == 3
@@ -385,14 +379,13 @@ class TestApprovalHistory:
 # Test: Approval Metrics
 # =============================================================================
 
+
 class TestApprovalMetrics:
     """Testes de métricas de aprovação."""
 
     def test_calculate_approval_rate(self):
         """Deve calcular taxa de aprovação."""
-        decisions = [
-            "approve", "approve", "reject", "approve", "defer"
-        ]
+        decisions = ["approve", "approve", "reject", "approve", "defer"]
 
         approval_rate = decisions.count("approve") / len(decisions)
 
@@ -420,6 +413,7 @@ class TestApprovalMetrics:
 # =============================================================================
 # Test: Approval Rules
 # =============================================================================
+
 
 class TestApprovalRules:
     """Testes de regras de aprovação."""
@@ -461,9 +455,7 @@ class TestApprovalRules:
         risk_threshold = 0.7
 
         requires_approval = (
-            amount > amount_threshold or
-            user_risk_score > risk_threshold or
-            new_user
+            amount > amount_threshold or user_risk_score > risk_threshold or new_user
         )
 
         assert requires_approval is True
@@ -473,6 +465,7 @@ class TestApprovalRules:
 # Test: Batch Processing
 # =============================================================================
 
+
 class TestBatchProcessing:
     """Testes de processamento em lote."""
 
@@ -480,11 +473,7 @@ class TestBatchProcessing:
         """Deve aprovar em lote."""
         request_ids = ["1", "2", "3", "4", "5"]
 
-        batch_result = {
-            "approved": request_ids,
-            "rejected": [],
-            "failed": []
-        }
+        batch_result = {"approved": request_ids, "rejected": [], "failed": []}
 
         assert len(batch_result["approved"]) == 5
 
@@ -495,7 +484,7 @@ class TestBatchProcessing:
 
         batch_result = {
             "approved": [id for id in request_ids if id not in failed_ids],
-            "failed": list(failed_ids)
+            "failed": list(failed_ids),
         }
 
         assert len(batch_result["approved"]) == 3
@@ -508,7 +497,7 @@ class TestBatchProcessing:
 
         batches = []
         for i in range(0, len(request_ids), max_batch_size):
-            batches.append(request_ids[i:i + max_batch_size])
+            batches.append(request_ids[i : i + max_batch_size])
 
         assert len(batches) == 2
         assert len(batches[0]) == 100
@@ -518,6 +507,7 @@ class TestBatchProcessing:
 # =============================================================================
 # Test: Delegation
 # =============================================================================
+
 
 class TestApprovalDelegation:
     """Testes de delegação de aprovação."""
@@ -529,7 +519,7 @@ class TestApprovalDelegation:
             "to": "approver-2",
             "reason": "vacation",
             "start_date": datetime.now(timezone.utc).isoformat(),
-            "end_date": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
+            "end_date": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat(),
         }
 
         assert delegation["from"] == "approver-1"
@@ -539,7 +529,7 @@ class TestApprovalDelegation:
         """Deve verificar validade da delegação."""
         delegation = {
             "start_date": datetime.now(timezone.utc) - timedelta(days=1),
-            "end_date": datetime.now(timezone.utc) + timedelta(days=5)
+            "end_date": datetime.now(timezone.utc) + timedelta(days=5),
         }
 
         now = datetime.now(timezone.utc)
@@ -549,10 +539,7 @@ class TestApprovalDelegation:
 
     def test_revoke_delegation(self):
         """Deve revogar delegação."""
-        delegation = {
-            "active": True,
-            "revoked_at": None
-        }
+        delegation = {"active": True, "revoked_at": None}
 
         delegation["active"] = False
         delegation["revoked_at"] = datetime.now(timezone.utc).isoformat()

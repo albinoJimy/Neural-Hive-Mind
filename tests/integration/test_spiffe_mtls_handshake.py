@@ -19,6 +19,7 @@ from datetime import datetime, timedelta, timezone
 @dataclass
 class MockX509SVID:
     """Mock para X.509-SVID"""
+
     spiffe_id: str
     certificate: str
     private_key: str
@@ -29,6 +30,7 @@ class MockX509SVID:
 @dataclass
 class MockJWTSVID:
     """Mock para JWT-SVID"""
+
     token: str
     spiffe_id: str
     expires_at: datetime
@@ -43,7 +45,7 @@ def mock_x509_svid():
         certificate="-----BEGIN CERTIFICATE-----\nMOCK_CERT\n-----END CERTIFICATE-----",
         private_key="-----BEGIN PRIVATE KEY-----\nMOCK_KEY\n-----END PRIVATE KEY-----",
         ca_bundle="-----BEGIN CERTIFICATE-----\nMOCK_CA\n-----END CERTIFICATE-----",
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=1)
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
     )
 
 
@@ -54,25 +56,34 @@ def mock_jwt_svid():
     import base64
     import json
 
-    header = base64.urlsafe_b64encode(json.dumps({
-        "alg": "RS256",
-        "typ": "JWT"
-    }).encode()).decode().rstrip("=")
+    header = (
+        base64.urlsafe_b64encode(json.dumps({"alg": "RS256", "typ": "JWT"}).encode())
+        .decode()
+        .rstrip("=")
+    )
 
-    payload = base64.urlsafe_b64encode(json.dumps({
-        "sub": "spiffe://neural-hive.local/ns/neural-hive-execution/sa/worker-agents",
-        "aud": ["service-registry.neural-hive.local"],
-        "exp": int((datetime.now(timezone.utc) + timedelta(hours=1)).timestamp()),
-        "iat": int(datetime.now(timezone.utc).timestamp()),
-        "iss": "https://spire-server.spire-system.svc.cluster.local"
-    }).encode()).decode().rstrip("=")
+    payload = (
+        base64.urlsafe_b64encode(
+            json.dumps(
+                {
+                    "sub": "spiffe://neural-hive.local/ns/neural-hive-execution/sa/worker-agents",
+                    "aud": ["service-registry.neural-hive.local"],
+                    "exp": int((datetime.now(timezone.utc) + timedelta(hours=1)).timestamp()),
+                    "iat": int(datetime.now(timezone.utc).timestamp()),
+                    "iss": "https://spire-server.spire-system.svc.cluster.local",
+                }
+            ).encode()
+        )
+        .decode()
+        .rstrip("=")
+    )
 
     signature = base64.urlsafe_b64encode(b"mock_signature").decode().rstrip("=")
 
     return MockJWTSVID(
         token=f"{header}.{payload}.{signature}",
         spiffe_id="spiffe://neural-hive.local/ns/neural-hive-execution/sa/worker-agents",
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=1)
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
     )
 
 
@@ -162,8 +173,9 @@ class TestSPIFFEMTLSHandshake:
         spiffe_id = mock_x509_svid.spiffe_id
         trust_domain = "neural-hive.local"
 
-        assert spiffe_id.startswith(f"spiffe://{trust_domain}/"), \
-            f"SPIFFE ID deve comecar com spiffe://{trust_domain}/"
+        assert spiffe_id.startswith(
+            f"spiffe://{trust_domain}/"
+        ), f"SPIFFE ID deve comecar com spiffe://{trust_domain}/"
 
     async def test_jwt_expiration_check(self, mock_jwt_svid):
         """Testa verificacao de expiracao do JWT."""
@@ -211,8 +223,9 @@ class TestSPIFFEMTLSHandshake:
 
         # Validar formato dos SPIFFE IDs
         for spiffe_id in allowed_spiffe_ids:
-            assert spiffe_id.startswith(f"spiffe://{trust_domain}/"), \
-                f"SPIFFE ID invalido: {spiffe_id}"
+            assert spiffe_id.startswith(
+                f"spiffe://{trust_domain}/"
+            ), f"SPIFFE ID invalido: {spiffe_id}"
             assert "/ns/" in spiffe_id, "SPIFFE ID deve conter namespace"
             assert "/sa/" in spiffe_id, "SPIFFE ID deve conter service account"
 
@@ -237,8 +250,7 @@ class TestSPIFFEAuthInterceptor:
         metadata = {}
 
         auth_header = metadata.get("authorization", "")
-        assert not auth_header.startswith("Bearer "), \
-            "Requisicao sem token deve ser rejeitada"
+        assert not auth_header.startswith("Bearer "), "Requisicao sem token deve ser rejeitada"
 
     async def test_invalid_jwt_structure(self, mock_settings):
         """Testa rejeicao quando JWT tem estrutura invalida."""
@@ -265,22 +277,24 @@ class TestSPIFFEAuthInterceptor:
             "Heartbeat": [spiffe_id],
             "DiscoverAgents": [
                 f"spiffe://{trust_domain}/ns/neural-hive-orchestration/sa/orchestrator-dynamic",
-                spiffe_id
+                spiffe_id,
             ],
         }
 
         # Verificar autorizacao para cada metodo
         for method, allowed_ids in allowed_spiffe_ids.items():
-            assert spiffe_id in allowed_ids or "*" in allowed_ids, \
-                f"SPIFFE ID deve estar autorizado para {method}"
+            assert (
+                spiffe_id in allowed_ids or "*" in allowed_ids
+            ), f"SPIFFE ID deve estar autorizado para {method}"
 
     async def test_invalid_trust_domain_rejection(self, mock_settings):
         """Testa rejeicao de SPIFFE ID com trust domain invalido."""
         valid_trust_domain = mock_settings.SPIFFE_TRUST_DOMAIN
         invalid_spiffe_id = "spiffe://malicious-domain.com/ns/attacker/sa/evil-agent"
 
-        assert not invalid_spiffe_id.startswith(f"spiffe://{valid_trust_domain}/"), \
-            "SPIFFE ID com trust domain invalido deve ser rejeitado"
+        assert not invalid_spiffe_id.startswith(
+            f"spiffe://{valid_trust_domain}/"
+        ), "SPIFFE ID com trust domain invalido deve ser rejeitado"
 
 
 @pytest.mark.asyncio

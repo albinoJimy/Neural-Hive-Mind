@@ -15,6 +15,7 @@ import asyncio
 # Test: Experiment Manager
 # =============================================================================
 
+
 class TestExperimentManager:
     """Testes do gerenciador de experimentos."""
 
@@ -28,7 +29,7 @@ class TestExperimentManager:
             "variants": ["control", "treatment"],
             "traffic_split": {"control": 0.5, "treatment": 0.5},
             "status": "pending",
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         assert experiment["status"] == "pending"
@@ -49,15 +50,12 @@ class TestExperimentManager:
     @pytest.mark.asyncio
     async def test_complete_experiment(self):
         """Deve completar experimento com resultados."""
-        experiment = {
-            "status": "running",
-            "results": None
-        }
+        experiment = {"status": "running", "results": None}
 
         # Simular resultados
         results = {
             "control": {"mean_latency": 100, "p95_latency": 200},
-            "treatment": {"mean_latency": 80, "p95_latency": 150}
+            "treatment": {"mean_latency": 80, "p95_latency": 150},
         }
 
         experiment["status"] = "completed"
@@ -65,12 +63,16 @@ class TestExperimentManager:
         experiment["completed_at"] = datetime.now(timezone.utc).isoformat()
 
         assert experiment["status"] == "completed"
-        assert experiment["results"]["treatment"]["mean_latency"] < experiment["results"]["control"]["mean_latency"]
+        assert (
+            experiment["results"]["treatment"]["mean_latency"]
+            < experiment["results"]["control"]["mean_latency"]
+        )
 
 
 # =============================================================================
 # Test: AB Testing Engine
 # =============================================================================
+
 
 class TestABTestingEngine:
     """Testes do motor de AB testing."""
@@ -83,6 +85,7 @@ class TestABTestingEngine:
 
         # Simular 10 requisições
         import random
+
         random.seed(42)
         assignments = []
 
@@ -119,10 +122,7 @@ class TestABTestingEngine:
     @pytest.mark.asyncio
     async def test_declare_winner(self):
         """Deve declarar vencedor do experimento."""
-        results = {
-            "control": {"conversion_rate": 0.10},
-            "treatment": {"conversion_rate": 0.12}
-        }
+        results = {"control": {"conversion_rate": 0.10}, "treatment": {"conversion_rate": 0.12}}
 
         # Determinar vencedor (maior taxa de conversão)
         winner = max(results.items(), key=lambda x: x[1]["conversion_rate"])
@@ -134,6 +134,7 @@ class TestABTestingEngine:
 # Test: Auto Applier
 # =============================================================================
 
+
 class TestAutoApplier:
     """Testes de aplicação automática de otimizações."""
 
@@ -144,7 +145,7 @@ class TestAutoApplier:
             "id": str(uuid4()),
             "type": "config_change",
             "params": {"cache_ttl": 3600},
-            "confidence": 0.95
+            "confidence": 0.95,
         }
 
         if optimization["confidence"] > 0.8:
@@ -160,7 +161,7 @@ class TestAutoApplier:
             "id": str(uuid4()),
             "applied": True,
             "rollback_config": {"cache_ttl": 1800},
-            "monitored": True
+            "monitored": True,
         }
 
         # Detectar falha
@@ -178,6 +179,7 @@ class TestAutoApplier:
 # Test: Insights Consumer
 # =============================================================================
 
+
 class TestInsightsConsumer:
     """Testes do consumidor de insights."""
 
@@ -189,14 +191,14 @@ class TestInsightsConsumer:
             "type": "optimization_opportunity",
             "confidence": 0.85,
             "potential_gain": "15%",
-            "metadata": {"service": "api-gateway"}
+            "metadata": {"service": "api-gateway"},
         }
 
         # Processar insight
         processed = {
             "original": insight_message,
             "processed_at": datetime.now(timezone.utc).isoformat(),
-            "action_taken": "queued_for_review"
+            "action_taken": "queued_for_review",
         }
 
         assert processed["action_taken"] == "queued_for_review"
@@ -207,7 +209,7 @@ class TestInsightsConsumer:
         insights = [
             {"id": "1", "confidence": 0.9},
             {"id": "2", "confidence": 0.3},
-            {"id": "3", "confidence": 0.7}
+            {"id": "3", "confidence": 0.7},
         ]
 
         threshold = 0.5
@@ -221,6 +223,7 @@ class TestInsightsConsumer:
 # Test: Scheduling Optimizer
 # =============================================================================
 
+
 class TestSchedulingOptimizer:
     """Testes de otimizador de agendamento."""
 
@@ -230,7 +233,7 @@ class TestSchedulingOptimizer:
         tasks = [
             {"id": "t1", "duration": 30, "priority": "high"},
             {"id": "t2", "duration": 60, "priority": "medium"},
-            {"id": "t3", "duration": 15, "priority": "high"}
+            {"id": "t3", "duration": 15, "priority": "high"},
         ]
 
         # Ordenar por prioridade e duração
@@ -246,15 +249,16 @@ class TestSchedulingOptimizer:
         scheduled_tasks = [
             {"id": "t1", "resource": "cpu", "start": "10:00", "end": "10:30"},
             {"id": "t2", "resource": "cpu", "start": "10:15", "end": "10:45"},
-            {"id": "t3", "resource": "memory", "start": "10:00", "end": "10:30"}
+            {"id": "t3", "resource": "memory", "start": "10:00", "end": "10:30"},
         ]
 
         # Detectar conflitos (overlap no mesmo recurso)
         conflicts = []
         for i, t1 in enumerate(scheduled_tasks):
-            for t2 in scheduled_tasks[i+1:]:
-                if (t1["resource"] == t2["resource"] and
-                    not (t1["end"] <= t2["start"] or t1["start"] >= t2["end"])):
+            for t2 in scheduled_tasks[i + 1 :]:
+                if t1["resource"] == t2["resource"] and not (
+                    t1["end"] <= t2["start"] or t1["start"] >= t2["end"]
+                ):
                     conflicts.append((t1["id"], t2["id"]))
 
         assert len(conflicts) == 1
@@ -264,6 +268,7 @@ class TestSchedulingOptimizer:
 # =============================================================================
 # Test: Statistical Analysis
 # =============================================================================
+
 
 class TestStatisticalAnalysis:
     """Testes de análise estatística."""
@@ -279,7 +284,7 @@ class TestStatisticalAnalysis:
         # Approximate margin of error
         # Para n=100, z-score para 95% é ~1.96
         z_score = 1.96
-        margin_of_error = z_score * sample_std / (sample_size ** 0.5)
+        margin_of_error = z_score * sample_std / (sample_size**0.5)
 
         ci_lower = sample_mean - margin_of_error
         ci_upper = sample_mean + margin_of_error
@@ -317,6 +322,7 @@ class TestStatisticalAnalysis:
 # Test: Performance Metrics
 # =============================================================================
 
+
 class TestPerformanceMetrics:
     """Testes de métricas de performance."""
 
@@ -336,7 +342,7 @@ class TestPerformanceMetrics:
         applied_optimizations = [
             {"id": "opt1", "impact": "5%"},
             {"id": "opt2", "impact": "8%"},
-            {"id": "opt3", "impact": "3%"}
+            {"id": "opt3", "impact": "3%"},
         ]
 
         # Impacto total não é soma simples (devido a overlaps)
@@ -349,6 +355,7 @@ class TestPerformanceMetrics:
 # =============================================================================
 # Test: Rollback Strategy
 # =============================================================================
+
 
 class TestRollbackStrategy:
     """Testes de estratégia de rollback."""
@@ -394,6 +401,7 @@ class TestRollbackStrategy:
 # Test: Experiment Tracking
 # =============================================================================
 
+
 class TestExperimentTracking:
     """Testes de rastreamento de experimentos."""
 
@@ -406,7 +414,7 @@ class TestExperimentTracking:
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "experiment_id": str(uuid4()),
             "event_type": "variant_assigned",
-            "details": {"variant": "treatment"}
+            "details": {"variant": "treatment"},
         }
 
         event_log.append(event)
@@ -419,7 +427,7 @@ class TestExperimentTracking:
         """Deve calcular duração do experimento."""
         experiment = {
             "started_at": (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat(),
-            "ended_at": datetime.now(timezone.utc).isoformat()
+            "ended_at": datetime.now(timezone.utc).isoformat(),
         }
 
         start = datetime.fromisoformat(experiment["started_at"])

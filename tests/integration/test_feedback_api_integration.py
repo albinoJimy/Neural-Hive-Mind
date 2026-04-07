@@ -19,7 +19,7 @@ SPECIALISTS = [
     "specialist-business",
     "specialist-architecture",
     "specialist-behavior",
-    "specialist-evolution"
+    "specialist-evolution",
 ]
 
 # Configuration from environment
@@ -38,7 +38,7 @@ def get_base_url(specialist: str) -> str:
             "specialist-business": 8002,
             "specialist-architecture": 8003,
             "specialist-behavior": 8004,
-            "specialist-evolution": 8005
+            "specialist-evolution": 8005,
         }
         return f"http://localhost:{port_map.get(specialist, 8000)}"
     else:
@@ -47,16 +47,14 @@ def get_base_url(specialist: str) -> str:
 
 
 def generate_jwt_token(
-    subject: str = "test-reviewer",
-    role: str = "human_expert",
-    expires_in_hours: int = 1
+    subject: str = "test-reviewer", role: str = "human_expert", expires_in_hours: int = 1
 ) -> str:
     """Generate a valid JWT token for testing."""
     payload = {
-        'sub': subject,
-        'role': role,
-        'exp': datetime.now(timezone.utc) + timedelta(hours=expires_in_hours),
-        'iat': datetime.now(timezone.utc)
+        "sub": subject,
+        "role": role,
+        "exp": datetime.now(timezone.utc) + timedelta(hours=expires_in_hours),
+        "iat": datetime.now(timezone.utc),
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
@@ -86,8 +84,8 @@ class TestFeedbackHealthEndpoint:
             assert response.status_code == 200
 
             data = response.json()
-            assert 'status' in data
-            assert data['status'] in ['healthy', 'degraded', 'unhealthy']
+            assert "status" in data
+            assert data["status"] in ["healthy", "degraded", "unhealthy"]
 
         except requests.exceptions.ConnectionError:
             pytest.skip(f"Cannot connect to {specialist} - service may not be running")
@@ -102,10 +100,10 @@ class TestFeedbackHealthEndpoint:
 
             if response.status_code == 200:
                 data = response.json()
-                if data.get('status') == 'healthy':
-                    assert 'specialist_type' in data
+                if data.get("status") == "healthy":
+                    assert "specialist_type" in data
                     expected_type = specialist.replace("specialist-", "")
-                    assert data['specialist_type'] == expected_type
+                    assert data["specialist_type"] == expected_type
 
         except requests.exceptions.ConnectionError:
             pytest.skip(f"Cannot connect to {specialist} - service may not be running")
@@ -123,14 +121,15 @@ class TestFeedbackAuthentication:
             "opinion_id": "test-opinion-123",
             "human_rating": 0.9,
             "human_recommendation": "approve",
-            "feedback_notes": "Test feedback"
+            "feedback_notes": "Test feedback",
         }
 
         try:
             # Without token - should fail with 401
             response = requests.post(url, json=payload, timeout=10)
-            assert response.status_code == 401, \
-                f"Expected 401 without auth, got {response.status_code}"
+            assert (
+                response.status_code == 401
+            ), f"Expected 401 without auth, got {response.status_code}"
 
         except requests.exceptions.ConnectionError:
             pytest.skip(f"Cannot connect to {specialist} - service may not be running")
@@ -140,21 +139,20 @@ class TestFeedbackAuthentication:
         """Test that invalid JWT tokens are rejected."""
         url = f"{get_base_url(specialist)}/api/v1/feedback"
 
-        headers = {
-            "Authorization": "Bearer invalid-token-here"
-        }
+        headers = {"Authorization": "Bearer invalid-token-here"}
 
         payload = {
             "opinion_id": "test-opinion-123",
             "human_rating": 0.9,
             "human_recommendation": "approve",
-            "feedback_notes": "Test feedback"
+            "feedback_notes": "Test feedback",
         }
 
         try:
             response = requests.post(url, json=payload, headers=headers, timeout=10)
-            assert response.status_code == 401, \
-                f"Expected 401 with invalid token, got {response.status_code}"
+            assert (
+                response.status_code == 401
+            ), f"Expected 401 with invalid token, got {response.status_code}"
 
         except requests.exceptions.ConnectionError:
             pytest.skip(f"Cannot connect to {specialist} - service may not be running")
@@ -166,30 +164,27 @@ class TestFeedbackAuthentication:
 
         # Generate expired token
         payload = {
-            'sub': 'test-reviewer',
-            'role': 'human_expert',
-            'exp': datetime.now(timezone.utc) - timedelta(hours=1),  # Expired
-            'iat': datetime.now(timezone.utc) - timedelta(hours=2)
+            "sub": "test-reviewer",
+            "role": "human_expert",
+            "exp": datetime.now(timezone.utc) - timedelta(hours=1),  # Expired
+            "iat": datetime.now(timezone.utc) - timedelta(hours=2),
         }
         expired_token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
-        headers = {
-            "Authorization": f"Bearer {expired_token}"
-        }
+        headers = {"Authorization": f"Bearer {expired_token}"}
 
         request_payload = {
             "opinion_id": "test-opinion-123",
             "human_rating": 0.9,
             "human_recommendation": "approve",
-            "feedback_notes": "Test feedback"
+            "feedback_notes": "Test feedback",
         }
 
         try:
-            response = requests.post(
-                url, json=request_payload, headers=headers, timeout=10
-            )
-            assert response.status_code == 401, \
-                f"Expected 401 with expired token, got {response.status_code}"
+            response = requests.post(url, json=request_payload, headers=headers, timeout=10)
+            assert (
+                response.status_code == 401
+            ), f"Expected 401 with expired token, got {response.status_code}"
 
         except requests.exceptions.ConnectionError:
             pytest.skip(f"Cannot connect to {specialist} - service may not be running")
@@ -203,29 +198,29 @@ class TestFeedbackSubmission:
         """Test feedback submission with valid JWT."""
         url = f"{get_base_url(specialist)}/api/v1/feedback"
 
-        headers = {
-            "Authorization": f"Bearer {jwt_token}"
-        }
+        headers = {"Authorization": f"Bearer {jwt_token}"}
 
         payload = {
             "opinion_id": f"test-opinion-{specialist}-456",
             "human_rating": 0.85,
             "human_recommendation": "approve_with_conditions",
-            "feedback_notes": "Good analysis but needs minor adjustments"
+            "feedback_notes": "Good analysis but needs minor adjustments",
         }
 
         try:
             response = requests.post(url, json=payload, headers=headers, timeout=10)
 
             # Should succeed (201) or return 404 if opinion doesn't exist
-            assert response.status_code in [201, 404], \
-                f"Expected 201 or 404, got {response.status_code}: {response.text}"
+            assert response.status_code in [
+                201,
+                404,
+            ], f"Expected 201 or 404, got {response.status_code}: {response.text}"
 
             if response.status_code == 201:
                 data = response.json()
-                assert 'feedback_id' in data
-                assert data['opinion_id'] == payload['opinion_id']
-                assert data['status'] == 'success'
+                assert "feedback_id" in data
+                assert data["opinion_id"] == payload["opinion_id"]
+                assert data["status"] == "success"
 
         except requests.exceptions.ConnectionError:
             pytest.skip(f"Cannot connect to {specialist} - service may not be running")
@@ -235,22 +230,21 @@ class TestFeedbackSubmission:
         """Test that feedback submission validates rating bounds."""
         url = f"{get_base_url(specialist)}/api/v1/feedback"
 
-        headers = {
-            "Authorization": f"Bearer {jwt_token}"
-        }
+        headers = {"Authorization": f"Bearer {jwt_token}"}
 
         # Invalid rating > 1.0
         payload = {
             "opinion_id": "test-opinion-123",
             "human_rating": 1.5,  # Invalid: should be 0.0-1.0
             "human_recommendation": "approve",
-            "feedback_notes": "Test"
+            "feedback_notes": "Test",
         }
 
         try:
             response = requests.post(url, json=payload, headers=headers, timeout=10)
-            assert response.status_code == 422, \
-                f"Expected 422 for invalid rating, got {response.status_code}"
+            assert (
+                response.status_code == 422
+            ), f"Expected 422 for invalid rating, got {response.status_code}"
 
         except requests.exceptions.ConnectionError:
             pytest.skip(f"Cannot connect to {specialist} - service may not be running")
@@ -260,22 +254,21 @@ class TestFeedbackSubmission:
         """Test that feedback submission validates recommendation values."""
         url = f"{get_base_url(specialist)}/api/v1/feedback"
 
-        headers = {
-            "Authorization": f"Bearer {jwt_token}"
-        }
+        headers = {"Authorization": f"Bearer {jwt_token}"}
 
         # Invalid recommendation
         payload = {
             "opinion_id": "test-opinion-123",
             "human_rating": 0.8,
             "human_recommendation": "invalid_recommendation",  # Invalid
-            "feedback_notes": "Test"
+            "feedback_notes": "Test",
         }
 
         try:
             response = requests.post(url, json=payload, headers=headers, timeout=10)
-            assert response.status_code == 422, \
-                f"Expected 422 for invalid recommendation, got {response.status_code}"
+            assert (
+                response.status_code == 422
+            ), f"Expected 422 for invalid recommendation, got {response.status_code}"
 
         except requests.exceptions.ConnectionError:
             pytest.skip(f"Cannot connect to {specialist} - service may not be running")
@@ -290,28 +283,22 @@ class TestFeedbackStatistics:
         specialist_type = specialist.replace("specialist-", "")
         url = f"{get_base_url(specialist)}/api/v1/feedback/stats"
 
-        headers = {
-            "Authorization": f"Bearer {jwt_token}"
-        }
+        headers = {"Authorization": f"Bearer {jwt_token}"}
 
-        params = {
-            "specialist_type": specialist_type,
-            "window_days": 30
-        }
+        params = {"specialist_type": specialist_type, "window_days": 30}
 
         try:
-            response = requests.get(
-                url, params=params, headers=headers, timeout=10
-            )
+            response = requests.get(url, params=params, headers=headers, timeout=10)
 
             # Stats should return 200 even if no data
-            assert response.status_code == 200, \
-                f"Expected 200, got {response.status_code}: {response.text}"
+            assert (
+                response.status_code == 200
+            ), f"Expected 200, got {response.status_code}: {response.text}"
 
             data = response.json()
-            assert 'count' in data
-            assert isinstance(data['count'], int)
-            assert data['count'] >= 0
+            assert "count" in data
+            assert isinstance(data["count"], int)
+            assert data["count"] >= 0
 
         except requests.exceptions.ConnectionError:
             pytest.skip(f"Cannot connect to {specialist} - service may not be running")
@@ -322,15 +309,13 @@ class TestFeedbackStatistics:
         specialist_type = specialist.replace("specialist-", "")
         url = f"{get_base_url(specialist)}/api/v1/feedback/stats"
 
-        params = {
-            "specialist_type": specialist_type,
-            "window_days": 30
-        }
+        params = {"specialist_type": specialist_type, "window_days": 30}
 
         try:
             response = requests.get(url, params=params, timeout=10)
-            assert response.status_code == 401, \
-                f"Expected 401 without auth, got {response.status_code}"
+            assert (
+                response.status_code == 401
+            ), f"Expected 401 without auth, got {response.status_code}"
 
         except requests.exceptions.ConnectionError:
             pytest.skip(f"Cannot connect to {specialist} - service may not be running")
@@ -344,16 +329,14 @@ class TestPIIAnonymization:
         """Test that PII in feedback notes is handled properly."""
         url = f"{get_base_url(specialist)}/api/v1/feedback"
 
-        headers = {
-            "Authorization": f"Bearer {jwt_token}"
-        }
+        headers = {"Authorization": f"Bearer {jwt_token}"}
 
         # Feedback with PII that should be anonymized
         payload = {
             "opinion_id": f"test-opinion-pii-{specialist}",
             "human_rating": 0.75,
             "human_recommendation": "review_required",
-            "feedback_notes": "Contact John Doe at john.doe@example.com or call +1-555-123-4567"
+            "feedback_notes": "Contact John Doe at john.doe@example.com or call +1-555-123-4567",
         }
 
         try:
@@ -361,8 +344,10 @@ class TestPIIAnonymization:
 
             # Should succeed or 404 if opinion doesn't exist
             # PII detection happens asynchronously during storage
-            assert response.status_code in [201, 404], \
-                f"Expected 201 or 404, got {response.status_code}"
+            assert response.status_code in [
+                201,
+                404,
+            ], f"Expected 201 or 404, got {response.status_code}"
 
         except requests.exceptions.ConnectionError:
             pytest.skip(f"Cannot connect to {specialist} - service may not be running")
@@ -377,16 +362,16 @@ class TestOnlineUpdateTrigger:
         url = f"{get_base_url(specialist)}/api/v1/feedback/trigger-online-update"
 
         # Using regular human_expert token (not admin)
-        headers = {
-            "Authorization": f"Bearer {jwt_token}"
-        }
+        headers = {"Authorization": f"Bearer {jwt_token}"}
 
         try:
             response = requests.post(url, headers=headers, timeout=10)
 
             # Should be forbidden for non-admin users
-            assert response.status_code in [403, 401], \
-                f"Expected 403/401 for non-admin, got {response.status_code}"
+            assert response.status_code in [
+                403,
+                401,
+            ], f"Expected 403/401 for non-admin, got {response.status_code}"
 
         except requests.exceptions.ConnectionError:
             pytest.skip(f"Cannot connect to {specialist} - service may not be running")
@@ -396,20 +381,20 @@ class TestOnlineUpdateTrigger:
         """Test online update trigger with admin credentials."""
         url = f"{get_base_url(specialist)}/api/v1/feedback/trigger-online-update"
 
-        headers = {
-            "Authorization": f"Bearer {admin_jwt_token}"
-        }
+        headers = {"Authorization": f"Bearer {admin_jwt_token}"}
 
         try:
             response = requests.post(url, headers=headers, timeout=30)
 
             # Should succeed or return unavailable if ML module not installed
-            assert response.status_code in [200, 503], \
-                f"Expected 200 or 503, got {response.status_code}"
+            assert response.status_code in [
+                200,
+                503,
+            ], f"Expected 200 or 503, got {response.status_code}"
 
             if response.status_code == 200:
                 data = response.json()
-                assert 'status' in data
+                assert "status" in data
 
         except requests.exceptions.ConnectionError:
             pytest.skip(f"Cannot connect to {specialist} - service may not be running")

@@ -10,8 +10,10 @@ from datetime import datetime
 # Mock MongoDB classes para evitar tentativas de conexão real
 # ============================================================================
 
+
 class MockMongoCollection:
     """Mock de coleção MongoDB."""
+
     def __init__(self):
         self.data = []
 
@@ -22,7 +24,7 @@ class MockMongoCollection:
         return None
 
     def insert_one(self, *args, **kwargs):
-        return Mock(inserted_id='test_id')
+        return Mock(inserted_id="test_id")
 
     def update_one(self, *args, **kwargs):
         return Mock(modified_count=1)
@@ -57,6 +59,7 @@ class MockMongoCollection:
 
 class MockMongoDB:
     """Mock de database MongoDB."""
+
     def __init__(self):
         self._collection = MockMongoCollection()
 
@@ -64,13 +67,14 @@ class MockMongoDB:
         return self._collection
 
     def __getattr__(self, name):
-        if name.startswith('_'):
+        if name.startswith("_"):
             raise AttributeError(name)
         return self._collection
 
 
 class MockMongoClient:
     """Mock de cliente MongoDB."""
+
     def __init__(self, *args, **kwargs):
         self._db = MockMongoDB()
 
@@ -78,7 +82,7 @@ class MockMongoClient:
         return self._db
 
     def __getattr__(self, name):
-        if name == '_MongoClient__all_options' or name.startswith('_'):
+        if name == "_MongoClient__all_options" or name.startswith("_"):
             raise AttributeError(name)
         return self._db
 
@@ -88,14 +92,11 @@ class MockMongoClient:
 
 
 # Patch pymongo antes de importar os módulos
-_pymongo_patch = patch('pymongo.MongoClient', MockMongoClient)
+_pymongo_patch = patch("pymongo.MongoClient", MockMongoClient)
 _pymongo_patch.start()
 
 # Agora é seguro importar
-from ml_pipelines.online_learning.shadow_validator import (
-    ShadowValidator,
-    ShadowValidationResult
-)
+from ml_pipelines.online_learning.shadow_validator import ShadowValidator, ShadowValidationResult
 from ml_pipelines.online_learning.config import OnlineLearningConfig
 
 
@@ -113,7 +114,7 @@ def config():
         shadow_accuracy_threshold=0.95,
         shadow_max_latency_ratio=1.5,
         shadow_max_kl_divergence=0.1,
-        shadow_min_samples=10
+        shadow_min_samples=10,
     )
 
 
@@ -124,7 +125,7 @@ def validator(config, mock_batch_model, mock_online_learner):
         config=config,
         specialist_type="test_specialist",
         batch_model=mock_batch_model,
-        online_learner=mock_online_learner
+        online_learner=mock_online_learner,
     )
 
 
@@ -134,14 +135,14 @@ def mock_batch_model():
     model = Mock()
 
     def predict_proba(X):
-        n_samples = X.shape[0] if hasattr(X, 'shape') else 3
+        n_samples = X.shape[0] if hasattr(X, "shape") else 3
         np.random.seed(42)
         probs = np.random.uniform(0.3, 0.7, (n_samples, 2))
         probs = probs / probs.sum(axis=1, keepdims=True)
         return probs
 
     def predict(X):
-        n_samples = X.shape[0] if hasattr(X, 'shape') else 3
+        n_samples = X.shape[0] if hasattr(X, "shape") else 3
         probs = predict_proba(X)
         return np.argmax(probs, axis=1)
 
@@ -156,14 +157,14 @@ def mock_online_learner():
     learner = Mock()
 
     def predict_proba(X):
-        n_samples = X.shape[0] if hasattr(X, 'shape') else 3
+        n_samples = X.shape[0] if hasattr(X, "shape") else 3
         np.random.seed(43)  # Seed diferente
         probs = np.random.uniform(0.3, 0.7, (n_samples, 2))
         probs = probs / probs.sum(axis=1, keepdims=True)
         return probs
 
     def predict(X):
-        n_samples = X.shape[0] if hasattr(X, 'shape') else 3
+        n_samples = X.shape[0] if hasattr(X, "shape") else 3
         probs = predict_proba(X)
         return np.argmax(probs, axis=1)
 
@@ -179,11 +180,7 @@ def mock_online_learner():
 def mock_online_model():
     """Mock do modelo online (legado - usa mock_online_learner)."""
     model = Mock()
-    model.predict_proba = Mock(return_value=np.array([
-        [0.35, 0.65],
-        [0.75, 0.25],
-        [0.45, 0.55]
-    ]))
+    model.predict_proba = Mock(return_value=np.array([[0.35, 0.65], [0.75, 0.25], [0.45, 0.55]]))
     model.predict = Mock(return_value=np.array([1, 0, 1]))
     return model
 
@@ -197,7 +194,7 @@ class TestShadowValidatorInitialization:
             config=config,
             specialist_type="test_specialist",
             batch_model=mock_batch_model,
-            online_learner=mock_online_learner
+            online_learner=mock_online_learner,
         )
 
         assert validator.specialist_type == "test_specialist"
@@ -211,7 +208,7 @@ class TestShadowValidatorInitialization:
             config=OnlineLearningConfig(),
             specialist_type="test_specialist",
             batch_model=mock_batch_model,
-            online_learner=mock_online_learner
+            online_learner=mock_online_learner,
         )
 
         assert validator.specialist_type == "test_specialist"
@@ -237,7 +234,7 @@ class TestValidation:
 
         result = validator.validate(X=X, y=y)
 
-        assert 'kl_divergence' in result.metrics or result.passed is not None
+        assert "kl_divergence" in result.metrics or result.passed is not None
 
     def test_validate_measures_latency(self, validator):
         """Testar medição de latência."""
@@ -247,7 +244,7 @@ class TestValidation:
         result = validator.validate(X=X, y=y)
 
         # Métricas devem conter informações de latência
-        assert 'batch_latency_ms' in result.metrics or 'online_latency_ms' in result.metrics
+        assert "batch_latency_ms" in result.metrics or "online_latency_ms" in result.metrics
 
     def test_validate_insufficient_samples(self, validator):
         """Testar validação com amostras insuficientes."""
@@ -295,8 +292,8 @@ class TestValidationSummary:
         """Testar sumário sem validações."""
         summary = validator.get_validation_summary()
 
-        assert summary['total_validations'] == 0
-        assert summary['pass_rate'] == 0.0
+        assert summary["total_validations"] == 0
+        assert summary["pass_rate"] == 0.0
 
     def test_get_validation_summary_with_results(self, validator):
         """Testar sumário com validações."""
@@ -309,9 +306,9 @@ class TestValidationSummary:
 
         summary = validator.get_validation_summary()
 
-        assert summary['total_validations'] == 3
-        assert 'pass_rate' in summary
-        assert 'avg_kl_divergence' in summary
+        assert summary["total_validations"] == 3
+        assert "pass_rate" in summary
+        assert "avg_kl_divergence" in summary
 
 
 class TestKLDivergence:

@@ -23,7 +23,7 @@ def mock_config():
     """Fixture para configuração mockada."""
     config = MagicMock()
     config.max_concurrent_tasks = 10
-    config.agent_id = 'worker-test-001'
+    config.agent_id = "worker-test-001"
     return config
 
 
@@ -76,7 +76,7 @@ async def test_duplicate_ticket_is_skipped(
     mock_ticket_client,
     mock_result_producer,
     mock_dependency_coordinator,
-    mock_executor_registry
+    mock_executor_registry,
 ):
     """Testar que tickets duplicados são ignorados (two-phase scheme)."""
     from engine.execution_engine import ExecutionEngine
@@ -92,7 +92,7 @@ async def test_duplicate_ticket_is_skipped(
         dependency_coordinator=mock_dependency_coordinator,
         executor_registry=mock_executor_registry,
         redis_client=mock_redis_client,
-        metrics=None
+        metrics=None,
     )
 
     # Primeira vez - não é duplicata
@@ -110,7 +110,7 @@ async def test_redis_failure_allows_processing(
     mock_ticket_client,
     mock_result_producer,
     mock_dependency_coordinator,
-    mock_executor_registry
+    mock_executor_registry,
 ):
     """Testar fail-open quando Redis falha."""
     from engine.execution_engine import ExecutionEngine
@@ -125,7 +125,7 @@ async def test_redis_failure_allows_processing(
         dependency_coordinator=mock_dependency_coordinator,
         executor_registry=mock_executor_registry,
         redis_client=redis_mock,
-        metrics=None
+        metrics=None,
     )
 
     # Deve retornar False (não é duplicata) para permitir processamento
@@ -139,7 +139,7 @@ async def test_no_redis_client_allows_processing(
     mock_ticket_client,
     mock_result_producer,
     mock_dependency_coordinator,
-    mock_executor_registry
+    mock_executor_registry,
 ):
     """Testar que processamento continua quando Redis não está disponível."""
     from engine.execution_engine import ExecutionEngine
@@ -151,7 +151,7 @@ async def test_no_redis_client_allows_processing(
         dependency_coordinator=mock_dependency_coordinator,
         executor_registry=mock_executor_registry,
         redis_client=None,  # Redis não disponível
-        metrics=None
+        metrics=None,
     )
 
     # Deve retornar False (não é duplicata) para permitir processamento
@@ -167,7 +167,7 @@ async def test_process_ticket_skips_duplicate(
     mock_result_producer,
     mock_dependency_coordinator,
     mock_executor_registry,
-    mock_metrics
+    mock_metrics,
 ):
     """Testar que process_ticket ignora duplicatas (two-phase scheme)."""
     from engine.execution_engine import ExecutionEngine
@@ -183,7 +183,7 @@ async def test_process_ticket_skips_duplicate(
         dependency_coordinator=mock_dependency_coordinator,
         executor_registry=mock_executor_registry,
         redis_client=mock_redis_client,
-        metrics=mock_metrics
+        metrics=mock_metrics,
     )
 
     ticket = {"ticket_id": "ticket-999", "task_type": "BUILD"}
@@ -202,7 +202,7 @@ async def test_deduplication_ttl_is_correct(
     mock_ticket_client,
     mock_result_producer,
     mock_dependency_coordinator,
-    mock_executor_registry
+    mock_executor_registry,
 ):
     """Testar que o TTL correto é usado na deduplicação (two-phase scheme)."""
     from engine.execution_engine import ExecutionEngine
@@ -217,7 +217,7 @@ async def test_deduplication_ttl_is_correct(
         dependency_coordinator=mock_dependency_coordinator,
         executor_registry=mock_executor_registry,
         redis_client=mock_redis_client,
-        metrics=None
+        metrics=None,
     )
 
     await engine._is_duplicate_ticket("ticket-ttl-test")
@@ -229,8 +229,8 @@ async def test_deduplication_ttl_is_correct(
     # Verificar argumentos - agora usa chave processing com TTL curto
     assert call_args[0][0] == "ticket:processing:ticket-ttl-test"  # key
     assert call_args[0][1] == "1"  # value
-    assert call_args[1]['ex'] == 600  # TTL 10 minutos (processing)
-    assert call_args[1]['nx'] is True  # Only set if not exists
+    assert call_args[1]["ex"] == 600  # TTL 10 minutos (processing)
+    assert call_args[1]["nx"] is True  # Only set if not exists
 
 
 @pytest.mark.asyncio
@@ -240,7 +240,7 @@ async def test_different_tickets_are_not_duplicates(
     mock_ticket_client,
     mock_result_producer,
     mock_dependency_coordinator,
-    mock_executor_registry
+    mock_executor_registry,
 ):
     """Testar que tickets diferentes não são considerados duplicatas entre si (two-phase scheme)."""
     from engine.execution_engine import ExecutionEngine
@@ -256,7 +256,7 @@ async def test_different_tickets_are_not_duplicates(
         dependency_coordinator=mock_dependency_coordinator,
         executor_registry=mock_executor_registry,
         redis_client=mock_redis_client,
-        metrics=None
+        metrics=None,
     )
 
     # Tickets diferentes - nenhum deve ser duplicata
@@ -283,7 +283,7 @@ async def test_concurrent_duplicate_detection(
     mock_ticket_client,
     mock_result_producer,
     mock_dependency_coordinator,
-    mock_executor_registry
+    mock_executor_registry,
 ):
     """Testar detecção de duplicata em cenário concorrente (two-phase scheme)."""
     from engine.execution_engine import ExecutionEngine
@@ -299,7 +299,7 @@ async def test_concurrent_duplicate_detection(
         dependency_coordinator=mock_dependency_coordinator,
         executor_registry=mock_executor_registry,
         redis_client=mock_redis_client,
-        metrics=None
+        metrics=None,
     )
 
     # Simular duas chamadas "simultâneas"

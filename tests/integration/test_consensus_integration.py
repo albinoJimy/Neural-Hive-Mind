@@ -15,7 +15,9 @@ from services.consensus_orchestrator import ConsensusOrchestrator  # noqa: E402
 
 
 class _DummyPheromoneClient:
-    async def calculate_dynamic_weight(self, specialist_type: str, domain: str, base_weight: float = 0.2) -> float:
+    async def calculate_dynamic_weight(
+        self, specialist_type: str, domain: str, base_weight: float = 0.2
+    ) -> float:
         return base_weight + 0.05
 
     async def get_aggregated_pheromone(self, specialist_type: str, domain: str):
@@ -34,7 +36,11 @@ def build_mock_opinions():
         },
         {
             "specialist_type": "behavior",
-            "opinion": {"confidence_score": 0.65, "risk_score": 0.35, "recommendation": "conditional"},
+            "opinion": {
+                "confidence_score": 0.65,
+                "risk_score": 0.35,
+                "recommendation": "conditional",
+            },
         },
     ]
 

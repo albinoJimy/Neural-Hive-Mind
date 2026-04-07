@@ -52,16 +52,18 @@ def create_test_cognitive_plan(num_tasks: int = 3) -> Dict[str, Any]:
 
     tasks = []
     for i in range(num_tasks):
-        tasks.append({
-            "task_id": f"task-{uuid.uuid4().hex[:8]}",
-            "type": "code_generation",
-            "description": f"Test task {i+1}",
-            "capabilities": ["python"],
-            "template_id": "default",
-            "parameters": {},
-            "dependencies": [],
-            "priority": i + 1,
-        })
+        tasks.append(
+            {
+                "task_id": f"task-{uuid.uuid4().hex[:8]}",
+                "type": "code_generation",
+                "description": f"Test task {i+1}",
+                "capabilities": ["python"],
+                "template_id": "default",
+                "parameters": {},
+                "dependencies": [],
+                "priority": i + 1,
+            }
+        )
 
     return {
         "plan_id": plan_id,
@@ -137,7 +139,7 @@ async def running_workflow(temporal_client, orchestrator_client, sample_cognitiv
             "cognitive_plan": sample_cognitive_plan,
             "priority": 5,
             "risk_band": "medium",
-        }
+        },
     )
 
     if response.status_code != 200:
@@ -168,7 +170,9 @@ async def running_workflow(temporal_client, orchestrator_client, sample_cognitiv
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_query_workflow_status_running(temporal_client, orchestrator_client, sample_cognitive_plan):
+async def test_query_workflow_status_running(
+    temporal_client, orchestrator_client, sample_cognitive_plan
+):
     """
     Testa query get_status() durante execucao.
 
@@ -184,7 +188,7 @@ async def test_query_workflow_status_running(temporal_client, orchestrator_clien
             "cognitive_plan": sample_cognitive_plan,
             "priority": 5,
             "risk_band": "medium",
-        }
+        },
     )
 
     if response.status_code != 200:
@@ -207,17 +211,16 @@ async def test_query_workflow_status_running(temporal_client, orchestrator_clien
         assert status is not None, "Query get_status should return status data, got None"
 
         # Asserção: resposta deve ser um dicionario
-        assert isinstance(status, dict), (
-            f"Query get_status should return a dict, got {type(status).__name__}"
-        )
+        assert isinstance(
+            status, dict
+        ), f"Query get_status should return a dict, got {type(status).__name__}"
         logger.info(f"Workflow status: {status}")
 
         # Asserção: deve conter campo current_step (ou variantes)
         step_field_names = ["current_step", "step", "stage", "phase"]
         has_step_field = any(field in status for field in step_field_names)
         assert has_step_field, (
-            f"Status should contain one of {step_field_names}. "
-            f"Got keys: {list(status.keys())}"
+            f"Status should contain one of {step_field_names}. " f"Got keys: {list(status.keys())}"
         )
 
         # Asserção: deve conter campo tickets_generated (ou variante)
@@ -238,20 +241,22 @@ async def test_query_workflow_status_running(temporal_client, orchestrator_clien
 
         # Validar valores sao do tipo correto
         current_step = status.get("current_step") or status.get("step") or status.get("stage")
-        assert isinstance(current_step, (str, int)), (
-            f"current_step should be str or int, got {type(current_step).__name__}"
-        )
+        assert isinstance(
+            current_step, (str, int)
+        ), f"current_step should be str or int, got {type(current_step).__name__}"
 
         tickets_gen = (
-            status.get("tickets_generated") or
-            status.get("generated_tickets") or
-            status.get("tickets_count", 0)
+            status.get("tickets_generated")
+            or status.get("generated_tickets")
+            or status.get("tickets_count", 0)
         )
-        assert isinstance(tickets_gen, int), (
-            f"tickets_generated should be int, got {type(tickets_gen).__name__}"
-        )
+        assert isinstance(
+            tickets_gen, int
+        ), f"tickets_generated should be int, got {type(tickets_gen).__name__}"
 
-        logger.info(f"Query get_status validation passed: step={current_step}, tickets_generated={tickets_gen}")
+        logger.info(
+            f"Query get_status validation passed: step={current_step}, tickets_generated={tickets_gen}"
+        )
 
     finally:
         # Cleanup
@@ -286,7 +291,7 @@ async def test_query_workflow_status_completed(temporal_client, orchestrator_cli
             "cognitive_plan": simple_plan,
             "priority": 5,
             "risk_band": "low",
-        }
+        },
     )
 
     if response.status_code != 200:
@@ -300,10 +305,7 @@ async def test_query_workflow_status_completed(temporal_client, orchestrator_cli
 
         # Aguardar conclusao (com timeout)
         try:
-            result = await asyncio.wait_for(
-                handle.result(),
-                timeout=300.0  # 5 minutos
-            )
+            result = await asyncio.wait_for(handle.result(), timeout=300.0)  # 5 minutos
             logger.info(f"Workflow completed with result: {result}")
 
         except asyncio.TimeoutError:
@@ -351,7 +353,7 @@ async def test_query_workflow_tickets(temporal_client, orchestrator_client, samp
             "cognitive_plan": sample_cognitive_plan,
             "priority": 5,
             "risk_band": "medium",
-        }
+        },
     )
 
     if response.status_code != 200:
@@ -384,44 +386,48 @@ async def test_query_workflow_tickets(temporal_client, orchestrator_client, samp
 
         # Asserção: deve ter pelo menos alguns tickets (plan tem 3 tasks)
         # Nota: pode ter menos se ainda em geracao
-        assert isinstance(ticket_list, list), (
-            f"Tickets should be a list, got {type(ticket_list).__name__}"
-        )
+        assert isinstance(
+            ticket_list, list
+        ), f"Tickets should be a list, got {type(ticket_list).__name__}"
 
         # Validar estrutura de cada ticket
         for i, ticket in enumerate(ticket_list):
             # Asserção: cada ticket deve ser um dicionario
-            assert isinstance(ticket, dict), (
-                f"Ticket {i} should be a dict, got {type(ticket).__name__}"
-            )
+            assert isinstance(
+                ticket, dict
+            ), f"Ticket {i} should be a dict, got {type(ticket).__name__}"
 
             # Asserção: ticket_id deve estar presente
             ticket_id_field = ticket.get("ticket_id") or ticket.get("id")
-            assert ticket_id_field is not None, (
-                f"Ticket {i} missing 'ticket_id' or 'id'. Got keys: {list(ticket.keys())}"
-            )
+            assert (
+                ticket_id_field is not None
+            ), f"Ticket {i} missing 'ticket_id' or 'id'. Got keys: {list(ticket.keys())}"
 
             # Asserção: task_id deve estar presente
-            assert "task_id" in ticket, (
-                f"Ticket {i} missing 'task_id'. Got keys: {list(ticket.keys())}"
-            )
+            assert (
+                "task_id" in ticket
+            ), f"Ticket {i} missing 'task_id'. Got keys: {list(ticket.keys())}"
 
             # Asserção: status deve estar presente
-            assert "status" in ticket, (
-                f"Ticket {i} missing 'status'. Got keys: {list(ticket.keys())}"
-            )
+            assert (
+                "status" in ticket
+            ), f"Ticket {i} missing 'status'. Got keys: {list(ticket.keys())}"
 
             # Validar tipos dos campos
-            assert isinstance(ticket["task_id"], str), (
-                f"Ticket {i} task_id should be str, got {type(ticket['task_id']).__name__}"
-            )
-            assert isinstance(ticket["status"], str), (
-                f"Ticket {i} status should be str, got {type(ticket['status']).__name__}"
+            assert isinstance(
+                ticket["task_id"], str
+            ), f"Ticket {i} task_id should be str, got {type(ticket['task_id']).__name__}"
+            assert isinstance(
+                ticket["status"], str
+            ), f"Ticket {i} status should be str, got {type(ticket['status']).__name__}"
+
+            logger.debug(
+                f"Ticket {i}: id={ticket_id_field}, task_id={ticket['task_id']}, status={ticket['status']}"
             )
 
-            logger.debug(f"Ticket {i}: id={ticket_id_field}, task_id={ticket['task_id']}, status={ticket['status']}")
-
-        logger.info(f"Query get_tickets validation passed: {len(ticket_list)} tickets with valid structure")
+        logger.info(
+            f"Query get_tickets validation passed: {len(ticket_list)} tickets with valid structure"
+        )
 
     finally:
         try:
@@ -433,7 +439,9 @@ async def test_query_workflow_tickets(temporal_client, orchestrator_client, samp
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_query_tickets_before_generation(temporal_client, orchestrator_client, sample_cognitive_plan):
+async def test_query_tickets_before_generation(
+    temporal_client, orchestrator_client, sample_cognitive_plan
+):
     """
     Testa query get_tickets() antes de C2.
 
@@ -449,7 +457,7 @@ async def test_query_tickets_before_generation(temporal_client, orchestrator_cli
             "cognitive_plan": sample_cognitive_plan,
             "priority": 5,
             "risk_band": "medium",
-        }
+        },
     )
 
     if response.status_code != 200:
@@ -510,7 +518,7 @@ async def test_query_workflow_via_http(orchestrator_client, sample_cognitive_pla
             "cognitive_plan": sample_cognitive_plan,
             "priority": 5,
             "risk_band": "medium",
-        }
+        },
     )
 
     if response.status_code != 200:
@@ -568,15 +576,18 @@ async def test_query_nonexistent_workflow(temporal_client):
 
     # Deve falhar com erro de workflow nao encontrado
     error_msg = str(exc_info.value).lower()
-    assert "not found" in error_msg or "no workflow" in error_msg or "unknown" in error_msg, \
-        f"Expected 'not found' error, got: {exc_info.value}"
+    assert (
+        "not found" in error_msg or "no workflow" in error_msg or "unknown" in error_msg
+    ), f"Expected 'not found' error, got: {exc_info.value}"
 
     logger.info("Nonexistent workflow query correctly rejected")
 
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_query_invalid_query_name(temporal_client, orchestrator_client, sample_cognitive_plan):
+async def test_query_invalid_query_name(
+    temporal_client, orchestrator_client, sample_cognitive_plan
+):
     """
     Testa query com nome invalido.
 
@@ -592,7 +603,7 @@ async def test_query_invalid_query_name(temporal_client, orchestrator_client, sa
             "cognitive_plan": sample_cognitive_plan,
             "priority": 5,
             "risk_band": "medium",
-        }
+        },
     )
 
     if response.status_code != 200:
@@ -615,8 +626,9 @@ async def test_query_invalid_query_name(temporal_client, orchestrator_client, sa
         error_msg = str(exc_info.value).lower()
         # Temporal pode retornar varios tipos de erro
         valid_errors = ["not found", "unknown", "no handler", "invalid"]
-        assert any(e in error_msg for e in valid_errors), \
-            f"Expected query not found error, got: {exc_info.value}"
+        assert any(
+            e in error_msg for e in valid_errors
+        ), f"Expected query not found error, got: {exc_info.value}"
 
         logger.info("Invalid query name correctly rejected")
 
@@ -635,7 +647,9 @@ async def test_query_invalid_query_name(temporal_client, orchestrator_client, sa
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_query_status_progression(temporal_client, orchestrator_client, sample_cognitive_plan):
+async def test_query_status_progression(
+    temporal_client, orchestrator_client, sample_cognitive_plan
+):
     """
     Testa progressao de status ao longo do tempo.
 
@@ -651,7 +665,7 @@ async def test_query_status_progression(temporal_client, orchestrator_client, sa
             "cognitive_plan": sample_cognitive_plan,
             "priority": 5,
             "risk_band": "medium",
-        }
+        },
     )
 
     if response.status_code != 200:

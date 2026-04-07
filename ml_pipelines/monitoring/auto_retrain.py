@@ -21,7 +21,7 @@ from dataclasses import dataclass
 import json
 
 # Add paths
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../libraries/python'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../libraries/python"))
 
 from neural_hive_specialists.feedback.retraining_trigger import RetrainingTrigger
 from neural_hive_specialists.feedback.feedback_collector import FeedbackCollector
@@ -33,6 +33,7 @@ logger = structlog.get_logger(__name__)
 @dataclass
 class RetrainResult:
     """Resultado de retreinamento."""
+
     success: bool
     specialist_type: str
     mlflow_run_id: Optional[str]
@@ -53,7 +54,7 @@ class AutoRetrainOrchestrator:
         mlflow_tracking_uri: Optional[str] = None,
         dataset_num_samples: int = 1000,
         dataset_generation_timeout: int = 1800,  # 30 min
-        notification_channels: List[str] = None
+        notification_channels: List[str] = None,
     ):
         """
         Inicializa o orquestrador.
@@ -65,22 +66,20 @@ class AutoRetrainOrchestrator:
             dataset_generation_timeout: Timeout para geração de dataset (segundos)
             notification_channels: Canais de notificação ['slack', 'email']
         """
-        self.mongodb_uri = mongodb_uri or os.getenv('MONGODB_URI')
+        self.mongodb_uri = mongodb_uri or os.getenv("MONGODB_URI")
         self.mlflow_tracking_uri = mlflow_tracking_uri or os.getenv(
-            'MLFLOW_TRACKING_URI', 'http://localhost:5000'
+            "MLFLOW_TRACKING_URI", "http://localhost:5000"
         )
         self.dataset_num_samples = dataset_num_samples
         self.dataset_generation_timeout = dataset_generation_timeout
-        self.notification_channels = notification_channels or ['slack']
+        self.notification_channels = notification_channels or ["slack"]
 
         # Initialize components
         self.performance_monitor = ModelPerformanceMonitor(
-            mlflow_tracking_uri=self.mlflow_tracking_uri,
-            mongodb_uri=self.mongodb_uri
+            mlflow_tracking_uri=self.mlflow_tracking_uri, mongodb_uri=self.mongodb_uri
         )
         self.retraining_trigger = RetrainingTrigger(
-            mongodb_uri=self.mongodb_uri,
-            mlflow_tracking_uri=self.mlflow_tracking_uri
+            mongodb_uri=self.mongodb_uri, mlflow_tracking_uri=self.mlflow_tracking_uri
         )
         self.feedback_collector = FeedbackCollector(mongodb_uri=self.mongodb_uri)
 
@@ -88,7 +87,7 @@ class AutoRetrainOrchestrator:
             "orchestrator_initialized",
             mlflow_uri=self.mlflow_tracking_uri,
             dataset_num_samples=self.dataset_num_samples,
-            notification_channels=self.notification_channels
+            notification_channels=self.notification_channels,
         )
 
     def check_performance_and_retrain(
@@ -96,7 +95,7 @@ class AutoRetrainOrchestrator:
         specialist_type: str,
         force: bool = False,
         skip_dataset_generation: bool = False,
-        dry_run: bool = False
+        dry_run: bool = False,
     ) -> RetrainResult:
         """
         Verifica performance e executa retreinamento se necessário.
@@ -113,10 +112,7 @@ class AutoRetrainOrchestrator:
         start_time = time.time()
 
         logger.info(
-            "checking_performance",
-            specialist_type=specialist_type,
-            force=force,
-            dry_run=dry_run
+            "checking_performance", specialist_type=specialist_type, force=force, dry_run=dry_run
         )
 
         # 1. Check performance
@@ -126,7 +122,7 @@ class AutoRetrainOrchestrator:
             logger.info(
                 "performance_ok_no_retrain_needed",
                 specialist_type=specialist_type,
-                aggregate_score=report.aggregate_score
+                aggregate_score=report.aggregate_score,
             )
             result = RetrainResult(
                 success=True,
@@ -135,7 +131,7 @@ class AutoRetrainOrchestrator:
                 new_metrics=None,
                 baseline_metrics=None,
                 improved=False,
-                duration_seconds=time.time() - start_time
+                duration_seconds=time.time() - start_time,
             )
             self._safe_export_metrics(result)
             return result
@@ -145,7 +141,7 @@ class AutoRetrainOrchestrator:
             "performance_degraded_starting_retrain",
             specialist_type=specialist_type,
             degradation_reasons=report.degradation_reasons,
-            force=force
+            force=force,
         )
 
         if dry_run:
@@ -157,7 +153,7 @@ class AutoRetrainOrchestrator:
                 new_metrics=None,
                 baseline_metrics=None,
                 improved=False,
-                duration_seconds=time.time() - start_time
+                duration_seconds=time.time() - start_time,
             )
             self._safe_export_metrics(result)
             return result
@@ -190,14 +186,14 @@ class AutoRetrainOrchestrator:
 
             # 7. Send success notification
             self._send_notification(
-                status='success',
+                status="success",
                 details={
-                    'specialist_type': specialist_type,
-                    'mlflow_run_id': mlflow_run_id,
-                    'improved': improved,
-                    'new_metrics': new_metrics,
-                    'baseline_metrics': baseline_metrics
-                }
+                    "specialist_type": specialist_type,
+                    "mlflow_run_id": mlflow_run_id,
+                    "improved": improved,
+                    "new_metrics": new_metrics,
+                    "baseline_metrics": baseline_metrics,
+                },
             )
 
             result = RetrainResult(
@@ -208,7 +204,7 @@ class AutoRetrainOrchestrator:
                 baseline_metrics=baseline_metrics,
                 improved=improved,
                 dataset_path=dataset_path,
-                duration_seconds=time.time() - start_time
+                duration_seconds=time.time() - start_time,
             )
 
             logger.info(
@@ -216,23 +212,16 @@ class AutoRetrainOrchestrator:
                 specialist_type=specialist_type,
                 mlflow_run_id=mlflow_run_id,
                 improved=improved,
-                duration_seconds=result.duration_seconds
+                duration_seconds=result.duration_seconds,
             )
 
         except Exception as e:
-            logger.error(
-                "retrain_failed",
-                specialist_type=specialist_type,
-                error=str(e)
-            )
+            logger.error("retrain_failed", specialist_type=specialist_type, error=str(e))
 
             # Send failure notification
             self._send_notification(
-                status='failed',
-                details={
-                    'specialist_type': specialist_type,
-                    'error_message': str(e)
-                }
+                status="failed",
+                details={"specialist_type": specialist_type, "error_message": str(e)},
             )
 
             result = RetrainResult(
@@ -243,7 +232,7 @@ class AutoRetrainOrchestrator:
                 baseline_metrics=None,
                 improved=False,
                 error_message=str(e),
-                duration_seconds=time.time() - start_time
+                duration_seconds=time.time() - start_time,
             )
 
         self._safe_export_metrics(result)
@@ -262,28 +251,30 @@ class AutoRetrainOrchestrator:
         logger.info(
             "generating_datasets",
             specialist_type=specialist_type,
-            num_samples=self.dataset_num_samples
+            num_samples=self.dataset_num_samples,
         )
 
         # Path to generation script
-        script_path = Path(__file__).parent.parent / 'training' / 'generate_training_datasets.py'
+        script_path = Path(__file__).parent.parent / "training" / "generate_training_datasets.py"
 
         # Build command
         cmd = [
             sys.executable,
             str(script_path),
-            '--specialist-type', specialist_type,
-            '--num-samples', str(self.dataset_num_samples)
+            "--specialist-type",
+            specialist_type,
+            "--num-samples",
+            str(self.dataset_num_samples),
         ]
 
         # Add env vars if set
         env = os.environ.copy()
-        if os.getenv('LLM_PROVIDER'):
-            env['LLM_PROVIDER'] = os.getenv('LLM_PROVIDER')
-        if os.getenv('LLM_MODEL'):
-            env['LLM_MODEL'] = os.getenv('LLM_MODEL')
-        if os.getenv('LLM_BASE_URL'):
-            env['LLM_BASE_URL'] = os.getenv('LLM_BASE_URL')
+        if os.getenv("LLM_PROVIDER"):
+            env["LLM_PROVIDER"] = os.getenv("LLM_PROVIDER")
+        if os.getenv("LLM_MODEL"):
+            env["LLM_MODEL"] = os.getenv("LLM_MODEL")
+        if os.getenv("LLM_BASE_URL"):
+            env["LLM_BASE_URL"] = os.getenv("LLM_BASE_URL")
 
         try:
             # Execute with timeout
@@ -292,14 +283,12 @@ class AutoRetrainOrchestrator:
                 env=env,
                 capture_output=True,
                 text=True,
-                timeout=self.dataset_generation_timeout
+                timeout=self.dataset_generation_timeout,
             )
 
             if result.returncode != 0:
                 logger.error(
-                    "dataset_generation_failed",
-                    stderr=result.stderr,
-                    returncode=result.returncode
+                    "dataset_generation_failed", stderr=result.stderr, returncode=result.returncode
                 )
                 return None
 
@@ -307,56 +296,40 @@ class AutoRetrainOrchestrator:
             # Supports two formats:
             # 1. Portuguese: "Dataset salvo em: /path/to/dataset.parquet"
             # 2. English: "Dataset saved to /path/to/dataset.parquet"
-            for line in result.stdout.split('\n'):
+            for line in result.stdout.split("\n"):
                 dataset_path = None
 
-                if 'Dataset salvo em:' in line:
+                if "Dataset salvo em:" in line:
                     # Portuguese format with colon separator
-                    dataset_path = line.split(':')[-1].strip()
-                elif 'saved to' in line.lower():
+                    dataset_path = line.split(":")[-1].strip()
+                elif "saved to" in line.lower():
                     # English format without colon - extract path after "saved to"
                     line_lower = line.lower()
-                    saved_to_idx = line_lower.index('saved to')
+                    saved_to_idx = line_lower.index("saved to")
                     # Extract from original line (preserving case) after "saved to "
-                    dataset_path = line[saved_to_idx + len('saved to'):].strip()
+                    dataset_path = line[saved_to_idx + len("saved to") :].strip()
 
                 if dataset_path:
-                    logger.info(
-                        "dataset_generated_successfully",
-                        dataset_path=dataset_path
-                    )
+                    logger.info("dataset_generated_successfully", dataset_path=dataset_path)
                     return dataset_path
 
             # Fallback: use default path
             default_path = f"/data/training/{specialist_type}_specialist_dataset.parquet"
             if Path(default_path).exists():
-                logger.info(
-                    "using_default_dataset_path",
-                    dataset_path=default_path
-                )
+                logger.info("using_default_dataset_path", dataset_path=default_path)
                 return default_path
 
             logger.warning("dataset_path_not_found_in_output")
             return None
 
         except subprocess.TimeoutExpired:
-            logger.error(
-                "dataset_generation_timeout",
-                timeout=self.dataset_generation_timeout
-            )
+            logger.error("dataset_generation_timeout", timeout=self.dataset_generation_timeout)
             return None
         except Exception as e:
-            logger.error(
-                "dataset_generation_error",
-                error=str(e)
-            )
+            logger.error("dataset_generation_error", error=str(e))
             return None
 
-    def _merge_with_feedback(
-        self,
-        specialist_type: str,
-        new_dataset_path: Optional[str]
-    ) -> str:
+    def _merge_with_feedback(self, specialist_type: str, new_dataset_path: Optional[str]) -> str:
         """
         Merge novos datasets com dados de feedback do MongoDB.
 
@@ -373,33 +346,26 @@ class AutoRetrainOrchestrator:
             logger.info(
                 "merging_with_feedback",
                 specialist_type=specialist_type,
-                new_dataset_path=new_dataset_path
+                new_dataset_path=new_dataset_path,
             )
 
             # Load new dataset
             if new_dataset_path and Path(new_dataset_path).exists():
                 new_df = pd.read_parquet(new_dataset_path)
-                logger.info(
-                    "new_dataset_loaded",
-                    rows=len(new_df)
-                )
+                logger.info("new_dataset_loaded", rows=len(new_df))
             else:
                 new_df = pd.DataFrame()
                 logger.warning("no_new_dataset_using_empty_df")
 
             # Query recent feedback
             feedback_data = self.feedback_collector.get_recent_feedback(
-                specialist_type=specialist_type,
-                limit=1000
+                specialist_type=specialist_type, limit=1000
             )
 
             if feedback_data:
                 # Convert feedback to dataset format
                 feedback_df = self._convert_feedback_to_dataset(feedback_data)
-                logger.info(
-                    "feedback_data_converted",
-                    rows=len(feedback_df)
-                )
+                logger.info("feedback_data_converted", rows=len(feedback_df))
 
                 # Merge
                 merged_df = pd.concat([new_df, feedback_df], ignore_index=True)
@@ -408,26 +374,23 @@ class AutoRetrainOrchestrator:
                 logger.warning("no_feedback_data_to_merge")
 
             # Save merged dataset
-            merged_path = f"/data/training/{specialist_type}_specialist_merged_{int(time.time())}.parquet"
+            merged_path = (
+                f"/data/training/{specialist_type}_specialist_merged_{int(time.time())}.parquet"
+            )
             merged_df.to_parquet(merged_path, index=False)
 
             logger.info(
-                "datasets_merged_successfully",
-                merged_path=merged_path,
-                total_rows=len(merged_df)
+                "datasets_merged_successfully", merged_path=merged_path, total_rows=len(merged_df)
             )
 
             return merged_path
 
         except Exception as e:
-            logger.error(
-                "merge_failed",
-                error=str(e)
-            )
+            logger.error("merge_failed", error=str(e))
             # Fallback to new dataset only
             return new_dataset_path if new_dataset_path else ""
 
-    def _convert_feedback_to_dataset(self, feedback_data: List[Dict]) -> 'pd.DataFrame':
+    def _convert_feedback_to_dataset(self, feedback_data: List[Dict]) -> "pd.DataFrame":
         """
         Converte dados de feedback para formato de dataset.
 
@@ -443,11 +406,11 @@ class AutoRetrainOrchestrator:
         for fb in feedback_data:
             # Extract cognitive plan and opinion from feedback context
             record = {
-                'cognitive_plan': fb.get('context', {}).get('cognitive_plan', ''),
-                'opinion': fb.get('context', {}).get('opinion', ''),
-                'rating': fb.get('rating', 0.0),
-                'feedback_text': fb.get('feedback_text', ''),
-                'source': 'human_feedback'
+                "cognitive_plan": fb.get("context", {}).get("cognitive_plan", ""),
+                "opinion": fb.get("context", {}).get("opinion", ""),
+                "rating": fb.get("rating", 0.0),
+                "feedback_text": fb.get("feedback_text", ""),
+                "source": "human_feedback",
             }
             records.append(record)
 
@@ -465,22 +428,15 @@ class AutoRetrainOrchestrator:
             MLflow run ID
         """
         logger.info(
-            "triggering_training",
-            specialist_type=specialist_type,
-            dataset_path=dataset_path
+            "triggering_training", specialist_type=specialist_type, dataset_path=dataset_path
         )
 
         # Use RetrainingTrigger infrastructure
         run_id = self.retraining_trigger.trigger_retraining(
-            specialist_type=specialist_type,
-            dataset_path=dataset_path,
-            promote_if_better=True
+            specialist_type=specialist_type, dataset_path=dataset_path, promote_if_better=True
         )
 
-        logger.info(
-            "training_triggered",
-            mlflow_run_id=run_id
-        )
+        logger.info("training_triggered", mlflow_run_id=run_id)
 
         return run_id
 
@@ -495,33 +451,23 @@ class AutoRetrainOrchestrator:
         Returns:
             True se sucesso, False se falha
         """
-        logger.info(
-            "monitoring_training",
-            mlflow_run_id=mlflow_run_id
-        )
+        logger.info("monitoring_training", mlflow_run_id=mlflow_run_id)
 
         # Use RetrainingTrigger monitor
-        status = self.retraining_trigger.monitor_run_status(
-            run_id=mlflow_run_id,
-            timeout=timeout
-        )
+        status = self.retraining_trigger.monitor_run_status(run_id=mlflow_run_id, timeout=timeout)
 
-        success = status.get('status') == 'FINISHED'
+        success = status.get("status") == "FINISHED"
 
         logger.info(
             "training_monitoring_completed",
             mlflow_run_id=mlflow_run_id,
             success=success,
-            status=status
+            status=status,
         )
 
         return success
 
-    def _compare_metrics(
-        self,
-        specialist_type: str,
-        new_run_id: str
-    ) -> tuple:
+    def _compare_metrics(self, specialist_type: str, new_run_id: str) -> tuple:
         """
         Compara métricas do novo modelo com baseline.
 
@@ -546,30 +492,27 @@ class AutoRetrainOrchestrator:
             baseline_metrics = None
             if report.mlflow_metrics:
                 baseline_metrics = {
-                    'precision': report.mlflow_metrics.precision,
-                    'recall': report.mlflow_metrics.recall,
-                    'f1_score': report.mlflow_metrics.f1_score
+                    "precision": report.mlflow_metrics.precision,
+                    "recall": report.mlflow_metrics.recall,
+                    "f1_score": report.mlflow_metrics.f1_score,
                 }
 
             # Compare F1 scores
             improved = False
             if baseline_metrics:
-                improved = new_metrics.get('f1_score', 0) > baseline_metrics.get('f1_score', 0)
+                improved = new_metrics.get("f1_score", 0) > baseline_metrics.get("f1_score", 0)
 
             logger.info(
                 "metrics_compared",
-                new_f1=new_metrics.get('f1_score'),
-                baseline_f1=baseline_metrics.get('f1_score') if baseline_metrics else None,
-                improved=improved
+                new_f1=new_metrics.get("f1_score"),
+                baseline_f1=baseline_metrics.get("f1_score") if baseline_metrics else None,
+                improved=improved,
             )
 
             return new_metrics, baseline_metrics, improved
 
         except Exception as e:
-            logger.error(
-                "metrics_comparison_failed",
-                error=str(e)
-            )
+            logger.error("metrics_comparison_failed", error=str(e))
             return None, None, False
 
     def _send_notification(self, status: str, details: Dict):
@@ -580,10 +523,10 @@ class AutoRetrainOrchestrator:
             status: 'success', 'failed', 'warning'
             details: Detalhes da notificação
         """
-        if 'slack' in self.notification_channels:
+        if "slack" in self.notification_channels:
             self._send_slack_notification(status, details)
 
-        if 'email' in self.notification_channels:
+        if "email" in self.notification_channels:
             self._send_email_notification(status, details)
 
     def _send_slack_notification(self, status: str, details: Dict):
@@ -591,31 +534,26 @@ class AutoRetrainOrchestrator:
         try:
             import requests
 
-            webhook_url = os.getenv('SLACK_WEBHOOK_URL')
+            webhook_url = os.getenv("SLACK_WEBHOOK_URL")
             if not webhook_url:
                 logger.warning("slack_webhook_url_not_configured")
                 return
 
             # Build message
-            emoji = {
-                'success': ':white_check_mark:',
-                'failed': ':x:',
-                'warning': ':warning:'
-            }.get(status, ':information_source:')
+            emoji = {"success": ":white_check_mark:", "failed": ":x:", "warning": ":warning:"}.get(
+                status, ":information_source:"
+            )
 
             text = f"{emoji} *Auto-Retrain {status.upper()}*\n"
             text += f"Specialist: `{details.get('specialist_type', 'N/A')}`\n"
 
-            if status == 'success':
+            if status == "success":
                 text += f"Run ID: `{details.get('mlflow_run_id')}`\n"
                 text += f"Improved: {details.get('improved', False)}\n"
-            elif status == 'failed':
+            elif status == "failed":
                 text += f"Error: {details.get('error_message', 'Unknown')}\n"
 
-            payload = {
-                'text': text,
-                'channel': os.getenv('SLACK_CHANNEL', '#ml-alerts')
-            }
+            payload = {"text": text, "channel": os.getenv("SLACK_CHANNEL", "#ml-alerts")}
 
             response = requests.post(webhook_url, json=payload, timeout=10)
             response.raise_for_status()
@@ -623,10 +561,7 @@ class AutoRetrainOrchestrator:
             logger.info("slack_notification_sent")
 
         except Exception as e:
-            logger.error(
-                "slack_notification_failed",
-                error=str(e)
-            )
+            logger.error("slack_notification_failed", error=str(e))
 
     def _send_email_notification(self, status: str, details: Dict):
         """Envia notificação via Email."""
@@ -635,11 +570,11 @@ class AutoRetrainOrchestrator:
             from email.mime.text import MIMEText
             from email.mime.multipart import MIMEMultipart
 
-            smtp_host = os.getenv('SMTP_HOST')
-            smtp_port = int(os.getenv('SMTP_PORT', '587'))
-            smtp_user = os.getenv('SMTP_USER')
-            smtp_password = os.getenv('SMTP_PASSWORD')
-            recipients = os.getenv('EMAIL_RECIPIENTS', '').split(',')
+            smtp_host = os.getenv("SMTP_HOST")
+            smtp_port = int(os.getenv("SMTP_PORT", "587"))
+            smtp_user = os.getenv("SMTP_USER")
+            smtp_password = os.getenv("SMTP_PASSWORD")
+            recipients = os.getenv("EMAIL_RECIPIENTS", "").split(",")
 
             if not all([smtp_host, smtp_user, smtp_password, recipients]):
                 logger.warning("email_config_incomplete")
@@ -647,9 +582,11 @@ class AutoRetrainOrchestrator:
 
             # Build email
             msg = MIMEMultipart()
-            msg['From'] = smtp_user
-            msg['To'] = ', '.join(recipients)
-            msg['Subject'] = f"Auto-Retrain {status.upper()} - {details.get('specialist_type', 'N/A')}"
+            msg["From"] = smtp_user
+            msg["To"] = ", ".join(recipients)
+            msg[
+                "Subject"
+            ] = f"Auto-Retrain {status.upper()} - {details.get('specialist_type', 'N/A')}"
 
             body = f"""
 Auto-Retrain Status: {status.upper()}
@@ -657,13 +594,13 @@ Specialist: {details.get('specialist_type', 'N/A')}
 Timestamp: {datetime.now().isoformat()}
 
 """
-            if status == 'success':
+            if status == "success":
                 body += f"MLflow Run ID: {details.get('mlflow_run_id')}\n"
                 body += f"Model Improved: {details.get('improved', False)}\n"
-            elif status == 'failed':
+            elif status == "failed":
                 body += f"Error: {details.get('error_message', 'Unknown')}\n"
 
-            msg.attach(MIMEText(body, 'plain'))
+            msg.attach(MIMEText(body, "plain"))
 
             # Send
             with smtplib.SMTP(smtp_host, smtp_port) as server:
@@ -674,10 +611,7 @@ Timestamp: {datetime.now().isoformat()}
             logger.info("email_notification_sent")
 
         except Exception as e:
-            logger.error(
-                "email_notification_failed",
-                error=str(e)
-            )
+            logger.error("email_notification_failed", error=str(e))
 
     def _safe_export_metrics(self, result: Optional[RetrainResult]):
         """Chama exportação de métricas de forma defensiva."""
@@ -692,7 +626,7 @@ Timestamp: {datetime.now().isoformat()}
         try:
             from prometheus_client import CollectorRegistry, Counter, Gauge, push_to_gateway
 
-            pushgateway_url = os.getenv('PROMETHEUS_PUSHGATEWAY_URL')
+            pushgateway_url = os.getenv("PROMETHEUS_PUSHGATEWAY_URL")
             if not pushgateway_url:
                 logger.warning("pushgateway_url_not_configured")
                 return
@@ -701,22 +635,22 @@ Timestamp: {datetime.now().isoformat()}
 
             # Auto-retrain triggered counter
             triggered_counter = Counter(
-                'neural_hive_auto_retrain_triggered_total',
-                'Total de auto-retrains triggered',
-                ['specialist_type', 'status'],
-                registry=registry
+                "neural_hive_auto_retrain_triggered_total",
+                "Total de auto-retrains triggered",
+                ["specialist_type", "status"],
+                registry=registry,
             )
             triggered_counter.labels(
                 specialist_type=result.specialist_type,
-                status='success' if result.success else 'failed'
+                status="success" if result.success else "failed",
             ).inc()
 
             # Duration gauge
             duration_gauge = Gauge(
-                'neural_hive_auto_retrain_duration_seconds',
-                'Duração do auto-retrain em segundos',
-                ['specialist_type'],
-                registry=registry
+                "neural_hive_auto_retrain_duration_seconds",
+                "Duração do auto-retrain em segundos",
+                ["specialist_type"],
+                registry=registry,
             )
             duration_gauge.labels(specialist_type=result.specialist_type).set(
                 result.duration_seconds
@@ -725,29 +659,21 @@ Timestamp: {datetime.now().isoformat()}
             # Success counter
             if result.success:
                 success_counter = Counter(
-                    'neural_hive_auto_retrain_success_total',
-                    'Total de auto-retrains bem-sucedidos',
-                    ['specialist_type', 'improved'],
-                    registry=registry
+                    "neural_hive_auto_retrain_success_total",
+                    "Total de auto-retrains bem-sucedidos",
+                    ["specialist_type", "improved"],
+                    registry=registry,
                 )
                 success_counter.labels(
-                    specialist_type=result.specialist_type,
-                    improved=str(result.improved)
+                    specialist_type=result.specialist_type, improved=str(result.improved)
                 ).inc()
 
-            push_to_gateway(
-                pushgateway_url,
-                job='auto_retrain_orchestrator',
-                registry=registry
-            )
+            push_to_gateway(pushgateway_url, job="auto_retrain_orchestrator", registry=registry)
 
             logger.info("metrics_exported_to_prometheus")
 
         except Exception as e:
-            logger.error(
-                "prometheus_export_failed",
-                error=str(e)
-            )
+            logger.error("prometheus_export_failed", error=str(e))
 
     def cleanup_old_datasets(self, max_age_days: int = 90):
         """
@@ -757,88 +683,70 @@ Timestamp: {datetime.now().isoformat()}
             max_age_days: Idade máxima em dias
         """
         try:
-            data_dir = Path('/data/training')
+            data_dir = Path("/data/training")
             if not data_dir.exists():
                 return
 
             cutoff_date = datetime.now() - timedelta(days=max_age_days)
 
-            for file in data_dir.glob('*.parquet'):
+            for file in data_dir.glob("*.parquet"):
                 file_time = datetime.fromtimestamp(file.stat().st_mtime)
                 if file_time < cutoff_date:
                     file.unlink()
                     logger.info(
                         "old_dataset_removed",
                         file=str(file),
-                        age_days=(datetime.now() - file_time).days
+                        age_days=(datetime.now() - file_time).days,
                     )
 
         except Exception as e:
-            logger.error(
-                "cleanup_failed",
-                error=str(e)
-            )
+            logger.error("cleanup_failed", error=str(e))
 
 
 def main():
     """CLI para execução do orquestrador."""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description='Auto-Retrain Orchestrator'
+    parser = argparse.ArgumentParser(description="Auto-Retrain Orchestrator")
+    parser.add_argument(
+        "--specialist-type", help="Tipo do specialist (default: all)", default="all"
     )
     parser.add_argument(
-        '--specialist-type',
-        help='Tipo do specialist (default: all)',
-        default='all'
+        "--force", action="store_true", help="Forçar retreinamento mesmo se performance OK"
     )
     parser.add_argument(
-        '--force',
-        action='store_true',
-        help='Forçar retreinamento mesmo se performance OK'
+        "--skip-dataset-generation", action="store_true", help="Usar datasets existentes"
     )
+    parser.add_argument("--dry-run", action="store_true", help="Simular sem executar")
     parser.add_argument(
-        '--skip-dataset-generation',
-        action='store_true',
-        help='Usar datasets existentes'
-    )
-    parser.add_argument(
-        '--dry-run',
-        action='store_true',
-        help='Simular sem executar'
-    )
-    parser.add_argument(
-        '--notification-channels',
-        default='slack',
-        help='Canais de notificação separados por vírgula (slack,email)'
+        "--notification-channels",
+        default="slack",
+        help="Canais de notificação separados por vírgula (slack,email)",
     )
 
     args = parser.parse_args()
 
     # Initialize orchestrator
     orchestrator = AutoRetrainOrchestrator(
-        notification_channels=args.notification_channels.split(',')
+        notification_channels=args.notification_channels.split(",")
     )
 
     # Determine specialists to process
-    if args.specialist_type == 'all':
-        specialist_types = ['technical', 'business', 'behavior', 'evolution', 'architecture']
+    if args.specialist_type == "all":
+        specialist_types = ["technical", "business", "behavior", "evolution", "architecture"]
     else:
         specialist_types = [args.specialist_type]
 
     # Process each specialist
     results = []
     for specialist_type in specialist_types:
-        logger.info(
-            "processing_specialist",
-            specialist_type=specialist_type
-        )
+        logger.info("processing_specialist", specialist_type=specialist_type)
 
         result = orchestrator.check_performance_and_retrain(
             specialist_type=specialist_type,
             force=args.force,
             skip_dataset_generation=args.skip_dataset_generation,
-            dry_run=args.dry_run
+            dry_run=args.dry_run,
         )
 
         results.append(result)
@@ -864,5 +772,5 @@ def main():
     sys.exit(0 if all_success else 1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

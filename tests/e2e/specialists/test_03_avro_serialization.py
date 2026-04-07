@@ -13,7 +13,11 @@ async def test_execution_ticket_avro_serialization(avro_producer, avro_consumer,
     ticket = {
         "ticket_id": str(uuid.uuid4()),
         "correlation_id": str(uuid.uuid4()),
-        "task": {"type": "code_generation", "template_id": "test_template", "parameters": {"test": True}},
+        "task": {
+            "type": "code_generation",
+            "template_id": "test_template",
+            "parameters": {"test": True},
+        },
         "status": "PENDING",
         "sla_deadline_ms": int(time.time() * 1000) + 3_600_000,
     }
@@ -33,7 +37,9 @@ async def test_execution_ticket_avro_serialization(avro_producer, avro_consumer,
 
 @pytest.mark.e2e
 @pytest.mark.asyncio
-async def test_cognitive_plan_avro_serialization(avro_producer, avro_consumer, test_kafka_topics, sample_cognitive_plan):
+async def test_cognitive_plan_avro_serialization(
+    avro_producer, avro_consumer, test_kafka_topics, sample_cognitive_plan
+):
     avro_producer.produce(topic=test_kafka_topics["plans.ready"], value=sample_cognitive_plan)
     avro_producer.flush()
 

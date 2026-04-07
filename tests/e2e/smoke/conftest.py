@@ -40,9 +40,7 @@ SERVICE_URLS = {
         "WORKER_URL",
         "http://worker-agents.neural-hive-execution.svc.cluster.local:8005",
     ),
-    "queen": os.getenv(
-        "QUEEN_URL", "http://queen-agent.neural-hive-agents.svc.cluster.local:8006"
-    ),
+    "queen": os.getenv("QUEEN_URL", "http://queen-agent.neural-hive-agents.svc.cluster.local:8006"),
 }
 
 

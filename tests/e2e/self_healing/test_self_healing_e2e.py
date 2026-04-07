@@ -15,7 +15,14 @@ except ImportError as e:
 
 
 class FakeExecutor:
-    async def execute_playbook(self, playbook_name: str, context: dict, on_action_completed=None, on_playbook_completed=None, **kwargs):
+    async def execute_playbook(
+        self,
+        playbook_name: str,
+        context: dict,
+        on_action_completed=None,
+        on_playbook_completed=None,
+        **kwargs,
+    ):
         if on_action_completed:
             await on_action_completed({"success": True})
         result = {"success": True, "actions": []}
@@ -33,7 +40,7 @@ async def test_ticket_timeout_flow_completes():
         incident_id="inc-1",
         playbook_name="ticket_timeout_recovery",
         parameters={"ticket_id": "t-1"},
-        execution_mode="AUTOMATIC"
+        execution_mode="AUTOMATIC",
     )
 
     state = manager.start_remediation(request, total_actions=1)

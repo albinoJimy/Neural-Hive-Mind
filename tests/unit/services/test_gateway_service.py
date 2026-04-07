@@ -14,6 +14,7 @@ from uuid import uuid4
 # Test: Intent Recognition
 # =============================================================================
 
+
 class TestIntentRecognition:
     """Testes de reconhecimento de intenções."""
 
@@ -21,11 +22,7 @@ class TestIntentRecognition:
         """Deve identificar intenção do usuário."""
         text = "Qual meu saldo?"
 
-        intent = {
-            "text": text,
-            "intent": "query_balance",
-            "confidence": 0.95
-        }
+        intent = {"text": text, "intent": "query_balance", "confidence": 0.95}
 
         assert intent["intent"] == "query_balance"
         assert intent["confidence"] > 0.9
@@ -34,11 +31,7 @@ class TestIntentRecognition:
         """Deve extrair entidades."""
         text = "Transferir R$ 100 para João"
 
-        entities = {
-            "amount": 100,
-            "currency": "BRL",
-            "recipient": "João"
-        }
+        entities = {"amount": 100, "currency": "BRL", "recipient": "João"}
 
         assert entities["amount"] == 100
         assert entities["recipient"] == "João"
@@ -50,7 +43,7 @@ class TestIntentRecognition:
         categories = {
             "query_balance": "account",
             "transfer": "transaction",
-            "payment": "transaction"
+            "payment": "transaction",
         }
 
         category = categories.get(intent)
@@ -59,11 +52,7 @@ class TestIntentRecognition:
 
     def test_low_confidence_fallback(self):
         """Deve usar fallback em baixa confiança."""
-        intent = {
-            "text": "Ajuda",
-            "intent": "general_inquiry",
-            "confidence": 0.4
-        }
+        intent = {"text": "Ajuda", "intent": "general_inquiry", "confidence": 0.4}
 
         needs_clarification = intent["confidence"] < 0.7
 
@@ -82,15 +71,13 @@ class TestIntentRecognition:
 # Test: Request Validation
 # =============================================================================
 
+
 class TestRequestValidation:
     """Testes de validação de requisição."""
 
     def test_validate_required_fields(self):
         """Deve validar campos obrigatórios."""
-        request = {
-            "user_id": str(uuid4()),
-            "text": "Qual meu saldo?"
-        }
+        request = {"user_id": str(uuid4()), "text": "Qual meu saldo?"}
 
         required = ["user_id", "text"]
         is_valid = all(field in request for field in required)
@@ -138,6 +125,7 @@ class TestRequestValidation:
 # Test: Request Routing
 # =============================================================================
 
+
 class TestRequestRouting:
     """Testes de roteamento de requisição."""
 
@@ -155,10 +143,7 @@ class TestRequestRouting:
 
     def test_route_to_approval(self):
         """Deve rotear para Approval Service."""
-        plan = {
-            "requires_approval": True,
-            "risk_score": 0.8
-        }
+        plan = {"requires_approval": True, "risk_score": 0.8}
 
         if plan["requires_approval"]:
             destination = "approval_service"
@@ -167,10 +152,7 @@ class TestRequestRouting:
 
     def test_route_to_orchestrator(self):
         """Deve rotear para Orchestrator."""
-        plan = {
-            "approved": True,
-            "steps": ["step1", "step2"]
-        }
+        plan = {"approved": True, "steps": ["step1", "step2"]}
 
         destination = "orchestrator"
 
@@ -201,6 +183,7 @@ class TestRequestRouting:
 # Test: Response Formatting
 # =============================================================================
 
+
 class TestResponseFormatting:
     """Testes de formatação de resposta."""
 
@@ -209,7 +192,7 @@ class TestResponseFormatting:
         response = {
             "status": "success",
             "data": {"balance": "R$ 1.500,00"},
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         assert response["status"] == "success"
@@ -220,11 +203,8 @@ class TestResponseFormatting:
 
         response = {
             "status": "error",
-            "error": {
-                "type": type(error).__name__,
-                "message": str(error)
-            },
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "error": {"type": type(error).__name__, "message": str(error)},
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         assert response["status"] == "error"
@@ -235,7 +215,7 @@ class TestResponseFormatting:
             "status": "partial",
             "completed": ["step1", "step2"],
             "pending": ["step3"],
-            "data": {"result": "partial_result"}
+            "data": {"result": "partial_result"},
         }
 
         assert response["status"] == "partial"
@@ -244,7 +224,7 @@ class TestResponseFormatting:
         """Deve localizar resposta."""
         response = {
             "message_pt": "Seu saldo é R$ 1.500,00",
-            "message_en": "Your balance is R$ 1.500,00"
+            "message_en": "Your balance is R$ 1.500,00",
         }
 
         locale = "pt-BR"
@@ -254,14 +234,12 @@ class TestResponseFormatting:
 
     def test_add_metadata(self):
         """Deve adicionar metadados."""
-        response = {
-            "result": "success"
-        }
+        response = {"result": "success"}
 
         response["metadata"] = {
             "request_id": str(uuid4()),
             "processing_time_ms": 150,
-            "cache_hit": False
+            "cache_hit": False,
         }
 
         assert "metadata" in response
@@ -270,6 +248,7 @@ class TestResponseFormatting:
 # =============================================================================
 # Test: Rate Limiting
 # =============================================================================
+
 
 class TestRateLimiting:
     """Testes de rate limiting."""
@@ -305,11 +284,7 @@ class TestRateLimiting:
 
     def test_rate_limit_per_user(self):
         """Deve ter limites por usuário."""
-        limits = {
-            "free": 100,
-            "premium": 1000,
-            "enterprise": 10000
-        }
+        limits = {"free": 100, "premium": 1000, "enterprise": 10000}
 
         user_tier = "premium"
         limit = limits[user_tier]
@@ -321,7 +296,7 @@ class TestRateLimiting:
         headers = {
             "X-RateLimit-Limit": 100,
             "X-RateLimit-Remaining": 95,
-            "X-RateLimit-Reset": int(datetime.now(timezone.utc).timestamp() + 60)
+            "X-RateLimit-Reset": int(datetime.now(timezone.utc).timestamp() + 60),
         }
 
         assert "X-RateLimit-Limit" in headers
@@ -330,6 +305,7 @@ class TestRateLimiting:
 # =============================================================================
 # Test: Authentication
 # =============================================================================
+
 
 class TestAuthentication:
     """Testes de autenticação."""
@@ -382,6 +358,7 @@ class TestAuthentication:
 # Test: Context Management
 # =============================================================================
 
+
 class TestContextManagement:
     """Testes de gerenciamento de contexto."""
 
@@ -391,7 +368,7 @@ class TestContextManagement:
             "session_id": str(uuid4()),
             "user_id": str(uuid4()),
             "created_at": datetime.now(timezone.utc).isoformat(),
-            "context": {}
+            "context": {},
         }
 
         assert "session_id" in session
@@ -427,7 +404,9 @@ class TestContextManagement:
         last_activity = datetime.now(timezone.utc) - timedelta(minutes=35)
         timeout_minutes = 30
 
-        timed_out = (datetime.now(timezone.utc) - last_activity).total_seconds() > timeout_minutes * 60
+        timed_out = (
+            datetime.now(timezone.utc) - last_activity
+        ).total_seconds() > timeout_minutes * 60
 
         assert timed_out is True
 
@@ -435,6 +414,7 @@ class TestContextManagement:
 # =============================================================================
 # Test: Error Handling
 # =============================================================================
+
 
 class TestErrorHandling:
     """Testes de tratamento de erros."""
@@ -446,7 +426,7 @@ class TestErrorHandling:
         fallback_response = {
             "status": "error",
             "message": "Service temporarily unavailable",
-            "retry_after": 60
+            "retry_after": 60,
         }
 
         assert fallback_response["retry_after"] == 60
@@ -465,11 +445,13 @@ class TestErrorHandling:
         error_log = []
 
         error = Exception("Test error")
-        error_log.append({
-            "type": type(error).__name__,
-            "message": str(error),
-            "timestamp": datetime.now(timezone.utc).isoformat()
-        })
+        error_log.append(
+            {
+                "type": type(error).__name__,
+                "message": str(error),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        )
 
         assert len(error_log) == 1
 

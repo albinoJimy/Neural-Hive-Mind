@@ -39,34 +39,32 @@ def _init_monitor_prometheus_metrics():
         return
 
     online_convergence_stall = Gauge(
-        'neural_hive_online_convergence_stall',
-        'Indicador de convergence stall (1=stall detectado)',
-        ['specialist_type']
+        "neural_hive_online_convergence_stall",
+        "Indicador de convergence stall (1=stall detectado)",
+        ["specialist_type"],
     )
     online_memory_usage_mb = Gauge(
-        'neural_hive_online_memory_usage_mb',
-        'Uso de memória do processo em MB',
-        ['specialist_type']
+        "neural_hive_online_memory_usage_mb",
+        "Uso de memória do processo em MB",
+        ["specialist_type"],
     )
     online_model_size_mb = Gauge(
-        'neural_hive_online_model_size_mb',
-        'Tamanho do modelo online em MB',
-        ['specialist_type']
+        "neural_hive_online_model_size_mb", "Tamanho do modelo online em MB", ["specialist_type"]
     )
     online_prediction_variance = Gauge(
-        'neural_hive_online_prediction_variance',
-        'Variância de predições entre updates',
-        ['specialist_type']
+        "neural_hive_online_prediction_variance",
+        "Variância de predições entre updates",
+        ["specialist_type"],
     )
     online_update_frequency = Gauge(
-        'neural_hive_online_update_frequency_per_hour',
-        'Frequência de updates por hora',
-        ['specialist_type']
+        "neural_hive_online_update_frequency_per_hour",
+        "Frequência de updates por hora",
+        ["specialist_type"],
     )
     online_alert_triggered = Counter(
-        'neural_hive_online_alert_triggered_total',
-        'Total de alertas disparados',
-        ['specialist_type', 'alert_type']
+        "neural_hive_online_alert_triggered_total",
+        "Total de alertas disparados",
+        ["specialist_type", "alert_type"],
     )
     _monitor_metrics_initialized = True
 
@@ -81,7 +79,7 @@ class Alert:
         message: str,
         specialist_type: str,
         metrics: Dict[str, Any],
-        timestamp: Optional[datetime] = None
+        timestamp: Optional[datetime] = None,
     ):
         self.alert_type = alert_type
         self.severity = severity  # info, warning, critical
@@ -93,13 +91,13 @@ class Alert:
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            'alert_type': self.alert_type,
-            'severity': self.severity,
-            'message': self.message,
-            'specialist_type': self.specialist_type,
-            'metrics': self.metrics,
-            'timestamp': self.timestamp.isoformat(),
-            'acknowledged': self.acknowledged
+            "alert_type": self.alert_type,
+            "severity": self.severity,
+            "message": self.message,
+            "specialist_type": self.specialist_type,
+            "metrics": self.metrics,
+            "timestamp": self.timestamp.isoformat(),
+            "acknowledged": self.acknowledged,
         }
 
 
@@ -121,19 +119,19 @@ class OnlinePerformanceMonitor:
     """
 
     ALERT_TYPES = [
-        'convergence_stall',
-        'memory_leak',
-        'accuracy_drop',
-        'high_latency',
-        'prediction_instability',
-        'update_frequency_low'
+        "convergence_stall",
+        "memory_leak",
+        "accuracy_drop",
+        "high_latency",
+        "prediction_instability",
+        "update_frequency_low",
     ]
 
     def __init__(
         self,
         config: OnlineLearningConfig,
         specialist_type: str,
-        learner: Optional[IncrementalLearner] = None
+        learner: Optional[IncrementalLearner] = None,
     ):
         """
         Inicializa OnlinePerformanceMonitor.
@@ -153,8 +151,8 @@ class OnlinePerformanceMonitor:
         # MongoDB para histórico
         self._client = MongoClient(config.mongodb_uri)
         self._db = self._client[config.mongodb_database]
-        self._metrics_collection = self._db['online_learning_metrics']
-        self._alerts_collection = self._db['online_learning_alerts']
+        self._metrics_collection = self._db["online_learning_metrics"]
+        self._alerts_collection = self._db["online_learning_alerts"]
 
         # Criar índices
         self._create_indexes()
@@ -175,20 +173,14 @@ class OnlinePerformanceMonitor:
             "online_monitor_initialized",
             specialist_type=specialist_type,
             convergence_stall_hours=config.convergence_stall_threshold_hours,
-            memory_leak_threshold_mb=config.memory_leak_threshold_mb
+            memory_leak_threshold_mb=config.memory_leak_threshold_mb,
         )
 
     def _create_indexes(self):
         """Cria índices no MongoDB."""
         try:
-            self._metrics_collection.create_index([
-                ('specialist_type', 1),
-                ('timestamp', -1)
-            ])
-            self._alerts_collection.create_index([
-                ('specialist_type', 1),
-                ('timestamp', -1)
-            ])
+            self._metrics_collection.create_index([("specialist_type", 1), ("timestamp", -1)])
+            self._alerts_collection.create_index([("specialist_type", 1), ("timestamp", -1)])
         except Exception as e:
             logger.warning("failed_to_create_indexes", error=str(e))
 
@@ -196,11 +188,7 @@ class OnlinePerformanceMonitor:
         """Define o learner a ser monitorado."""
         self.learner = learner
 
-    def set_baseline(
-        self,
-        latency_ms: Optional[float] = None,
-        accuracy: Optional[float] = None
-    ):
+    def set_baseline(self, latency_ms: Optional[float] = None, accuracy: Optional[float] = None):
         """Define métricas baseline para comparação."""
         if latency_ms is not None:
             self._baseline_latency_ms = latency_ms
@@ -211,15 +199,10 @@ class OnlinePerformanceMonitor:
             "baseline_metrics_set",
             specialist_type=self.specialist_type,
             latency_ms=self._baseline_latency_ms,
-            accuracy=self._baseline_accuracy
+            accuracy=self._baseline_accuracy,
         )
 
-    def record_update(
-        self,
-        loss: float,
-        duration_ms: float,
-        samples_count: int
-    ):
+    def record_update(self, loss: float, duration_ms: float, samples_count: int):
         """
         Registra uma atualização de modelo.
 
@@ -252,13 +235,13 @@ class OnlinePerformanceMonitor:
 
         # Persistir métricas
         metric_doc = {
-            'specialist_type': self.specialist_type,
-            'timestamp': now,
-            'loss': loss,
-            'duration_ms': duration_ms,
-            'samples_count': samples_count,
-            'memory_mb': memory_mb,
-            'update_count': len(self._update_timestamps)
+            "specialist_type": self.specialist_type,
+            "timestamp": now,
+            "loss": loss,
+            "duration_ms": duration_ms,
+            "samples_count": samples_count,
+            "memory_mb": memory_mb,
+            "update_count": len(self._update_timestamps),
         }
 
         try:
@@ -300,6 +283,7 @@ class OnlinePerformanceMonitor:
 
         try:
             import pickle
+
             model_bytes = len(pickle.dumps(self.learner.model))
             scaler_bytes = len(pickle.dumps(self.learner._scaler))
             return (model_bytes + scaler_bytes) / (1024 * 1024)
@@ -350,8 +334,8 @@ class OnlinePerformanceMonitor:
         variances = []
 
         for i in range(1, len(recent)):
-            if recent[i].shape == recent[i-1].shape:
-                var = np.mean(np.abs(recent[i] - recent[i-1]))
+            if recent[i].shape == recent[i - 1].shape:
+                var = np.mean(np.abs(recent[i] - recent[i - 1]))
                 variances.append(var)
 
         return float(np.mean(variances)) if variances else 0.0
@@ -360,27 +344,19 @@ class OnlinePerformanceMonitor:
         """Atualiza métricas Prometheus."""
         # Update frequency
         freq = self._calculate_update_frequency()
-        online_update_frequency.labels(
-            specialist_type=self.specialist_type
-        ).set(freq)
+        online_update_frequency.labels(specialist_type=self.specialist_type).set(freq)
 
         # Memory usage
         memory_mb = self._get_memory_usage_mb()
-        online_memory_usage_mb.labels(
-            specialist_type=self.specialist_type
-        ).set(memory_mb)
+        online_memory_usage_mb.labels(specialist_type=self.specialist_type).set(memory_mb)
 
         # Model size
         model_size = self._get_model_size_mb()
-        online_model_size_mb.labels(
-            specialist_type=self.specialist_type
-        ).set(model_size)
+        online_model_size_mb.labels(specialist_type=self.specialist_type).set(model_size)
 
         # Prediction variance
         variance = self._calculate_prediction_variance()
-        online_prediction_variance.labels(
-            specialist_type=self.specialist_type
-        ).set(variance)
+        online_prediction_variance.labels(specialist_type=self.specialist_type).set(variance)
 
     def _check_alerts(self):
         """Verifica condições de alerta."""
@@ -429,32 +405,28 @@ class OnlinePerformanceMonitor:
 
         # Stall se não houve redução significativa
         if loss_reduction < 0.001:
-            online_convergence_stall.labels(
-                specialist_type=self.specialist_type
-            ).set(1)
+            online_convergence_stall.labels(specialist_type=self.specialist_type).set(1)
 
             # Verificar se já existe alerta ativo
             for alert in self._active_alerts:
-                if alert.alert_type == 'convergence_stall' and not alert.acknowledged:
+                if alert.alert_type == "convergence_stall" and not alert.acknowledged:
                     return None
 
             return Alert(
-                alert_type='convergence_stall',
-                severity='warning',
+                alert_type="convergence_stall",
+                severity="warning",
                 message=f"Convergência parada há {self.config.convergence_stall_threshold_hours}h. "
-                        f"Loss inicial: {losses[0]:.4f}, final: {losses[-1]:.4f}",
+                f"Loss inicial: {losses[0]:.4f}, final: {losses[-1]:.4f}",
                 specialist_type=self.specialist_type,
                 metrics={
-                    'initial_loss': losses[0],
-                    'final_loss': losses[-1],
-                    'loss_reduction': loss_reduction,
-                    'window_hours': self.config.convergence_stall_threshold_hours
-                }
+                    "initial_loss": losses[0],
+                    "final_loss": losses[-1],
+                    "loss_reduction": loss_reduction,
+                    "window_hours": self.config.convergence_stall_threshold_hours,
+                },
             )
         else:
-            online_convergence_stall.labels(
-                specialist_type=self.specialist_type
-            ).set(0)
+            online_convergence_stall.labels(specialist_type=self.specialist_type).set(0)
 
         return None
 
@@ -469,22 +441,22 @@ class OnlinePerformanceMonitor:
         if memory_growth > self.config.memory_leak_threshold_mb:
             # Verificar se já existe alerta ativo
             for alert in self._active_alerts:
-                if alert.alert_type == 'memory_leak' and not alert.acknowledged:
+                if alert.alert_type == "memory_leak" and not alert.acknowledged:
                     return None
 
             return Alert(
-                alert_type='memory_leak',
-                severity='critical',
+                alert_type="memory_leak",
+                severity="critical",
                 message=f"Possível memory leak detectado. "
-                        f"Crescimento: {memory_growth:.1f}MB "
-                        f"(threshold: {self.config.memory_leak_threshold_mb}MB)",
+                f"Crescimento: {memory_growth:.1f}MB "
+                f"(threshold: {self.config.memory_leak_threshold_mb}MB)",
                 specialist_type=self.specialist_type,
                 metrics={
-                    'initial_memory_mb': self._initial_memory_mb,
-                    'current_memory_mb': current_memory,
-                    'growth_mb': memory_growth,
-                    'threshold_mb': self.config.memory_leak_threshold_mb
-                }
+                    "initial_memory_mb": self._initial_memory_mb,
+                    "current_memory_mb": current_memory,
+                    "growth_mb": memory_growth,
+                    "threshold_mb": self.config.memory_leak_threshold_mb,
+                },
             )
 
         return None
@@ -496,19 +468,19 @@ class OnlinePerformanceMonitor:
         if variance > self.config.prediction_stability_variance_threshold:
             # Verificar se já existe alerta ativo
             for alert in self._active_alerts:
-                if alert.alert_type == 'prediction_instability' and not alert.acknowledged:
+                if alert.alert_type == "prediction_instability" and not alert.acknowledged:
                     return None
 
             return Alert(
-                alert_type='prediction_instability',
-                severity='warning',
+                alert_type="prediction_instability",
+                severity="warning",
                 message=f"Alta variância em predições: {variance:.4f} "
-                        f"(threshold: {self.config.prediction_stability_variance_threshold})",
+                f"(threshold: {self.config.prediction_stability_variance_threshold})",
                 specialist_type=self.specialist_type,
                 metrics={
-                    'variance': variance,
-                    'threshold': self.config.prediction_stability_variance_threshold
-                }
+                    "variance": variance,
+                    "threshold": self.config.prediction_stability_variance_threshold,
+                },
             )
 
         return None
@@ -522,19 +494,16 @@ class OnlinePerformanceMonitor:
         if freq < expected_freq * 0.5 and len(self._update_timestamps) > 5:
             # Verificar se já existe alerta ativo
             for alert in self._active_alerts:
-                if alert.alert_type == 'update_frequency_low' and not alert.acknowledged:
+                if alert.alert_type == "update_frequency_low" and not alert.acknowledged:
                     return None
 
             return Alert(
-                alert_type='update_frequency_low',
-                severity='info',
+                alert_type="update_frequency_low",
+                severity="info",
                 message=f"Frequência de updates baixa: {freq:.1f}/hora "
-                        f"(esperado: ~{expected_freq:.1f}/hora)",
+                f"(esperado: ~{expected_freq:.1f}/hora)",
                 specialist_type=self.specialist_type,
-                metrics={
-                    'current_frequency': freq,
-                    'expected_frequency': expected_freq
-                }
+                metrics={"current_frequency": freq, "expected_frequency": expected_freq},
             )
 
         return None
@@ -551,19 +520,18 @@ class OnlinePerformanceMonitor:
 
         # Emitir métrica
         online_alert_triggered.labels(
-            specialist_type=self.specialist_type,
-            alert_type=alert.alert_type
+            specialist_type=self.specialist_type, alert_type=alert.alert_type
         ).inc()
 
         # Logar alerta
-        log_fn = logger.warning if alert.severity in ['warning', 'critical'] else logger.info
+        log_fn = logger.warning if alert.severity in ["warning", "critical"] else logger.info
         log_fn(
             "alert_triggered",
             specialist_type=self.specialist_type,
             alert_type=alert.alert_type,
             severity=alert.severity,
             message=alert.message,
-            metrics=alert.metrics
+            metrics=alert.metrics,
         )
 
     def get_status(self) -> Dict[str, Any]:
@@ -580,21 +548,23 @@ class OnlinePerformanceMonitor:
         model_size = self._get_model_size_mb()
 
         return {
-            'specialist_type': self.specialist_type,
-            'timestamp': datetime.now(timezone.utc).isoformat(),
-            'metrics': {
-                'update_frequency_per_hour': freq,
-                'convergence_rate': convergence,
-                'is_converging': convergence < 0,
-                'prediction_variance': variance,
-                'memory_usage_mb': memory,
-                'model_size_mb': model_size,
-                'memory_growth_mb': memory - self._initial_memory_mb if self._initial_memory_mb else 0,
-                'total_updates': len(self._update_timestamps),
-                'current_loss': self._loss_history[-1][1] if self._loss_history else None
+            "specialist_type": self.specialist_type,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "metrics": {
+                "update_frequency_per_hour": freq,
+                "convergence_rate": convergence,
+                "is_converging": convergence < 0,
+                "prediction_variance": variance,
+                "memory_usage_mb": memory,
+                "model_size_mb": model_size,
+                "memory_growth_mb": memory - self._initial_memory_mb
+                if self._initial_memory_mb
+                else 0,
+                "total_updates": len(self._update_timestamps),
+                "current_loss": self._loss_history[-1][1] if self._loss_history else None,
             },
-            'active_alerts': [a.to_dict() for a in self._active_alerts if not a.acknowledged],
-            'health': self._assess_health()
+            "active_alerts": [a.to_dict() for a in self._active_alerts if not a.acknowledged],
+            "health": self._assess_health(),
         }
 
     def _assess_health(self) -> str:
@@ -604,17 +574,19 @@ class OnlinePerformanceMonitor:
         Returns:
             'healthy', 'degraded', ou 'unhealthy'
         """
-        critical_alerts = [a for a in self._active_alerts
-                          if a.severity == 'critical' and not a.acknowledged]
-        warning_alerts = [a for a in self._active_alerts
-                         if a.severity == 'warning' and not a.acknowledged]
+        critical_alerts = [
+            a for a in self._active_alerts if a.severity == "critical" and not a.acknowledged
+        ]
+        warning_alerts = [
+            a for a in self._active_alerts if a.severity == "warning" and not a.acknowledged
+        ]
 
         if critical_alerts:
-            return 'unhealthy'
+            return "unhealthy"
         elif warning_alerts:
-            return 'degraded'
+            return "degraded"
         else:
-            return 'healthy'
+            return "healthy"
 
     def acknowledge_alert(self, alert_type: str):
         """Marca alertas de um tipo como reconhecidos."""
@@ -623,16 +595,10 @@ class OnlinePerformanceMonitor:
                 alert.acknowledged = True
 
         logger.info(
-            "alert_acknowledged",
-            specialist_type=self.specialist_type,
-            alert_type=alert_type
+            "alert_acknowledged", specialist_type=self.specialist_type, alert_type=alert_type
         )
 
-    def get_metrics_history(
-        self,
-        hours: int = 24,
-        limit: int = 1000
-    ) -> List[Dict[str, Any]]:
+    def get_metrics_history(self, hours: int = 24, limit: int = 1000) -> List[Dict[str, Any]]:
         """
         Retorna histórico de métricas.
 
@@ -645,16 +611,19 @@ class OnlinePerformanceMonitor:
         """
         cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
 
-        docs = self._metrics_collection.find({
-            'specialist_type': self.specialist_type,
-            'timestamp': {'$gte': cutoff}
-        }).sort('timestamp', DESCENDING).limit(limit)
+        docs = (
+            self._metrics_collection.find(
+                {"specialist_type": self.specialist_type, "timestamp": {"$gte": cutoff}}
+            )
+            .sort("timestamp", DESCENDING)
+            .limit(limit)
+        )
 
         metrics = []
         for doc in docs:
-            doc.pop('_id', None)
-            if 'timestamp' in doc:
-                doc['timestamp'] = doc['timestamp'].isoformat()
+            doc.pop("_id", None)
+            if "timestamp" in doc:
+                doc["timestamp"] = doc["timestamp"].isoformat()
             metrics.append(doc)
 
         return metrics

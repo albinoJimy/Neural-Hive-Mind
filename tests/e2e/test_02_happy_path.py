@@ -54,15 +54,19 @@ async def test_complete_flow_c_happy_path(
         assert_ticket_valid(ticket)
         assert ticket["status"] == "PENDING"
 
-    tickets_in_db = await test_mongodb_collections["execution_tickets"].find(
-        {"correlation_id": correlation_id}
-    ).to_list(length=100)
+    tickets_in_db = (
+        await test_mongodb_collections["execution_tickets"]
+        .find({"correlation_id": correlation_id})
+        .to_list(length=100)
+    )
     assert len(tickets_in_db) == len(tickets)
 
     for ticket in tickets:
         deadline = time.time() + 300
         while time.time() < deadline:
-            stored = await test_mongodb_collections["execution_tickets"].find_one({"ticket_id": ticket["ticket_id"]})
+            stored = await test_mongodb_collections["execution_tickets"].find_one(
+                {"ticket_id": ticket["ticket_id"]}
+            )
             if stored and stored.get("status") == "COMPLETED":
                 assert "result" in stored
                 break
@@ -70,7 +74,9 @@ async def test_complete_flow_c_happy_path(
         else:
             pytest.fail(f"Ticket {ticket['ticket_id']} não completou no tempo esperado")
 
-    workflow_result = await test_mongodb_collections["workflows"].find_one({"correlation_id": correlation_id})
+    workflow_result = await test_mongodb_collections["workflows"].find_one(
+        {"correlation_id": correlation_id}
+    )
     assert_workflow_completed(workflow_result)
 
     telemetry = await wait_for_kafka_message(

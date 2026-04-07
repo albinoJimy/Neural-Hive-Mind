@@ -14,13 +14,15 @@ STE_POD = "semantic-translation-engine-5cb5dffcf5-2w77k"
 APPROVAL_NS = "neural-hive"
 STE_NS = "neural-hive"
 
+
 def kubectl_exec(namespace, pod, cmd):
     """Executa comando kubectl e retorna output"""
-    full_cmd = f"kubectl exec -n {namespace} {pod} -- python3 -c \"{cmd}\" 2>/dev/null"
+    full_cmd = f'kubectl exec -n {namespace} {pod} -- python3 -c "{cmd}" 2>/dev/null'
     result = subprocess.run(full_cmd, shell=True, capture_output=True, text=True)
     # Pega apenas a última linha que deve ser OK ou MISSING
-    lines = result.stdout.strip().split('\n')
+    lines = result.stdout.strip().split("\n")
     return lines[-1] if lines else "", result.returncode
+
 
 def check_ste_model():
     """Verifica se campo existe no modelo STE"""
@@ -35,6 +37,7 @@ print('OK' if 'original_intent_text' in fields else 'MISSING')
     out, code = kubectl_exec(STE_NS, STE_POD, cmd)
     return out == "OK"
 
+
 def check_approval_model():
     """Verifica se campo existe no modelo Approval"""
     print("[APPROVAL] Checking ApprovalRequest model...")
@@ -47,6 +50,7 @@ print('OK' if 'original_intent_text' in fields else 'MISSING')
 """
     out, code = kubectl_exec(APPROVAL_NS, APPROVAL_POD, cmd)
     return out == "OK"
+
 
 def count_mongo_plans():
     """Conta plan_approvals com original_intent_text"""
@@ -63,6 +67,7 @@ print(count)
     except ValueError:
         return 0
 
+
 def count_mongo_feedbacks():
     """Conta specialist_feedback com intent_raw_text"""
     cmd = """
@@ -77,6 +82,7 @@ print(count)
         return int(out) if out else 0
     except ValueError:
         return 0
+
 
 def main():
     print("=" * 60)
@@ -105,7 +111,9 @@ def main():
     if plans_count > 0:
         print(f"  ✓ {plans_count} plan_approvals com original_intent_text")
     else:
-        print("  ⚠ Nenhum plano com texto encontrado (pode indicar que não há planos novos pós-deploy)")
+        print(
+            "  ⚠ Nenhum plano com texto encontrado (pode indicar que não há planos novos pós-deploy)"
+        )
 
     print()
     print("3. Verificando specialist_feedback com intent_raw_text...")
@@ -121,6 +129,7 @@ def main():
     print("=" * 60)
     print("VALIDAÇÃO CONCLUÍDA")
     print("=" * 60)
+
 
 if __name__ == "__main__":
     main()

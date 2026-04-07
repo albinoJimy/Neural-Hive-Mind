@@ -18,8 +18,7 @@ import logging
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -27,6 +26,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class EOSTestConfig:
     """Configurações do teste EOS"""
+
     bootstrap_servers: str
     topic_name: str
     num_messages: int
@@ -39,9 +39,10 @@ class EOSTestConfig:
 @dataclass
 class EOSTestResults:
     """Resultados do teste EOS"""
+
     messages_sent: int
     messages_received: Dict[str, int]  # consumer_group -> count
-    duplicates_found: Dict[str, int]   # consumer_group -> duplicate_count
+    duplicates_found: Dict[str, int]  # consumer_group -> duplicate_count
     test_duration: float
     success: bool
     errors: List[str]
@@ -56,17 +57,17 @@ class EOSProducer:
         self.transactional_id = f"eos-test-producer-{producer_id}-{int(time.time())}"
 
         producer_config = {
-            'bootstrap.servers': config.bootstrap_servers,
-            'transactional.id': self.transactional_id,
-            'enable.idempotence': True,
-            'acks': 'all',
-            'retries': 2147483647,
-            'max.in.flight.requests.per.connection': 5,
-            'compression.type': 'snappy',
-            'batch.size': 16384,
-            'linger.ms': 10,
-            'delivery.timeout.ms': 300000,
-            'request.timeout.ms': 30000
+            "bootstrap.servers": config.bootstrap_servers,
+            "transactional.id": self.transactional_id,
+            "enable.idempotence": True,
+            "acks": "all",
+            "retries": 2147483647,
+            "max.in.flight.requests.per.connection": 5,
+            "compression.type": "snappy",
+            "batch.size": 16384,
+            "linger.ms": 10,
+            "delivery.timeout.ms": 300000,
+            "request.timeout.ms": 30000,
         }
 
         self.producer = Producer(producer_config)
@@ -82,11 +83,11 @@ class EOSProducer:
             for i in range(count):
                 message_id = f"eos-test-{start_id + i}-{uuid.uuid4()}"
                 message_data = {
-                    'id': message_id,
-                    'producer_id': self.producer_id,
-                    'sequence': i,
-                    'timestamp': datetime.now(timezone.utc).isoformat(),
-                    'test_payload': f"Test message {start_id + i} from producer {self.producer_id}"
+                    "id": message_id,
+                    "producer_id": self.producer_id,
+                    "sequence": i,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "test_payload": f"Test message {start_id + i} from producer {self.producer_id}",
                 }
 
                 key = f"producer-{self.producer_id}"
@@ -97,13 +98,12 @@ class EOSProducer:
                     if err:
                         logger.error(f"Failed to deliver message {msg_id}: {err}")
                     else:
-                        logger.debug(f"Message {msg_id} delivered to {msg.topic()}[{msg.partition()}] @ {msg.offset()}")
+                        logger.debug(
+                            f"Message {msg_id} delivered to {msg.topic()}[{msg.partition()}] @ {msg.offset()}"
+                        )
 
                 self.producer.produce(
-                    topic=self.config.topic_name,
-                    key=key,
-                    value=value,
-                    callback=delivery_callback
+                    topic=self.config.topic_name, key=key, value=value, callback=delivery_callback
                 )
 
                 sent_count += 1
@@ -132,7 +132,7 @@ class EOSProducer:
 
     def close(self):
         """Fechar producer"""
-        if hasattr(self, 'producer'):
+        if hasattr(self, "producer"):
             self.producer.flush(timeout=30.0)
 
 
@@ -144,14 +144,14 @@ class EOSConsumer:
         self.group_id = group_id
 
         consumer_config = {
-            'bootstrap.servers': config.bootstrap_servers,
-            'group.id': group_id,
-            'auto.offset.reset': 'earliest',
-            'enable.auto.commit': False,
-            'isolation.level': 'read_committed',  # Crítico para EOS
-            'max.poll.interval.ms': 300000,
-            'session.timeout.ms': 30000,
-            'heartbeat.interval.ms': 10000
+            "bootstrap.servers": config.bootstrap_servers,
+            "group.id": group_id,
+            "auto.offset.reset": "earliest",
+            "enable.auto.commit": False,
+            "isolation.level": "read_committed",  # Crítico para EOS
+            "max.poll.interval.ms": 300000,
+            "session.timeout.ms": 30000,
+            "heartbeat.interval.ms": 10000,
         }
 
         self.consumer = Consumer(consumer_config)
@@ -180,13 +180,15 @@ class EOSConsumer:
                         continue
 
                 try:
-                    message_data = json.loads(msg.value().decode('utf-8'))
-                    message_id = message_data.get('id')
+                    message_data = json.loads(msg.value().decode("utf-8"))
+                    message_id = message_data.get("id")
 
                     if message_id:
                         if message_id in unique_ids:
                             duplicates += 1
-                            logger.warning(f"Duplicate message found in group {self.group_id}: {message_id}")
+                            logger.warning(
+                                f"Duplicate message found in group {self.group_id}: {message_id}"
+                            )
                         else:
                             unique_ids.add(message_id)
 
@@ -195,7 +197,9 @@ class EOSConsumer:
                         # Commit offset periodicamente
                         if messages_received % 1000 == 0:
                             self.consumer.commit(asynchronous=False)
-                            logger.info(f"Consumer {self.group_id} processed {messages_received} messages")
+                            logger.info(
+                                f"Consumer {self.group_id} processed {messages_received} messages"
+                            )
 
                 except json.JSONDecodeError:
                     logger.error(f"Failed to decode message in group {self.group_id}")
@@ -212,17 +216,19 @@ class EOSConsumer:
             except:
                 pass
 
-        logger.info(f"Consumer {self.group_id}: {messages_received} messages, {duplicates} duplicates")
+        logger.info(
+            f"Consumer {self.group_id}: {messages_received} messages, {duplicates} duplicates"
+        )
 
         return {
-            'messages': messages_received,
-            'duplicates': duplicates,
-            'unique_ids': len(unique_ids)
+            "messages": messages_received,
+            "duplicates": duplicates,
+            "unique_ids": len(unique_ids),
         }
 
     def close(self):
         """Fechar consumer"""
-        if hasattr(self, 'consumer'):
+        if hasattr(self, "consumer"):
             self.consumer.close()
 
 
@@ -231,7 +237,7 @@ class EOSTestRunner:
 
     def __init__(self, config: EOSTestConfig):
         self.config = config
-        self.admin_client = AdminClient({'bootstrap.servers': config.bootstrap_servers})
+        self.admin_client = AdminClient({"bootstrap.servers": config.bootstrap_servers})
 
     async def setup_topic(self):
         """Criar tópico de teste"""
@@ -240,11 +246,11 @@ class EOSTestRunner:
             num_partitions=6,
             replication_factor=3,
             config={
-                'cleanup.policy': 'delete',
-                'retention.ms': '3600000',  # 1 hora
-                'max.message.bytes': '1000012',  # ~1MB
-                'min.insync.replicas': '2'
-            }
+                "cleanup.policy": "delete",
+                "retention.ms": "3600000",  # 1 hora
+                "max.message.bytes": "1000012",  # ~1MB
+                "min.insync.replicas": "2",
+            },
         )
 
         try:
@@ -272,9 +278,7 @@ class EOSTestRunner:
                 producers.append(producer)
 
                 start_id = i * messages_per_producer
-                task = asyncio.create_task(
-                    producer.send_messages(start_id, messages_per_producer)
-                )
+                task = asyncio.create_task(producer.send_messages(start_id, messages_per_producer))
                 tasks.append(task)
 
             # Aguardar conclusão
@@ -321,7 +325,7 @@ class EOSTestRunner:
                     results[group_id] = result
                 except Exception as e:
                     logger.error(f"Consumer group {group_id} failed: {e}")
-                    results[group_id] = {'messages': 0, 'duplicates': 0, 'unique_ids': 0}
+                    results[group_id] = {"messages": 0, "duplicates": 0, "unique_ids": 0}
 
             return results
 
@@ -359,8 +363,12 @@ class EOSTestRunner:
             consumer_results = await consumer_task
 
             # Processar resultados
-            messages_received = {group: data['messages'] for group, data in consumer_results.items()}
-            duplicates_found = {group: data['duplicates'] for group, data in consumer_results.items()}
+            messages_received = {
+                group: data["messages"] for group, data in consumer_results.items()
+            }
+            duplicates_found = {
+                group: data["duplicates"] for group, data in consumer_results.items()
+            }
 
             total_duration = time.time() - start_time
 
@@ -369,10 +377,14 @@ class EOSTestRunner:
             success = total_duplicates == 0 and messages_sent == self.config.num_messages
 
             if total_duplicates > 0:
-                errors.append(f"Found {total_duplicates} duplicate messages across all consumer groups")
+                errors.append(
+                    f"Found {total_duplicates} duplicate messages across all consumer groups"
+                )
 
             if messages_sent != self.config.num_messages:
-                errors.append(f"Expected {self.config.num_messages} messages, but sent {messages_sent}")
+                errors.append(
+                    f"Expected {self.config.num_messages} messages, but sent {messages_sent}"
+                )
 
             return EOSTestResults(
                 messages_sent=messages_sent,
@@ -380,7 +392,7 @@ class EOSTestRunner:
                 duplicates_found=duplicates_found,
                 test_duration=total_duration,
                 success=success,
-                errors=errors
+                errors=errors,
             )
 
         except Exception as e:
@@ -391,19 +403,26 @@ class EOSTestRunner:
                 duplicates_found={},
                 test_duration=time.time() - start_time,
                 success=False,
-                errors=errors
+                errors=errors,
             )
 
 
 async def main():
-    parser = argparse.ArgumentParser(description='Test Kafka Exactly-Once Semantics')
-    parser.add_argument('--bootstrap-servers', default='localhost:9092', help='Kafka bootstrap servers')
-    parser.add_argument('--topic', default='eos-test-topic', help='Test topic name')
-    parser.add_argument('--messages', type=int, default=10000, help='Number of messages to send')
-    parser.add_argument('--producers', type=int, default=3, help='Number of producer instances')
-    parser.add_argument('--consumer-groups', nargs='+', default=['eos-test-group-1', 'eos-test-group-2'], help='Consumer groups')
-    parser.add_argument('--duration', type=int, default=120, help='Test duration in seconds')
-    parser.add_argument('--verbose', '-v', action='store_true', help='Verbose logging')
+    parser = argparse.ArgumentParser(description="Test Kafka Exactly-Once Semantics")
+    parser.add_argument(
+        "--bootstrap-servers", default="localhost:9092", help="Kafka bootstrap servers"
+    )
+    parser.add_argument("--topic", default="eos-test-topic", help="Test topic name")
+    parser.add_argument("--messages", type=int, default=10000, help="Number of messages to send")
+    parser.add_argument("--producers", type=int, default=3, help="Number of producer instances")
+    parser.add_argument(
+        "--consumer-groups",
+        nargs="+",
+        default=["eos-test-group-1", "eos-test-group-2"],
+        help="Consumer groups",
+    )
+    parser.add_argument("--duration", type=int, default=120, help="Test duration in seconds")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Verbose logging")
 
     args = parser.parse_args()
 
@@ -417,7 +436,7 @@ async def main():
         num_producers=args.producers,
         num_consumers=len(args.consumer_groups),
         consumer_groups=args.consumer_groups,
-        test_duration_seconds=args.duration
+        test_duration_seconds=args.duration,
     )
 
     logger.info("=== Kafka EOS Test Configuration ===")

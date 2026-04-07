@@ -45,7 +45,9 @@ async def test_redis_keys(redis_client):
 
 @pytest.fixture(scope="session")
 async def postgres_connection(k8s_service_endpoints: Dict[str, str]):
-    conn = await asyncpg.connect(f"postgresql://temporal:temporal@{k8s_service_endpoints['temporal_db']}/temporal")
+    conn = await asyncpg.connect(
+        f"postgresql://temporal:temporal@{k8s_service_endpoints['temporal_db']}/temporal"
+    )
     try:
         yield conn
     finally:

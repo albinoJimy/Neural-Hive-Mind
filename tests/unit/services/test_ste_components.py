@@ -14,34 +14,23 @@ from enum import Enum
 # Test: Translation Engine
 # =============================================================================
 
+
 class TestTranslationEngine:
     """Testes do motor de tradução."""
 
     def test_translate_intent_to_action(self):
         """Deve traduzir intent para ação."""
-        intent = {
-            "text": "Qual meu saldo?",
-            "locale": "pt-BR"
-        }
+        intent = {"text": "Qual meu saldo?", "locale": "pt-BR"}
 
-        translated_action = {
-            "action": "query_balance",
-            "parameters": {"user_context": True}
-        }
+        translated_action = {"action": "query_balance", "parameters": {"user_context": True}}
 
         assert translated_action["action"] == "query_balance"
 
     def test_extract_parameters(self):
         """Deve extrair parâmetros do intent."""
-        intent = {
-            "text": "Transferir R$ 100 para João"
-        }
+        intent = {"text": "Transferir R$ 100 para João"}
 
-        extracted_params = {
-            "amount": 100,
-            "currency": "BRL",
-            "recipient": "João"
-        }
+        extracted_params = {"amount": 100, "currency": "BRL", "recipient": "João"}
 
         assert extracted_params["amount"] == 100
         assert extracted_params["recipient"] == "João"
@@ -51,7 +40,7 @@ class TestTranslationEngine:
         entities = [
             {"text": "R$ 100", "type": "amount"},
             {"text": "João", "type": "person"},
-            {"text": "ontem", "type": "date"}
+            {"text": "ontem", "type": "date"},
         ]
 
         entity_types = [e["type"] for e in entities]
@@ -64,7 +53,7 @@ class TestTranslationEngine:
         """Deve tratar intent ambíguo."""
         ambiguous_intents = [
             {"action": "query_balance", "confidence": 0.5},
-            {"action": "query_limit", "confidence": 0.5}
+            {"action": "query_limit", "confidence": 0.5},
         ]
 
         needs_clarification = len(ambiguous_intents) > 1 and all(
@@ -86,6 +75,7 @@ class TestTranslationEngine:
 # =============================================================================
 # Test: NLP Features
 # =============================================================================
+
 
 class TestNLPFeatures:
     """Testes de features NLP."""
@@ -128,9 +118,7 @@ class TestNLPFeatures:
         """Deve reconhecer entidades nomeadas."""
         text = "Transferir para João Silva"
 
-        entities = [
-            {"text": "João Silva", "type": "PERSON"}
-        ]
+        entities = [{"text": "João Silva", "type": "PERSON"}]
 
         assert entities[0]["type"] == "PERSON"
 
@@ -138,6 +126,7 @@ class TestNLPFeatures:
 # =============================================================================
 # Test: Cognitive Plan Generation
 # =============================================================================
+
 
 class TestCognitivePlanGeneration:
     """Testes de geração de plano cognitivo."""
@@ -149,7 +138,7 @@ class TestCognitivePlanGeneration:
             "action": "query_balance",
             "required_specialists": ["business", "technical"],
             "priority": "normal",
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
         assert "plan_id" in plan
@@ -160,7 +149,7 @@ class TestCognitivePlanGeneration:
         action_to_specialists = {
             "query_balance": ["business"],
             "transfer": ["business", "security"],
-            "technical_issue": ["technical", "security"]
+            "technical_issue": ["technical", "security"],
         }
 
         action = "transfer"
@@ -180,11 +169,7 @@ class TestCognitivePlanGeneration:
 
     def test_estimate_execution_time(self):
         """Deve estimar tempo de execução."""
-        specialist_times = {
-            "business": 2.0,
-            "technical": 3.0,
-            "security": 1.5
-        }
+        specialist_times = {"business": 2.0, "technical": 3.0, "security": 1.5}
 
         required_specialists = ["business", "security"]
         estimated_time = sum(specialist_times.get(s, 0) for s in required_specialists)
@@ -193,16 +178,9 @@ class TestCognitivePlanGeneration:
 
     def test_add_plan_metadata(self):
         """Deve adicionar metadados ao plano."""
-        plan = {
-            "plan_id": str(uuid4()),
-            "action": "query_balance"
-        }
+        plan = {"plan_id": str(uuid4()), "action": "query_balance"}
 
-        metadata = {
-            "user_segment": "premium",
-            "channel": "mobile",
-            "requires_approval": False
-        }
+        metadata = {"user_segment": "premium", "channel": "mobile", "requires_approval": False}
 
         plan["metadata"] = metadata
 
@@ -214,20 +192,18 @@ class TestCognitivePlanGeneration:
 # Test: Context Enrichment
 # =============================================================================
 
+
 class TestContextEnrichment:
     """Testes de enriquecimento de contexto."""
 
     def test_add_user_context(self):
         """Deve adicionar contexto do usuário."""
-        base_plan = {
-            "plan_id": str(uuid4()),
-            "action": "query_balance"
-        }
+        base_plan = {"plan_id": str(uuid4()), "action": "query_balance"}
 
         user_context = {
             "user_id": "user-123",
             "account_type": "premium",
-            "preferred_language": "pt-BR"
+            "preferred_language": "pt-BR",
         }
 
         enriched_plan = {**base_plan, "user_context": user_context}
@@ -242,7 +218,7 @@ class TestContextEnrichment:
         session_context = {
             "session_id": str(uuid4()),
             "previous_intents": ["query_balance"],
-            "session_duration": 300
+            "session_duration": 300,
         }
 
         plan["session_context"] = session_context
@@ -256,7 +232,7 @@ class TestContextEnrichment:
         business_context = {
             "business_hours": True,
             "market_status": "open",
-            "promotion_active": False
+            "promotion_active": False,
         }
 
         plan["business_context"] = business_context
@@ -268,15 +244,13 @@ class TestContextEnrichment:
 # Test: Translation Validation
 # =============================================================================
 
+
 class TestTranslationValidation:
     """Testes de validação de tradução."""
 
     def test_validate_required_fields(self):
         """Deve validar campos obrigatórios."""
-        translated = {
-            "action": "query_balance",
-            "parameters": {}
-        }
+        translated = {"action": "query_balance", "parameters": {}}
 
         required_fields = ["action", "parameters"]
         is_valid = all(f in translated for f in required_fields)
@@ -294,30 +268,17 @@ class TestTranslationValidation:
 
     def test_validate_parameter_types(self):
         """Deve validar tipos de parâmetros."""
-        parameters = {
-            "amount": 100,
-            "currency": "BRL"
-        }
+        parameters = {"amount": 100, "currency": "BRL"}
 
-        type_validations = {
-            "amount": int,
-            "currency": str
-        }
+        type_validations = {"amount": int, "currency": str}
 
-        is_valid = all(
-            isinstance(parameters.get(k), t)
-            for k, t in type_validations.items()
-        )
+        is_valid = all(isinstance(parameters.get(k), t) for k, t in type_validations.items())
 
         assert is_valid is True
 
     def test_validate_parameter_ranges(self):
         """Deve validar faixas de parâmetros."""
-        parameters = {
-            "amount": 100,
-            "min_amount": 1,
-            "max_amount": 10000
-        }
+        parameters = {"amount": 100, "min_amount": 1, "max_amount": 10000}
 
         is_valid = parameters["min_amount"] <= parameters["amount"] <= parameters["max_amount"]
 
@@ -327,6 +288,7 @@ class TestTranslationValidation:
 # =============================================================================
 # Test: Caching
 # =============================================================================
+
 
 class TestTranslationCaching:
     """Testes de cache de tradução."""
@@ -339,16 +301,14 @@ class TestTranslationCaching:
 
         cache[intent_hash] = {
             "result": translated,
-            "cached_at": datetime.now(timezone.utc).isoformat()
+            "cached_at": datetime.now(timezone.utc).isoformat(),
         }
 
         assert intent_hash in cache
 
     def test_retrieve_from_cache(self):
         """Deve recuperar do cache."""
-        cache = {
-            "hash123": {"action": "query_balance"}
-        }
+        cache = {"hash123": {"action": "query_balance"}}
         intent_hash = "hash123"
 
         cached_result = cache.get(intent_hash)
@@ -358,10 +318,7 @@ class TestTranslationCaching:
 
     def test_invalidate_cache(self):
         """Deve invalidar cache."""
-        cache = {
-            "hash123": {"action": "query_balance"},
-            "hash456": {"action": "transfer"}
-        }
+        cache = {"hash123": {"action": "query_balance"}, "hash456": {"action": "transfer"}}
 
         keys_to_invalidate = ["hash123"]
         for key in keys_to_invalidate:
@@ -375,6 +332,7 @@ class TestTranslationCaching:
 # =============================================================================
 # Test: Error Handling
 # =============================================================================
+
 
 class TestTranslationErrorHandling:
     """Testes de tratamento de erros."""
@@ -421,16 +379,13 @@ class TestTranslationErrorHandling:
 # Test: Confidence Scoring
 # =============================================================================
 
+
 class TestConfidenceScoring:
     """Testes de pontuação de confiança."""
 
     def test_calculate_confidence(self):
         """Deve calcular confiança da tradução."""
-        factors = {
-            "keyword_match": 0.8,
-            "context_match": 0.7,
-            "user_history": 0.9
-        }
+        factors = {"keyword_match": 0.8, "context_match": 0.7, "user_history": 0.9}
 
         confidence = sum(factors.values()) / len(factors)
 
@@ -460,6 +415,7 @@ class TestConfidenceScoring:
 # Test: Multi-language Support
 # =============================================================================
 
+
 class TestMultiLanguageSupport:
     """Testes de suporte multilíngue."""
 
@@ -468,7 +424,7 @@ class TestMultiLanguageSupport:
         text_patterns = {
             "pt": ["saldo", "transferir", "pagar"],
             "en": ["balance", "transfer", "pay"],
-            "es": ["saldo", "transferir", "pagar"]
+            "es": ["saldo", "transferir", "pagar"],
         }
 
         text = "Quero ver meu saldo"
@@ -483,10 +439,7 @@ class TestMultiLanguageSupport:
 
     def test_translate_to_english(self):
         """Deve traduzir para inglês."""
-        action_mapping = {
-            "pt": {"saldo": "balance"},
-            "es": {"saldo": "balance"}
-        }
+        action_mapping = {"pt": {"saldo": "balance"}, "es": {"saldo": "balance"}}
 
         source_lang = "pt"
         source_term = "saldo"
@@ -501,7 +454,7 @@ class TestMultiLanguageSupport:
         response = {
             "action": "query_balance",
             "locale": request_locale,
-            "localized_message": "Seu saldo é R$ 1.500,00"
+            "localized_message": "Seu saldo é R$ 1.500,00",
         }
 
         assert response["locale"] == "pt-BR"

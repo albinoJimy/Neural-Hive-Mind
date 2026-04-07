@@ -58,11 +58,13 @@ def schema_registry_mock():
                 self.schemas[subject] = {"versions": []}
 
             version = len(self.schemas[subject]["versions"]) + 1
-            self.schemas[subject]["versions"].append({
-                "id": schema_id,
-                "version": version,
-                "schema": schema,
-            })
+            self.schemas[subject]["versions"].append(
+                {
+                    "id": schema_id,
+                    "version": version,
+                    "schema": schema,
+                }
+            )
 
             return schema_id
 

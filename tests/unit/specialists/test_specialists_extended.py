@@ -14,6 +14,7 @@ from uuid import uuid4
 # Test: Text Analysis Specialist
 # =============================================================================
 
+
 class TestTextAnalysisSpecialist:
     """Testes de especialista de análise de texto."""
 
@@ -33,7 +34,8 @@ class TestTextAnalysisSpecialist:
 
         # Extrair valores monetários
         import re
-        amounts = re.findall(r'R?\$\s*(\d+)', text)
+
+        amounts = re.findall(r"R?\$\s*(\d+)", text)
 
         assert amounts == ["100"]
 
@@ -42,10 +44,7 @@ class TestTextAnalysisSpecialist:
         text = "Qual é o meu saldo?"
 
         # Padrões por idioma
-        patterns = {
-            "pt": ["qual", "saldo", "transferir"],
-            "en": ["what", "balance", "transfer"]
-        }
+        patterns = {"pt": ["qual", "saldo", "transferir"], "en": ["what", "balance", "transfer"]}
 
         text_lower = text.lower()
         detected = None
@@ -61,7 +60,7 @@ class TestTextAnalysisSpecialist:
         texts = [
             ("Qual meu saldo?", "account"),
             ("Transferir dinheiro", "transaction"),
-            ("Pagamento de conta", "payment")
+            ("Pagamento de conta", "payment"),
         ]
 
         categories = [cat for text, cat in texts]
@@ -88,6 +87,7 @@ class TestTextAnalysisSpecialist:
 # Test: Security Specialist
 # =============================================================================
 
+
 class TestSecuritySpecialist:
     """Testes de especialista de segurança."""
 
@@ -97,15 +97,17 @@ class TestSecuritySpecialist:
             "amount": 50000,
             "new_recipient": True,
             "unusual_hour": True,
-            "international": True
+            "international": True,
         }
 
-        risk_factors = sum([
-            transaction["amount"] > 10000,
-            transaction["new_recipient"],
-            transaction["unusual_hour"],
-            transaction["international"]
-        ])
+        risk_factors = sum(
+            [
+                transaction["amount"] > 10000,
+                transaction["new_recipient"],
+                transaction["unusual_hour"],
+                transaction["international"],
+            ]
+        )
 
         assert risk_factors >= 2  # Alto risco
 
@@ -116,7 +118,7 @@ class TestSecuritySpecialist:
         # Simula consulta
         fraud_history = {
             "user-123": {"incidents": 2, "last_incident": "2026-03-01"},
-            "user-456": {"incidents": 0, "last_incident": None}
+            "user-456": {"incidents": 0, "last_incident": None},
         }
 
         user_history = fraud_history.get(user_id)
@@ -125,11 +127,7 @@ class TestSecuritySpecialist:
 
     def test_geolocation_check(self):
         """Deve verificar geolocalização."""
-        transaction = {
-            "user_location": "BR",
-            "transaction_location": "US",
-            "amount": 10000
-        }
+        transaction = {"user_location": "BR", "transaction_location": "US", "amount": 10000}
 
         is_unusual = transaction["user_location"] != transaction["transaction_location"]
 
@@ -141,7 +139,7 @@ class TestSecuritySpecialist:
             {"timestamp": "10:00", "amount": 100},
             {"timestamp": "10:02", "amount": 200},
             {"timestamp": "10:04", "amount": 150},
-            {"timestamp": "10:06", "amount": 300}
+            {"timestamp": "10:06", "amount": 300},
         ]
 
         # Muitas transações em pouco tempo
@@ -163,15 +161,13 @@ class TestSecuritySpecialist:
 # Test: Business Logic Specialist
 # =============================================================================
 
+
 class TestBusinessLogicSpecialist:
     """Testes de especialista de lógica de negócio."""
 
     def test_check_balance(self):
         """Deve verificar saldo."""
-        account = {
-            "account_id": "acc-123",
-            "balance": 1500.00
-        }
+        account = {"account_id": "acc-123", "balance": 1500.00}
 
         balance = account["balance"]
 
@@ -222,6 +218,7 @@ class TestBusinessLogicSpecialist:
 # Test: Code Analysis Specialist
 # =============================================================================
 
+
 class TestCodeAnalysisSpecialist:
     """Testes de especialista de análise de código."""
 
@@ -230,12 +227,7 @@ class TestCodeAnalysisSpecialist:
         file_path = "app.py"
 
         ext = file_path.split(".")[-1]
-        languages = {
-            "py": "Python",
-            "js": "JavaScript",
-            "java": "Java",
-            "go": "Go"
-        }
+        languages = {"py": "Python", "js": "JavaScript", "java": "Java", "go": "Go"}
 
         language = languages.get(ext)
 
@@ -243,31 +235,18 @@ class TestCodeAnalysisSpecialist:
 
     def test_count_lines_of_code(self):
         """Deve contar linhas de código."""
-        code_lines = [
-            "def foo():",
-            "    return 42",
-            "",
-            "# Comment",
-            "def bar():",
-            "    return 24"
-        ]
+        code_lines = ["def foo():", "    return 42", "", "# Comment", "def bar():", "    return 24"]
 
         # Ignorar linhas vazias e comentários
         code_only = [
-            line for line in code_lines
-            if line.strip() and not line.strip().startswith("#")
+            line for line in code_lines if line.strip() and not line.strip().startswith("#")
         ]
 
         assert len(code_only) == 4
 
     def test_detect_code_smell(self):
         """Deve detectar code smell."""
-        function = {
-            "name": "process_data",
-            "lines": 150,
-            "parameters": 10,
-            "nested_depth": 5
-        }
+        function = {"name": "process_data", "lines": 150, "parameters": 10, "nested_depth": 5}
 
         smells = []
 
@@ -294,7 +273,7 @@ class TestCodeAnalysisSpecialist:
         code_snippets = [
             "eval(user_input)",  # Perigoso
             "exec(command)",  # Perigoso
-            "sql.execute(query)"  # Potencial SQL injection
+            "sql.execute(query)",  # Potencial SQL injection
         ]
 
         dangerous_patterns = ["eval", "exec", "execute"]
@@ -312,6 +291,7 @@ class TestCodeAnalysisSpecialist:
 # =============================================================================
 # Test: Data Analysis Specialist
 # =============================================================================
+
 
 class TestDataAnalysisSpecialist:
     """Testes de especialista de análise de dados."""
@@ -339,7 +319,7 @@ class TestDataAnalysisSpecialist:
         mean = 30
 
         variance = sum((x - mean) ** 2 for x in values) / len(values)
-        std_dev = variance ** 0.5
+        std_dev = variance**0.5
 
         assert pytest.approx(std_dev, 0.1) == 14.14
 
@@ -369,6 +349,7 @@ class TestDataAnalysisSpecialist:
 # Test: Notification Specialist
 # =============================================================================
 
+
 class TestNotificationSpecialist:
     """Testes de especialista de notificação."""
 
@@ -379,7 +360,7 @@ class TestNotificationSpecialist:
             "user_id": str(uuid4()),
             "type": "payment_confirmation",
             "message": "Pagamento confirmado",
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         assert notification["type"] == "payment_confirmation"
@@ -390,7 +371,7 @@ class TestNotificationSpecialist:
             "to": "user@example.com",
             "subject": "Confirmação de Pagamento",
             "body": "Seu pagamento foi confirmado.",
-            "sent": False
+            "sent": False,
         }
 
         # Simula envio
@@ -400,11 +381,7 @@ class TestNotificationSpecialist:
 
     def test_send_sms(self):
         """Deve enviar SMS."""
-        sms = {
-            "to": "+5511999999999",
-            "message": "Código: 123456",
-            "sent": False
-        }
+        sms = {"to": "+5511999999999", "message": "Código: 123456", "sent": False}
 
         sms["sent"] = True
 
@@ -416,7 +393,7 @@ class TestNotificationSpecialist:
             "device_token": "token_xyz",
             "title": "Nova transação",
             "body": "Você tem uma nova transação",
-            "sent": False
+            "sent": False,
         }
 
         push["sent"] = True
@@ -425,11 +402,7 @@ class TestNotificationSpecialist:
 
     def test_notification_preferences(self):
         """Deve respeitar preferências de notificação."""
-        preferences = {
-            "email": True,
-            "sms": False,
-            "push": True
-        }
+        preferences = {"email": True, "sms": False, "push": True}
 
         channels = [ch for ch, enabled in preferences.items() if enabled]
 
@@ -439,6 +412,7 @@ class TestNotificationSpecialist:
 # =============================================================================
 # Test: Audit Logging
 # =============================================================================
+
 
 class TestAuditLogging:
     """Testes de log de auditoria."""
@@ -450,7 +424,7 @@ class TestAuditLogging:
             "user_id": str(uuid4()),
             "resource": "/api/v1/balance",
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "ip": "192.168.1.1"
+            "ip": "192.168.1.1",
         }
 
         assert log["event_type"] == "access"
@@ -462,7 +436,7 @@ class TestAuditLogging:
             "transaction_id": str(uuid4()),
             "amount": 500,
             "from_account": "acc-123",
-            "to_account": "acc-456"
+            "to_account": "acc-456",
         }
 
         assert log["event_type"] == "transaction"
@@ -474,7 +448,7 @@ class TestAuditLogging:
             "plan_id": str(uuid4()),
             "approver": "manager-123",
             "decision": "approve",
-            "reason": "Within limits"
+            "reason": "Within limits",
         }
 
         assert log["decision"] == "approve"
@@ -485,7 +459,7 @@ class TestAuditLogging:
             "event_type": "security",
             "severity": "high",
             "description": "Multiple failed login attempts",
-            "user_id": str(uuid4())
+            "user_id": str(uuid4()),
         }
 
         assert log["severity"] == "high"
@@ -495,7 +469,7 @@ class TestAuditLogging:
         logs = [
             {"event": "login", "timestamp": "T10:00"},
             {"event": "logout", "timestamp": "T10:30"},
-            {"event": "transaction", "timestamp": "T10:45"}
+            {"event": "transaction", "timestamp": "T10:45"},
         ]
 
         # Filtrar por tipo

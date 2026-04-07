@@ -99,9 +99,7 @@ class TestSchemaRegistryValidation:
         response = await schema_registry_client.get("/apis/ccompat/v6/subjects")
         subjects = response.json()
 
-        assert "plans.consensus-value" in subjects, (
-            "Subject plans.consensus-value não encontrado"
-        )
+        assert "plans.consensus-value" in subjects, "Subject plans.consensus-value não encontrado"
 
     async def test_schema_registry_has_execution_ticket_schema(
         self,
@@ -111,9 +109,9 @@ class TestSchemaRegistryValidation:
         response = await schema_registry_client.get("/apis/ccompat/v6/subjects")
         subjects = response.json()
 
-        assert "execution.tickets-value" in subjects, (
-            "Subject execution.tickets-value não encontrado"
-        )
+        assert (
+            "execution.tickets-value" in subjects
+        ), "Subject execution.tickets-value não encontrado"
 
 
 # ============================================
@@ -145,9 +143,7 @@ class TestSemanticTranslationEngineSerialization:
 
         # Publicar intent via Gateway
         response = await gateway_client.post("/api/v1/intentions", json=intent)
-        assert response.status_code in [200, 201, 202], (
-            f"Falha ao publicar intent: {response.text}"
-        )
+        assert response.status_code in [200, 201, 202], f"Falha ao publicar intent: {response.text}"
 
         # Aguardar mensagem no tópico plans.ready
         plan = await wait_for_avro_message(
@@ -216,9 +212,7 @@ class TestConsensusEngineDeserialization:
         )
 
         # Validar que não há erros de magic byte
-        assert "Invalid magic byte" not in logs, (
-            "Erro de magic byte detectado no consensus-engine"
-        )
+        assert "Invalid magic byte" not in logs, "Erro de magic byte detectado no consensus-engine"
 
         # Aguardar decisão consolidada
         decision = await wait_for_avro_message(
@@ -310,16 +304,16 @@ class TestSpecialistsInvocation:
 
         # Validar specialist_votes
         specialist_votes = decision.get("specialist_votes", [])
-        assert len(specialist_votes) == 5, (
-            f"Esperado 5 specialist_votes, recebido {len(specialist_votes)}"
-        )
+        assert (
+            len(specialist_votes) == 5
+        ), f"Esperado 5 specialist_votes, recebido {len(specialist_votes)}"
 
         # Validar que todos os tipos de specialists estão presentes nos votos
         vote_types = {vote["specialist_type"] for vote in specialist_votes}
         for specialist_type in all_specialist_types:
-            assert specialist_type in vote_types, (
-                f"Voto do specialist {specialist_type} não encontrado na decisão"
-            )
+            assert (
+                specialist_type in vote_types
+            ), f"Voto do specialist {specialist_type} não encontrado na decisão"
 
         # Validar estrutura de cada voto
         for vote in specialist_votes:
@@ -519,7 +513,9 @@ class TestCompleteAvroFlow:
             # Documentos podem não existir se MongoDB não estiver configurado
 
         # ========== MÉTRICAS ==========
-        metrics["total_latency_ms"] = (metrics.get("flow_c_end", metrics["flow_b_end"]) - metrics["start_time"]) * 1000
+        metrics["total_latency_ms"] = (
+            metrics.get("flow_c_end", metrics["flow_b_end"]) - metrics["start_time"]
+        ) * 1000
         metrics["flow_a_latency_ms"] = (metrics["flow_a_end"] - metrics["start_time"]) * 1000
         metrics["flow_b_latency_ms"] = (metrics["flow_b_end"] - metrics["flow_a_end"]) * 1000
 
@@ -556,16 +552,16 @@ class TestSchemaEvolution:
         - Consumers com schema antigo ainda funcionam
         """
         # Buscar compatibilidade configurada
-        response = await schema_registry_client.get(
-            "/apis/ccompat/v6/config/plans.ready-value"
-        )
+        response = await schema_registry_client.get("/apis/ccompat/v6/config/plans.ready-value")
 
         if response.status_code == 200:
             config = response.json()
             compatibility = config.get("compatibilityLevel", "BACKWARD")
-            assert compatibility in ["BACKWARD", "BACKWARD_TRANSITIVE", "FULL"], (
-                f"Compatibilidade não é backward: {compatibility}"
-            )
+            assert compatibility in [
+                "BACKWARD",
+                "BACKWARD_TRANSITIVE",
+                "FULL",
+            ], f"Compatibilidade não é backward: {compatibility}"
 
     async def test_schema_evolution_cross_version_serialization(
         self,
@@ -591,38 +587,43 @@ class TestSchemaEvolution:
         test_topic = f"schema-evolution-{uuid.uuid4().hex[:8]}"
 
         # Schema v1: campos base
-        schema_v1_str = json.dumps({
-            "type": "record",
-            "name": "SchemaEvolutionTest",
-            "namespace": "com.neuralhive.test",
-            "fields": [
-                {"name": "id", "type": "string"},
-                {"name": "name", "type": "string"},
-                {"name": "created_at", "type": "long"},
-            ]
-        })
+        schema_v1_str = json.dumps(
+            {
+                "type": "record",
+                "name": "SchemaEvolutionTest",
+                "namespace": "com.neuralhive.test",
+                "fields": [
+                    {"name": "id", "type": "string"},
+                    {"name": "name", "type": "string"},
+                    {"name": "created_at", "type": "long"},
+                ],
+            }
+        )
 
         # Schema v2: campos base + campo opcional (backward compatible)
-        schema_v2_str = json.dumps({
-            "type": "record",
-            "name": "SchemaEvolutionTest",
-            "namespace": "com.neuralhive.test",
-            "fields": [
-                {"name": "id", "type": "string"},
-                {"name": "name", "type": "string"},
-                {"name": "created_at", "type": "long"},
-                {"name": "description", "type": ["null", "string"], "default": None},
-            ]
-        })
+        schema_v2_str = json.dumps(
+            {
+                "type": "record",
+                "name": "SchemaEvolutionTest",
+                "namespace": "com.neuralhive.test",
+                "fields": [
+                    {"name": "id", "type": "string"},
+                    {"name": "name", "type": "string"},
+                    {"name": "created_at", "type": "long"},
+                    {"name": "description", "type": ["null", "string"], "default": None},
+                ],
+            }
+        )
 
         # Registrar schema v1
         response_v1 = await schema_registry_client.post(
             f"/apis/ccompat/v6/subjects/{test_subject}/versions",
             json={"schema": schema_v1_str},
         )
-        assert response_v1.status_code in [200, 201], (
-            f"Falha ao registrar schema v1: {response_v1.text}"
-        )
+        assert response_v1.status_code in [
+            200,
+            201,
+        ], f"Falha ao registrar schema v1: {response_v1.text}"
         schema_v1_id = response_v1.json().get("id")
         assert schema_v1_id is not None, "Schema v1 não retornou ID"
 
@@ -631,9 +632,10 @@ class TestSchemaEvolution:
             f"/apis/ccompat/v6/subjects/{test_subject}/versions",
             json={"schema": schema_v2_str},
         )
-        assert response_v2.status_code in [200, 201], (
-            f"Falha ao registrar schema v2 (não compatível?): {response_v2.text}"
-        )
+        assert response_v2.status_code in [
+            200,
+            201,
+        ], f"Falha ao registrar schema v2 (não compatível?): {response_v2.text}"
         schema_v2_id = response_v2.json().get("id")
         assert schema_v2_id is not None, "Schema v2 não retornou ID"
 
@@ -696,29 +698,23 @@ class TestSchemaEvolution:
         consumer.close()
 
         # Validar que ambas as mensagens foram deserializadas
-        assert len(messages_received) == 2, (
-            f"Esperado 2 mensagens, recebido {len(messages_received)}"
-        )
+        assert (
+            len(messages_received) == 2
+        ), f"Esperado 2 mensagens, recebido {len(messages_received)}"
 
         # Validar mensagem v1
-        msg_v1_received = next(
-            (m for m in messages_received if m.get("id") == msg_v1["id"]), None
-        )
+        msg_v1_received = next((m for m in messages_received if m.get("id") == msg_v1["id"]), None)
         assert msg_v1_received is not None, "Mensagem v1 não recebida"
         assert msg_v1_received["name"] == msg_v1["name"]
 
         # Validar mensagem v2
-        msg_v2_received = next(
-            (m for m in messages_received if m.get("id") == msg_v2["id"]), None
-        )
+        msg_v2_received = next((m for m in messages_received if m.get("id") == msg_v2["id"]), None)
         assert msg_v2_received is not None, "Mensagem v2 não recebida"
         assert msg_v2_received["name"] == msg_v2["name"]
         assert msg_v2_received.get("description") == msg_v2["description"]
 
         # Cleanup: remover subject de teste
-        await schema_registry_client.delete(
-            f"/apis/ccompat/v6/subjects/{test_subject}"
-        )
+        await schema_registry_client.delete(f"/apis/ccompat/v6/subjects/{test_subject}")
 
         print(f"\n✅ Schema Evolution Test:")
         print(f"   Schema v1 ID: {schema_v1_id}")
@@ -757,15 +753,17 @@ class TestErrorHandlingSchemaNotRegistered:
         fake_topic = f"fake-topic-{uuid.uuid4().hex[:8]}"
 
         # Schema de teste
-        fake_schema_str = json.dumps({
-            "type": "record",
-            "name": "FakeSchema",
-            "namespace": "com.neuralhive.test.nonexistent",
-            "fields": [
-                {"name": "id", "type": "string"},
-                {"name": "test_field", "type": "string"},
-            ],
-        })
+        fake_schema_str = json.dumps(
+            {
+                "type": "record",
+                "name": "FakeSchema",
+                "namespace": "com.neuralhive.test.nonexistent",
+                "fields": [
+                    {"name": "id", "type": "string"},
+                    {"name": "test_field", "type": "string"},
+                ],
+            }
+        )
 
         fake_schema = avro.loads(fake_schema_str)
 
@@ -814,9 +812,9 @@ class TestErrorHandlingSchemaNotRegistered:
         # Verificar que o subject realmente não existe
         response = await schema_registry_client.get("/apis/ccompat/v6/subjects")
         subjects = response.json()
-        assert f"{fake_topic}-value" not in subjects, (
-            f"Subject {fake_topic}-value não deveria existir"
-        )
+        assert (
+            f"{fake_topic}-value" not in subjects
+        ), f"Subject {fake_topic}-value não deveria existir"
 
         print(f"   Subject verificado como inexistente: {fake_topic}-value")
 
@@ -842,31 +840,35 @@ class TestErrorHandlingSchemaNotRegistered:
         temp_topic = f"temp-delete-test-{uuid.uuid4().hex[:8]}"
 
         # Schema temporário
-        temp_schema_str = json.dumps({
-            "type": "record",
-            "name": "TempDeleteTest",
-            "namespace": "com.neuralhive.test.temp",
-            "fields": [
-                {"name": "id", "type": "string"},
-            ],
-        })
+        temp_schema_str = json.dumps(
+            {
+                "type": "record",
+                "name": "TempDeleteTest",
+                "namespace": "com.neuralhive.test.temp",
+                "fields": [
+                    {"name": "id", "type": "string"},
+                ],
+            }
+        )
 
         # Registrar schema temporariamente
         response = await schema_registry_client.post(
             f"/apis/ccompat/v6/subjects/{temp_subject}/versions",
             json={"schema": temp_schema_str},
         )
-        assert response.status_code in [200, 201], (
-            f"Falha ao registrar schema temporário: {response.text}"
-        )
+        assert response.status_code in [
+            200,
+            201,
+        ], f"Falha ao registrar schema temporário: {response.text}"
 
         # Remover o subject
         delete_response = await schema_registry_client.delete(
             f"/apis/ccompat/v6/subjects/{temp_subject}"
         )
-        assert delete_response.status_code in [200, 204], (
-            f"Falha ao remover subject: {delete_response.text}"
-        )
+        assert delete_response.status_code in [
+            200,
+            204,
+        ], f"Falha ao remover subject: {delete_response.text}"
 
         # Aguardar propagação da remoção
         await asyncio.sleep(1)
@@ -894,9 +896,7 @@ class TestErrorHandlingSchemaNotRegistered:
             error_caught = True
             print(f"\n✅ Erro capturado após remoção de subject: {e}")
 
-        assert error_caught, (
-            "Esperava-se erro ao produzir para subject removido"
-        )
+        assert error_caught, "Esperava-se erro ao produzir para subject removido"
 
 
 # ============================================

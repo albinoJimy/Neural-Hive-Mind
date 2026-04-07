@@ -16,6 +16,7 @@ import asyncio
 # Test: Consensus Orchestrator
 # =============================================================================
 
+
 class TestConsensusOrchestrator:
     """Testes do orquestrador de consenso."""
 
@@ -25,13 +26,11 @@ class TestConsensusOrchestrator:
         specialists = {
             "business": AsyncMock(return_value={"opinion": "approve", "confidence": 0.9}),
             "technical": AsyncMock(return_value={"opinion": "approve", "confidence": 0.85}),
-            "architecture": AsyncMock(return_value={"opinion": "reject", "confidence": 0.7})
+            "architecture": AsyncMock(return_value={"opinion": "reject", "confidence": 0.7}),
         }
 
         # Coletar opiniões em paralelo
-        opinions = await asyncio.gather(*[
-            specialists[key]() for key in specialists
-        ])
+        opinions = await asyncio.gather(*[specialists[key]() for key in specialists])
 
         assert len(opinions) == 3
         assert all("opinion" in o for o in opinions)
@@ -56,7 +55,7 @@ class TestConsensusOrchestrator:
             "confidence": 0.5,
             "reasoning": "Specialist unavailable",
             "fallback": True,
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         try:
@@ -72,6 +71,7 @@ class TestConsensusOrchestrator:
 # Test: Decision Consolidation
 # =============================================================================
 
+
 class TestDecisionConsolidation:
     """Testes de consolidação de decisões."""
 
@@ -81,7 +81,7 @@ class TestDecisionConsolidation:
         opinions = [
             {"specialist": "business", "opinion": "approve", "confidence": 0.9},
             {"specialist": "technical", "opinion": "approve", "confidence": 0.85},
-            {"specialist": "architecture", "opinion": "approve", "confidence": 0.8}
+            {"specialist": "architecture", "opinion": "approve", "confidence": 0.8},
         ]
 
         # Contar votos
@@ -94,7 +94,7 @@ class TestDecisionConsolidation:
             "unanimous": approve_count == total,
             "approve_count": approve_count,
             "reject_count": reject_count,
-            "total_votes": total
+            "total_votes": total,
         }
 
         assert decision["final_decision"] == "approve"
@@ -107,7 +107,7 @@ class TestDecisionConsolidation:
             {"specialist": "business", "opinion": "approve", "confidence": 0.9},
             {"specialist": "technical", "opinion": "reject", "confidence": 0.7},
             {"specialist": "architecture", "opinion": "approve", "confidence": 0.85},
-            {"specialist": "security", "opinion": "approve", "confidence": 0.8}
+            {"specialist": "security", "opinion": "approve", "confidence": 0.8},
         ]
 
         approve_count = sum(1 for o in opinions if o["opinion"] == "approve")
@@ -127,7 +127,7 @@ class TestDecisionConsolidation:
             {"specialist": "business", "opinion": "approve", "confidence": 0.9},
             {"specialist": "technical", "opinion": "reject", "confidence": 0.8},
             {"specialist": "architecture", "opinion": "approve", "confidence": 0.7},
-            {"specialist": "security", "opinion": "reject", "confidence": 0.85}
+            {"specialist": "security", "opinion": "reject", "confidence": 0.85},
         ]
 
         approve_count = sum(1 for o in opinions if o["opinion"] == "approve")
@@ -137,7 +137,9 @@ class TestDecisionConsolidation:
         approve_confidences = [o["confidence"] for o in opinions if o["opinion"] == "approve"]
         reject_confidences = [o["confidence"] for o in opinions if o["opinion"] == "reject"]
 
-        approve_avg = sum(approve_confidences) / len(approve_confidences) if approve_confidences else 0
+        approve_avg = (
+            sum(approve_confidences) / len(approve_confidences) if approve_confidences else 0
+        )
         reject_avg = sum(reject_confidences) / len(reject_confidences) if reject_confidences else 0
 
         if approve_count == reject_count:
@@ -153,6 +155,7 @@ class TestDecisionConsolidation:
 # Test: Weighted Voting
 # =============================================================================
 
+
 class TestWeightedVoting:
     """Testes de votação ponderada."""
 
@@ -162,8 +165,13 @@ class TestWeightedVoting:
         opinions = [
             {"specialist": "business", "opinion": "approve", "seniority": "senior", "weight": 0.3},
             {"specialist": "technical", "opinion": "reject", "seniority": "expert", "weight": 0.4},
-            {"specialist": "architecture", "opinion": "approve", "seniority": "mid_level", "weight": 0.2},
-            {"specialist": "security", "opinion": "approve", "seniority": "senior", "weight": 0.1}
+            {
+                "specialist": "architecture",
+                "opinion": "approve",
+                "seniority": "mid_level",
+                "weight": 0.2,
+            },
+            {"specialist": "security", "opinion": "approve", "seniority": "senior", "weight": 0.1},
         ]
 
         # Calcular score ponderado
@@ -179,12 +187,7 @@ class TestWeightedVoting:
     @pytest.mark.asyncio
     async def test_normalize_weights(self):
         """Deve normalizar pesos para soma = 1."""
-        raw_weights = {
-            "business": 3,
-            "technical": 4,
-            "architecture": 2,
-            "security": 1
-        }
+        raw_weights = {"business": 3, "technical": 4, "architecture": 2, "security": 1}
 
         total = sum(raw_weights.values())
         normalized = {k: v / total for k, v in raw_weights.items()}
@@ -197,6 +200,7 @@ class TestWeightedVoting:
 # Test: Reasoning Aggregation
 # =============================================================================
 
+
 class TestReasoningAggregation:
     """Testes de agregação de reasoning."""
 
@@ -206,7 +210,7 @@ class TestReasoningAggregation:
         reasonings = [
             "Aprovado porque os benefícios superam os riscos.",
             "Aprovado: arquitetura sólida e escalável.",
-            "Rejeitado: preocupações com performance do banco de dados."
+            "Rejeitado: preocupações com performance do banco de dados.",
         ]
 
         # Criar resumo agregado
@@ -216,7 +220,7 @@ class TestReasoningAggregation:
         aggregated = {
             "summary": f"{approve_count} aprovações, {reject_count} rejeições",
             "approve_reasons": [r for r in reasonings if "Aprovado" in r or "Aprovado:" in r],
-            "reject_reasons": [r for r in reasonings if "Rejeitado" in r]
+            "reject_reasons": [r for r in reasonings if "Rejeitado" in r],
         }
 
         assert aggregated["summary"] == "2 aprovações, 1 rejeições"
@@ -227,6 +231,7 @@ class TestReasoningAggregation:
 # =============================================================================
 # Test: Consensus Timeout Handling
 # =============================================================================
+
 
 class TestConsensusTimeout:
     """Testes de timeout no consenso."""
@@ -241,10 +246,7 @@ class TestConsensusTimeout:
             return {"specialist": name, "opinion": "approve"}
 
         # Timeout de 1 segundo - retorna resultado rápido apenas
-        result = await asyncio.wait_for(
-            mock_specialist("fast", 0.1),
-            timeout=1.0
-        )
+        result = await asyncio.wait_for(mock_specialist("fast", 0.1), timeout=1.0)
         results["fast"] = result
 
         assert "fast" in results
@@ -278,6 +280,7 @@ class TestConsensusTimeout:
 # Test: Confidence Calculation
 # =============================================================================
 
+
 class TestConfidenceCalculation:
     """Testes de cálculo de confiança."""
 
@@ -288,7 +291,7 @@ class TestConfidenceCalculation:
             {"confidence": 0.9},
             {"confidence": 0.85},
             {"confidence": 0.7},
-            {"confidence": 0.8}
+            {"confidence": 0.8},
         ]
 
         avg_confidence = sum(o["confidence"] for o in opinions) / len(opinions)
@@ -300,7 +303,7 @@ class TestConfidenceCalculation:
         """Deve ponderar decisão por confiança."""
         opinions = [
             {"opinion": "approve", "confidence": 0.9},
-            {"opinion": "reject", "confidence": 0.6}
+            {"opinion": "reject", "confidence": 0.6},
         ]
 
         # Score ponderado por confiança

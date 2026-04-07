@@ -15,6 +15,7 @@ import json
 # Test: Complete Cognitive Flow
 # =============================================================================
 
+
 class TestCompleteCognitiveFlow:
     """Testes do fluxo cognitivo completo."""
 
@@ -26,37 +27,37 @@ class TestCompleteCognitiveFlow:
             "intent_id": str(uuid4()),
             "user_id": "user-123",
             "text": "Quero saber meu saldo",
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         # 2. STE traduz intent
         translated_intent = {
             "original_intent": intent_request,
-            "translated": {
-                "action": "query_balance",
-                "parameters": {"user_id": "user-123"}
-            }
+            "translated": {"action": "query_balance", "parameters": {"user_id": "user-123"}},
         }
 
         # 3. Specialists analisam
         specialist_opinions = [
             {"specialist": "business", "verdict": "approve", "confidence": 0.9},
             {"specialist": "technical", "verdict": "approve", "confidence": 0.85},
-            {"specialist": "security", "verdict": "approve", "confidence": 0.95}
+            {"specialist": "security", "verdict": "approve", "confidence": 0.95},
         ]
 
         # 4. Consensus consolida
         from collections import Counter
+
         verdicts = [o["verdict"] for o in specialist_opinions]
         final_verdict = Counter(verdicts).most_common(1)[0][0]
-        consensus_score = sum(o["confidence"] for o in specialist_opinions) / len(specialist_opinions)
+        consensus_score = sum(o["confidence"] for o in specialist_opinions) / len(
+            specialist_opinions
+        )
 
         # 5. Resposta gerada
         response = {
             "intent_id": intent_request["intent_id"],
             "result": "Balance: R$ 1.500,00",
             "verdict": final_verdict,
-            "confidence": consensus_score
+            "confidence": consensus_score,
         }
 
         assert response["verdict"] == "approve"
@@ -68,13 +69,13 @@ class TestCompleteCognitiveFlow:
         intent_request = {
             "intent_id": str(uuid4()),
             "text": "Transferir valor alto",
-            "amount": 1000000
+            "amount": 1000000,
         }
 
         # Specialists divergem
         specialist_opinions = [
             {"specialist": "business", "verdict": "reject", "confidence": 0.7},
-            {"specialist": "security", "verdict": "reject", "confidence": 0.9}
+            {"specialist": "security", "verdict": "reject", "confidence": 0.9},
         ]
 
         # Sem consenso, precisa de escalar
@@ -85,18 +86,17 @@ class TestCompleteCognitiveFlow:
     @pytest.mark.asyncio
     async def test_flow_with_escalation(self):
         """Deve processar fluxo com escalonamento."""
-        intent_request = {
-            "intent_id": str(uuid4()),
-            "text": "Ação complexa não automatizada"
-        }
+        intent_request = {"intent_id": str(uuid4()), "text": "Ação complexa não automatizada"}
 
         # Baixa confiança dos especialistas
         specialist_opinions = [
             {"specialist": "business", "verdict": "defer", "confidence": 0.4},
-            {"specialist": "technical", "verdict": "defer", "confidence": 0.3}
+            {"specialist": "technical", "verdict": "defer", "confidence": 0.3},
         ]
 
-        avg_confidence = sum(o["confidence"] for o in specialist_opinions) / len(specialist_opinions)
+        avg_confidence = sum(o["confidence"] for o in specialist_opinions) / len(
+            specialist_opinions
+        )
 
         # Escalonar para aprovação humana
         if avg_confidence < 0.5:
@@ -112,25 +112,15 @@ class TestCompleteCognitiveFlow:
         start_time = datetime.now(timezone.utc)
 
         # Simular atraso em specialist
-        response_times = {
-            "business": 0.5,
-            "technical": 5.0,  # Timeout!
-            "security": 0.8
-        }
+        response_times = {"business": 0.5, "technical": 5.0, "security": 0.8}  # Timeout!
 
         timeout_threshold = 3.0
-        timed_out_specialists = [
-            s for s, t in response_times.items()
-            if t > timeout_threshold
-        ]
+        timed_out_specialists = [s for s, t in response_times.items() if t > timeout_threshold]
 
         assert "technical" in timed_out_specialists
 
         # Fallback: usar opiniões disponíveis
-        available_opinions = [
-            s for s, t in response_times.items()
-            if t <= timeout_threshold
-        ]
+        available_opinions = [s for s, t in response_times.items() if t <= timeout_threshold]
 
         fallback_verdict = "defer" if len(available_opinions) < 2 else "approve"
 
@@ -141,6 +131,7 @@ class TestCompleteCognitiveFlow:
 # Test: Component Communication
 # =============================================================================
 
+
 class TestComponentCommunication:
     """Testes de comunicação entre componentes."""
 
@@ -150,15 +141,12 @@ class TestComponentCommunication:
         gateway_message = {
             "intent_id": str(uuid4()),
             "text": "Qual meu saldo?",
-            "user_context": {"user_id": "user-123"}
+            "user_context": {"user_id": "user-123"},
         }
 
         # Enviar para STE
         ste_response = {
-            "translated_intent": {
-                "action": "query_balance",
-                "parameters": {"user_id": "user-123"}
-            }
+            "translated_intent": {"action": "query_balance", "parameters": {"user_id": "user-123"}}
         }
 
         assert "action" in ste_response["translated_intent"]
@@ -169,13 +157,13 @@ class TestComponentCommunication:
         plan = {
             "plan_id": str(uuid4()),
             "translated_intent": {"action": "query_balance"},
-            "context": {"user_id": "user-123"}
+            "context": {"user_id": "user-123"},
         }
 
         # Enviar para Consensus
         consensus_request = {
             "plan_id": plan["plan_id"],
-            "required_specialists": ["business", "technical", "security"]
+            "required_specialists": ["business", "technical", "security"],
         }
 
         assert len(consensus_request["required_specialists"]) == 3
@@ -183,16 +171,13 @@ class TestComponentCommunication:
     @pytest.mark.asyncio
     async def test_consensus_to_specialists_communication(self):
         """Deve comunicar Consensus com Specialists."""
-        consensus_request = {
-            "plan_id": str(uuid4()),
-            "context": {"intent": "query_balance"}
-        }
+        consensus_request = {"plan_id": str(uuid4()), "context": {"intent": "query_balance"}}
 
         # Broadcast para specialists
         specialist_requests = [
             {"specialist": "business", "plan_id": consensus_request["plan_id"]},
             {"specialist": "technical", "plan_id": consensus_request["plan_id"]},
-            {"specialist": "security", "plan_id": consensus_request["plan_id"]}
+            {"specialist": "security", "plan_id": consensus_request["plan_id"]},
         ]
 
         assert len(specialist_requests) == 3
@@ -201,6 +186,7 @@ class TestComponentCommunication:
 # =============================================================================
 # Test: Error Handling in Flow
 # =============================================================================
+
 
 class TestFlowErrorHandling:
     """Testes de tratamento de erro no fluxo."""
@@ -223,14 +209,11 @@ class TestFlowErrorHandling:
         specialist_responses = {
             "business": {"verdict": "approve", "confidence": 0.8},
             "technical": None,  # Timeout
-            "security": {"verdict": "approve", "confidence": 0.9}
+            "security": {"verdict": "approve", "confidence": 0.9},
         }
 
         # Usar apenas especialistas que responderam
-        available_opinions = [
-            o for o in specialist_responses.values()
-            if o is not None
-        ]
+        available_opinions = [o for o in specialist_responses.values() if o is not None]
 
         assert len(available_opinions) == 2
 
@@ -251,6 +234,7 @@ class TestFlowErrorHandling:
 # Test: State Persistence
 # =============================================================================
 
+
 class TestStatePersistence:
     """Testes de persistência de estado."""
 
@@ -261,7 +245,7 @@ class TestStatePersistence:
         state = {
             "current_step": "consensus",
             "completed_steps": ["gateway", "translation"],
-            "data": {"intent_id": str(uuid4())}
+            "data": {"intent_id": str(uuid4())},
         }
 
         # Simular salvamento
@@ -273,10 +257,7 @@ class TestStatePersistence:
     async def test_restore_workflow_state(self):
         """Deve restaurar estado do workflow."""
         workflow_id = str(uuid4())
-        stored_state = {
-            "current_step": "consensus",
-            "data": {"key": "value"}
-        }
+        stored_state = {"current_step": "consensus", "data": {"key": "value"}}
 
         # Simular restauração
         restored_state = stored_state
@@ -287,6 +268,7 @@ class TestStatePersistence:
 # =============================================================================
 # Test: Performance Monitoring
 # =============================================================================
+
 
 class TestPerformanceMonitoring:
     """Testes de monitoramento de performance."""
@@ -307,12 +289,7 @@ class TestPerformanceMonitoring:
     @pytest.mark.asyncio
     async def test_track_component_latency(self):
         """Deve rastrear latência por componente."""
-        component_latencies = {
-            "gateway": 50,
-            "ste": 100,
-            "consensus": 200,
-            "specialists": 150
-        }
+        component_latencies = {"gateway": 50, "ste": 100, "consensus": 200, "specialists": 150}
 
         total_latency = sum(component_latencies.values())
 
@@ -322,6 +299,7 @@ class TestPerformanceMonitoring:
 # =============================================================================
 # Test: Data Consistency
 # =============================================================================
+
 
 class TestDataConsistency:
     """Testes de consistência de dados."""
@@ -352,7 +330,7 @@ class TestDataConsistency:
         user_context = {
             "user_id": "user-123",
             "session_id": "session-abc",
-            "preferences": {"language": "pt-BR"}
+            "preferences": {"language": "pt-BR"},
         }
 
         # Através do fluxo, contexto deve ser mantido
@@ -367,6 +345,7 @@ class TestDataConsistency:
 # Test: Audit Trail
 # =============================================================================
 
+
 class TestAuditTrail:
     """Testes de trilha de auditoria."""
 
@@ -378,7 +357,7 @@ class TestAuditTrail:
             "final_verdict": "approve",
             "confidence": 0.85,
             "participating_specialists": ["business", "technical"],
-            "timestamp": datetime.now(timezone.utc).isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
         audit_log = [decision]
@@ -393,13 +372,12 @@ class TestAuditTrail:
             {"step": "gateway", "timestamp": "T10:00:00"},
             {"step": "ste", "timestamp": "T10:00:01"},
             {"step": "consensus", "timestamp": "T10:00:02"},
-            {"step": "result", "timestamp": "T10:00:03"}
+            {"step": "result", "timestamp": "T10:00:03"},
         ]
 
         # Verificar ordem cronológica
         is_ordered = all(
-            chain[i]["timestamp"] <= chain[i+1]["timestamp"]
-            for i in range(len(chain) - 1)
+            chain[i]["timestamp"] <= chain[i + 1]["timestamp"] for i in range(len(chain) - 1)
         )
 
         assert is_ordered is True
@@ -408,6 +386,7 @@ class TestAuditTrail:
 # =============================================================================
 # Test: Retry Logic
 # =============================================================================
+
 
 class TestRetryLogic:
     """Testes de lógica de retry."""
@@ -435,7 +414,7 @@ class TestRetryLogic:
 
         delays = []
         for _ in range(3):
-            delay = base_delay * (2 ** attempt)
+            delay = base_delay * (2**attempt)
             delays.append(delay)
             attempt += 1
 
@@ -445,6 +424,7 @@ class TestRetryLogic:
 # =============================================================================
 # Test: Circuit Breaker in Flow
 # =============================================================================
+
 
 class TestFlowCircuitBreaker:
     """Testes de circuit breaker no fluxo."""
@@ -492,6 +472,7 @@ class TestFlowCircuitBreaker:
 # Test: Load Shedding
 # =============================================================================
 
+
 class TestLoadShedding:
     """Testes de load shedding."""
 
@@ -501,12 +482,14 @@ class TestLoadShedding:
         queue = [
             {"priority": "high", "intent_id": "1"},
             {"priority": "low", "intent_id": "2"},
-            {"priority": "medium", "intent_id": "3"}
+            {"priority": "medium", "intent_id": "3"},
         ]
 
         # Sob carga, processar apenas high priority
         max_concurrent = 1
-        high_priority_first = sorted(queue, key=lambda x: {"high": 0, "medium": 1, "low": 2}[x["priority"]])
+        high_priority_first = sorted(
+            queue, key=lambda x: {"high": 0, "medium": 1, "low": 2}[x["priority"]]
+        )
 
         processed = high_priority_first[:max_concurrent]
 
@@ -527,6 +510,7 @@ class TestLoadShedding:
 # Test: Metrics Collection
 # =============================================================================
 
+
 class TestMetricsCollection:
     """Testes de coleta de métricas."""
 
@@ -537,7 +521,7 @@ class TestMetricsCollection:
             "total_intents_processed": 1000,
             "auto_approved": 700,
             "escalated_to_human": 300,
-            "rejected": 200
+            "rejected": 200,
         }
 
         auto_approval_rate = metrics["auto_approved"] / metrics["total_intents_processed"]
@@ -551,7 +535,7 @@ class TestMetricsCollection:
             "avg_latency_ms": 250,
             "p95_latency_ms": 500,
             "p99_latency_ms": 1000,
-            "throughput_per_second": 50
+            "throughput_per_second": 50,
         }
 
         assert metrics["avg_latency_ms"] == 250
@@ -561,6 +545,7 @@ class TestMetricsCollection:
 # =============================================================================
 # Test: Concurrency Control
 # =============================================================================
+
 
 class TestConcurrencyControl:
     """Testes de controle de concorrência."""
@@ -579,10 +564,7 @@ class TestConcurrencyControl:
     @pytest.mark.asyncio
     async def test_lock_user_context(self):
         """Deve travar contexto do usuário."""
-        user_context = {
-            "user_id": "user-123",
-            "locked": False
-        }
+        user_context = {"user_id": "user-123", "locked": False}
 
         # Lock durante processamento
         user_context["locked"] = True
@@ -595,10 +577,7 @@ class TestConcurrencyControl:
     @pytest.mark.asyncio
     async def test_unlock_user_context(self):
         """Deve destravar contexto do usuário."""
-        user_context = {
-            "user_id": "user-123",
-            "locked": True
-        }
+        user_context = {"user_id": "user-123", "locked": True}
 
         # Unlock após processamento
         user_context["locked"] = False

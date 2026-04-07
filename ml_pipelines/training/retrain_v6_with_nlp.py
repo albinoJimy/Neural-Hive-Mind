@@ -19,13 +19,23 @@ from pymongo import MongoClient
 from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import classification_report, confusion_matrix, f1_score, precision_score, recall_score
+from sklearn.metrics import (
+    classification_report,
+    confusion_matrix,
+    f1_score,
+    precision_score,
+    recall_score,
+)
 import mlflow
 import mlflow.sklearn
 
 # Configuração MongoDB
-MONGO_URI = os.getenv('MONGO_URI', 'mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/?authSource=admin')
-DATABASE = 'neural_hive'
+MONGO_URI = os.getenv(
+    "MONGO_URI",
+    "mongodb://root:local_dev_password@mongodb.mongodb-cluster.svc.cluster.local:27017/?authSource=admin",
+)
+DATABASE = "neural_hive"
+
 
 def extract_nlp_features(nlp_dict):
     """Extrai features do dicionário nlp_features para dataframe"""
@@ -35,44 +45,45 @@ def extract_nlp_features(nlp_dict):
     features = {}
 
     # Domínios (one-hot encoding implícita)
-    features['domain_security'] = nlp_dict.get('domain_security', 0.0)
-    features['domain_performance'] = nlp_dict.get('domain_performance', 0.0)
-    features['domain_database'] = nlp_dict.get('domain_database', 0.0)
-    features['domain_devops'] = nlp_dict.get('domain_devops', 0.0)
-    features['domain_testing'] = nlp_dict.get('domain_testing', 0.0)
+    features["domain_security"] = nlp_dict.get("domain_security", 0.0)
+    features["domain_performance"] = nlp_dict.get("domain_performance", 0.0)
+    features["domain_database"] = nlp_dict.get("domain_database", 0.0)
+    features["domain_devops"] = nlp_dict.get("domain_devops", 0.0)
+    features["domain_testing"] = nlp_dict.get("domain_testing", 0.0)
 
     # Ações
-    features['action_create'] = nlp_dict.get('action_create', 0.0)
-    features['action_update'] = nlp_dict.get('action_update', 0.0)
-    features['action_delete'] = nlp_dict.get('action_delete', 0.0)
-    features['action_read'] = nlp_dict.get('action_read', 0.0)
-    features['action_deploy'] = nlp_dict.get('action_deploy', 0.0)
+    features["action_create"] = nlp_dict.get("action_create", 0.0)
+    features["action_update"] = nlp_dict.get("action_update", 0.0)
+    features["action_delete"] = nlp_dict.get("action_delete", 0.0)
+    features["action_read"] = nlp_dict.get("action_read", 0.0)
+    features["action_deploy"] = nlp_dict.get("action_deploy", 0.0)
 
     # Palavras-chave
-    features['has_backup'] = nlp_dict.get('has_backup', 0.0)
-    features['has_verification'] = nlp_dict.get('has_verification', 0.0)
-    features['has_all'] = nlp_dict.get('has_all', 0.0)
+    features["has_backup"] = nlp_dict.get("has_backup", 0.0)
+    features["has_verification"] = nlp_dict.get("has_verification", 0.0)
+    features["has_all"] = nlp_dict.get("has_all", 0.0)
 
     # Métricas de texto
-    features['text_length_chars'] = nlp_dict.get('text_length_chars', 0)
-    features['text_length_words'] = nlp_dict.get('text_length_words', 0)
+    features["text_length_chars"] = nlp_dict.get("text_length_chars", 0)
+    features["text_length_words"] = nlp_dict.get("text_length_words", 0)
 
     # Risco
-    features['risk_high'] = nlp_dict.get('risk_high', 0.0)
-    features['risk_medium'] = nlp_dict.get('risk_medium', 0.0)
-    features['risk_low'] = nlp_dict.get('risk_low', 0.0)
-    features['simple_risk_score'] = nlp_dict.get('simple_risk_score', 0.0)
+    features["risk_high"] = nlp_dict.get("risk_high", 0.0)
+    features["risk_medium"] = nlp_dict.get("risk_medium", 0.0)
+    features["risk_low"] = nlp_dict.get("risk_low", 0.0)
+    features["simple_risk_score"] = nlp_dict.get("simple_risk_score", 0.0)
 
     # Domínio e ação primários (codificados)
-    primary_domain = nlp_dict.get('primary_domain', '')
-    for domain in ['security', 'performance', 'database', 'devops', 'testing']:
-        features[f'primary_domain_{domain}'] = 1.0 if primary_domain == domain else 0.0
+    primary_domain = nlp_dict.get("primary_domain", "")
+    for domain in ["security", "performance", "database", "devops", "testing"]:
+        features[f"primary_domain_{domain}"] = 1.0 if primary_domain == domain else 0.0
 
-    primary_action = nlp_dict.get('primary_action', '')
-    for action in ['create', 'update', 'delete', 'read', 'deploy']:
-        features[f'primary_action_{action}'] = 1.0 if primary_action == action else 0.0
+    primary_action = nlp_dict.get("primary_action", "")
+    for action in ["create", "update", "delete", "read", "deploy"]:
+        features[f"primary_action_{action}"] = 1.0 if primary_action == action else 0.0
 
     return features
+
 
 def load_feedback_data():
     """Carrega feedbacks do MongoDB com NLP features"""
@@ -82,9 +93,7 @@ def load_feedback_data():
     db = client[DATABASE]
 
     # Buscar feedbacks com NLP features
-    cursor = db['specialist_feedback'].find({
-        'nlp_features': {'$exists': True, '$ne': {}}
-    })
+    cursor = db["specialist_feedback"].find({"nlp_features": {"$exists": True, "$ne": {}}})
 
     feedbacks = list(cursor)
     print(f"Encontrados: {len(feedbacks)} feedbacks com NLP features")
@@ -94,6 +103,7 @@ def load_feedback_data():
 
     return feedbacks
 
+
 def prepare_dataframe(feedbacks):
     """Prepara dataframe para treinamento"""
     print("Preparando dataframe...")
@@ -101,27 +111,28 @@ def prepare_dataframe(feedbacks):
     data = []
     for fb in feedbacks:
         # Extrair features NLP
-        nlp_features = extract_nlp_features(fb.get('nlp_features', {}))
+        nlp_features = extract_nlp_features(fb.get("nlp_features", {}))
 
         # Adicionar features básicas
         row = {
-            'final_decision': fb.get('final_decision'),
-            'specialist_confidence': fb.get('confidence_score', 0.5),
-            **nlp_features
+            "final_decision": fb.get("final_decision"),
+            "specialist_confidence": fb.get("confidence_score", 0.5),
+            **nlp_features,
         }
         data.append(row)
 
     df = pd.DataFrame(data)
 
     # Remover linhas com decision vazio
-    df = df[df['final_decision'].notna()]
-    df = df[df['final_decision'] != '']
+    df = df[df["final_decision"].notna()]
+    df = df[df["final_decision"] != ""]
 
     print(f"Dataframe shape: {df.shape}")
     print(f"Distribuicao de classes:")
-    print(df['final_decision'].value_counts())
+    print(df["final_decision"].value_counts())
 
     return df
+
 
 def train_models(X_train, y_train, X_test, y_test):
     """Treina modelos RandomForest e GradientBoosting"""
@@ -135,24 +146,21 @@ def train_models(X_train, y_train, X_test, y_test):
     # RandomForest
     print("\n1. RandomForestClassifier")
     rf = RandomForestClassifier(
-        n_estimators=100,
-        max_depth=10,
-        random_state=42,
-        class_weight='balanced'
+        n_estimators=100, max_depth=10, random_state=42, class_weight="balanced"
     )
 
     rf.fit(X_train, y_train)
     rf_pred = rf.predict(X_test)
 
-    rf_f1 = f1_score(y_test, rf_pred, average='weighted')
-    rf_precision = precision_score(y_test, rf_pred, average='weighted', zero_division=0)
-    rf_recall = recall_score(y_test, rf_pred, average='weighted', zero_division=0)
+    rf_f1 = f1_score(y_test, rf_pred, average="weighted")
+    rf_precision = precision_score(y_test, rf_pred, average="weighted", zero_division=0)
+    rf_recall = recall_score(y_test, rf_pred, average="weighted", zero_division=0)
 
-    results['RandomForest'] = {
-        'f1_score': rf_f1,
-        'precision': rf_precision,
-        'recall': rf_recall,
-        'model': rf
+    results["RandomForest"] = {
+        "f1_score": rf_f1,
+        "precision": rf_precision,
+        "recall": rf_recall,
+        "model": rf,
     }
 
     print(f"  F1-Score: {rf_f1:.4f}")
@@ -162,24 +170,21 @@ def train_models(X_train, y_train, X_test, y_test):
     # GradientBoosting
     print("\n2. GradientBoostingClassifier")
     gb = GradientBoostingClassifier(
-        n_estimators=100,
-        max_depth=5,
-        learning_rate=0.1,
-        random_state=42
+        n_estimators=100, max_depth=5, learning_rate=0.1, random_state=42
     )
 
     gb.fit(X_train, y_train)
     gb_pred = gb.predict(X_test)
 
-    gb_f1 = f1_score(y_test, gb_pred, average='weighted')
-    gb_precision = precision_score(y_test, gb_pred, average='weighted', zero_division=0)
-    gb_recall = recall_score(y_test, gb_pred, average='weighted', zero_division=0)
+    gb_f1 = f1_score(y_test, gb_pred, average="weighted")
+    gb_precision = precision_score(y_test, gb_pred, average="weighted", zero_division=0)
+    gb_recall = recall_score(y_test, gb_pred, average="weighted", zero_division=0)
 
-    results['GradientBoosting'] = {
-        'f1_score': gb_f1,
-        'precision': gb_precision,
-        'recall': gb_recall,
-        'model': gb
+    results["GradientBoosting"] = {
+        "f1_score": gb_f1,
+        "precision": gb_precision,
+        "recall": gb_recall,
+        "model": gb,
     }
 
     print(f"  F1-Score: {gb_f1:.4f}")
@@ -196,6 +201,7 @@ def train_models(X_train, y_train, X_test, y_test):
         print(f"  {feature_names[idx]}: {importances[idx]:.4f}")
 
     return results
+
 
 def main():
     print("=" * 60)
@@ -216,9 +222,9 @@ def main():
         df = prepare_dataframe(feedbacks)
 
         # Separar features e target
-        feature_cols = [col for col in df.columns if col != 'final_decision']
+        feature_cols = [col for col in df.columns if col != "final_decision"]
         X = df[feature_cols].fillna(0)
-        y = df['final_decision']
+        y = df["final_decision"]
 
         # Dividir em treino e teste
         X_train, X_test, y_train, y_test = train_test_split(
@@ -233,19 +239,17 @@ def main():
 
         # Log métricas no MLflow
         for model_name, metrics in results.items():
-            mlflow.log_metrics({
-                f"{model_name}_f1": metrics['f1_score'],
-                f"{model_name}_precision": metrics['precision'],
-                f"{model_name}_recall": metrics['recall']
-            })
+            mlflow.log_metrics(
+                {
+                    f"{model_name}_f1": metrics["f1_score"],
+                    f"{model_name}_precision": metrics["precision"],
+                    f"{model_name}_recall": metrics["recall"],
+                }
+            )
 
         # Log modelo RandomForest como principal
-        best_model = results['RandomForest']['model']
-        mlflow.sklearn.log_model(
-            best_model,
-            "model",
-            registered_model_name="NHMApprovalModel"
-        )
+        best_model = results["RandomForest"]["model"]
+        mlflow.sklearn.log_model(best_model, "model", registered_model_name="NHMApprovalModel")
 
         print()
         print("=" * 60)
@@ -262,7 +266,7 @@ def main():
 
         # Comparar com baseline (0.5)
         baseline_f1 = 0.51
-        best_f1 = max(results['RandomForest']['f1_score'], results['GradientBoosting']['f1_score'])
+        best_f1 = max(results["RandomForest"]["f1_score"], results["GradientBoosting"]["f1_score"])
         improvement = ((best_f1 - baseline_f1) / baseline_f1) * 100
 
         print()
@@ -276,6 +280,7 @@ def main():
         else:
             print()
             print("⚠️ Ainda abaixo da meta de 0.7, mas melhor que o baseline!")
+
 
 if __name__ == "__main__":
     main()

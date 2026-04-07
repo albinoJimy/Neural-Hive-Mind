@@ -14,7 +14,9 @@ async def test_orchestrator_workflow_c3_allocation_failure(orchestrator_client, 
 
     assert response.status_code in [500, 503]
 
-    logs = get_pod_logs(k8s_client, "neural-hive-orchestration", "app=orchestrator-dynamic", tail_lines=50)
+    logs = get_pod_logs(
+        k8s_client, "neural-hive-orchestration", "app=orchestrator-dynamic", tail_lines=50
+    )
     assert "compensation_triggered" in logs or "allocation_failed" in logs
 
     scale_deployment(k8s_client, "neural-hive-orchestration", "service-registry", replicas=2)

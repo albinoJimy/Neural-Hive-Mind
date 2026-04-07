@@ -10,8 +10,10 @@ from datetime import datetime, timedelta, timezone
 # Mock MongoDB classes para evitar tentativas de conexão real
 # ============================================================================
 
+
 class MockMongoCollection:
     """Mock de coleção MongoDB."""
+
     def __init__(self):
         self.data = []
 
@@ -22,7 +24,7 @@ class MockMongoCollection:
         return None
 
     def insert_one(self, *args, **kwargs):
-        return Mock(inserted_id='test_id')
+        return Mock(inserted_id="test_id")
 
     def update_one(self, *args, **kwargs):
         return Mock(modified_count=1)
@@ -57,6 +59,7 @@ class MockMongoCollection:
 
 class MockMongoDB:
     """Mock de database MongoDB."""
+
     def __init__(self):
         self._collection = MockMongoCollection()
 
@@ -64,13 +67,14 @@ class MockMongoDB:
         return self._collection
 
     def __getattr__(self, name):
-        if name.startswith('_'):
+        if name.startswith("_"):
             raise AttributeError(name)
         return self._collection
 
 
 class MockMongoClient:
     """Mock de cliente MongoDB."""
+
     def __init__(self, *args, **kwargs):
         self._db = MockMongoDB()
 
@@ -78,7 +82,7 @@ class MockMongoClient:
         return self._db
 
     def __getattr__(self, name):
-        if name == '_MongoClient__all_options' or name.startswith('_'):
+        if name == "_MongoClient__all_options" or name.startswith("_"):
             raise AttributeError(name)
         return self._db
 
@@ -88,11 +92,11 @@ class MockMongoClient:
 
 
 # Patch pymongo antes de importar os módulos
-_pymongo_patch = patch('pymongo.MongoClient', MockMongoClient)
+_pymongo_patch = patch("pymongo.MongoClient", MockMongoClient)
 _pymongo_patch.start()
 
 # Patch também no módulo online_monitor
-_monitor_patch = patch('ml_pipelines.online_learning.online_monitor.MongoClient', MockMongoClient)
+_monitor_patch = patch("ml_pipelines.online_learning.online_monitor.MongoClient", MockMongoClient)
 _monitor_patch.start()
 
 # Agora é seguro importar
@@ -166,9 +170,7 @@ class TestRecordUpdate:
     def test_record_multiple_updates(self, monitor):
         """Testar múltiplos registros."""
         for i in range(10):
-            monitor.record_update(
-                loss=0.5 - i * 0.02, duration_ms=100, samples_count=32
-            )
+            monitor.record_update(loss=0.5 - i * 0.02, duration_ms=100, samples_count=32)
 
         status = monitor.get_status()
         metrics = status.get("metrics", {})

@@ -45,7 +45,9 @@ def test_namespace(k8s_client: CoreV1Api) -> str:
             k8s_client.delete_namespace(name=namespace_name, grace_period_seconds=0)
 
 
-def _start_port_forward(namespace: str, service: str, local_port: int, remote_port: int) -> subprocess.Popen:
+def _start_port_forward(
+    namespace: str, service: str, local_port: int, remote_port: int
+) -> subprocess.Popen:
     cmd = [
         "kubectl",
         "port-forward",
@@ -54,7 +56,9 @@ def _start_port_forward(namespace: str, service: str, local_port: int, remote_po
         f"{local_port}:{remote_port}",
     ]
     env = os.environ.copy()
-    return subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, preexec_fn=os.setsid)
+    return subprocess.Popen(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, preexec_fn=os.setsid
+    )
 
 
 @pytest.fixture(scope="session")

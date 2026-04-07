@@ -51,6 +51,7 @@ try:
         get_jwt_verification_metrics,
         get_jwk_validation_metrics,
     )
+
     JWT_MODULE_AVAILABLE = True
 except ImportError:
     JWT_MODULE_AVAILABLE = False
@@ -96,15 +97,17 @@ __all__ = [
 
 # SEC-008: Adicionar componentes JWT às exportações se disponíveis
 if JWT_MODULE_AVAILABLE:
-    __all__.extend([
-        "JWKValidator",
-        "JWKValidationError",
-        "JWTVerifier",
-        "JWTVerificationError",
-        "VerificationResult",
-        "KeyCache",
-        "JWTVerificationMetrics",
-        "JWKValidationMetrics",
-        "get_jwt_verification_metrics",
-        "get_jwk_validation_metrics",
-    ])
+    __all__.extend(
+        [
+            "JWKValidator",
+            "JWKValidationError",
+            "JWTVerifier",
+            "JWTVerificationError",
+            "VerificationResult",
+            "KeyCache",
+            "JWTVerificationMetrics",
+            "JWKValidationMetrics",
+            "get_jwt_verification_metrics",
+            "get_jwk_validation_metrics",
+        ]
+    )

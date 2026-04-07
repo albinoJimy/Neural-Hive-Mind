@@ -26,6 +26,7 @@ from optimizer_server import (
 def reset_global_state():
     """Reseta estado global entre testes."""
     import optimizer_server
+
     optimizer_server._optimizer = None
     if "OPTIMIZER_BASE_PATH" in os.environ:
         del os.environ["OPTIMIZER_BASE_PATH"]
@@ -41,7 +42,8 @@ def temp_project():
     project_path = Path(temp_dir)
 
     # Criar arquivos de teste
-    (project_path / "module.py").write_text('''
+    (project_path / "module.py").write_text(
+        '''
 def simple_function():
     """Uma função simples."""
     return 42
@@ -188,9 +190,11 @@ class BigClass:
 
     def method25(self):
         pass
-''')
+'''
+    )
 
-    (project_path / "bare_except.py").write_text('''
+    (project_path / "bare_except.py").write_text(
+        '''
 def risky_function():
     """Função com bare except."""
     try:
@@ -198,7 +202,8 @@ def risky_function():
     except:
         result = 0
     return result
-''')
+'''
+    )
 
     yield temp_dir
 
@@ -221,14 +226,14 @@ class TestPythonAnalyzer:
 
     def test_analyze_with_class(self):
         """Testa análise com classe."""
-        source = '''
+        source = """
 class MyClass:
     def method1(self):
         pass
 
     def method2(self):
         pass
-'''
+"""
         analyzer = PythonAnalyzer("/test.py", source)
         metrics = analyzer.analyze()
 
@@ -237,9 +242,9 @@ class MyClass:
 
     def test_detects_long_function(self):
         """Testa detecção de função muito longa."""
-        source = 'def long_func():\n'
+        source = "def long_func():\n"
         for i in range(51):
-            source += f'    x = {i}\n'
+            source += f"    x = {i}\n"
 
         analyzer = PythonAnalyzer("/test.py", source)
         analyzer.analyze()
@@ -250,13 +255,13 @@ class MyClass:
 
     def test_detects_deep_nesting(self):
         """Testa detecção de nesting profundo."""
-        source = '''
+        source = """
 def deep():
     for x in range(10):
         for y in range(10):
             for z in range(10):
                 pass
-'''
+"""
         analyzer = PythonAnalyzer("/test.py", source)
         analyzer.analyze()
 
@@ -265,12 +270,12 @@ def deep():
 
     def test_detects_bare_except(self):
         """Testa detecção de bare except."""
-        source = '''
+        source = """
 try:
     risky()
 except:
     pass
-'''
+"""
         analyzer = PythonAnalyzer("/test.py", source)
         analyzer.analyze()
 
@@ -280,14 +285,14 @@ except:
 
     def test_calculates_complexity(self):
         """Testa cálculo de complexidade ciclomática."""
-        source = '''
+        source = """
 def complex_func(x):
     if x > 0:
         for i in range(10):
             if i % 2 == 0:
                 return i
     return 0
-'''
+"""
         analyzer = PythonAnalyzer("/test.py", source)
         analyzer.analyze()
 
@@ -353,6 +358,7 @@ class TestMCPTools:
         from optimizer_server import analyze_file_performance
 
         import os
+
         os.environ["OPTIMIZER_BASE_PATH"] = temp_project
 
         result = await analyze_file_performance(file_path="module.py")
@@ -415,6 +421,7 @@ class TestIntegration:
     async def test_full_analysis_workflow(self, temp_project):
         """Testa fluxo completo de análise."""
         import os
+
         os.environ["OPTIMIZER_BASE_PATH"] = temp_project
 
         from optimizer_server import (

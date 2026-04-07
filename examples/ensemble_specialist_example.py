@@ -9,7 +9,7 @@ import os
 import sys
 
 # Adicionar caminho da biblioteca
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'libraries', 'python'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "libraries", "python"))
 
 from neural_hive_specialists.ensemble_specialist import EnsembleSpecialist
 from neural_hive_specialists.config import SpecialistConfig
@@ -24,40 +24,32 @@ def create_ensemble_config() -> SpecialistConfig:
     """
     config = SpecialistConfig(
         # Identificação do specialist
-        specialist_type='technical',
-        service_name='technical-ensemble-specialist',
-
+        specialist_type="technical",
+        service_name="technical-ensemble-specialist",
         # MLflow
-        mlflow_tracking_uri=os.getenv('MLFLOW_TRACKING_URI', 'http://localhost:5000'),
-        mlflow_experiment_name='technical-ensemble-experiment',
-        mlflow_model_name='technical-ensemble',
-
+        mlflow_tracking_uri=os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000"),
+        mlflow_experiment_name="technical-ensemble-experiment",
+        mlflow_model_name="technical-ensemble",
         # MongoDB
-        mongodb_uri=os.getenv('MONGODB_URI', 'mongodb://localhost:27017'),
-
+        mongodb_uri=os.getenv("MONGODB_URI", "mongodb://localhost:27017"),
         # Redis
-        redis_cluster_nodes=os.getenv('REDIS_CLUSTER_NODES', 'localhost:6379'),
-
+        redis_cluster_nodes=os.getenv("REDIS_CLUSTER_NODES", "localhost:6379"),
         # Neo4j
-        neo4j_uri=os.getenv('NEO4J_URI', 'bolt://localhost:7687'),
-        neo4j_password=os.getenv('NEO4J_PASSWORD', 'password'),
-
+        neo4j_uri=os.getenv("NEO4J_URI", "bolt://localhost:7687"),
+        neo4j_password=os.getenv("NEO4J_PASSWORD", "password"),
         # Configuração de Ensemble
         enable_ensemble=True,
-        ensemble_models=['technical-rf', 'technical-gb', 'technical-lr'],
-        ensemble_stages=['Production'],  # Stage único será broadcast para todos modelos
+        ensemble_models=["technical-rf", "technical-gb", "technical-lr"],
+        ensemble_stages=["Production"],  # Stage único será broadcast para todos modelos
         ensemble_weights=[0.4, 0.4, 0.2],  # Pesos para cada modelo
-        ensemble_aggregation_method='weighted_average',  # ou 'voting' ou 'stacking'
-
+        ensemble_aggregation_method="weighted_average",  # ou 'voting' ou 'stacking'
         # Thresholds configuráveis
         ensemble_approve_threshold=0.8,  # Confidence >= 0.8 -> approve
-        ensemble_review_threshold=0.6,   # Confidence >= 0.6 -> review_required
-
+        ensemble_review_threshold=0.6,  # Confidence >= 0.6 -> review_required
         # Timeout de inferência
         model_inference_timeout_ms=5000,  # 5 segundos
-
         # Configurações opcionais
-        enable_shap_explainability=True
+        enable_shap_explainability=True,
     )
 
     return config
@@ -75,18 +67,18 @@ def example_basic_prediction():
 
     # Plano cognitivo para avaliar
     cognitive_plan = {
-        'plan_id': 'plan-123',
-        'intent_id': 'intent-456',
-        'description': 'Implementar sistema de autenticação OAuth2',
-        'complexity_score': 0.7,
-        'steps': [
-            'Configurar provider OAuth2',
-            'Implementar endpoints de callback',
-            'Armazenar tokens de forma segura',
-            'Implementar refresh token logic'
+        "plan_id": "plan-123",
+        "intent_id": "intent-456",
+        "description": "Implementar sistema de autenticação OAuth2",
+        "complexity_score": 0.7,
+        "steps": [
+            "Configurar provider OAuth2",
+            "Implementar endpoints de callback",
+            "Armazenar tokens de forma segura",
+            "Implementar refresh token logic",
         ],
-        'estimated_effort_hours': 16,
-        'risk_factors': ['segurança', 'integração externa']
+        "estimated_effort_hours": 16,
+        "risk_factors": ["segurança", "integração externa"],
     }
 
     # Executar predição
@@ -102,11 +94,11 @@ def example_basic_prediction():
     print(f"  Ensemble Models: {result.metadata.get('ensemble_models', [])}")
     print(f"  Aggregation Method: {result.metadata.get('ensemble_aggregation_method')}")
 
-    if 'ensemble' in result.metadata:
-        ens_meta = result.metadata['ensemble']
+    if "ensemble" in result.metadata:
+        ens_meta = result.metadata["ensemble"]
         print(f"  Prediction Variance: {ens_meta.get('prediction_variance', 0):.4f}")
         print(f"  Individual Predictions:")
-        for model_pred in ens_meta.get('individual_predictions', []):
+        for model_pred in ens_meta.get("individual_predictions", []):
             print(f"    - {model_pred['model']}: confidence={model_pred['confidence']:.3f}")
 
 
@@ -116,16 +108,16 @@ def example_weighted_average_aggregation():
 
     # Configuração com weighted average
     config = create_ensemble_config()
-    config.ensemble_aggregation_method = 'weighted_average'
+    config.ensemble_aggregation_method = "weighted_average"
     config.ensemble_weights = [0.5, 0.3, 0.2]  # Maior peso para primeiro modelo
 
     specialist = EnsembleSpecialist(config=config)
 
     cognitive_plan = {
-        'plan_id': 'plan-weighted-example',
-        'description': 'Refatorar arquitetura de microserviços',
-        'complexity_score': 0.85,
-        'risk_factors': ['arquitetura', 'breaking changes']
+        "plan_id": "plan-weighted-example",
+        "description": "Refatorar arquitetura de microserviços",
+        "complexity_score": 0.85,
+        "risk_factors": ["arquitetura", "breaking changes"],
     }
 
     result = specialist.evaluate_cognitive_plan(cognitive_plan)
@@ -141,15 +133,15 @@ def example_voting_aggregation():
 
     # Configuração com voting
     config = create_ensemble_config()
-    config.ensemble_aggregation_method = 'voting'
+    config.ensemble_aggregation_method = "voting"
 
     specialist = EnsembleSpecialist(config=config)
 
     cognitive_plan = {
-        'plan_id': 'plan-voting-example',
-        'description': 'Adicionar feature de export para CSV',
-        'complexity_score': 0.3,
-        'estimated_effort_hours': 4
+        "plan_id": "plan-voting-example",
+        "description": "Adicionar feature de export para CSV",
+        "complexity_score": 0.3,
+        "estimated_effort_hours": 4,
     }
 
     result = specialist.evaluate_cognitive_plan(cognitive_plan)
@@ -157,8 +149,8 @@ def example_voting_aggregation():
     print(f"Resultado com voting:")
     print(f"  Recommendation: {result.recommendation}")
     print(f"  Vote distribution:")
-    if 'ensemble' in result.metadata:
-        vote_dist = result.metadata['ensemble'].get('vote_distribution', {})
+    if "ensemble" in result.metadata:
+        vote_dist = result.metadata["ensemble"].get("vote_distribution", {})
         for rec, count in vote_dist.items():
             print(f"    {rec}: {count} votos")
 
@@ -174,11 +166,11 @@ def example_with_explainability():
     specialist = EnsembleSpecialist(config=config)
 
     cognitive_plan = {
-        'plan_id': 'plan-explainability-example',
-        'description': 'Implementar cache distribuído com Redis',
-        'complexity_score': 0.6,
-        'steps': ['Setup Redis cluster', 'Implement caching layer', 'Add invalidation logic'],
-        'risk_factors': ['performance', 'cache consistency']
+        "plan_id": "plan-explainability-example",
+        "description": "Implementar cache distribuído com Redis",
+        "complexity_score": 0.6,
+        "steps": ["Setup Redis cluster", "Implement caching layer", "Add invalidation logic"],
+        "risk_factors": ["performance", "cache consistency"],
     }
 
     result = specialist.evaluate_cognitive_plan(cognitive_plan)
@@ -186,12 +178,12 @@ def example_with_explainability():
     print(f"Resultado com explainability:")
     print(f"  Confidence: {result.confidence_score:.3f}")
 
-    if hasattr(result, 'explainability') and result.explainability:
+    if hasattr(result, "explainability") and result.explainability:
         print(f"\nExplainability:")
-        if 'ensemble' in result.explainability:
-            ens_expl = result.explainability['ensemble']
+        if "ensemble" in result.explainability:
+            ens_expl = result.explainability["ensemble"]
             print(f"  Aggregated Feature Importances:")
-            importances = ens_expl.get('aggregated_feature_importances', {})
+            importances = ens_expl.get("aggregated_feature_importances", {})
             # Ordenar por importância
             sorted_features = sorted(importances.items(), key=lambda x: x[1], reverse=True)
             for feature, importance in sorted_features[:5]:  # Top 5
@@ -210,10 +202,10 @@ def example_custom_thresholds():
     specialist = EnsembleSpecialist(config=config)
 
     cognitive_plan = {
-        'plan_id': 'plan-thresholds-example',
-        'description': 'Migrar banco de dados para nova versão',
-        'complexity_score': 0.75,
-        'risk_factors': ['data migration', 'downtime', 'rollback complexity']
+        "plan_id": "plan-thresholds-example",
+        "description": "Migrar banco de dados para nova versão",
+        "complexity_score": 0.75,
+        "risk_factors": ["data migration", "downtime", "rollback complexity"],
     }
 
     result = specialist.evaluate_cognitive_plan(cognitive_plan)
@@ -249,16 +241,16 @@ def example_monitoring_metrics():
     specialist = EnsembleSpecialist(config=config)
 
     cognitive_plan = {
-        'plan_id': 'plan-metrics-example',
-        'description': 'Implementar health check endpoints',
-        'complexity_score': 0.2
+        "plan_id": "plan-metrics-example",
+        "description": "Implementar health check endpoints",
+        "complexity_score": 0.2,
     }
 
     # Executar múltiplas predições
     print("Executando 5 predições para demonstrar métricas...")
     for i in range(5):
         plan = cognitive_plan.copy()
-        plan['plan_id'] = f"plan-metrics-{i}"
+        plan["plan_id"] = f"plan-metrics-{i}"
         result = specialist.evaluate_cognitive_plan(plan)
         print(f"  Predição {i+1}: confidence={result.confidence_score:.3f}")
 
@@ -291,11 +283,12 @@ def main():
     except Exception as e:
         print(f"\n❌ Erro ao executar exemplos: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Nota: Este exemplo requer MLflow, MongoDB, Redis e Neo4j rodando
     # Para rodar sem infraestrutura, use mocks apropriados
     main()
