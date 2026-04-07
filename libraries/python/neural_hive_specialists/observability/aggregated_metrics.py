@@ -8,7 +8,6 @@ specialist_agreement_matrix para observabilidade holística do sistema.
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta, timezone
 from pymongo import MongoClient
-from pymongo.errors import PyMongoError
 from prometheus_client import Gauge, Histogram, Counter
 import structlog
 import asyncio
