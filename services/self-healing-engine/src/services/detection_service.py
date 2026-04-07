@@ -45,7 +45,7 @@ class DeadlockStatus:
     has_deadlock: bool
     stuck_duration_seconds: int = 0
     suspected_tickets: List[str] = field(default_factory=list)
-    detected_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    detected_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -71,7 +71,7 @@ class MemoryStatus:
     usage_percent: float
     limit_bytes: int
     duration_above_threshold_seconds: int = 0
-    detected_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    detected_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     container_name: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
 
@@ -527,6 +527,7 @@ class DetectionService:
         self,
         workflows: List[str],
         pods: List[tuple[str, str]],  # (pod_name, namespace)
+        playbook_executor=None,
         interval_seconds: int = 60,
     ):
         """
@@ -535,6 +536,7 @@ class DetectionService:
         Args:
             workflows: Lista de workflow IDs para monitorar
             pods: Lista de tuplas (pod_name, namespace) para monitorar
+            playbook_executor: Executor de playbooks para remediação
             interval_seconds: Intervalo entre verificações
         """
         logger.info(
@@ -554,7 +556,7 @@ class DetectionService:
                             workflow_id=workflow_id,
                             metadata={"stuck_duration_seconds": status.stuck_duration_seconds},
                         )
-                        await self.trigger_remediation(trigger)
+                        await self.trigger_remediation(trigger, playbook_executor=playbook_executor)
 
                 # Verificar pods
                 for pod_name, namespace in pods:
@@ -573,7 +575,7 @@ class DetectionService:
                             pod_name=pod_name,
                             namespace=namespace,
                         )
-                        await self.trigger_remediation(trigger)
+                        await self.trigger_remediation(trigger, playbook_executor=playbook_executor)
 
                 await asyncio.sleep(interval_seconds)
 

@@ -5,8 +5,10 @@ Este módulo testa a detecção de problemas que requerem remediação:
 - detect_deadlocks: Detecta workflows sem progresso
 - detect_memory_leak: Detecta pods com uso excessivo de memória
 - trigger_remediation: Dispara remediação baseado em detecção
+- run_detection_loop: Loop de detecção contínua
 """
 
+import asyncio
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 from datetime import datetime, timezone, timedelta
@@ -261,3 +263,211 @@ class TestDetectionServiceIntegration:
                 )
 
             assert result["success"] is True
+
+
+# ===== Tests para run_detection_loop (FASE3-PREV-012) =====
+
+
+@pytest.mark.asyncio
+async def test_run_detection_loop_iterates_workflows(detection_service, mock_orchestrator_client):
+    """Testa que o loop de detecção itera sobre workflows fornecidos."""
+    workflows = ["wf-1", "wf-2", "wf-3"]
+    pods = []
+
+    # Mock respostas
+    mock_orchestrator_client.get_workflow_status = AsyncMock(
+        return_value={
+            "workflow_id": "wf-test",
+            "status": "COMPLETED",
+            "tickets": [],
+            "last_progress_at": datetime.now(timezone.utc).isoformat(),
+        }
+    )
+
+    # Mock playbook executor
+    mock_executor = MagicMock()
+    mock_executor.validate_playbook_structure = MagicMock(return_value={"valid": True, "errors": [], "warnings": []})
+
+    # Mock trigger_remediation para não executar realmente
+    with patch.object(detection_service, "trigger_remediation") as mock_trigger:
+        mock_trigger.return_value = {"success": True}
+
+        # Executar uma iteração do loop com playbook_executor
+        task = asyncio.create_task(
+            detection_service.run_detection_loop(workflows, pods, playbook_executor=mock_executor, interval_seconds=1)
+        )
+
+        # Esperar um pouco para uma iteração
+        await asyncio.sleep(0.1)
+
+        # Cancelar o loop
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+        # Verificar que detectou cada workflow pelo menos uma vez
+        assert mock_orchestrator_client.get_workflow_status.call_count > 0
+
+
+@pytest.mark.asyncio
+async def test_run_detection_loop_detects_deadlock_and_triggers(detection_service, mock_orchestrator_client):
+    """Testa que o loop deteta deadlock e dispara remediação."""
+    old_time = (datetime.now(timezone.utc) - timedelta(minutes=35)).isoformat()
+
+    workflows = ["wf-stuck"]
+    pods = []
+
+    # Mock workflow com deadlock
+    mock_orchestrator_client.get_workflow_status = AsyncMock(
+        return_value={
+            "workflow_id": "wf-stuck",
+            "status": "RUNNING",
+            "tickets": [],
+            "last_progress_at": old_time,
+        }
+    )
+
+    # Mock playbook executor
+    mock_executor = MagicMock()
+    mock_executor.execute_playbook = AsyncMock(return_value={"success": True})
+    mock_executor.validate_playbook_structure = MagicMock(return_value={"valid": True, "errors": [], "warnings": []})
+
+    with patch.object(detection_service, "trigger_remediation") as mock_trigger:
+        mock_trigger.return_value = {"success": True}
+
+        # Executar uma iteração do loop com playbook_executor
+        task = asyncio.create_task(
+            detection_service.run_detection_loop(workflows, pods, playbook_executor=mock_executor, interval_seconds=1)
+        )
+
+        await asyncio.sleep(0.1)
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+        # Verificar que trigger_remediation foi chamado
+        assert mock_trigger.call_count > 0
+
+        # Verificar que o trigger foi criado com os parâmetros corretos
+        call_args = mock_trigger.call_args
+        trigger = call_args[0][0] if call_args[0] else call_args[1].get("trigger")
+        if isinstance(trigger, RemediationTrigger):
+            assert trigger.incident_type == "deadlock"
+            assert trigger.workflow_id == "wf-stuck"
+
+
+@pytest.mark.asyncio
+async def test_run_detection_loop_handles_errors_gracefully(detection_service, mock_orchestrator_client):
+    """Testa que o loop continua mesmo após erros."""
+    workflows = ["wf-error", "wf-ok"]
+    pods = []
+
+    # Mock que lança erro no primeiro workflow
+    call_count = 0
+
+    async def side_effect(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise Exception("Simulated error")
+        return {
+            "workflow_id": "wf-ok",
+            "status": "COMPLETED",
+            "tickets": [],
+            "last_progress_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+    mock_orchestrator_client.get_workflow_status = AsyncMock(side_effect=side_effect)
+
+    # Mock playbook executor
+    mock_executor = MagicMock()
+    mock_executor.validate_playbook_structure = MagicMock(return_value={"valid": True, "errors": [], "warnings": []})
+
+    with patch.object(detection_service, "trigger_remediation"):
+        # Executar uma iteração do loop com playbook_executor
+        task = asyncio.create_task(
+            detection_service.run_detection_loop(workflows, pods, playbook_executor=mock_executor, interval_seconds=1)
+        )
+
+        # Esperar suficiente para processar ambos
+        await asyncio.sleep(0.2)
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+        # Verificar que ambos os workflows foram verificados (loop continuou após erro)
+        assert call_count >= 2
+
+
+@pytest.mark.asyncio
+async def test_run_detection_loop_respects_cancelled_error(detection_service):
+    """Testa que o loop termina gracefully com CancelledError."""
+    workflows = ["wf-1"]
+    pods = []
+
+    # Mock playbook executor
+    mock_executor = MagicMock()
+    mock_executor.validate_playbook_structure = MagicMock(return_value={"valid": True, "errors": [], "warnings": []})
+
+    with patch.object(detection_service, "trigger_remediation"):
+        task = asyncio.create_task(
+            detection_service.run_detection_loop(workflows, pods, playbook_executor=mock_executor, interval_seconds=1)
+        )
+
+        # Cancelar imediatamente
+        await asyncio.sleep(0.05)
+        task.cancel()
+
+        # Deveria terminar sem levantar exceção
+        try:
+            await task
+        except asyncio.CancelledError:
+            # Esperado quando cancelado
+            pass
+
+
+@pytest.mark.asyncio
+async def test_run_detection_loop_monitors_pods(detection_service, mock_k8s_custom_api):
+    """Testa que o loop monitora pods para memory leaks."""
+    workflows = []
+    pods = [("test-pod", "default")]
+
+    # Mock métricas do pod
+    mock_k8s_custom_api.get_namespaced_custom_object = AsyncMock(
+        return_value={
+            "metadata": {"name": "test-pod"},
+            "containers": [
+                {
+                    "name": "main",
+                    "usage": {
+                        "memory": "800Mi"  # 800MB - abaixo de threshold
+                    }
+                }
+            ]
+        }
+    )
+
+    # Mock playbook executor
+    mock_executor = MagicMock()
+    mock_executor.validate_playbook_structure = MagicMock(return_value={"valid": True, "errors": [], "warnings": []})
+
+    with patch.object(detection_service, "trigger_remediation"):
+        task = asyncio.create_task(
+            detection_service.run_detection_loop(workflows, pods, playbook_executor=mock_executor, interval_seconds=1)
+        )
+
+        await asyncio.sleep(0.1)
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+        # Verificar que as métricas do pod foram obtidas
+        assert mock_k8s_custom_api.get_namespaced_custom_object.call_count > 0
