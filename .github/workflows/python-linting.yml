@@ -184,8 +184,8 @@ EOF
           echo "| Ferramenta | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| black | ✅ Formatação correta |" >> $GITHUB_STEP_SUMMARY
-          echo "| ruff | ✅ Sem problemas |" >> $ITHUB_STEP_SUMMARY
-          echo "| Imports | ✅ Organizados |" >> $ITHUB_STEP_SUMMARY
+          echo "| ruff | ✅ Sem problemas |" >> $GITHUB_STEP_SUMMARY
+          echo "| Imports | ✅ Organizados |" >> $GITHUB_STEP_SUMMARY
           echo "| flake8 | ✅ Sem erros |" >> $ITHUB_STEP_SUMMARY
           echo "| mypy | ✅ Type check OK |" >> $ITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
