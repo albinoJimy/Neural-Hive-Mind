@@ -10,11 +10,9 @@ Supports:
 import asyncio
 import json
 import os
-import subprocess
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
-from pathlib import Path
 from typing import Any
 
 import structlog
@@ -24,6 +22,7 @@ logger = structlog.get_logger()
 
 class CheckovSeverity(str, Enum):
     """Checkov severity levels."""
+
     CRITICAL = "CRITICAL"
     HIGH = "HIGH"
     MEDIUM = "MEDIUM"
@@ -142,9 +141,7 @@ class CheckovClient:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, _ = await asyncio.wait_for(
-                proc.communicate(), timeout=10.0
-            )
+            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=10.0)
             return stdout.decode().strip()
         except FileNotFoundError:
             raise CheckovNotFoundError(
@@ -162,10 +159,14 @@ class CheckovClient:
         """Build Checkov command arguments."""
         cmd = [
             self.CHECKOV_CMD,
-            "-d", directory,
-            "--framework", framework,
-            "--output", self.output_format,
-            "--quiet", "true",
+            "-d",
+            directory,
+            "--framework",
+            framework,
+            "--output",
+            self.output_format,
+            "--quiet",
+            "true",
         ]
 
         if self.soft_fail:
@@ -204,7 +205,11 @@ class CheckovClient:
                     passed=False,
                     findings=[],
                     summary=CheckovSummary(
-                        passed=False, failed=0, skipped=0, parsing_errors=0, total=0,
+                        passed=False,
+                        failed=0,
+                        skipped=0,
+                        parsing_errors=0,
+                        total=0,
                         severity_counts={},
                     ),
                     duration_seconds=0,
@@ -246,7 +251,11 @@ class CheckovClient:
                     passed=False,
                     findings=[],
                     summary=CheckovSummary(
-                        passed=False, failed=0, skipped=0, parsing_errors=0, total=0,
+                        passed=False,
+                        failed=0,
+                        skipped=0,
+                        parsing_errors=0,
+                        total=0,
                         severity_counts={},
                     ),
                     duration_seconds=duration,
@@ -316,8 +325,13 @@ class CheckovClient:
             return CheckovReport(
                 passed=passed,
                 findings=findings,
-                summary=summary or CheckovSummary(
-                    passed=False, failed=0, skipped=0, parsing_errors=0, total=0,
+                summary=summary
+                or CheckovSummary(
+                    passed=False,
+                    failed=0,
+                    skipped=0,
+                    parsing_errors=0,
+                    total=0,
                     severity_counts={},
                 ),
                 duration_seconds=duration,
@@ -331,7 +345,11 @@ class CheckovClient:
                 passed=False,
                 findings=[],
                 summary=CheckovSummary(
-                    passed=False, failed=0, skipped=0, parsing_errors=0, total=0,
+                    passed=False,
+                    failed=0,
+                    skipped=0,
+                    parsing_errors=0,
+                    total=0,
                     severity_counts={},
                 ),
                 duration_seconds=duration,
@@ -347,7 +365,11 @@ class CheckovClient:
                 passed=False,
                 findings=[],
                 summary=CheckovSummary(
-                    passed=False, failed=0, skipped=0, parsing_errors=0, total=0,
+                    passed=False,
+                    failed=0,
+                    skipped=0,
+                    parsing_errors=0,
+                    total=0,
                     severity_counts={},
                 ),
                 duration_seconds=duration,
@@ -370,7 +392,9 @@ class CheckovClient:
                 category=check.get("check_class", ""),
                 resource=check.get("resource", ""),
                 file_path=check.get("file_path", ""),
-                file_line_range=tuple(check.get("file_line_range", [0, 0])) if "file_line_range" in check else None,
+                file_line_range=tuple(check.get("file_line_range", [0, 0]))
+                if "file_line_range" in check
+                else None,
                 description=check.get("check", {}).get("name", ""),
                 pass_or_fail="fail",
                 code=check.get("code", ""),
