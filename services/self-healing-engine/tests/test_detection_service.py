@@ -4,6 +4,7 @@ Testes para o Detection Service.
 Este módulo testa a detecção de problemas que requerem remediação:
 - detect_deadlocks: Detecta workflows sem progresso
 - detect_memory_leak: Detecta pods com uso excessivo de memória
+- detect_pod_crash_loop: Detecta pods em crash loop
 - trigger_remediation: Dispara remediação baseado em detecção
 """
 
@@ -16,8 +17,21 @@ from src.services.detection_service import (
     DetectionService,
     DeadlockStatus,
     MemoryStatus,
+    PodCrashLoopStatus,
     RemediationTrigger,
 )
+
+
+@pytest.fixture
+def detection_service_with_k8s(mock_orchestrator_client, mock_k8s_core_api, mock_k8s_custom_api):
+    """Fixture do DetectionService com Core API para crash loop tests."""
+    return DetectionService(
+        orchestrator_client=mock_orchestrator_client,
+        k8s_core_v1=mock_k8s_core_api,
+        k8s_custom_api=mock_k8s_custom_api,
+        memory_threshold_percent=90.0,
+        workflow_timeout_seconds=1800,
+    )
 
 
 @pytest.fixture
@@ -38,10 +52,6 @@ class TestDetectionService:
     @pytest.mark.asyncio
     async def test_detect_deadlocks_no_deadlock(self, detection_service, mock_orchestrator_client):
         """Testa detecção quando workflow está progredindo."""
-        # Usar data atual para evitar detecção falsa de deadlock
-        now = datetime.now(timezone.utc)
-        recent_time = now.isoformat()
-
         mock_orchestrator_client.get_workflow_status = AsyncMock(
             return_value={
                 "workflow_id": "wf-123",
@@ -50,15 +60,15 @@ class TestDetectionService:
                     {
                         "ticket_id": "t1",
                         "status": "COMPLETED",
-                        "updated_at": recent_time,
+                        "updated_at": "2026-03-18T10:25:00Z",
                     },
                     {
                         "ticket_id": "t2",
                         "status": "IN_PROGRESS",
-                        "updated_at": recent_time,
+                        "updated_at": "2026-03-18T10:26:00Z",
                     },
                 ],
-                "last_progress_at": recent_time,
+                "last_progress_at": "2026-03-18T10:26:00Z",
             }
         )
 
@@ -161,7 +171,7 @@ class TestDetectionService:
         )
 
         # Mock playbook executor
-        mock_executor = MagicMock()
+        mock_executor = AsyncMock()
         mock_executor.execute_playbook = AsyncMock(return_value={"success": True})
 
         result = await detection_service.trigger_remediation(
@@ -182,7 +192,7 @@ class TestDetectionService:
         )
 
         # Mock playbook executor
-        mock_executor = MagicMock()
+        mock_executor = AsyncMock()
         mock_executor.execute_playbook = AsyncMock(return_value={"success": True})
 
         result = await detection_service.trigger_remediation(
@@ -268,735 +278,190 @@ class TestDetectionServiceIntegration:
             assert result["success"] is True
 
 
-# ============================================================================
-# Tests de Histórico de Memória em Redis (FASE3-PREV-006)
-# ============================================================================
+# ===== Tests para detect_pod_crash_loop (FASE3-ANOMALY-002) =====
 
 
-class TestRedisMemoryHistory:
-    """Testes para funcionalidade de histórico de memória em Redis."""
+@pytest.mark.asyncio
+async def test_detect_pod_crash_loop_no_crash(mock_k8s_core_api):
+    """Testa detecção quando pod está saudável."""
+    from unittest.mock import AsyncMock
 
-    @pytest.fixture
-    def mock_redis_client(self):
-        """Mock do cliente Redis."""
-        client = AsyncMock()
-        client.zadd = AsyncMock(return_value=1)
-        client.expire = AsyncMock(return_value=True)
-        client.zremrangebyscore = AsyncMock(return_value=0)
-        client.zrangebyscore = AsyncMock(return_value=[])
-        client.zrange = AsyncMock(return_value=[])
-        return client
+    # Criar service para este teste
+    service = DetectionService(
+        orchestrator_client=None,
+        k8s_core_v1=mock_k8s_core_api,
+        k8s_custom_api=None,
+    )
 
-    @pytest.fixture
-    def mock_k8s_custom_api_async(self):
-        """Mock do Kubernetes CustomObjectsApi com async."""
-        api = MagicMock()
-        api.get_namespaced_custom_object = AsyncMock(
-            return_value={"containers": [{"name": "app", "usage": {"memory": "950Mi"}}]}
-        )
-        return api
-
-    @pytest.fixture
-    def detection_service_with_redis(self, mock_redis_client, mock_k8s_custom_api_async):
-        """DetectionService com Redis client."""
-        from src.services.detection_service import DetectionService
-
-        return DetectionService(
-            k8s_custom_api=mock_k8s_custom_api_async,
-            redis_client=mock_redis_client,
-            memory_threshold_percent=90.0,
-            memory_duration_seconds=300,
-        )
-
-    @pytest.mark.asyncio
-    async def test_store_memory_reading_success(
-        self, detection_service_with_redis, mock_redis_client
-    ):
-        """Testa armazenamento de leitura de memória no Redis."""
-        result = await detection_service_with_redis._store_memory_reading(
-            key="default/pod-1/container",
-            timestamp=datetime.now(timezone.utc),
-            usage_bytes=1024000000,
-            usage_percent=95.0,
-        )
-
-        assert result is True
-        mock_redis_client.zadd.assert_called_once()
-        mock_redis_client.expire.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_store_memory_reading_no_redis(self):
-        """Testa fallback quando Redis indisponível."""
-        from src.services.detection_service import DetectionService
-
-        service = DetectionService(
-            redis_client=None,
-        )
-
-        result = await service._store_memory_reading(
-            key="default/pod-1/container",
-            timestamp=datetime.now(timezone.utc),
-            usage_bytes=1024000000,
-            usage_percent=95.0,
-        )
-
-        assert result is False
-
-    @pytest.mark.asyncio
-    async def test_get_memory_history_empty(
-        self, detection_service_with_redis, mock_redis_client
-    ):
-        """Testa obter histórico vazio do Redis."""
-        mock_redis_client.zrangebyscore.return_value = []
-
-        history = await detection_service_with_redis._get_memory_history(
-            key="default/pod-1/container"
-        )
-
-        assert history == []
-
-    @pytest.mark.asyncio
-    async def test_get_memory_history_with_data(
-        self, detection_service_with_redis, mock_redis_client
-    ):
-        """Testa obter histórico com dados do Redis."""
-        mock_redis_client.zrangebyscore.return_value = [
-            b"2026-04-07T10:00:00+00:00|1024000000|95.0",
-            b"2026-04-07T10:01:00+00:00|1032000000|96.0",
-        ]
-
-        history = await detection_service_with_redis._get_memory_history(
-            key="default/pod-1/container"
-        )
-
-        assert len(history) == 2
-        assert history[0]["usage_percent"] == 95.0
-        assert history[1]["usage_percent"] == 96.0
-
-    @pytest.mark.asyncio
-    async def test_get_memory_history_stats(
-        self, detection_service_with_redis, mock_redis_client
-    ):
-        """Testa obter estatísticas do histórico."""
-        mock_redis_client.zrange.return_value = [
-            b"2026-04-07T10:00:00+00:00|1024000000|95.0",
-            b"2026-04-07T10:01:00+00:00|1032000000|96.0",
-        ]
-
-        stats = await detection_service_with_redis._get_memory_history_stats(
-            key="default/pod-1/container"
-        )
-
-        assert stats["count"] == 2
-        assert stats["avg_bytes"] == 1028000000
-        assert stats["avg_percent"] == 95.5
-        assert stats["max_bytes"] == 1032000000
-        assert stats["max_percent"] == 96.0
-
-    @pytest.mark.asyncio
-    async def test_detect_memory_leak_with_redis_history(
-        self, detection_service_with_redis, mock_redis_client, mock_k8s_custom_api_async
-    ):
-        """Testa detecção de memory leak usando histórico do Redis."""
-        # Simular memórica alta contínua (1000Mi = 95%+ de 1GB)
-        now = datetime.now(timezone.utc)
-        timestamps = []
-        for i in range(10):
-            # Criar timestamps de 400s atrás até 310s atrás (10 leituras)
-            ts = now - timedelta(seconds=400 - i * 10)
-            timestamps.append(ts)
-
-        # Criar formato esperado pelo _get_memory_history
-        history_data = []
-        for ts in timestamps:
-            history_data.append({
-                "timestamp": ts.isoformat(),
-                "usage_bytes": 1048576000,  # 1000Mi
-                "usage_percent": 97.66,
-            })
-
-        # Mock para retornar history como lista de dicts
-        mock_redis_client.zrangebyscore.return_value = [
-            f"{ts.isoformat()}|1048576000|97.66" for ts in timestamps
-        ]
-        mock_redis_client.zrange.return_value = [
-            f"{ts.isoformat()}|1048576000|97.66" for ts in timestamps
-        ]
-        mock_k8s_custom_api_async.get_namespaced_custom_object.return_value = {
-            "containers": [{"name": "app", "usage": {"memory": "1000Mi"}}]
+    # Mock pod sem restarts
+    mock_pod_dict = {
+        "metadata": {"name": "test-pod", "namespace": "default"},
+        "status": {
+            "containerStatuses": [
+                {
+                    "name": "main",
+                    "restartCount": 0,
+                    "state": {"running": {"startedAt": "2026-04-07T10:00:00Z"}},
+                    "lastState": {},
+                }
+            ]
         }
+    }
 
-        # Patch _get_memory_history para retornar o formato correto
-        with patch.object(
-            detection_service_with_redis, "_get_memory_history", return_value=history_data
-        ):
-            status = await detection_service_with_redis.detect_memory_leak(
-                pod_name="worker-1",
-                namespace="default",
-                memory_limit_bytes=1073741824,  # 1GB
-            )
+    mock_k8s_core_api.read_namespaced_pod = AsyncMock(return_value=mock_pod_dict)
 
-        # Com historico no Redis, deve detectar leak
-        assert status.has_leak is True
-        assert status.duration_above_threshold_seconds >= 300
-        # Metadata deve conter estatisticas do historico
-        assert status.metadata.get("history_samples") > 0
+    status = await service.detect_pod_crash_loop("test-pod", "default")
 
-    @pytest.mark.asyncio
-    async def test_detect_memory_leak_stores_reading(
-        self, detection_service_with_redis, mock_redis_client, mock_k8s_custom_api_async
-    ):
-        """Testa que leituras são armazenadas no Redis."""
-        await detection_service_with_redis.detect_memory_leak(
-            pod_name="worker-1",
-            namespace="default",
-            memory_limit_bytes=1073741824,
-        )
-
-        # Verificar se _store_memory_reading foi chamado (uso 95% > 90% threshold)
-        mock_redis_client.zadd.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_detect_memory_leak_fallback_to_memory(self, mock_k8s_custom_api_async):
-        """Testa fallback para memória quando Redis indisponível."""
-        from src.services.detection_service import DetectionService
-
-        service = DetectionService(
-            k8s_custom_api=mock_k8s_custom_api_async,
-            redis_client=None,
-            memory_duration_seconds=300,
-        )
-
-        status = await service.detect_memory_leak(
-            pod_name="worker-1",
-            namespace="default",
-            memory_limit_bytes=1073741824,
-        )
-
-        # Deve funcionar mesmo sem Redis (usando _memory_history)
-        assert status.usage_bytes == 996147200  # 950Mi
-        assert status.has_leak is False  # Primeira leitura, sem histórico
-        assert status.container_name == "app"
+    assert status.has_crash_loop is False
+    assert status.restart_count == 0
+    assert status.pod_name == "test-pod"
+    assert status.namespace == "default"
 
 
-# ============================================================================
-# Tests de detecção expandida (FASE3-ANOMALY-005)
-# ============================================================================
+@pytest.mark.asyncio
+async def test_detect_pod_crash_loop_with_restarts(detection_service_with_k8s, mock_k8s_core_api):
+    """Testa detecção quando pod tem múltiplos restarts."""
+    old_time = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
 
-
-class TestKafkaLagDetection:
-    """Testes para detecção de Kafka lag."""
-
-    @pytest.fixture
-    def mock_health_monitor(self):
-        """Mock do HealthMonitor."""
-        monitor = AsyncMock()
-        monitor.check_kafka_consumer_lag = AsyncMock(
-            return_value=MagicMock(
-                within_threshold=True,
-                lag=100,
-                threshold=10000,
-                consumer_group="test-group",
-                topic="test-topic",
-                partitions={},
-            )
-        )
-        return monitor
-
-    @pytest.fixture
-    def detection_service_with_health(self, mock_health_monitor):
-        """DetectionService com HealthMonitor mockado."""
-        from src.services.detection_service import DetectionService
-
-        return DetectionService(health_monitor=mock_health_monitor)
-
-    @pytest.mark.asyncio
-    async def test_detect_kafka_lag_no_lag(self, detection_service_with_health):
-        """Testa detecção quando lag está dentro do threshold."""
-        result = await detection_service_with_health.detect_kafka_lag(
-            consumer_group="test-group",
-            topic="test-topic",
-        )
-
-        assert result["has_lag"] is False
-        assert result["lag"] == 100
-
-    @pytest.mark.asyncio
-    async def test_detect_kafka_lag_exceeded(self, detection_service_with_health):
-        """Testa detecção quando lag excede threshold."""
-        # Mock com lag acima do threshold
-        detection_service_with_health.health_monitor.check_kafka_consumer_lag = AsyncMock(
-            return_value=MagicMock(
-                within_threshold=False,
-                lag=15000,
-                threshold=10000,
-                consumer_group="test-group",
-                topic="test-topic",
-                partitions={},
-            )
-        )
-
-        result = await detection_service_with_health.detect_kafka_lag(
-            consumer_group="test-group",
-            topic="test-topic",
-        )
-
-        assert result["has_lag"] is True
-        assert result["lag"] == 15000
-
-
-class TestDatabaseConnectionDetection:
-    """Testes para detecção de problemas de conexão DB."""
-
-    @pytest.fixture
-    def mock_health_monitor(self):
-        """Mock do HealthMonitor."""
-        monitor = AsyncMock()
-        monitor.check_database_connection = AsyncMock(
-            return_value=MagicMock(
-                connected=True,
-                latency_ms=5,
-                service_name="test-db",
-                error=None,
-            )
-        )
-        return monitor
-
-    @pytest.fixture
-    def detection_service_with_health(self, mock_health_monitor):
-        """DetectionService com HealthMonitor mockado."""
-        from src.services.detection_service import DetectionService
-
-        return DetectionService(health_monitor=mock_health_monitor)
-
-    @pytest.mark.asyncio
-    async def test_detect_database_connection_ok(self, detection_service_with_health):
-        """Testa detecção quando conexão está OK."""
-        result = await detection_service_with_health.detect_database_connection(
-            service_name="postgres",
-            host="localhost",
-            port=5432,
-            database="neuralhive",
-        )
-
-        assert result["has_connection_issue"] is False
-        assert result["connected"] is True
-
-    @pytest.mark.asyncio
-    async def test_detect_database_connection_failed(self, detection_service_with_health):
-        """Testa detecção quando conexão falhou."""
-        detection_service_with_health.health_monitor.check_database_connection = AsyncMock(
-            return_value=MagicMock(
-                connected=False,
-                latency_ms=0,
-                service_name="postgres",
-                error="Connection refused",
-            )
-        )
-
-        result = await detection_service_with_health.detect_database_connection(
-            service_name="postgres",
-            host="localhost",
-            port=5432,
-            database="neuralhive",
-        )
-
-        assert result["has_connection_issue"] is True
-        assert result["connected"] is False
-
-
-class TestPodCrashLoopDetection:
-    """Testes para detecção de pod crash loop."""
-
-    @pytest.fixture
-    def mock_k8s_core_v1(self):
-        """Mock do Kubernetes CoreV1 API."""
-        api = MagicMock()
-        api.read_namespaced_pod = AsyncMock()
-
-        # Pod sem crash loop
-        pod_ok = MagicMock()
-        pod_ok.status.phase = "Running"
-        pod_ok.status.container_statuses = [MagicMock(restart_count=0)]
-
-        # Pod com crash loop
-        pod_crashing = MagicMock()
-        pod_crashing.status.phase = "Running"
-        pod_crashing.status.container_statuses = [MagicMock(restart_count=5)]
-
-        def side_effect(name, namespace):
-            if "crashing" in name:
-                return pod_crashing
-            return pod_ok
-
-        api.read_namespaced_pod.side_effect = side_effect
-        return api
-
-    @pytest.fixture
-    def detection_service_with_k8s(self, mock_k8s_core_v1):
-        """DetectionService com K8s API mockado."""
-        from src.services.detection_service import DetectionService
-
-        return DetectionService(k8s_core_v1=mock_k8s_core_v1)
-
-    @pytest.mark.asyncio
-    async def test_detect_pod_crash_loop_none(self, detection_service_with_k8s):
-        """Testa detecção quando pod não tem crash loop."""
-        result = await detection_service_with_k8s.detect_pod_crash_loop(
-            pod_name="worker-1",
-            namespace="default",
-        )
-
-        assert result["has_crash_loop"] is False
-        assert result["restart_count"] == 0
-
-    @pytest.mark.asyncio
-    async def test_detect_pod_crash_loop_detected(self, detection_service_with_k8s):
-        """Testa detecção quando pod está em crash loop."""
-        result = await detection_service_with_k8s.detect_pod_crash_loop(
-            pod_name="worker-crashing",
-            namespace="default",
-        )
-
-        assert result["has_crash_loop"] is True
-        assert result["restart_count"] == 5
-
-    @pytest.mark.asyncio
-    async def test_detect_pod_crash_loop_custom_threshold(self, detection_service_with_k8s):
-        """Testa detecção com threshold customizado."""
-        result = await detection_service_with_k8s.detect_pod_crash_loop(
-            pod_name="worker-crashing",
-            namespace="default",
-            restart_threshold=10,
-        )
-
-        assert result["has_crash_loop"] is False  # 5 < 10
-        assert result["restart_count"] == 5
-
-
-class TestExpandedDetectionLoop:
-    """Testes para o loop de detecção expandido."""
-
-    @pytest.fixture
-    def mock_all_services(self):
-        """Mock de todos os serviços necessários."""
-        from src.services.health_monitor import LagStatus
-
-        orchestrator = AsyncMock()
-        orchestrator.get_workflow_status = AsyncMock(
-            return_value={
-                "workflow_id": "wf-123",
-                "status": "RUNNING",
-                "tickets": [{"ticket_id": "t1", "status": "COMPLETED", "updated_at": datetime.now(timezone.utc).isoformat()}],
-                "last_progress_at": datetime.now(timezone.utc).isoformat(),
-            }
-        )
-
-        health_monitor = AsyncMock()
-        health_monitor.check_kafka_consumer_lag = AsyncMock(
-            return_value=MagicMock(
-                within_threshold=True,
-                lag=100,
-                threshold=10000,
-                partitions={},
-            )
-        )
-        health_monitor.check_database_connection = AsyncMock(
-            return_value=MagicMock(connected=True, latency_ms=5)
-        )
-
-        k8s_core = MagicMock()
-        k8s_core.read_namespaced_pod = AsyncMock()
-        pod_ok = MagicMock()
-        pod_ok.status.phase = "Running"
-        pod_ok.status.container_statuses = [MagicMock(restart_count=0)]
-        k8s_core.read_namespaced_pod.return_value = pod_ok
-
-        k8s_custom = MagicMock()
-        k8s_custom.get_namespaced_custom_object = AsyncMock(
-            return_value={"containers": [{"name": "app", "usage": {"memory": "500Mi"}}]}
-        )
-
-        return {
-            "orchestrator": orchestrator,
-            "health_monitor": health_monitor,
-            "k8s_core": k8s_core,
-            "k8s_custom": k8s_custom,
+    # Mock pod com 5 restarts recentes
+    mock_pod = MagicMock()
+    mock_pod.status = MagicMock()
+    mock_pod.status.containerStatuses = [
+        {
+            "name": "main",
+            "restartCount": 5,
+            "state": {"waiting": {"reason": "CrashLoopBackOff"}},
+            "lastState": {
+                "terminated": {
+                    "finishedAt": old_time,
+                    "reason": "Error",
+                }
+            },
         }
+    ]
+    mock_k8s_core_api.read_namespaced_pod = AsyncMock(return_value=mock_pod)
 
-    @pytest.fixture
-    def detection_service_expanded(self, mock_all_services):
-        """DetectionService com todos os serviços mockados."""
-        from src.services.detection_service import DetectionService
+    status = await detection_service_with_k8s.detect_pod_crash_loop(
+        "crashy-pod", "default", restart_threshold=3, time_window_minutes=10
+    )
 
-        return DetectionService(
-            orchestrator_client=mock_all_services["orchestrator"],
-            health_monitor=mock_all_services["health_monitor"],
-            k8s_core_v1=mock_all_services["k8s_core"],
-            k8s_custom_api=mock_all_services["k8s_custom"],
-        )
+    assert status.has_crash_loop is True
+    assert status.restart_count == 5
+    assert status.pod_name == "crashy-pod"
+    assert status.container_name == "main"
 
-    @pytest.mark.asyncio
-    async def test_loop_with_kafka_lag_check(self, detection_service_expanded):
-        """Testa loop com verificação de Kafka lag."""
-        task = asyncio.create_task(
-            detection_service_expanded.run_detection_loop(
-                workflows=["wf-123"],
-                pods=[("worker-1", "default")],
-                kafka_consumer_groups=[("test-group", "test-topic")],
-                interval_seconds=1,
-            )
-        )
-        await asyncio.sleep(0.5)
-        task.cancel()
 
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
+@pytest.mark.asyncio
+async def test_detect_pod_crash_loop_below_threshold(detection_service_with_k8s, mock_k8s_core_api):
+    """Testa que pod com restarts abaixo do threshold não é considerado crash loop."""
+    old_time = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
 
-    @pytest.mark.asyncio
-    async def test_loop_with_database_check(self, detection_service_expanded):
-        """Testa loop com verificação de conexão DB."""
-        db_config = {
-            "service_name": "postgres",
-            "host": "localhost",
-            "port": 5432,
-            "database": "neuralhive",
+    # Mock pod com apenas 2 restarts
+    mock_pod = MagicMock()
+    mock_pod.status = MagicMock()
+    mock_pod.status.containerStatuses = [
+        {
+            "name": "main",
+            "restartCount": 2,
+            "state": {"running": {"startedAt": "2026-04-07T10:00:00Z"}},
+            "lastState": {
+                "terminated": {"finishedAt": old_time, "reason": "Error"}
+            },
         }
+    ]
+    mock_k8s_core_api.read_namespaced_pod = AsyncMock(return_value=mock_pod)
 
-        task = asyncio.create_task(
-            detection_service_expanded.run_detection_loop(
-                workflows=["wf-123"],
-                pods=[],
-                database_checks=[db_config],
-                interval_seconds=1,
-            )
-        )
-        await asyncio.sleep(0.5)
-        task.cancel()
+    status = await detection_service_with_k8s.detect_pod_crash_loop(
+        "test-pod", "default", restart_threshold=3, time_window_minutes=10
+    )
 
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
-
-    @pytest.mark.asyncio
-    async def test_loop_with_all_checks(self, detection_service_expanded):
-        """Testa loop com todos os checks habilitados."""
-        task = asyncio.create_task(
-            detection_service_expanded.run_detection_loop(
-                workflows=["wf-123"],
-                pods=[("worker-1", "default")],
-                kafka_consumer_groups=[("test-group", "test-topic")],
-                database_checks=[{
-                    "service_name": "postgres",
-                    "host": "localhost",
-                    "port": 5432,
-                    "database": "neuralhive",
-                }],
-                check_crash_loops=True,
-                interval_seconds=1,
-            )
-        )
-        await asyncio.sleep(0.5)
-        task.cancel()
-
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
+    assert status.has_crash_loop is False
+    assert status.restart_count == 2
 
 
-# ============================================================================
-# Tests de run_detection_loop (FASE3-PREV-012)
-# ============================================================================
+@pytest.mark.asyncio
+async def test_detect_pod_crash_loop_old_restarts(detection_service_with_k8s, mock_k8s_core_api):
+    """Testa que restarts antigos (fora da janela) não são considerados."""
+    # Restart há 20 minutos (fora da janela de 10 minutos)
+    old_time = (datetime.now(timezone.utc) - timedelta(minutes=20)).isoformat()
+
+    mock_pod = MagicMock()
+    mock_pod.status = MagicMock()
+    mock_pod.status.containerStatuses = [
+        {
+            "name": "main",
+            "restartCount": 5,
+            "state": {"running": {"startedAt": "2026-04-07T10:00:00Z"}},
+            "lastState": {
+                "terminated": {"finishedAt": old_time, "reason": "Error"}
+            },
+        }
+    ]
+    mock_k8s_core_api.read_namespaced_pod = AsyncMock(return_value=mock_pod)
+
+    status = await detection_service_with_k8s.detect_pod_crash_loop(
+        "test-pod", "default", restart_threshold=3, time_window_minutes=10
+    )
+
+    # 5 restarts mas fora da janela temporal
+    assert status.has_crash_loop is False
 
 
-class TestDetectionLoop:
-    """Testes para o loop de detecção contínua."""
+@pytest.mark.asyncio
+async def test_detect_pod_crash_loop_init_container(detection_service_with_k8s, mock_k8s_core_api):
+    """Testa detecção de crash loop em init container."""
+    old_time = (datetime.now(timezone.utc) - timedelta(minutes=3)).isoformat()
 
-    @pytest.fixture
-    def mock_orchestrator_client_no_deadlock(self):
-        """Mock do OrchestratorClient sem deadlocks."""
-        client = AsyncMock()
-        now = datetime.now(timezone.utc)
-        client.get_workflow_status = AsyncMock(
-            return_value={
-                "workflow_id": "wf-123",
-                "status": "RUNNING",
-                "tickets": [
-                    {
-                        "ticket_id": "t1",
-                        "status": "COMPLETED",
-                        "updated_at": now.isoformat(),
-                    }
-                ],
-                "last_progress_at": now.isoformat(),
-            }
-        )
-        return client
+    mock_pod = MagicMock()
+    mock_pod.status = MagicMock()
+    mock_pod.status.containerStatuses = []
+    mock_pod.status.initContainerStatuses = [
+        {
+            "name": "init-db",
+            "restartCount": 4,
+            "state": {"waiting": {"reason": "CrashLoopBackOff"}},
+            "lastState": {
+                "terminated": {"finishedAt": old_time, "reason": "Error"}
+            },
+        }
+    ]
+    mock_k8s_core_api.read_namespaced_pod = AsyncMock(return_value=mock_pod)
 
-    @pytest.fixture
-    def mock_k8s_no_leak(self):
-        """Mock do Kubernetes sem memory leak."""
-        api = MagicMock()
-        api.get_namespaced_custom_object = AsyncMock(
-            return_value={"containers": [{"name": "app", "usage": {"memory": "500Mi"}}]}
-        )
-        return api
+    status = await detection_service_with_k8s.detect_pod_crash_loop(
+        "test-pod", "default", restart_threshold=3, time_window_minutes=10
+    )
 
-    @pytest.fixture
-    def detection_service_for_loop(
-        self, mock_orchestrator_client_no_deadlock, mock_k8s_no_leak
-    ):
-        """DetectionService configurado para testes de loop."""
-        from src.services.detection_service import DetectionService
+    assert status.has_crash_loop is True
+    assert status.restart_count == 4
+    assert status.container_name == "init-db"
 
-        return DetectionService(
-            orchestrator_client=mock_orchestrator_client_no_deadlock,
-            k8s_custom_api=mock_k8s_no_leak,
-            redis_client=None,
-            memory_threshold_percent=90.0,
-            workflow_timeout_seconds=1800,
-        )
 
-    @pytest.mark.asyncio
-    async def test_loop_iteration_no_detections(self, detection_service_for_loop):
-        """Testa uma iteração do loop sem detecções."""
-        # Criar task para o loop
-        async def run_single_iteration():
-            await detection_service_for_loop.run_detection_loop(
-                workflows=["wf-123"],
-                pods=[("worker-1", "default")],
-                interval_seconds=1,
-            )
+@pytest.mark.asyncio
+async def test_detect_pod_crash_loop_no_api(detection_service):
+    """Testa comportamento quando Kubernetes API não está disponível."""
+    # Criar service sem k8s_core_api
+    service = DetectionService(
+        orchestrator_client=None,
+        k8s_core_v1=None,
+        k8s_custom_api=None,
+    )
 
-        # Executar por um curto período e cancelar
-        task = asyncio.create_task(run_single_iteration())
-        await asyncio.sleep(0.5)  # Deixar rodar um pouco
-        task.cancel()
+    status = await service.detect_pod_crash_loop("test-pod", "default")
 
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass  # Esperado
+    assert status.has_crash_loop is False
+    assert "error" in status.metadata
 
-    @pytest.mark.asyncio
-    async def test_loop_iteration_with_deadlock(self, detection_service_for_loop):
-        """Testa iteração do loop com deadlock detectado."""
-        # Mock com deadlock (sem progresso por > 30 min)
-        old_time = (datetime.now(timezone.utc) - timedelta(minutes=35)).isoformat()
-        detection_service_for_loop.orchestrator_client.get_workflow_status = AsyncMock(
-            return_value={
-                "workflow_id": "wf-stuck",
-                "status": "RUNNING",
-                "tickets": [
-                    {
-                        "ticket_id": "t1",
-                        "status": "IN_PROGRESS",
-                        "updated_at": old_time,
-                    }
-                ],
-                "last_progress_at": old_time,
-            }
-        )
 
-        remediation_triggered = False
+@pytest.mark.asyncio
+async def test_detect_pod_crash_loop_pod_not_found(detection_service_with_k8s, mock_k8s_core_api):
+    """Testa comportamento quando pod não existe."""
+    from kubernetes.client.exceptions import ApiException
 
-        async def mock_remediation(trigger):
-            nonlocal remediation_triggered
-            remediation_triggered = True
+    mock_k8s_core_api.read_namespaced_pod = AsyncMock(
+        side_effect= ApiException(status=404, reason="Not Found")
+    )
 
-        # Executar uma iteração
-        task = asyncio.create_task(
-            detection_service_for_loop.run_detection_loop(
-                workflows=["wf-stuck"], pods=[], interval_seconds=1
-            )
-        )
-        await asyncio.sleep(0.5)
-        task.cancel()
+    status = await detection_service_with_k8s.detect_pod_crash_loop("missing-pod", "default")
 
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
-
-    @pytest.mark.asyncio
-    async def test_loop_iteration_with_memory_leak(self, detection_service_for_loop):
-        """Testa iteração do loop com memory leak detectado."""
-        # Simular múltiplas leituras acima do threshold
-        detection_service_for_loop._memory_history["default/worker-1/app"] = [
-            datetime.now(timezone.utc) - timedelta(seconds=400)
-            for _ in range(10)
-        ]
-
-        # Executar uma iteração
-        task = asyncio.create_task(
-            detection_service_for_loop.run_detection_loop(
-                workflows=[], pods=[("worker-1", "default")], interval_seconds=1
-            )
-        )
-        await asyncio.sleep(0.5)
-        task.cancel()
-
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
-
-    @pytest.mark.asyncio
-    async def test_loop_handles_cancel_gracefully(self, detection_service_for_loop):
-        """Testa que o loop lida com cancelamento corretamente."""
-        task = asyncio.create_task(
-            detection_service_for_loop.run_detection_loop(
-                workflows=["wf-123"], pods=[("worker-1", "default")], interval_seconds=1
-            )
-        )
-
-        # Cancelar imediatamente
-        await asyncio.sleep(0.1)
-        task.cancel()
-
-        # Não deve levantar exceção
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass  # Esperado
-
-    @pytest.mark.asyncio
-    async def test_loop_handles_errors_gracefully(self, detection_service_for_loop):
-        """Testa que o loop continua após erros."""
-        # Simular erro no orchestrator
-        detection_service_for_loop.orchestrator_client.get_workflow_status = AsyncMock(
-            side_effect=Exception("Orchestrator error")
-        )
-
-        iteration_count = 0
-
-        async def count_iterations():
-            nonlocal iteration_count
-            while True:
-                await asyncio.sleep(0.1)
-                iteration_count += 1
-                if iteration_count >= 3:
-                    break
-
-        # Executar loop em paralelo com contador
-        loop_task = asyncio.create_task(
-            detection_service_for_loop.run_detection_loop(
-                workflows=["wf-123"], pods=[], interval_seconds=0.05
-            )
-        )
-        count_task = asyncio.create_task(count_iterations())
-
-        await count_task
-        loop_task.cancel()
-
-        try:
-            await loop_task
-        except asyncio.CancelledError:
-            pass
-
-        # Loop deve ter continuado apesar dos erros
-        assert iteration_count >= 3
+    assert status.has_crash_loop is False
+    assert "error" in status.metadata

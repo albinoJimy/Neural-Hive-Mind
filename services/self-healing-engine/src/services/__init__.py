@@ -19,6 +19,7 @@ from src.services.detection_service import (
     DetectionService,
     IncidentType,
     MemoryStatus,
+    PodCrashLoopStatus,
     RemediationTrigger,
     Severity,
 )
@@ -52,6 +53,7 @@ __all__ = [
     "DetectionService",
     "DeadlockStatus",
     "MemoryStatus",
+    "PodCrashLoopStatus",
     "RemediationTrigger",
     "IncidentType",
     "Severity",
