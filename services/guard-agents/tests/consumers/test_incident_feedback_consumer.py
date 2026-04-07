@@ -14,7 +14,7 @@ from collections import defaultdict
 from src.consumers.incident_feedback_consumer import (
     IncidentFeedbackConsumer,
     IncidentSeverity,
-    IncidentClassification
+    IncidentClassification,
 )
 
 
@@ -48,7 +48,7 @@ def mock_security_validator():
 
 
 @pytest.fixture
-    def mock_policy_enforcer():
+def mock_policy_enforcer():
     """Policy enforcer mock."""
     enforcer = AsyncMock()
     return enforcer
@@ -72,8 +72,14 @@ def mock_metrics():
 
 
 @pytest.fixture
-def consumer(mock_settings, mock_incident_classifier, mock_security_validator,
-             mock_policy_enforcer, mock_mongodb_client, mock_metrics):
+def consumer(
+    mock_settings,
+    mock_incident_classifier,
+    mock_security_validator,
+    mock_policy_enforcer,
+    mock_mongodb_client,
+    mock_metrics,
+):
     """Consumer instance para testes."""
     return IncidentFeedbackConsumer(
         settings=mock_settings,
@@ -81,7 +87,7 @@ def consumer(mock_settings, mock_incident_classifier, mock_security_validator,
         security_validator=mock_security_validator,
         policy_enforcer=mock_policy_enforcer,
         mongodb_client=mock_mongodb_client,
-        metrics=mock_metrics
+        metrics=mock_metrics,
     )
 
 
@@ -106,7 +112,9 @@ class TestIncidentFeedbackConsumerInitialization:
         mock_producer = MagicMock()
         mock_producer.start = AsyncMock()
 
-        with patch('src.consumers.incident_feedback_consumer.instrument_kafka_consumer') as mock_instrument:
+        with patch(
+            "src.consumers.incident_feedback_consumer.instrument_kafka_consumer"
+        ) as mock_instrument:
             mock_instrument.return_value = mock_producer
 
             await consumer.initialize()
@@ -122,19 +130,17 @@ class TestProcessMessage:
     async def test_process_incident_feedback(self, consumer):
         """Deve processar feedback de incidente."""
         incident_data = {
-            'incident_id': 'incident-123',
-            'classification': IncidentClassification.THREAT_DETECTED.value,
-            'severity': IncidentSeverity.HIGH.value,
-            'correlation_id': 'corr-789',
-            'resolution': {
-                'status': 'CONFIRMED'
-            }
+            "incident_id": "incident-123",
+            "classification": IncidentClassification.THREAT_DETECTED.value,
+            "severity": IncidentSeverity.HIGH.value,
+            "correlation_id": "corr-789",
+            "resolution": {"status": "CONFIRMED"},
         }
 
         message = MagicMock()
-        message.value = json.dumps(incident_data).encode('utf-8')
+        message.value = json.dumps(incident_data).encode("utf-8")
         message.headers = []
-        message.topic = 'security-incidents'
+        message.topic = "security-incidents"
         message.partition = 0
         message.offset = 0
 
@@ -148,23 +154,21 @@ class TestProcessMessage:
         await consumer._process_message(message)
 
         # Verificar estatísticas atualizadas
-        assert consumer.incident_stats['THREAT_DETECTED']['total'] == 1
-        assert consumer.incident_stats['THREAT_DETECTED']['true_positives'] == 1
+        assert consumer.incident_stats["THREAT_DETECTED"]["total"] == 1
+        assert consumer.incident_stats["THREAT_DETECTED"]["true_positives"] == 1
 
     @pytest.mark.asyncio
     async def test_process_false_positive(self, consumer):
         """Deve processar falso positivo."""
         incident_data = {
-            'incident_id': 'incident-123',
-            'classification': IncidentClassification.THREAT_DETECTED.value,
-            'severity': IncidentSeverity.MEDIUM.value,
-            'resolution': {
-                'status': 'FALSE_POSITIVE'
-            }
+            "incident_id": "incident-123",
+            "classification": IncidentClassification.THREAT_DETECTED.value,
+            "severity": IncidentSeverity.MEDIUM.value,
+            "resolution": {"status": "FALSE_POSITIVE"},
         }
 
         message = MagicMock()
-        message.value = json.dumps(incident_data).encode('utf-8')
+        message.value = json.dumps(incident_data).encode("utf-8")
         message.headers = []
 
         consumer.mongodb_client = AsyncMock()
@@ -174,21 +178,21 @@ class TestProcessMessage:
         await consumer._process_message(message)
 
         # Verificar falso positivo contabilizado
-        assert consumer.incident_stats['THREAT_DETECTED']['false_positives'] == 1
+        assert consumer.incident_stats["THREAT_DETECTED"]["false_positives"] == 1
 
     @pytest.mark.asyncio
     async def test_update_incident_stats_severity_averaging(self, consumer):
         """Deve calcular média de severidade corretamente."""
         # Primeiro incidente (HIGH = 3.0)
         incident_data_1 = {
-            'incident_id': 'incident-1',
-            'classification': IncidentClassification.THREAT_DETECTED.value,
-            'severity': IncidentSeverity.HIGH.value,
-            'resolution': {'status': 'CONFIRMED'}
+            "incident_id": "incident-1",
+            "classification": IncidentClassification.THREAT_DETECTED.value,
+            "severity": IncidentSeverity.HIGH.value,
+            "resolution": {"status": "CONFIRMED"},
         }
 
         message_1 = MagicMock()
-        message_1.value = json.dumps(incident_data_1).encode('utf-8')
+        message_1.value = json.dumps(incident_data_1).encode("utf-8")
         message_1.headers = []
 
         consumer.mongodb_client = AsyncMock()
@@ -199,20 +203,20 @@ class TestProcessMessage:
 
         # Segundo incidente (CRITICAL = 4.0)
         incident_data_2 = {
-            'incident_id': 'incident-2',
-            'classification': IncidentClassification.THREAT_DETECTED.value,
-            'severity': IncidentSeverity.CRITICAL.value,
-            'resolution': {'status': 'CONFIRMED'}
+            "incident_id": "incident-2",
+            "classification": IncidentClassification.THREAT_DETECTED.value,
+            "severity": IncidentSeverity.CRITICAL.value,
+            "resolution": {"status": "CONFIRMED"},
         }
 
         message_2 = MagicMock()
-        message_2.value = json.dumps(incident_data_2).encode('utf-8')
+        message_2.value = json.dumps(incident_data_2).encode("utf-8")
         message_2.headers = []
 
         await consumer._process_message(message_2)
 
         # Média deve ser (3.0 + 4.0) / 2 = 3.5
-        assert abs(consumer.incident_stats['THREAT_DETECTED']['avg_severity'] - 3.5) < 0.01
+        assert abs(consumer.incident_stats["THREAT_DETECTED"]["avg_severity"] - 3.5) < 0.01
 
 
 class TestAdjustSecurityParameters:
@@ -222,98 +226,90 @@ class TestAdjustSecurityParameters:
     async def test_increase_thresholds_high_fp_rate(self, consumer):
         """Deve aumentar thresholds quando taxa de FP é alta."""
         # Preparar estatísticas
-        consumer.incident_stats['THREAT_DETECTED'] = {
-            'total': 30,
-            'true_positives': 15,
-            'false_positives': 15,  # 50% FP (alta)
-            'false_negatives': 0,
-            'avg_severity': 2.5,
-            'last_updated': datetime.now(timezone.utc)
+        consumer.incident_stats["THREAT_DETECTED"] = {
+            "total": 30,
+            "true_positives": 15,
+            "false_positives": 15,  # 50% FP (alta)
+            "false_negatives": 0,
+            "avg_severity": 2.5,
+            "last_updated": datetime.now(timezone.utc),
         }
 
         incident = {
-            'classification': IncidentClassification.THREAT_DETECTED.value,
-            'severity': 'HIGH'
+            "classification": IncidentClassification.THREAT_DETECTED.value,
+            "severity": "HIGH",
         }
 
-        with patch.object(consumer, '_adjust_detection_thresholds', new=AsyncMock()) as mock_adjust:
+        with patch.object(consumer, "_adjust_detection_thresholds", new=AsyncMock()) as mock_adjust:
             await consumer._adjust_security_parameters(incident)
 
             # Deve aumentar thresholds
-            mock_adjust.assert_called_once_with(
-                'THREAT_DETECTED',
-                'higher',
-                0.1
-            )
+            mock_adjust.assert_called_once_with("THREAT_DETECTED", "higher", 0.1)
 
     @pytest.mark.asyncio
     async def test_decrease_thresholds_low_fp_rate(self, consumer):
         """Deve reduzir thresholds quando taxa de FP é baixa."""
-        consumer.incident_stats['THREAT_DETECTED'] = {
-            'total': 30,
-            'true_positives': 29,
-            'false_positives': 1,  # ~3% FP (baixa)
-            'false_negatives': 0,
-            'avg_severity': 2.5,
-            'last_updated': datetime.now(timezone.utc)
+        consumer.incident_stats["THREAT_DETECTED"] = {
+            "total": 30,
+            "true_positives": 29,
+            "false_positives": 1,  # ~3% FP (baixa)
+            "false_negatives": 0,
+            "avg_severity": 2.5,
+            "last_updated": datetime.now(timezone.utc),
         }
 
         incident = {
-            'classification': IncidentClassification.THREAT_DETECTED.value,
-            'severity': 'HIGH'
+            "classification": IncidentClassification.THREAT_DETECTED.value,
+            "severity": "HIGH",
         }
 
-        with patch.object(consumer, '_adjust_detection_thresholds', new=AsyncMock()) as mock_adjust:
+        with patch.object(consumer, "_adjust_detection_thresholds", new=AsyncMock()) as mock_adjust:
             await consumer._adjust_security_parameters(incident)
 
             # Deve reduzir thresholds
-            mock_adjust.assert_called_once_with(
-                'THREAT_DETECTED',
-                'lower',
-                0.05
-            )
+            mock_adjust.assert_called_once_with("THREAT_DETECTED", "lower", 0.05)
 
     @pytest.mark.asyncio
     async def test_reinforce_policies_high_severity(self, consumer):
         """Deve reforçar políticas quando severidade média é alta."""
-        consumer.incident_stats['THREAT_DETECTED'] = {
-            'total': 30,
-            'true_positives': 20,
-            'false_positives': 5,
-            'false_negatives': 5,
-            'avg_severity': 3.5,  # Alta severidade
-            'last_updated': datetime.now(timezone.utc)
+        consumer.incident_stats["THREAT_DETECTED"] = {
+            "total": 30,
+            "true_positives": 20,
+            "false_positives": 5,
+            "false_negatives": 5,
+            "avg_severity": 3.5,  # Alta severidade
+            "last_updated": datetime.now(timezone.utc),
         }
 
         incident = {
-            'classification': IncidentClassification.THREAT_DETECTED.value,
-            'severity': 'HIGH'
+            "classification": IncidentClassification.THREAT_DETECTED.value,
+            "severity": "HIGH",
         }
 
-        with patch.object(consumer, '_reinforce_policies', new=AsyncMock()) as mock_reinforce:
+        with patch.object(consumer, "_reinforce_policies", new=AsyncMock()) as mock_reinforce:
             await consumer._adjust_security_parameters(incident)
 
             # Deve reforçar políticas
-            mock_reinforce.assert_called_once_with('THREAT_DETECTED')
+            mock_reinforce.assert_called_once_with("THREAT_DETECTED")
 
     @pytest.mark.asyncio
     async def test_wait_for_minimum_samples(self, consumer):
         """Deve esperar por amostragem mínima antes de ajustar."""
-        consumer.incident_stats['THREAT_DETECTED'] = {
-            'total': 10,  # Menos que 20
-            'true_positives': 5,
-            'false_positives': 5,
-            'false_negatives': 0,
-            'avg_severity': 2.5,
-            'last_updated': datetime.now(timezone.utc)
+        consumer.incident_stats["THREAT_DETECTED"] = {
+            "total": 10,  # Menos que 20
+            "true_positives": 5,
+            "false_positives": 5,
+            "false_negatives": 0,
+            "avg_severity": 2.5,
+            "last_updated": datetime.now(timezone.utc),
         }
 
         incident = {
-            'classification': IncidentClassification.THREAT_DETECTED.value,
-            'severity': 'HIGH'
+            "classification": IncidentClassification.THREAT_DETECTED.value,
+            "severity": "HIGH",
         }
 
-        with patch.object(consumer, '_adjust_detection_thresholds', new=AsyncMock()) as mock_adjust:
+        with patch.object(consumer, "_adjust_detection_thresholds", new=AsyncMock()) as mock_adjust:
             await consumer._adjust_security_parameters(incident)
 
             # Não deve ajustar
@@ -327,9 +323,9 @@ class TestStoreFeedback:
     async def test_store_feedback_in_mongodb(self, consumer):
         """Deve armazenar feedback no MongoDB."""
         incident = {
-            'incident_id': 'incident-123',
-            'classification': 'THREAT_DETECTED',
-            'severity': 'HIGH'
+            "incident_id": "incident-123",
+            "classification": "THREAT_DETECTED",
+            "severity": "HIGH",
         }
 
         consumer.mongodb_client = AsyncMock()
@@ -344,7 +340,7 @@ class TestStoreFeedback:
         """Deve lidar gracefully com MongoDB indisponível."""
         consumer.mongodb_client = None
 
-        incident = {'incident_id': 'incident-123'}
+        incident = {"incident_id": "incident-123"}
 
         # Não deve lançar exceção
         await consumer._store_feedback(incident)
@@ -357,37 +353,37 @@ class TestGetFeedbackStats:
         """Deve retornar estatísticas vazias quando não há dados."""
         stats = consumer.get_feedback_stats()
 
-        assert stats['total_incidents'] == 0
-        assert stats['total_true_positives'] == 0
-        assert stats['total_false_positives'] == 0
-        assert stats['global_precision'] == 0.0
+        assert stats["total_incidents"] == 0
+        assert stats["total_true_positives"] == 0
+        assert stats["total_false_positives"] == 0
+        assert stats["global_precision"] == 0.0
 
     def test_get_feedback_stats_with_data(self, consumer):
         """Deve retornar estatísticas corretas."""
-        consumer.incident_stats['THREAT_DETECTED'] = {
-            'total': 20,
-            'true_positives': 15,
-            'false_positives': 3,
-            'false_negatives': 2,
-            'avg_severity': 2.5,
-            'last_updated': datetime.now(timezone.utc)
+        consumer.incident_stats["THREAT_DETECTED"] = {
+            "total": 20,
+            "true_positives": 15,
+            "false_positives": 3,
+            "false_negatives": 2,
+            "avg_severity": 2.5,
+            "last_updated": datetime.now(timezone.utc),
         }
-        consumer.incident_stats['POLICY_VIOLATION'] = {
-            'total': 10,
-            'true_positives': 8,
-            'false_positives': 1,
-            'false_negatives': 1,
-            'avg_severity': 2.0,
-            'last_updated': datetime.now(timezone.utc)
+        consumer.incident_stats["POLICY_VIOLATION"] = {
+            "total": 10,
+            "true_positives": 8,
+            "false_positives": 1,
+            "false_negatives": 1,
+            "avg_severity": 2.0,
+            "last_updated": datetime.now(timezone.utc),
         }
 
         stats = consumer.get_feedback_stats()
 
-        assert stats['total_incidents'] == 30
-        assert stats['total_true_positives'] == 23
-        assert stats['total_false_positives'] == 4
+        assert stats["total_incidents"] == 30
+        assert stats["total_true_positives"] == 23
+        assert stats["total_false_positives"] == 4
         # Precisão global = 23 / (23 + 4) ≈ 0.85
-        assert abs(stats['global_precision'] - 0.85) < 0.01
+        assert abs(stats["global_precision"] - 0.85) < 0.01
 
 
 class TestConsumerLifecycle:
@@ -401,7 +397,9 @@ class TestConsumerLifecycle:
         mock_producer.stop = AsyncMock()
         mock_producer.__aiter__ = AsyncMock(return_value=iter([]))
 
-        with patch('src.consumers.incident_feedback_consumer.instrument_kafka_consumer') as mock_instrument:
+        with patch(
+            "src.consumers.incident_feedback_consumer.instrument_kafka_consumer"
+        ) as mock_instrument:
             mock_instrument.return_value = mock_producer
 
             await consumer.initialize()
