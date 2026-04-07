@@ -1,5 +1,5 @@
 from datetime import datetime
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 from uuid import uuid4
 
@@ -8,8 +8,8 @@ from pydantic import BaseModel, Field
 from .strategic_decision import RiskAssessment
 
 
-class ExceptionType(StrEnum):
-    """Tipos de exceções a guardrails"""
+class ExceptionType(str, Enum):
+    """Tipos de exceções a guardrails (Python 3.10+ compatible)"""
 
     SECURITY_OVERRIDE = "SECURITY_OVERRIDE"
     COMPLIANCE_WAIVER = "COMPLIANCE_WAIVER"
@@ -17,8 +17,8 @@ class ExceptionType(StrEnum):
     RESOURCE_LIMIT_BYPASS = "RESOURCE_LIMIT_BYPASS"
 
 
-class ApprovalStatus(StrEnum):
-    """Status de aprovação de exceção"""
+class ApprovalStatus(str, Enum):
+    """Status de aprovação de exceção (Python 3.10+ compatible)"""
 
     PENDING = "PENDING"
     APPROVED = "APPROVED"

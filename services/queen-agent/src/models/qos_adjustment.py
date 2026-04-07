@@ -1,5 +1,5 @@
 from datetime import datetime
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 from uuid import uuid4
 
@@ -8,8 +8,8 @@ from pydantic import BaseModel, Field
 from src.proto import orchestrator_strategic_pb2
 
 
-class AdjustmentType(StrEnum):
-    """Tipos de ajustes de QoS"""
+class AdjustmentType(str, Enum):
+    """Tipos de ajustes de QoS (Python 3.10+ compatible)"""
 
     INCREASE_PRIORITY = "INCREASE_PRIORITY"
     DECREASE_PRIORITY = "DECREASE_PRIORITY"

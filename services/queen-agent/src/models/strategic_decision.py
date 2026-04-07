@@ -1,15 +1,15 @@
 import hashlib
 import json
 from datetime import datetime
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
 
-class DecisionType(StrEnum):
-    """Tipos de decisões estratégicas"""
+class DecisionType(str, Enum):
+    """Tipos de decisões estratégicas (Python 3.10+ compatible)"""
 
     PRIORITIZATION = "PRIORITIZATION"
     CONFLICT_RESOLUTION = "CONFLICT_RESOLUTION"

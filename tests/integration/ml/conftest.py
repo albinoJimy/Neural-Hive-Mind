@@ -171,7 +171,6 @@ def _check_mongodb_available(uri: str, timeout: float = 2.0) -> bool:
     """Verifica se MongoDB está disponível."""
     try:
         from pymongo import MongoClient
-        from pymongo.errors import ServerSelectionTimeoutError
 
         client = MongoClient(uri, serverSelectionTimeoutMS=int(timeout * 1000))
         client.admin.command('ping')

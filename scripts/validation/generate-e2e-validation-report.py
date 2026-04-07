@@ -373,7 +373,6 @@ This confirms that the protobuf version incompatibility issue has been successfu
         timestamp_validation_rate = stats.get('timestamp_validation_rate', 0)
         typeerrors = self.log_summary.get('typeerrors_detected', 0)
         mean_latency = stats.get('latency_overall', {}).get('mean', 0)
-        total_errors = stats.get('total_errors', 0)
 
         recommendations = []
 
