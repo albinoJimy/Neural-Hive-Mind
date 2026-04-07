@@ -4,3 +4,4 @@
 # Service-specific dependencies
 kubernetes>=28.1.0
 jinja2>=3.1.2
+httpx>=0.24.0
