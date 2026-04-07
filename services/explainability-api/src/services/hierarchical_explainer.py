@@ -6,6 +6,9 @@ Calcula breakdown por nível de senioridade e força de consenso entre especiali
 Explainability API v3 - Task 3
 """
 
+import hashlib
+import json
+from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional
 
 import structlog
@@ -14,6 +17,25 @@ import structlog
 from src.models.seniority import SENIORITY_MULTIPLIERS, SeniorityLevel
 
 logger = structlog.get_logger(__name__)
+
+
+class CacheEntry:
+    """Entrada de cache com TTL."""
+
+    def __init__(self, value: Dict[str, Any], ttl_seconds: int = 300):
+        """
+        Inicializa entrada de cache.
+
+        Args:
+            value: Valor a ser cacheado
+            ttl_seconds: Time-to-live em segundos (default: 5 minutos)
+        """
+        self.value = value
+        self.expires_at = datetime.now(timezone.utc) + timedelta(seconds=ttl_seconds)
+
+    def is_expired(self) -> bool:
+        """Verifica se a entrada expirou."""
+        return datetime.now(timezone.utc) > self.expires_at
 
 
 class HierarchicalExplainer:
@@ -25,18 +47,100 @@ class HierarchicalExplainer:
     - Breakdown por nível de senioridade
     - Força de consenso entre níveis
     - Contribuições individuais rankeadas
+
+    O explainer possui cache interno para explicações frequentes.
     """
 
     # Nível de senioridade padrão para decisões legadas (pré-GAPS-03)
     DEFAULT_SENIORITY_LEVEL = SeniorityLevel.MID_LEVEL
 
-    def __init__(self):
-        """Inicializa o explainer hierárquico."""
+    # Configurações de cache
+    DEFAULT_CACHE_TTL = 300  # 5 minutos
+    DEFAULT_CACHE_SIZE = 100  # Máximo de entradas
+
+    def __init__(self, cache_ttl: int = DEFAULT_CACHE_TTL, cache_size: int = DEFAULT_CACHE_SIZE, enable_cache: bool = True):
+        """
+        Inicializa o explainer hierárquico.
+
+        Args:
+            cache_ttl: Time-to-live do cache em segundos
+            cache_size: Tamanho máximo do cache
+            enable_cache: Habilitar/desabilitar cache
+        """
         self.logger = logger
+        self.cache_ttl = cache_ttl
+        self.cache_size = cache_size
+        self.enable_cache = enable_cache
+        self._cache: Dict[str, CacheEntry] = {}
+        self._cache_hits = 0
+        self._cache_misses = 0
+
+    def _generate_cache_key(self, votes: List[Dict[str, Any]]) -> str:
+        """
+        Gera chave de cache baseada no hash dos votos.
+
+        Args:
+            votes: Lista de votos
+
+        Returns:
+            String hash SHA256 como chave
+        """
+        # Normalizar votos para JSON com chaves ordenadas
+        normalized = json.dumps(votes, sort_keys=True, default=str)
+        return hashlib.sha256(normalized.encode()).hexdigest()
+
+    def _get_from_cache(self, cache_key: str) -> Optional[Dict[str, Any]]:
+        """
+        Busca explicação do cache.
+
+        Args:
+            cache_key: Chave do cache
+
+        Returns:
+            Explicação cacheada ou None se não existir/expirou
+        """
+        if not self.enable_cache:
+            return None
+
+        entry = self._cache.get(cache_key)
+
+        if entry is None:
+            self._cache_misses += 1
+            return None
+
+        if entry.is_expired():
+            # Remover entrada expirada
+            del self._cache[cache_key]
+            self._cache_misses += 1
+            return None
+
+        self._cache_hits += 1
+        return entry.value
+
+    def _store_in_cache(self, cache_key: str, value: Dict[str, Any]) -> None:
+        """
+        Armazena explicação no cache.
+
+        Args:
+            cache_key: Chave do cache
+            value: Explicação a ser cacheada
+        """
+        if not self.enable_cache:
+            return
+
+        # Limpar cache se exceder tamanho máximo
+        if len(self._cache) >= self.cache_size:
+            # Remover entrada mais antiga (FIFO simples)
+            oldest_key = next(iter(self._cache))
+            del self._cache[oldest_key]
+
+        self._cache[cache_key] = CacheEntry(value, self.cache_ttl)
 
     def explain(self, votes: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Gera explicação completa hierárquica para uma decisão.
+
+        Usa cache interno para explicações frequentes.
 
         Args:
             votes: Lista de votos dos especialistas com campos hierárquicos
@@ -55,6 +159,17 @@ class HierarchicalExplainer:
                 "individual_contributions": [],
             }
 
+        # Tentar buscar do cache
+        cache_key = self._generate_cache_key(votes)
+        cached_result = self._get_from_cache(cache_key)
+
+        if cached_result is not None:
+            self.logger.debug("Cache hit for hierarchical explanation", cache_key=cache_key[:8])
+            return cached_result
+
+        # Cache miss - calcular explicação
+        self.logger.debug("Cache miss for hierarchical explanation", cache_key=cache_key[:8])
+
         # Normalizar votos (adicionar campos de senioridade se faltar)
         normalized_votes = self._normalize_votes(votes)
 
@@ -70,13 +185,42 @@ class HierarchicalExplainer:
         # Calcular contribuições individuais
         individual_contributions = self._calculate_individual_contributions(normalized_votes)
 
-        return {
+        result = {
             "hierarchical_breakdown": {
                 "by_level": by_level,
                 "dominant_level": dominant_level,
                 "consensus_strength": consensus_strength,
             },
             "individual_contributions": individual_contributions,
+        }
+
+        # Armazenar no cache
+        self._store_in_cache(cache_key, result)
+
+        return result
+
+    def clear_cache(self) -> None:
+        """Limpa todo o cache."""
+        self._cache.clear()
+        self.logger.info("Cache cleared")
+
+    def get_cache_stats(self) -> Dict[str, Any]:
+        """
+        Retorna estatísticas do cache.
+
+        Returns:
+            Dicionário com size, hits, misses, hit_rate
+        """
+        total_requests = self._cache_hits + self._cache_misses
+        hit_rate = self._cache_hits / total_requests if total_requests > 0 else 0.0
+
+        return {
+            "size": len(self._cache),
+            "max_size": self.cache_size,
+            "hits": self._cache_hits,
+            "misses": self._cache_misses,
+            "hit_rate": hit_rate,
+            "enabled": self.enable_cache,
         }
 
     def _normalize_votes(self, votes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -382,41 +526,6 @@ class HierarchicalExplainer:
             )
 
         return result
-
-    def _calculate_seniority_impact(self, breakdown: Dict[str, Any]) -> float:
-        """Calcula impacto total da senioridade na decisão."""
-        by_level = breakdown.get("by_level", {})
-
-        if not by_level:
-            return 0.0
-
-        # Somar contribuições ponderadas absolutas
-        total_impact = sum(
-            abs(level_data.get("weighted_contribution", 0.0)) for level_data in by_level.values()
-        )
-
-        return total_impact
-
-    def calculate_seniority_weights(self, votes: List[Dict[str, Any]]) -> Dict[str, float]:
-        """
-        Calcula pesos de senioridade para uma lista de votos.
-
-        Args:
-            votes: Lista de votos com campo seniority/seniority_level
-
-        Returns:
-            Dicionário mapeando nível para peso
-        """
-        weights = {}
-
-        for vote in votes:
-            # Tentar diferentes formatos de seniority
-            seniority = vote.get("seniority_level", vote.get("seniority", "mid_level"))
-
-            if seniority not in weights:
-                weights[seniority] = SENIORITY_MULTIPLIERS.get(seniority, 1.0)
-
-        return weights
 
     def _calculate_seniority_impact(self, breakdown: Dict[str, Any]) -> float:
         """Calcula impacto total da senioridade na decisão."""

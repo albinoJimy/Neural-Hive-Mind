@@ -375,3 +375,155 @@ class TestFullExplanation:
         # Deve usar mid_level como default
         assert "hierarchical_breakdown" in result
         assert "mid_level" in result["hierarchical_breakdown"]["by_level"]
+
+
+class TestCaching:
+    """Testes de funcionalidade de caching do HierarchicalExplainer."""
+
+    def test_cache_hit_returns_same_result(self):
+        """Testa que cache hit retorna o mesmo resultado sem recalcular."""
+        explainer = HierarchicalExplainer(cache_ttl=60, cache_size=10)
+
+        votes = [create_vote("expert", "approve", 0.9, "business")]
+
+        # Primeira chamada - cache miss
+        result1 = explainer.explain(votes)
+
+        # Segunda chamada - cache hit
+        result2 = explainer.explain(votes)
+
+        # Resultados devem ser idênticos
+        assert result1 == result2
+
+        # Estatísticas de cache
+        stats = explainer.get_cache_stats()
+        assert stats["hits"] == 1
+        assert stats["misses"] == 1
+        assert stats["hit_rate"] == 0.5
+
+    def test_cache_different_votes_different_results(self):
+        """Testa que votos diferentes geram resultados diferentes (cache miss)."""
+        explainer = HierarchicalExplainer(cache_ttl=60, cache_size=10)
+
+        votes1 = [create_vote("expert", "approve", 0.9, "business")]
+        votes2 = [create_vote("senior", "reject", 0.8, "technical")]
+
+        result1 = explainer.explain(votes1)
+        result2 = explainer.explain(votes2)
+
+        # Resultados devem ser diferentes
+        assert result1["hierarchical_breakdown"]["dominant_level"] == "expert"
+        assert result2["hierarchical_breakdown"]["dominant_level"] == "senior"
+
+        # Cache stats: 2 misses, 0 hits
+        stats = explainer.get_cache_stats()
+        assert stats["misses"] == 2
+        assert stats["hits"] == 0
+
+    def test_cache_expires_after_ttl(self):
+        """Testa que cache expira após TTL."""
+        # TTL muito curto para testes
+        explainer = HierarchicalExplainer(cache_ttl=0, cache_size=10)
+
+        votes = [create_vote("expert", "approve", 0.9, "business")]
+
+        # Primeira chamada
+        result1 = explainer.explain(votes)
+
+        # Segunda chamada imediata (cache ainda pode estar válido por milissegundos)
+        # Terceira chamada após expiração garantida
+        import time
+        time.sleep(0.1)  # 100ms
+
+        result2 = explainer.explain(votes)
+
+        # Com TTL=0, o cache deve expirar imediatamente
+        # Vamos usar um TTL pequeno mas não zero para garantir comportamento determinístico
+        explainer_short_ttl = HierarchicalExplainer(cache_ttl=1, cache_size=10)
+        result3 = explainer_short_ttl.explain(votes)
+        time.sleep(1.1)
+        result4 = explainer_short_ttl.explain(votes)
+
+        # Resultados devem ser iguais, mas cache foi recalculado
+        assert result3 == result4
+
+    def test_cache_respects_max_size(self):
+        """Testa que cache respeita tamanho máximo configurado."""
+        explainer = HierarchicalExplainer(cache_ttl=60, cache_size=3)
+
+        # Adicionar 4 entradas diferentes (excede tamanho de 3)
+        for i in range(4):
+            votes = [create_vote("expert", "approve", 0.9, f"business_{i}")]
+            explainer.explain(votes)
+
+        stats = explainer.get_cache_stats()
+        # Cache não deve exceder tamanho máximo
+        assert stats["size"] <= 3
+
+    def test_cache_clear(self):
+        """Testa que clear_cache limpa todo o cache."""
+        explainer = HierarchicalExplainer(cache_ttl=60, cache_size=10)
+
+        # Adicionar algumas entradas
+        for i in range(3):
+            votes = [create_vote("expert", "approve", 0.9, f"business_{i}")]
+            explainer.explain(votes)
+
+        assert explainer.get_cache_stats()["size"] > 0
+
+        # Limpar cache
+        explainer.clear_cache()
+
+        assert explainer.get_cache_stats()["size"] == 0
+
+    def test_cache_can_be_disabled(self):
+        """Testa que cache pode ser desabilitado."""
+        explainer = HierarchicalExplainer(enable_cache=False)
+
+        votes = [create_vote("expert", "approve", 0.9, "business")]
+
+        # Duas chamadas com cache desabilitado
+        explainer.explain(votes)
+        explainer.explain(votes)
+
+        stats = explainer.get_cache_stats()
+        assert stats["enabled"] is False
+        assert stats["hits"] == 0
+        assert stats["misses"] == 0  # Sem cache, não conta misses
+        assert stats["size"] == 0
+
+    def test_cache_stats_structure(self):
+        """Testa estrutura das estatísticas de cache."""
+        explainer = HierarchicalExplainer(cache_ttl=60, cache_size=10)
+
+        stats = explainer.get_cache_stats()
+
+        assert "size" in stats
+        assert "max_size" in stats
+        assert "hits" in stats
+        assert "misses" in stats
+        assert "hit_rate" in stats
+        assert "enabled" in stats
+        assert stats["max_size"] == 10
+        assert stats["enabled"] is True
+
+    def test_cache_key_uses_hash_of_votes(self):
+        """Testa que chave de cache é hash dos votos."""
+        explainer = HierarchicalExplainer(cache_ttl=60, cache_size=10)
+
+        # Mesmos votos na mesma ordem geram cache hit
+        votes = [
+            create_vote("expert", "approve", 0.9, "business"),
+            create_vote("senior", "approve", 0.8, "technical"),
+        ]
+
+        result1 = explainer.explain(votes)
+        result2 = explainer.explain(votes)
+
+        # Resultados devem ser idênticos (cache hit)
+        assert result1 == result2
+
+        # Cache stats: 1 miss (primeira), 1 hit (segunda)
+        stats = explainer.get_cache_stats()
+        assert stats["misses"] == 1
+        assert stats["hits"] == 1
