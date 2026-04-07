@@ -19,6 +19,9 @@ import structlog
 
 logger = structlog.get_logger()
 
+# Importar tipos do HealthMonitor para retornos
+from .health_monitor import ConnectionStatus, LagStatus
+
 
 class IncidentType(Enum):
     """Tipos de incidentes detectados."""
@@ -144,6 +147,7 @@ class DetectionService:
         memory_duration_seconds: int = 300,
         workflow_timeout_seconds: int = 1800,
         lag_threshold: int = 10000,
+        health_monitor=None,
     ):
         """
         Inicializa o DetectionService.
@@ -156,6 +160,7 @@ class DetectionService:
             memory_duration_seconds: Tempo acima do threshold para considerar leak
             workflow_timeout_seconds: Tempo sem progresso para considerar deadlock
             lag_threshold: Lag de Kafka para alerta
+            health_monitor: Instância do HealthMonitor para verificações de saúde
         """
         self.orchestrator_client = orchestrator_client
         self.k8s_core_v1 = k8s_core_v1
@@ -164,6 +169,7 @@ class DetectionService:
         self.memory_duration_seconds = memory_duration_seconds
         self.workflow_timeout_seconds = workflow_timeout_seconds
         self.lag_threshold = lag_threshold
+        self.health_monitor = health_monitor
 
         # Histórico para detecção de memória
         self._memory_history: Dict[str, List[datetime]] = {}
@@ -554,3 +560,143 @@ class DetectionService:
             except Exception as e:
                 logger.error("detection_service.loop_error", error=str(e))
                 await asyncio.sleep(interval_seconds)
+
+    async def detect_kafka_lag(
+        self,
+        workflow_id: str,
+        consumer_group: str,
+        topic: str,
+        threshold: Optional[int] = None,
+    ) -> LagStatus:
+        """
+        Detecta lag excessivo em consumidor Kafka.
+
+        Delega para HealthMonitor.check_kafka_consumer_lag().
+
+        Args:
+            workflow_id: ID do workflow para rastreamento
+            consumer_group: Grupo de consumidores Kafka
+            topic: Tópico Kafka a verificar
+            threshold: Limite de lag (usa self.lag_threshold se None)
+
+        Returns:
+            LagStatus com resultado da detecção
+        """
+        try:
+            if not self.health_monitor:
+                logger.warning("detection_service.no_health_monitor", workflow_id=workflow_id)
+                from .health_monitor import LagStatus
+
+                return LagStatus(
+                    consumer_group=consumer_group,
+                    topic=topic,
+                    lag=0,
+                    threshold=threshold or self.lag_threshold,
+                    within_threshold=True,
+                )
+
+            lag_threshold = threshold or self.lag_threshold
+
+            logger.info(
+                "detection_service.checking_kafka_lag",
+                workflow_id=workflow_id,
+                consumer_group=consumer_group,
+                topic=topic,
+                threshold=lag_threshold,
+            )
+
+            lag_status = await self.health_monitor.check_kafka_consumer_lag(
+                consumer_group=consumer_group, topic=topic, threshold=lag_threshold
+            )
+
+            logger.info(
+                "detection_service.kafka_lag_checked",
+                workflow_id=workflow_id,
+                lag=lag_status.lag,
+                within_threshold=lag_status.within_threshold,
+            )
+
+            return lag_status
+
+        except Exception as e:
+            logger.error(
+                "detection_service.kafka_lag_check_failed",
+                workflow_id=workflow_id,
+                consumer_group=consumer_group,
+                error=str(e),
+            )
+            from .health_monitor import LagStatus
+
+            return LagStatus(
+                consumer_group=consumer_group,
+                topic=topic,
+                lag=0,
+                threshold=threshold or self.lag_threshold,
+                within_threshold=True,
+            )
+
+    async def detect_database_issues(
+        self,
+        workflow_id: str,
+        connection_string: str,
+        database_type: str = "mongodb",
+    ) -> ConnectionStatus:
+        """
+        Detecta problemas de conexão com banco de dados.
+
+        Delega para HealthMonitor.check_database_connection().
+
+        Args:
+            workflow_id: ID do workflow para rastreamento
+            connection_string: String de conexão do banco
+            database_type: Tipo de banco (mongodb, postgresql, etc.)
+
+        Returns:
+            ConnectionStatus com resultado da detecção
+        """
+        try:
+            if not self.health_monitor:
+                logger.warning("detection_service.no_health_monitor", workflow_id=workflow_id)
+                from .health_monitor import ConnectionStatus
+
+                return ConnectionStatus(
+                    connection_string=connection_string,
+                    connected=False,
+                    database_type=database_type,
+                    error="HealthMonitor not available",
+                )
+
+            logger.info(
+                "detection_service.checking_database_connection",
+                workflow_id=workflow_id,
+                database_type=database_type,
+            )
+
+            connection_status = await self.health_monitor.check_database_connection(
+                connection_string=connection_string, database_type=database_type
+            )
+
+            logger.info(
+                "detection_service.database_connection_checked",
+                workflow_id=workflow_id,
+                connected=connection_status.connected,
+                database_type=database_type,
+            )
+
+            return connection_status
+
+        except Exception as e:
+            logger.error(
+                "detection_service.database_check_failed",
+                workflow_id=workflow_id,
+                database_type=database_type,
+                error=str(e),
+            )
+            from .health_monitor import ConnectionStatus
+
+            return ConnectionStatus(
+                connection_string=connection_string,
+                connected=False,
+                database_type=database_type,
+                error=str(e),
+            )

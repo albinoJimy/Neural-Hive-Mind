@@ -8,7 +8,7 @@ Este módulo testa a detecção de problemas que requerem remediação:
 """
 
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime, timezone, timedelta
 
 from src.services.detection_service import (
@@ -17,6 +17,7 @@ from src.services.detection_service import (
     MemoryStatus,
     RemediationTrigger,
 )
+from src.services.health_monitor import LagStatus, ConnectionStatus
 
 
 @pytest.fixture
@@ -261,3 +262,184 @@ class TestDetectionServiceIntegration:
                 )
 
             assert result["success"] is True
+
+
+class TestDetectionServiceKafkaAndDatabase:
+    """Testes para detecção de Kafka lag e problemas de banco de dados."""
+
+    @pytest.fixture
+    def mock_health_monitor(self):
+        """Fixture do HealthMonitor mock."""
+        mock = MagicMock()
+        mock.check_kafka_consumer_lag = AsyncMock(
+            return_value=LagStatus(
+                consumer_group="workflow-consumers",
+                topic="workflows",
+                lag=5000,
+                threshold=10000,
+                within_threshold=True,
+                partitions={0: 2000, 1: 3000},
+            )
+        )
+        mock.check_database_connection = AsyncMock(
+            return_value=ConnectionStatus(
+                connection_string="mongodb://localhost:27017",
+                connected=True,
+                database_type="mongodb",
+                response_time_ms=5.2,
+            )
+        )
+        return mock
+
+    @pytest.fixture
+    def detection_service_with_health(self, mock_health_monitor):
+        """Fixture do DetectionService com HealthMonitor."""
+        return DetectionService(
+            health_monitor=mock_health_monitor,
+            lag_threshold=10000,
+        )
+
+    @pytest.mark.asyncio
+    async def test_detect_kafka_lag_within_threshold(
+        self, detection_service_with_health, mock_health_monitor
+    ):
+        """Testa detecção de lag Kafka dentro do limite."""
+        status = await detection_service_with_health.detect_kafka_lag(
+            workflow_id="wf-123",
+            consumer_group="workflow-consumers",
+            topic="workflows",
+        )
+
+        assert status.within_threshold is True
+        assert status.lag == 5000
+        assert status.consumer_group == "workflow-consumers"
+        mock_health_monitor.check_kafka_consumer_lag.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_detect_kafka_lag_exceeds_threshold(
+        self, detection_service_with_health, mock_health_monitor
+    ):
+        """Testa detecção de lag Kafka acima do limite."""
+        mock_health_monitor.check_kafka_consumer_lag = AsyncMock(
+            return_value=LagStatus(
+                consumer_group="workflow-consumers",
+                topic="workflows",
+                lag=15000,
+                threshold=10000,
+                within_threshold=False,
+                partitions={0: 7500, 1: 7500},
+            )
+        )
+
+        status = await detection_service_with_health.detect_kafka_lag(
+            workflow_id="wf-123",
+            consumer_group="workflow-consumers",
+            topic="workflows",
+        )
+
+        assert status.within_threshold is False
+        assert status.lag == 15000
+
+    @pytest.mark.asyncio
+    async def test_detect_kafka_lag_custom_threshold(
+        self, detection_service_with_health, mock_health_monitor
+    ):
+        """Testa detecção de lag Kafka com limite customizado."""
+        mock_health_monitor.check_kafka_consumer_lag = AsyncMock(
+            return_value=LagStatus(
+                consumer_group="workflow-consumers",
+                topic="workflows",
+                lag=15000,
+                threshold=20000,
+                within_threshold=True,
+                partitions={},
+            )
+        )
+
+        status = await detection_service_with_health.detect_kafka_lag(
+            workflow_id="wf-123",
+            consumer_group="workflow-consumers",
+            topic="workflows",
+            threshold=20000,
+        )
+
+        assert status.within_threshold is True
+        assert status.threshold == 20000
+
+    @pytest.mark.asyncio
+    async def test_detect_kafka_lag_no_health_monitor(self):
+        """Testa comportamento quando HealthMonitor não está disponível."""
+        detection_service = DetectionService(health_monitor=None)
+
+        status = await detection_service.detect_kafka_lag(
+            workflow_id="wf-123",
+            consumer_group="workflow-consumers",
+            topic="workflows",
+        )
+
+        assert status.within_threshold is True
+        assert status.lag == 0
+
+    @pytest.mark.asyncio
+    async def test_detect_database_issues_connected(
+        self, detection_service_with_health, mock_health_monitor
+    ):
+        """Testa detecção de conexão com banco de dados (conectado)."""
+        status = await detection_service_with_health.detect_database_issues(
+            workflow_id="wf-123",
+            connection_string="mongodb://localhost:27017",
+            database_type="mongodb",
+        )
+
+        assert status.connected is True
+        assert status.database_type == "mongodb"
+        mock_health_monitor.check_database_connection.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_detect_database_issues_not_connected(
+        self, detection_service_with_health, mock_health_monitor
+    ):
+        """Testa detecção de conexão com banco de dados (não conectado)."""
+        mock_health_monitor.check_database_connection = AsyncMock(
+            return_value=ConnectionStatus(
+                connection_string="postgresql://localhost:5432/nhm",
+                connected=False,
+                database_type="postgresql",
+                error="Connection refused",
+            )
+        )
+
+        status = await detection_service_with_health.detect_database_issues(
+            workflow_id="wf-123",
+            connection_string="postgresql://localhost:5432/nhm",
+            database_type="postgresql",
+        )
+
+        assert status.connected is False
+        assert status.error == "Connection refused"
+
+    @pytest.mark.asyncio
+    async def test_detect_database_issues_mongodb(self, detection_service_with_health):
+        """Testa detecção de conexão com MongoDB."""
+        status = await detection_service_with_health.detect_database_issues(
+            workflow_id="wf-123",
+            connection_string="mongodb://localhost:27017/nhm",
+            database_type="mongodb",
+        )
+
+        assert status.database_type == "mongodb"
+        assert status.connected is True
+
+    @pytest.mark.asyncio
+    async def test_detect_database_issues_no_health_monitor(self):
+        """Testa comportamento quando HealthMonitor não está disponível."""
+        detection_service = DetectionService(health_monitor=None)
+
+        status = await detection_service.detect_database_issues(
+            workflow_id="wf-123",
+            connection_string="mongodb://localhost:27017",
+            database_type="mongodb",
+        )
+
+        assert status.connected is False
+        assert status.error == "HealthMonitor not available"
