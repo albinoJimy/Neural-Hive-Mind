@@ -1,4 +1,3 @@
-import json
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 from uuid import UUID, uuid4
@@ -134,9 +133,6 @@ class RegistryService:
             agent_info = await self.redis_client.get_agent(agent_id)
             if not agent_info:
                 raise ValueError(f"Agente {agent_id} não encontrado")
-
-            # Guardar status anterior para detectar mudança
-            old_status = agent_info.status
 
             # Atualizar last_seen
             agent_info.last_seen = int(datetime.now(timezone.utc).timestamp())
