@@ -9,7 +9,7 @@ from typing import Dict, Any, Optional, Type
 from enum import Enum
 import grpc
 
-from .base import NeuralHiveError, error_code, ErrorContext
+from .base import NeuralHiveError, ErrorContext
 
 
 class GRPCErrorCode:
