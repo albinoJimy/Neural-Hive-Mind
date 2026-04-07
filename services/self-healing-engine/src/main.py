@@ -17,6 +17,7 @@ from src.clients.service_registry_client import ServiceRegistryClient
 from src.config.settings import get_settings
 from src.consumers.orchestration_incident_consumer import OrchestrationIncidentConsumer
 from src.consumers.remediation_consumer import RemediationConsumer
+from src.services.detection_service import DetectionService
 from src.services.playbook_executor import PlaybookExecutor
 from src.services.remediation_manager import RemediationManager
 
@@ -216,6 +217,59 @@ async def lifespan(app: FastAPI):
         app.state.chaos_engine = None
         logger.info("self_healing_engine.chaos_engine_disabled")
 
+    # Initialize Detection Service (optional)
+    detection_service = None
+    detection_task = None
+    if settings.detection_enabled:
+        logger.info("self_healing_engine.initializing_detection_service")
+
+        # Parse workflows and pods from settings
+        workflows = [
+            w.strip()
+            for w in settings.detection_workflows.split(",")
+            if w.strip()
+        ] if settings.detection_workflows else []
+
+        pods = []
+        if settings.detection_pods:
+            for pod_spec in settings.detection_pods.split(","):
+                if ":" in pod_spec:
+                    pod_name, namespace = pod_spec.strip().split(":", 1)
+                    pods.append((pod_name.strip(), namespace.strip()))
+
+        logger.info(
+            "self_healing_engine.detection_config",
+            workflow_count=len(workflows),
+            pod_count=len(pods),
+            interval_seconds=settings.detection_interval_seconds,
+        )
+
+        detection_service = DetectionService(
+            orchestrator_client=orchestrator_client,
+            memory_threshold_percent=settings.detection_memory_threshold_percent,
+            memory_duration_seconds=settings.detection_memory_duration_seconds,
+            workflow_timeout_seconds=settings.detection_workflow_timeout_seconds,
+        )
+
+        # Store in app state for access in endpoints
+        app.state.detection_service = detection_service
+
+        # Start detection loop as background task
+        detection_task = asyncio.create_task(
+            detection_service.run_detection_loop(
+                workflows=workflows,
+                pods=pods,
+                interval_seconds=settings.detection_interval_seconds,
+            )
+        )
+        app.state.detection_task = detection_task
+
+        logger.info("self_healing_engine.detection_loop_started")
+    else:
+        app.state.detection_service = None
+        app.state.detection_task = None
+        logger.info("self_healing_engine.detection_disabled")
+
     logger.info("self_healing_engine.startup_complete")
 
     yield
@@ -261,6 +315,16 @@ async def lifespan(app: FastAPI):
     if chaos_engine:
         logger.info("self_healing_engine.closing_chaos_engine")
         await chaos_engine.close()
+
+    # Cancel detection loop
+    detection_task = getattr(app.state, "detection_task", None)
+    if detection_task:
+        logger.info("self_healing_engine.cancelling_detection_loop")
+        detection_task.cancel()
+        try:
+            await detection_task
+        except asyncio.CancelledError:
+            logger.info("self_healing_engine.detection_loop_cancelled")
 
     logger.info("self_healing_engine.shutdown_complete")
 

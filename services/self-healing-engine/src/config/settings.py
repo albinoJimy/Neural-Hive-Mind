@@ -80,6 +80,15 @@ class Settings(BaseSettings):
     chaos_require_opa_approval: bool = True
     chaos_blast_radius_limit: int = 5
 
+    # Detection Loop Config
+    detection_enabled: bool = False  # Disabled by default, enable explicitly
+    detection_interval_seconds: int = 60
+    detection_workflows: str = ""  # Comma-separated workflow IDs
+    detection_pods: str = ""  # Comma-separated pod:namespace pairs
+    detection_memory_threshold_percent: float = 90.0
+    detection_memory_duration_seconds: int = 300
+    detection_workflow_timeout_seconds: int = 1800
+
     @model_validator(mode="after")
     def validate_chaos_in_production(self) -> "Settings":
         """
