@@ -15,7 +15,24 @@ from typing import Any, Dict, List, Optional
 
 import structlog
 
+from neural_hive_observability import get_tracer
+
 logger = structlog.get_logger()
+_tracer = get_tracer()
+
+# Helper para spans que funcionam mesmo sem tracer configurado
+def _start_span(name):
+    """Inicia um span OTEL, ou noop context se tracer indisponível."""
+    if _tracer is None:
+        from contextlib import nullcontext
+        return nullcontext()
+    return _tracer.start_as_current_span(name)
+
+# Helper para set_attribute seguro
+def _set_span_attr(span, key, value):
+    """Define atributo no span apenas se span não é noop."""
+    if span is not None and hasattr(span, 'set_attribute'):
+        span.set_attribute(key, value)
 
 
 class IncidentType(Enum):
@@ -325,87 +342,96 @@ class DetectionService:
         Returns:
             DeadlockStatus com resultado da detecção
         """
-        try:
-            if not self.orchestrator_client:
-                logger.warning("detection_service.no_orchestrator_client")
-                return DeadlockStatus(
-                    workflow_id=workflow_id,
-                    has_deadlock=False,
-                    metadata={"error": "Orchestrator client not available"},
+        with _start_span("detection.deadlock_check") as span:
+            _set_span_attr(span,"neural.hive.workflow_id", workflow_id)
+            _set_span_attr(span,"neural.hive.detection_type", "deadlock")
+
+            try:
+                if not self.orchestrator_client:
+                    logger.warning("detection_service.no_orchestrator_client")
+                    return DeadlockStatus(
+                        workflow_id=workflow_id,
+                        has_deadlock=False,
+                        metadata={"error": "Orchestrator client not available"},
+                    )
+
+                response = await self.orchestrator_client.get_workflow_status(
+                    workflow_id=workflow_id, include_tickets=True
                 )
 
-            response = await self.orchestrator_client.get_workflow_status(
-                workflow_id=workflow_id, include_tickets=True
-            )
-
-            # Se veio como mock, pode vir various formatos
-            if isinstance(response, dict):
-                status = response.get("status", "")
-                last_progress = response.get("last_progress_at")
-                tickets = response.get("tickets", [])
-            else:
-                # gRPC response object
-                status = getattr(response, "status", "")
-                last_progress = getattr(response, "last_progress_at", None)
-                tickets = getattr(response, "tickets", [])
-
-            # Verificar se há progresso recente
-            now = datetime.now(timezone.utc)
-            stuck_duration = 0
-            suspected_tickets = []
-
-            if last_progress:
-                try:
-                    if isinstance(last_progress, str):
-                        progress_time = datetime.fromisoformat(last_progress.replace("Z", "+00:00"))
-                    else:
-                        progress_time = last_progress
-
-                    stuck_duration = int((now - progress_time).total_seconds())
-                except Exception:
-                    stuck_duration = 0
-
-            # Verificar tickets presos
-            for ticket in tickets:
-                if isinstance(ticket, dict):
-                    ticket_status = ticket.get("status")
-                    ticket_id = ticket.get("ticket_id")
-                    updated_at = ticket.get("updated_at")
+                # Se veio como mock, pode vir various formatos
+                if isinstance(response, dict):
+                    status = response.get("status", "")
+                    last_progress = response.get("last_progress_at")
+                    tickets = response.get("tickets", [])
                 else:
-                    ticket_status = getattr(ticket, "status", None)
-                    ticket_id = getattr(ticket, "ticket_id", None)
-                    updated_at = getattr(ticket, "updated_at", None)
+                    # gRPC response object
+                    status = getattr(response, "status", "")
+                    last_progress = getattr(response, "last_progress_at", None)
+                    tickets = getattr(response, "tickets", [])
 
-                if ticket_status == "IN_PROGRESS" and updated_at:
+                # Verificar se há progresso recente
+                now = datetime.now(timezone.utc)
+                stuck_duration = 0
+                suspected_tickets = []
+
+                if last_progress:
                     try:
-                        if isinstance(updated_at, str):
-                            ticket_time = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
+                        if isinstance(last_progress, str):
+                            progress_time = datetime.fromisoformat(last_progress.replace("Z", "+00:00"))
                         else:
-                            ticket_time = updated_at
+                            progress_time = last_progress
 
-                        ticket_stuck = (now - ticket_time).total_seconds()
-                        if ticket_stuck > 1800:  # 30 minutos
-                            suspected_tickets.append(ticket_id)
+                        stuck_duration = int((now - progress_time).total_seconds())
                     except Exception:
-                        pass
+                        stuck_duration = 0
 
-            has_deadlock = status == "RUNNING" and stuck_duration >= self.workflow_timeout_seconds
+                # Verificar tickets presos
+                for ticket in tickets:
+                    if isinstance(ticket, dict):
+                        ticket_status = ticket.get("status")
+                        ticket_id = ticket.get("ticket_id")
+                        updated_at = ticket.get("updated_at")
+                    else:
+                        ticket_status = getattr(ticket, "status", None)
+                        ticket_id = getattr(ticket, "ticket_id", None)
+                        updated_at = getattr(ticket, "updated_at", None)
 
-            return DeadlockStatus(
-                workflow_id=workflow_id,
-                has_deadlock=has_deadlock,
-                stuck_duration_seconds=stuck_duration,
-                suspected_tickets=suspected_tickets,
-                metadata={"workflow_status": status, "ticket_count": len(tickets)},
-            )
+                    if ticket_status == "IN_PROGRESS" and updated_at:
+                        try:
+                            if isinstance(updated_at, str):
+                                ticket_time = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
+                            else:
+                                ticket_time = updated_at
 
-        except Exception as e:
-            logger.error(
-                "detection_service.deadlock_check_failed", workflow_id=workflow_id, error=str(e)
-            )
-            return DeadlockStatus(
-                workflow_id=workflow_id, has_deadlock=False, metadata={"error": str(e)}
-            )
+                            ticket_stuck = (now - ticket_time).total_seconds()
+                            if ticket_stuck > 1800:  # 30 minutos
+                                suspected_tickets.append(ticket_id)
+                        except Exception:
+                            pass
+
+                has_deadlock = status == "RUNNING" and stuck_duration >= self.workflow_timeout_seconds
+
+                # Adicionar atributos ao span
+                _set_span_attr(span,"neural.hive.has_deadlock", str(has_deadlock))
+                _set_span_attr(span,"neural.hive.stuck_duration_seconds", stuck_duration)
+                _set_span_attr(span,"neural.hive.suspected_ticket_count", len(suspected_tickets))
+
+                return DeadlockStatus(
+                    workflow_id=workflow_id,
+                    has_deadlock=has_deadlock,
+                    stuck_duration_seconds=stuck_duration,
+                    suspected_tickets=suspected_tickets,
+                    metadata={"workflow_status": status, "ticket_count": len(tickets)},
+                )
+
+            except Exception as e:
+                logger.error(
+                    "detection_service.deadlock_check_failed", workflow_id=workflow_id, error=str(e)
+                )
+                return DeadlockStatus(
+                    workflow_id=workflow_id, has_deadlock=False, metadata={"error": str(e)}
+                )
 
     async def detect_memory_leak(
         self,
@@ -431,115 +457,125 @@ class DetectionService:
         Returns:
             MemoryStatus com resultado da detecção
         """
-        try:
-            # Obter métricas do pod via Kubernetes Metrics API
-            if self.k8s_custom_api:
-                metrics = await self._get_pod_metrics(pod_name, namespace)
-            else:
-                logger.warning("detection_service.no_k8s_metrics_api")
-                return MemoryStatus(
-                    pod_name=pod_name,
-                    namespace=namespace,
-                    has_leak=False,
-                    usage_bytes=0,
-                    usage_percent=0.0,
-                    limit_bytes=memory_limit_bytes,
-                    metadata={"error": "Metrics API not available"},
-                )
+        with _start_span("detection.memory_leak_check") as span:
+            _set_span_attr(span,"neural.hive.pod_name", pod_name)
+            _set_span_attr(span,"neural.hive.namespace", namespace)
+            _set_span_attr(span,"neural.hive.detection_type", "memory_leak")
 
-            usage_bytes = 0
-            target_container = container_name
+            try:
+                # Obter métricas do pod via Kubernetes Metrics API
+                if self.k8s_custom_api:
+                    metrics = await self._get_pod_metrics(pod_name, namespace)
+                else:
+                    logger.warning("detection_service.no_k8s_metrics_api")
+                    return MemoryStatus(
+                        pod_name=pod_name,
+                        namespace=namespace,
+                        has_leak=False,
+                        usage_bytes=0,
+                        usage_percent=0.0,
+                        limit_bytes=memory_limit_bytes,
+                        metadata={"error": "Metrics API not available"},
+                    )
 
-            for container in metrics.get("containers", []):
-                c_name = container.get("name")
-                if container_name is None or c_name == container_name:
-                    mem_str = container.get("usage", {}).get("memory", "0")
-                    usage_bytes = self._parse_memory_bytes(mem_str)
+                usage_bytes = 0
+                target_container = container_name
+
+                for container in metrics.get("containers", []):
+                    c_name = container.get("name")
+                    if container_name is None or c_name == container_name:
+                        mem_str = container.get("usage", {}).get("memory", "0")
+                        usage_bytes = self._parse_memory_bytes(mem_str)
                     target_container = c_name
                     break
 
-            usage_percent = (
-                (usage_bytes / memory_limit_bytes) * 100 if memory_limit_bytes > 0 else 0
-            )
+                usage_percent = (
+                    (usage_bytes / memory_limit_bytes) * 100 if memory_limit_bytes > 0 else 0
+                )
 
-            # Verificar se está acima do threshold
-            above_threshold = usage_percent >= self.memory_threshold_percent
+                # Verificar se está acima do threshold
+                above_threshold = usage_percent >= self.memory_threshold_percent
 
-            has_leak = False
-            duration_above = 0
-            now = datetime.now(timezone.utc)
+                has_leak = False
+                duration_above = 0
+                now = datetime.now(timezone.utc)
 
-            if above_threshold:
-                key = f"{namespace}/{pod_name}/{target_container or 'main'}"
+                if above_threshold:
+                    key = f"{namespace}/{pod_name}/{target_container or 'main'}"
 
-                # Armazenar leitura no Redis (se disponível)
-                if self.redis_client:
-                    await self._store_memory_reading(
-                        key=key,
-                        timestamp=now,
-                        usage_bytes=usage_bytes,
-                        usage_percent=usage_percent,
-                    )
+                    # Armazenar leitura no Redis (se disponível)
+                    if self.redis_client:
+                        await self._store_memory_reading(
+                            key=key,
+                            timestamp=now,
+                            usage_bytes=usage_bytes,
+                            usage_percent=usage_percent,
+                        )
 
-                    # Obter historico do Redis
-                    history = await self._get_memory_history(
-                        key, since_seconds=self.memory_duration_seconds * 2
-                    )
+                        # Obter historico do Redis
+                        history = await self._get_memory_history(
+                            key, since_seconds=self.memory_duration_seconds * 2
+                        )
 
-                    if history:
-                        first_timestamp = history[0]["timestamp"]
-                        try:
-                            if isinstance(first_timestamp, str):
-                                first_time = datetime.fromisoformat(
-                                    first_timestamp.replace("Z", "+00:00")
-                                )
-                            else:
-                                first_time = first_timestamp
-                            duration_above = int((now - first_time).total_seconds())
-                        except Exception:
-                            duration_above = 0
+                        if history:
+                            first_timestamp = history[0]["timestamp"]
+                            try:
+                                if isinstance(first_timestamp, str):
+                                    first_time = datetime.fromisoformat(
+                                        first_timestamp.replace("Z", "+00:00")
+                                    )
+                                else:
+                                    first_time = first_timestamp
+                                duration_above = int((now - first_time).total_seconds())
+                            except Exception:
+                                duration_above = 0
 
-                        if duration_above >= self.memory_duration_seconds:
-                            has_leak = True
+                            if duration_above >= self.memory_duration_seconds:
+                                has_leak = True
+                        else:
+                            # Fallback para historico em memoria
+                            if key not in self._memory_history:
+                                self._memory_history[key] = []
+                            self._memory_history[key].append(now)
+                            cutoff = now - timedelta(seconds=self.memory_duration_seconds * 2)
+                            self._memory_history[key] = [
+                                t for t in self._memory_history[key] if t > cutoff
+                            ]
+                            if self._memory_history[key]:
+                                first_above = self._memory_history[key][0]
+                                duration_above = int((now - first_above).total_seconds())
+                                if duration_above >= self.memory_duration_seconds:
+                                    has_leak = True
                     else:
-                        # Fallback para historico em memoria
+                        # Sem Redis - usar historico em memoria
                         if key not in self._memory_history:
                             self._memory_history[key] = []
+
                         self._memory_history[key].append(now)
+
                         cutoff = now - timedelta(seconds=self.memory_duration_seconds * 2)
-                        self._memory_history[key] = [
-                            t for t in self._memory_history[key] if t > cutoff
-                        ]
+                        self._memory_history[key] = [t for t in self._memory_history[key] if t > cutoff]
+
                         if self._memory_history[key]:
                             first_above = self._memory_history[key][0]
                             duration_above = int((now - first_above).total_seconds())
+
                             if duration_above >= self.memory_duration_seconds:
                                 has_leak = True
-                else:
-                    # Sem Redis - usar historico em memoria
-                    if key not in self._memory_history:
-                        self._memory_history[key] = []
 
-                    self._memory_history[key].append(now)
+                # Obter estatisticas do historico (se Redis disponivel)
+                history_stats = {}
+                if self.redis_client:
+                    history_stats = await self._get_memory_history_stats(
+                        f"{namespace}/{pod_name}/{target_container or 'main'}"
+                    )
 
-                    cutoff = now - timedelta(seconds=self.memory_duration_seconds * 2)
-                    self._memory_history[key] = [t for t in self._memory_history[key] if t > cutoff]
+                # Adicionar atributos ao span
+                _set_span_attr(span,"neural.hive.has_leak", str(has_leak))
+                _set_span_attr(span,"neural.hive.usage_percent", round(usage_percent, 2))
+                _set_span_attr(span,"neural.hive.duration_above_threshold", duration_above)
 
-                    if self._memory_history[key]:
-                        first_above = self._memory_history[key][0]
-                        duration_above = int((now - first_above).total_seconds())
-
-                        if duration_above >= self.memory_duration_seconds:
-                            has_leak = True
-
-            # Obter estatisticas do historico (se Redis disponivel)
-            history_stats = {}
-            if self.redis_client:
-                history_stats = await self._get_memory_history_stats(
-                    f"{namespace}/{pod_name}/{target_container or 'main'}"
-                )
-
-            return MemoryStatus(
+                return MemoryStatus(
                 pod_name=pod_name,
                 namespace=namespace,
                 has_leak=has_leak,
@@ -557,22 +593,22 @@ class DetectionService:
                 } if history_stats else {},
             )
 
-        except Exception as e:
-            logger.error(
-                "detection_service.memory_leak_check_failed",
-                pod_name=pod_name,
-                namespace=namespace,
-                error=str(e),
-            )
-            return MemoryStatus(
-                pod_name=pod_name,
-                namespace=namespace,
-                has_leak=False,
-                usage_bytes=0,
-                usage_percent=0.0,
-                limit_bytes=memory_limit_bytes,
-                metadata={"error": str(e)},
-            )
+            except Exception as e:
+                logger.error(
+                    "detection_service.memory_leak_check_failed",
+                    pod_name=pod_name,
+                    namespace=namespace,
+                    error=str(e),
+                )
+                return MemoryStatus(
+                    pod_name=pod_name,
+                    namespace=namespace,
+                    has_leak=False,
+                    usage_bytes=0,
+                    usage_percent=0.0,
+                    limit_bytes=memory_limit_bytes,
+                    metadata={"error": str(e)},
+                )
 
     async def _get_pod_metrics(self, pod_name: str, namespace: str) -> Dict[str, Any]:
         """Obtém métricas de um pod via Kubernetes Metrics API."""
@@ -627,82 +663,91 @@ class DetectionService:
         Returns:
             Resultado da execução da remediação
         """
-        logger.info(
-            "detection_service.triggering_remediation",
-            incident_type=trigger.incident_type,
-            severity=trigger.severity,
-        )
-
-        try:
-            # Selecionar playbook baseado no tipo de incidente
-            playbook_name = trigger.playbook_name or self._get_playbook_for_incident(
-                trigger.incident_type
-            )
-
-            if not playbook_executor:
-                logger.warning("detection_service.no_playbook_executor")
-                return {"success": False, "error": "Playbook executor not available"}
-
-            # Validar estrutura do playbook antes da execução
-            if hasattr(playbook_executor, "validate_playbook_structure"):
-                validation = playbook_executor.validate_playbook_structure(playbook_name)
-                if not validation.get("valid"):
-                    logger.error(
-                        "detection_service.playbook_validation_failed",
-                        playbook=playbook_name,
-                        errors=validation.get("errors"),
-                    )
-                    return {
-                        "success": False,
-                        "error": "Playbook structure validation failed",
-                        "playbook": playbook_name,
-                        "validation_errors": validation.get("errors"),
-                    }
-
-                logger.debug(
-                    "detection_service.playbook_validation_passed",
-                    playbook=playbook_name,
-                    action_count=validation.get("action_count"),
-                )
-
-            # Preparar contexto
-            context = {
-                "incident_type": trigger.incident_type,
-                "severity": trigger.severity,
-                "detected_at": trigger.detected_at.isoformat(),
-            }
-
-            if trigger.workflow_id:
-                context["workflow_id"] = trigger.workflow_id
-            if trigger.pod_name:
-                context["pod_name"] = trigger.pod_name
-                context["namespace"] = trigger.namespace
-            if trigger.service_name:
-                context["service_name"] = trigger.service_name
-            if trigger.consumer_group:
-                context["consumer_group"] = trigger.consumer_group
-                context["topic"] = trigger.topic
-
-            # Executar playbook
-            result = await playbook_executor.execute_playbook(
-                playbook_name=playbook_name, context=context
-            )
+        with _start_span("remediation.trigger") as span:
+            _set_span_attr(span,"neural.hive.incident_type", trigger.incident_type)
+            _set_span_attr(span,"neural.hive.severity", trigger.severity.value if isinstance(trigger.severity, Severity) else trigger.severity)
 
             logger.info(
-                "detection_service.remediation_completed",
-                playbook=playbook_name,
-                success=result.get("success"),
-            )
-
-            return result
-
-        except Exception as e:
-            logger.error(
-                "detection_service.remediation_failed",
+                "detection_service.triggering_remediation",
                 incident_type=trigger.incident_type,
-                error=str(e),
+                severity=trigger.severity,
             )
-            return {"success": False, "error": str(e)}
+
+            try:
+                # Selecionar playbook baseado no tipo de incidente
+                playbook_name = trigger.playbook_name or self._get_playbook_for_incident(
+                    trigger.incident_type
+                )
+
+                if not playbook_executor:
+                    logger.warning("detection_service.no_playbook_executor")
+                    return {"success": False, "error": "Playbook executor not available"}
+
+                # Validar estrutura do playbook antes da execução
+                if hasattr(playbook_executor, "validate_playbook_structure"):
+                    validation = playbook_executor.validate_playbook_structure(playbook_name)
+                    if not validation.get("valid"):
+                        logger.error(
+                            "detection_service.playbook_validation_failed",
+                            playbook=playbook_name,
+                            errors=validation.get("errors"),
+                        )
+                        return {
+                            "success": False,
+                            "error": "Playbook structure validation failed",
+                            "playbook": playbook_name,
+                            "validation_errors": validation.get("errors"),
+                        }
+
+                    logger.debug(
+                        "detection_service.playbook_validation_passed",
+                        playbook=playbook_name,
+                        action_count=validation.get("action_count"),
+                    )
+
+                # Preparar contexto
+                context = {
+                    "incident_type": trigger.incident_type,
+                    "severity": trigger.severity,
+                    "detected_at": trigger.detected_at.isoformat(),
+                }
+
+                if trigger.workflow_id:
+                    context["workflow_id"] = trigger.workflow_id
+                if trigger.pod_name:
+                    context["pod_name"] = trigger.pod_name
+                    context["namespace"] = trigger.namespace
+                if trigger.service_name:
+                    context["service_name"] = trigger.service_name
+                if trigger.consumer_group:
+                    context["consumer_group"] = trigger.consumer_group
+                    context["topic"] = trigger.topic
+
+                # Executar playbook
+                result = await playbook_executor.execute_playbook(
+                    playbook_name=playbook_name, context=context
+                )
+
+                logger.info(
+                    "detection_service.remediation_completed",
+                    playbook=playbook_name,
+                    success=result.get("success"),
+                )
+
+                # Adicionar resultado ao span
+                _set_span_attr(span,"neural.hive.remediation_success", str(result.get("success", False)))
+                _set_span_attr(span,"neural.hive.playbook_name", playbook_name)
+
+                return result
+
+            except Exception as e:
+                logger.error(
+                    "detection_service.remediation_failed",
+                    incident_type=trigger.incident_type,
+                    error=str(e),
+                )
+                _set_span_attr(span,"neural.hive.remediation_error", str(e))
+                return {"success": False, "error": str(e)}
 
     def _get_playbook_for_incident(self, incident_type: str) -> str:
         """Retorna o playbook apropriado para o tipo de incidente."""
@@ -734,44 +779,57 @@ class DetectionService:
         )
 
         while True:
-            try:
-                # Verificar workflows
-                for workflow_id in workflows:
-                    status = await self.detect_deadlocks(workflow_id)
-                    if status.has_deadlock:
-                        trigger = RemediationTrigger(
-                            incident_type="deadlock",
-                            severity="high",
-                            detected_at=datetime.now(timezone.utc),
-                            workflow_id=workflow_id,
-                            metadata={"stuck_duration_seconds": status.stuck_duration_seconds},
+            with _start_span("detection.loop_iteration") as span:
+                _set_span_attr(span,"neural.hive.workflow_count", len(workflows))
+                _set_span_attr(span,"neural.hive.pod_count", len(pods))
+                detection_count = 0
+                remediation_count = 0
+
+                try:
+                    # Verificar workflows
+                    for workflow_id in workflows:
+                        status = await self.detect_deadlocks(workflow_id)
+                        detection_count += 1
+                        if status.has_deadlock:
+                            trigger = RemediationTrigger(
+                                incident_type="deadlock",
+                                severity="high",
+                                detected_at=datetime.now(timezone.utc),
+                                workflow_id=workflow_id,
+                                metadata={"stuck_duration_seconds": status.stuck_duration_seconds},
+                            )
+                            await self.trigger_remediation(trigger)
+                            remediation_count += 1
+
+                    # Verificar pods
+                    for pod_name, namespace in pods:
+                        # Obter limit de memória do pod
+                        # (simplificado - na prática viria do pod spec)
+                        limit_bytes = 1073741824  # 1GB default
+
+                        status = await self.detect_memory_leak(
+                            pod_name=pod_name, namespace=namespace, memory_limit_bytes=limit_bytes
                         )
-                        await self.trigger_remediation(trigger)
+                        detection_count += 1
+                        if status.has_leak:
+                            trigger = RemediationTrigger(
+                                incident_type="memory_leak",
+                                severity="medium",
+                                detected_at=datetime.now(timezone.utc),
+                                pod_name=pod_name,
+                                namespace=namespace,
+                            )
+                            await self.trigger_remediation(trigger)
+                            remediation_count += 1
 
-                # Verificar pods
-                for pod_name, namespace in pods:
-                    # Obter limit de memória do pod
-                    # (simplificado - na prática viria do pod spec)
-                    limit_bytes = 1073741824  # 1GB default
+                    _set_span_attr(span,"neural.hive.detection_count", detection_count)
+                    _set_span_attr(span,"neural.hive.remediation_count", remediation_count)
 
-                    status = await self.detect_memory_leak(
-                        pod_name=pod_name, namespace=namespace, memory_limit_bytes=limit_bytes
-                    )
-                    if status.has_leak:
-                        trigger = RemediationTrigger(
-                            incident_type="memory_leak",
-                            severity="medium",
-                            detected_at=datetime.now(timezone.utc),
-                            pod_name=pod_name,
-                            namespace=namespace,
-                        )
-                        await self.trigger_remediation(trigger)
-
-                await asyncio.sleep(interval_seconds)
-
-            except asyncio.CancelledError:
-                logger.info("detection_service.loop_cancelled")
-                break
-            except Exception as e:
-                logger.error("detection_service.loop_error", error=str(e))
-                await asyncio.sleep(interval_seconds)
+                except asyncio.CancelledError:
+                    logger.info("detection_service.loop_cancelled")
+                    _set_span_attr(span,"neural.hive.loop_cancelled", "true")
+                    break
+                except Exception as e:
+                    logger.error("detection_service.loop_error", error=str(e))
+                    _set_span_attr(span,"neural.hive.loop_error", str(e))
+                    await asyncio.sleep(interval_seconds)
