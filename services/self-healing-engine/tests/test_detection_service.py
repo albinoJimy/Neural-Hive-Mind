@@ -38,6 +38,10 @@ class TestDetectionService:
     @pytest.mark.asyncio
     async def test_detect_deadlocks_no_deadlock(self, detection_service, mock_orchestrator_client):
         """Testa detecção quando workflow está progredindo."""
+        # Usar data atual para evitar detecção falsa de deadlock
+        now = datetime.now(timezone.utc)
+        recent_time = now.isoformat()
+
         mock_orchestrator_client.get_workflow_status = AsyncMock(
             return_value={
                 "workflow_id": "wf-123",
@@ -46,15 +50,15 @@ class TestDetectionService:
                     {
                         "ticket_id": "t1",
                         "status": "COMPLETED",
-                        "updated_at": "2026-03-18T10:25:00Z",
+                        "updated_at": recent_time,
                     },
                     {
                         "ticket_id": "t2",
                         "status": "IN_PROGRESS",
-                        "updated_at": "2026-03-18T10:26:00Z",
+                        "updated_at": recent_time,
                     },
                 ],
-                "last_progress_at": "2026-03-18T10:26:00Z",
+                "last_progress_at": recent_time,
             }
         )
 
@@ -157,7 +161,7 @@ class TestDetectionService:
         )
 
         # Mock playbook executor
-        mock_executor = AsyncMock()
+        mock_executor = MagicMock()
         mock_executor.execute_playbook = AsyncMock(return_value={"success": True})
 
         result = await detection_service.trigger_remediation(
@@ -178,7 +182,7 @@ class TestDetectionService:
         )
 
         # Mock playbook executor
-        mock_executor = AsyncMock()
+        mock_executor = MagicMock()
         mock_executor.execute_playbook = AsyncMock(return_value={"success": True})
 
         result = await detection_service.trigger_remediation(

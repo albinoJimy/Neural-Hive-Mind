@@ -1101,6 +1101,12 @@ class DetectionService:
                     _set_span_attr(span, "neural.hive.detection_count", detection_count)
                     _set_span_attr(span, "neural.hive.remediation_count", remediation_count)
 
+                    # Sleep antes da próxima iteração, mas verificando cancelamento
+                    try:
+                        await asyncio.sleep(interval_seconds)
+                    except asyncio.CancelledError:
+                        raise
+
                 except asyncio.CancelledError:
                     logger.info("detection_service.loop_cancelled")
                     _set_span_attr(span, "neural.hive.loop_cancelled", "true")
