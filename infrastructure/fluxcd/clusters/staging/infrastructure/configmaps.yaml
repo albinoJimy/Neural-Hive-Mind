@@ -1,0 +1,98 @@
+# ConfigMaps Globais - Ambiente Staging
+
+---
+# ConfigMap para configurações do Kafka
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-config
+  namespace: neural-hive-staging
+data:
+  bootstrap.servers: "kafka.neural-hive-staging.svc.cluster.local:9092"
+  group.initial.rebalance.delay.ms: "0"
+  auto.offset.reset: "earliest"
+  enable.auto.commit: "false"
+  security.protocol: "PLAINTEXT"
+
+---
+# ConfigMap para configurações do MongoDB
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mongodb-config
+  namespace: neural-hive-staging
+data:
+  connection.timeout.ms: "5000"
+  socket.timeout.ms: "30000"
+  server.selection.timeout.ms: "30000"
+  max.pool.size: "20"
+  min.pool.size: "5"
+
+---
+# ConfigMap para configurações do Redis
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: neural-hive-staging
+data:
+  db: "0"
+  socket.connect.timeout: "5"
+  socket.timeout: "5"
+  max.connections: "100"
+
+---
+# ConfigMap para configurações do Temporal
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: temporal-config
+  namespace: neural-hive-staging
+data:
+  host: "temporal.neural-hive-staging.svc.cluster.local"
+  port: "7233"
+  namespace: "default"
+  task.timeout: "30s"
+  workflow.timeout: "300s"
+
+---
+# ConfigMap para configurações do Neo4j
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: neo4j-config
+  namespace: neural-hive-staging
+data:
+  uri: "bolt://neo4j.neural-hive-staging.svc.cluster.local:7687"
+  max.transaction.retry.time: "30"
+  connection.timeout: "30"
+  connection.acquisition.timeout: "60"
+
+---
+# ConfigMap para observabilidade (OpenTelemetry)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-config
+  namespace: neural-hive-staging
+data:
+  otel.service.name: "neural-hive-mind"
+  otel.traces.exporter: "otlp"
+  otel.traces.sampler: "parentbased_always_on"
+  otel.metrics.exporter: "otlp"
+  otel.logs.exporter: "otlp"
+  otel.exporter.otlp.endpoint: "http://otel-collector.neural-hive-staging.svc.cluster.local:4317"
+  otel.resource.attributes: "service.name=${SERVICE_NAME},deployment.environment=staging"
+
+---
+# ConfigMap para Health Checks
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: health-check-config
+  namespace: neural-hive-staging
+data:
+  health.check.interval.seconds: "30"
+  health.check.timeout.seconds: "10"
+  health.check.initial.delay.seconds: "60"
+  readiness.check.interval.seconds: "10"

@@ -1,0 +1,131 @@
+# Pipeline de Promotion - Dev → Staging → Production
+# Define políticas de promoção automatizada e gates de aprovação
+
+---
+# ImageUpdateAutomation para promoção Dev → Staging
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageUpdateAutomation
+metadata:
+  name: dev-to-staging-promotion
+  namespace: flux-system
+spec:
+  interval: 5m
+  sourceRef:
+    kind: GitRepository
+    name: neural-hive-mind
+  gitCheckout:
+    ref:
+      branch: main
+  update:
+    path: ./infrastructure/fluxcd/clusters/staging
+    strategy: Setters
+  commit:
+    authorName: fluxcdbot
+    authorEmail: fluxcdbot@neural-hive-mind.org
+    message.template: |
+      Promote dev to staging: {{range .Updated.Images}}{{println .}}{{end}}
+
+      This promotion was automatically triggered by new images in dev.
+  push:
+    branch: main
+
+---
+# Policy para promoção automática Dev → Staging
+# Apenas imagens marcadas como "staging-candidate" são promovidas
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: staging-promotion-policy
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: gateway-intencoes
+  filterTags:
+    pattern: "^staging-[a-f0-9]+-(?P<ts>[0-9]+)"
+    extract: "$ts"
+  policy:
+    numerical:
+      greaterThan: 0
+
+---
+# Kustomization para Staging com health checks
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: staging-health-check
+  namespace: flux-system
+spec:
+  interval: 5m
+  timeout: 10m
+  sourceRef:
+    kind: GitRepository
+    name: neural-hive-mind
+  path: ./infrastructure/fluxcd/clusters/staging/services
+  prune: true
+  wait: true
+  dependsOn:
+    - name: infrastructure
+  healthChecks:
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: gateway-intencoes
+      namespace: neural-hive-staging
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: orchestrator-dynamic
+      namespace: neural-hive-staging
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: consensus-engine
+      namespace: neural-hive-staging
+  postBuild:
+    substitute:
+      ENVIRONMENT: "staging"
+      PROMOTION_SOURCE: "dev"
+
+---
+# Teste de smoke após deploy em staging
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: smoke-test-config
+  namespace: flux-system
+data:
+  test.yaml: |
+    apiVersion: kuttl.dev/v1beta1
+    kind: TestStep
+    commands:
+      - command: kubectl get deployments -n neural-hive-staging
+      - command: kubectl get pods -n neural-hive-staging
+      - script: |
+          #!/bin/bash
+          for svc in gateway-intencoes orchestrator-dynamic consensus-engine; do
+            kubectl rollout status deployment/$svc -n neural-hive-staging --timeout=5m
+          done
+
+---
+# Job de smoke test pós-deploy em staging
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: staging-smoke-test
+  namespace: flux-system
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: smoke-test
+          image: ghcr.io/albinojimy/neural-hive-mind/smoke-tests:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "Running smoke tests for staging..."
+              # Test Gateway
+              curl -f http://gateway-intencoes.neural-hive-staging.svc.cluster.local:8000/health || exit 1
+              # Test STE
+              curl -f http://semantic-translation-engine.neural-hive-staging.svc.cluster.local:8001/health || exit 1
+              # Test Consensus
+              curl -f http://consensus-engine.neural-hive-staging.svc.cluster.local:8002/health || exit 1
+              echo "All smoke tests passed!"

@@ -1,0 +1,195 @@
+---
+# NetworkPolicy para isolamento de experimentos
+# Política default-deny com regras seletivas para comunicação necessária
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: experiments-deny-all
+  namespace: nhm-experiments
+  labels:
+    component: safe-experimentation
+    tier: network-isolation
+    policy-type: "default-deny"
+  annotations:
+    description: "Bloqueia todo o tráfego por padrão; regras específicas liberam o necessário"
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+
+---
+# NetworkPolicy para permitir comunicação interna entre pods de experimentos
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: experiments-allow-internal
+  namespace: nhm-experiments
+  labels:
+    component: safe-experimentation
+    tier: network-isolation
+    policy-type: "internal-traffic"
+  annotations:
+    description: "Permite comunicação entre pods do mesmo namespace"
+spec:
+  podSelector:
+    matchLabels:
+      # Aplica a todos os pods com label experiments.nhm.is/isolated: "true"
+      experiments.nhm.is/isolated: "true"
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        # Permite tráfego de outros pods no mesmo namespace
+        - namespaceSelector:
+            matchLabels:
+              name: nhm-experiments
+        - podSelector:
+            matchLabels:
+              experiments.nhm.is/isolated: "true"
+
+---
+# NetworkPolicy para permitir egress para DNS
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: experiments-allow-dns
+  namespace: nhm-experiments
+  labels:
+    component: safe-experimentation
+    tier: network-isolation
+    policy-type: "dns-egress"
+  annotations:
+    description: "Permite consultas DNS necessárias para resolução de nomes"
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+        - podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+---
+# NetworkPolicy para permitir egress para serviços core NHM
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: experiments-allow-nhm-services
+  namespace: nhm-experiments
+  labels:
+    component: safe-experimentation
+    tier: network-isolation
+    policy-type: "nhm-services-egress"
+  annotations:
+    description: "Permite acesso aos serviços core do Neural-Hive-Mind"
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    # Kafka (mensageria)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive-mind
+          podSelector:
+            matchLabels:
+              strimzi.io/cluster: neural-hive-kafka
+      ports:
+        - protocol: TCP
+          port: 9092  # Kafka broker
+        - protocol: TCP
+          port: 9093  # Kafka broker external
+
+    # MongoDB (persistência)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive-mind
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: mongodb
+      ports:
+        - protocol: TCP
+          port: 27017
+
+    # Redis (cache/state)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: neural-hive-mind
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+
+---
+# NetworkPolicy para egress para internet (limitado)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: experiments-allow-internet
+  namespace: nhm-experiments
+  labels:
+    component: safe-experimentation
+    tier: network-isolation
+    policy-type: "internet-egress"
+  annotations:
+    description: "Permite egress para internet (para downloads, APIs externas, etc.)"
+spec:
+  podSelector:
+    matchLabels:
+      experiments.nhm.is/needs-internet: "true"
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector: {}  # Qualquer namespace
+      ports:
+        - protocol: TCP
+          port: 443  # HTTPS apenas
+        - protocol: TCP
+          port: 80   # HTTP (depreciado, mas mantido por compatibilidade)
+
+---
+# NetworkPolicy para permitir ingress de monitoring (Prometheus)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: experiments-allow-monitoring
+  namespace: nhm-experiments
+  labels:
+    component: safe-experimentation
+    tier: network-isolation
+    policy-type: "monitoring-ingress"
+  annotations:
+    description: "Permite que Prometheus colete métricas dos pods de experimentos"
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+      ports:
+        - protocol: TCP
+          port: 9100  # Node exporter
+        - protocol: TCP
+          port: 9090  # Prometheus metrics

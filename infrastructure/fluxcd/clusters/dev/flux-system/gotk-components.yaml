@@ -36,7 +36,6 @@ spec:
     # include deploy dir
     !/infrastructure/fluxcd
     !/helm-charts
-    !/k8s
   gitImplementation: go-git
   timeout: 60s
 
@@ -48,8 +47,8 @@ metadata:
   name: infrastructure
   namespace: flux-system
 spec:
-  interval: 5m
-  retryInterval: 1m
+  interval: 1m
+  retryInterval: 30s
   timeout: 3m
   sourceRef:
     kind: GitRepository
@@ -57,6 +56,11 @@ spec:
   path: ./infrastructure/fluxcd/clusters/dev/infrastructure
   prune: true
   wait: false
+  healthChecks:
+    - apiVersion: v1
+      kind: ConfigMap
+      name: kafka-config
+      namespace: neural-hive-dev
 
 ---
 # Kustomization para serviços core
@@ -66,7 +70,7 @@ metadata:
   name: core-services
   namespace: flux-system
 spec:
-  interval: 2m
+  interval: 1m
   retryInterval: 30s
   timeout: 2m
   sourceRef:
@@ -74,8 +78,14 @@ spec:
     name: neural-hive-mind
   path: ./infrastructure/fluxcd/clusters/dev/services
   prune: true
+  wait: true
   dependsOn:
     - name: infrastructure
+  healthChecks:
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: gateway-intencoes
+      namespace: neural-hive-dev
 
 ---
 # Kustomization para especialistas
@@ -85,7 +95,7 @@ metadata:
   name: specialists
   namespace: flux-system
 spec:
-  interval: 2m
+  interval: 1m
   retryInterval: 30s
   timeout: 2m
   sourceRef:
@@ -93,6 +103,7 @@ spec:
     name: neural-hive-mind
   path: ./infrastructure/fluxcd/clusters/dev/specialists
   prune: true
+  wait: true
   dependsOn:
     - name: core-services
 
@@ -104,7 +115,7 @@ metadata:
   name: agents
   namespace: flux-system
 spec:
-  interval: 2m
+  interval: 1m
   retryInterval: 30s
   timeout: 2m
   sourceRef:
@@ -112,32 +123,17 @@ spec:
     name: neural-hive-mind
   path: ./infrastructure/fluxcd/clusters/dev/agents
   prune: true
+  wait: true
   dependsOn:
     - name: core-services
 
 ---
-# ImageRepository para GHCR - Dev usa tags latest/dev
-apiVersion: image.toolkit.fluxcd.io/v1
-kind: ImageRepository
+# Helm Repository para charts locais
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
 metadata:
-  name: gateway-intencoes
+  name: neural-hive-mind-charts
   namespace: flux-system
 spec:
-  image: ghcr.io/albinojimy/neural-hive-mind/gateway-intencoes
   interval: 1m
-  secretRef:
-    name: ghcr-credentials
-
----
-# ImagePolicy para Dev - Usa tag mais recente (sem validação semver)
-apiVersion: image.toolkit.fluxcd.io/v1
-kind: ImagePolicy
-metadata:
-  name: gateway-intencoes-dev
-  namespace: flux-system
-spec:
-  imageRepositoryRef:
-    name: gateway-intencoes
-  policy:
-    alphabetical:
-      order: desc
+  url: file:///helm-charts

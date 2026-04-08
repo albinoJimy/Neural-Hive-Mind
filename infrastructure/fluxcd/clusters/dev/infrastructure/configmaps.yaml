@@ -1,0 +1,98 @@
+# ConfigMaps Globais - Ambiente Dev
+
+---
+# ConfigMap para configurações do Kafka
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-config
+  namespace: neural-hive-dev
+data:
+  bootstrap.servers: "kafka.neural-hive-dev.svc.cluster.local:9092"
+  group.initial.rebalance.delay.ms: "0"
+  auto.offset.reset: "earliest"
+  enable.auto.commit: "false"
+  security.protocol: "PLAINTEXT"
+
+---
+# ConfigMap para configurações do MongoDB
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mongodb-config
+  namespace: neural-hive-dev
+data:
+  connection.timeout.ms: "5000"
+  socket.timeout.ms: "30000"
+  server.selection.timeout.ms: "30000"
+  max.pool.size: "10"
+  min.pool.size: "2"
+
+---
+# ConfigMap para configurações do Redis
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: neural-hive-dev
+data:
+  db: "0"
+  socket.connect.timeout: "5"
+  socket.timeout: "5"
+  max.connections: "50"
+
+---
+# ConfigMap para configurações do Temporal
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: temporal-config
+  namespace: neural-hive-dev
+data:
+  host: "temporal.neural-hive-dev.svc.cluster.local"
+  port: "7233"
+  namespace: "default"
+  task.timeout: "30s"
+  workflow.timeout: "300s"
+
+---
+# ConfigMap para configurações do Neo4j
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: neo4j-config
+  namespace: neural-hive-dev
+data:
+  uri: "bolt://neo4j.neural-hive-dev.svc.cluster.local:7687"
+  max.transaction.retry.time: "30"
+  connection.timeout: "30"
+  connection.acquisition.timeout: "60"
+
+---
+# ConfigMap para observabilidade (OpenTelemetry)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-config
+  namespace: neural-hive-dev
+data:
+  otel.service.name: "neural-hive-mind"
+  otel.traces.exporter: "otlp"
+  otel.traces.sampler: "always_on"
+  otel.metrics.exporter: "otlp"
+  otel.logs.exporter: "otlp"
+  otel.exporter.otlp.endpoint: "http://otel-collector.neural-hive-dev.svc.cluster.local:4317"
+  otel.resource.attributes: "service.name=${SERVICE_NAME},deployment.environment=dev"
+
+---
+# ConfigMap para Health Checks
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: health-check-config
+  namespace: neural-hive-dev
+data:
+  health.check.interval.seconds: "10"
+  health.check.timeout.seconds: "5"
+  health.check.initial.delay.seconds: "30"
+  readiness.check.interval.seconds: "5"

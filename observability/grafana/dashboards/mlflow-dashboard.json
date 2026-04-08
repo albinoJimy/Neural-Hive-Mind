@@ -1,0 +1,803 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    {
+      "asDropdown": true,
+      "icon": "external link",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": ["fase4", "evolution"],
+      "targetBlank": true,
+      "title": "Fase 4 Dashboards",
+      "type": "dashboards"
+    },
+    {
+      "title": "Open MLflow",
+      "type": "link",
+      "url": "${MLFLOW_URL}"
+    }
+  ],
+  "panels": [
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
+      "id": 100,
+      "panels": [],
+      "title": "MLflow Overview",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "blue", "value": null}]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 5, "w": 6, "x": 0, "y": 1},
+      "id": 1,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "optimizer_ml_model_loads_total",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Model Loads",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 90},
+              {"color": "green", "value": 95}
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 5, "w": 6, "x": 6, "y": 1},
+      "id": 2,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "text": {}
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "optimizer_ml_model_load_success_rate * 100",
+          "refId": "A"
+        }
+      ],
+      "title": "Model Load Success Rate",
+      "type": "gauge"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 5, "w": 6, "x": 12, "y": 1},
+      "id": 3,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "optimizer_ml_training_runs_total",
+          "refId": "A"
+        }
+      ],
+      "title": "Training Runs",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 10}
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 5, "w": 6, "x": 18, "y": 1},
+      "id": 4,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "text": {}
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "optimizer_ml_training_success_rate * 100",
+          "refId": "A"
+        }
+      ],
+      "title": "Training Success Rate",
+      "type": "gauge"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 6},
+      "id": 101,
+      "panels": [],
+      "title": "Model Version Comparison",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "MAPE (%)",
+            "axisPlacement": "auto",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {"tooltip": false, "viz": false, "legend": false},
+            "lineWidth": 2,
+            "scaleDistribution": {"type": "linear"},
+            "thresholdsStyle": {"mode": "line"}
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 15},
+              {"color": "red", "value": 25}
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 7},
+      "id": 5,
+      "options": {
+        "legend": {"calcs": ["lastNotNull", "min", "mean", "max"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "optimizer_ml_model_mape{model_name=\"duration-predictor\"}",
+          "legendFormat": "{{version}} - {{model_name}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Model Accuracy Comparison (MAPE)",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 15},
+      "id": 102,
+      "panels": [],
+      "title": "Model Performance Metrics",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {"tooltip": false, "viz": false, "legend": false},
+            "lineWidth": 2,
+            "scaleDistribution": {"type": "linear"},
+            "thresholdsStyle": {"mode": "off"}
+          },
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+      "id": 6,
+      "options": {
+        "legend": {"calcs": ["lastNotNull", "min", "mean"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "optimizer_ml_model_mae{model_name=\"duration-predictor\"}",
+          "legendFormat": "{{version}} - MAE",
+          "refId": "A"
+        },
+        {
+          "expr": "optimizer_ml_model_rmse{model_name=\"duration-predictor\"}",
+          "legendFormat": "{{version}} - RMSE",
+          "refId": "B"
+        }
+      ],
+      "title": "Error Metrics (MAE, RMSE)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {"tooltip": false, "viz": false, "legend": false},
+            "lineWidth": 2,
+            "scaleDistribution": {"type": "linear"},
+            "thresholdsStyle": {"mode": "off"}
+          },
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+      "id": 7,
+      "options": {
+        "legend": {"calcs": ["lastNotNull", "mean", "max"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "optimizer_ml_model_r2_score{model_name=\"duration-predictor\"}",
+          "legendFormat": "{{version}} - R²",
+          "refId": "A"
+        },
+        {
+          "expr": "optimizer_ml_model_accuracy{model_name=\"approval-model\"}",
+          "legendFormat": "{{version}} - Accuracy",
+          "refId": "B"
+        }
+      ],
+      "title": "R² Score / Accuracy",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 24},
+      "id": 103,
+      "panels": [],
+      "title": "Model Loading Performance",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "Duration",
+            "axisPlacement": "auto",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {"tooltip": false, "viz": false, "legend": false},
+            "lineWidth": 2,
+            "scaleDistribution": {"type": "linear"},
+            "thresholdsStyle": {"mode": "off"}
+          },
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 25},
+      "id": 8,
+      "options": {
+        "legend": {"calcs": ["lastNotNull", "mean", "max"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(optimizer_ml_model_load_duration_seconds_bucket[5m])) by (le, model_name))",
+          "legendFormat": "{{model_name}} - p95",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(optimizer_ml_model_load_duration_seconds_bucket[5m])) by (le, model_name))",
+          "legendFormat": "{{model_name}} - p50",
+          "refId": "B"
+        }
+      ],
+      "title": "Model Load Duration",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "Age",
+            "axisPlacement": "auto",
+            "fillOpacity": 20,
+            "gradientMode": "scheme",
+            "hideFrom": {"tooltip": false, "viz": false, "legend": false},
+            "lineWidth": 2,
+            "scaleDistribution": {"type": "linear"},
+            "thresholdsStyle": {"mode": "area"}
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 86400},
+              {"color": "red", "value": 604800}
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 25},
+      "id": 9,
+      "options": {
+        "legend": {"calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "optimizer_ml_model_age_seconds",
+          "legendFormat": "{{model_name}} - {{version}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Model Age (time since training)",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 33},
+      "id": 104,
+      "panels": [],
+      "title": "Training Pipeline",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "Duration",
+            "axisPlacement": "auto",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {"tooltip": false, "viz": false, "legend": false},
+            "lineWidth": 2,
+            "scaleDistribution": {"type": "linear"},
+            "thresholdsStyle": {"mode": "off"}
+          },
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 34},
+      "id": 10,
+      "options": {
+        "legend": {"calcs": ["lastNotNull", "mean", "max"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(optimizer_ml_training_duration_seconds_bucket[5m])) by (le, model_type))",
+          "legendFormat": "{{model_type}} - p95",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(optimizer_ml_training_duration_seconds_bucket[5m])) by (le, model_type))",
+          "legendFormat": "{{model_type}} - p50",
+          "refId": "B"
+        }
+      ],
+      "title": "Training Duration by Model Type",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {"tooltip": false, "viz": false, "legend": false},
+            "lineWidth": 1,
+            "scaleDistribution": {"type": "linear"},
+            "thresholdsStyle": {"mode": "off"}
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 34},
+      "id": 11,
+      "options": {
+        "legend": {"calcs": ["sum"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "rate(optimizer_ml_training_runs_total[5m])",
+          "legendFormat": "{{status}} - {{model_type}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Training Runs Rate",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 42},
+      "id": 105,
+      "panels": [],
+      "title": "Prediction Performance",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {"tooltip": false, "viz": false, "legend": false},
+            "lineWidth": 2,
+            "scaleDistribution": {"type": "linear"},
+            "thresholdsStyle": {"mode": "off"}
+          },
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 43},
+      "id": 12,
+      "options": {
+        "legend": {"calcs": ["sum", "lastNotNull"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "rate(optimizer_load_predictions_total[5m])",
+          "legendFormat": "{{horizon}} - {{status}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Prediction Request Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "Latency",
+            "axisPlacement": "auto",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {"tooltip": false, "viz": false, "legend": false},
+            "lineWidth": 2,
+            "scaleDistribution": {"type": "linear"},
+            "thresholdsStyle": {"mode": "off"}
+          },
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 43},
+      "id": 13,
+      "options": {
+        "legend": {"calcs": ["lastNotNull", "mean", "max"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(optimizer_ml_prediction_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p95",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(optimizer_ml_prediction_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p50",
+          "refId": "B"
+        }
+      ],
+      "title": "Prediction Latency",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 51},
+      "id": 106,
+      "panels": [],
+      "title": "Model Registry",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "custom": {
+            "align": "left",
+            "displayMode": "auto",
+            "inspect": false
+          },
+          "mappings": [
+            {
+              "options": {
+                "Archived": {"color": "gray", "index": 0, "text": "Archived"},
+                "Failed": {"color": "red", "index": 1, "text": "Failed"},
+                "Production": {"color": "green", "index": 2, "text": "Production"},
+                "Staging": {"color": "yellow", "index": 3, "text": "Staging"}
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "Stage"},
+            "properties": [
+              {"id": "custom.displayMode", "value": "color-background"},
+              {"id": "mappings", "value": [{"options": {"Archived": {"color": "gray", "index": 0, "text": "Archived"}, "Failed": {"color": "red", "index": 1, "text": "Failed"}, "Production": {"color": "green", "index": 2, "text": "Production"}, "Staging": {"color": "yellow", "index": 3, "text": "Staging"}}, "type": "value"}]},
+              {"id": "width", "value": 120}
+            ]
+          },
+          {
+            "matcher": {"id": "byName", "options": "MAPE"},
+            "properties": [
+              {"id": "custom.displayMode", "value": "color-background"},
+              {"id": "color", "value": {"mode": "continuous-RdYlGn"}},
+              {"id": "custom.width", "value": 100},
+              {"id": "unit", "value": "percent"}
+            ]
+          },
+          {
+            "matcher": {"id": "byName", "options": "Age"},
+            "properties": [
+              {"id": "custom.displayMode", "value": "color-background"},
+              {"id": "color", "value": {"mode": "continuous-YlGrRd"}},
+              {"id": "custom.width", "value": 100},
+              {"id": "unit", "value": "d"}
+            ]
+          }
+        ]
+      },
+      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 52},
+      "id": 14,
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {"desc": false, "displayName": "Version"}
+        ]
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "optimizer_ml_model_registry",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Registered Models",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {"Time": true, "__name__": true, "endpoint": true, "instance": true, "job": true},
+            "indexByName": {},
+            "renameByName": {
+              "mape": "MAPE",
+              "model_name": "Model",
+              "run_id": "Run ID",
+              "stage": "Stage",
+              "training_time": "Training Time",
+              "version": "Version",
+              "model_age_seconds": "Age"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    }
+  ],
+  "refresh": "1m",
+  "schemaVersion": 27,
+  "style": "dark",
+  "tags": ["mlflow", "ml", "fase4", "evolution", "experiments"],
+  "templating": {
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "http://mlflow:5000",
+          "value": "http://mlflow:5000"
+        },
+        "hide": 2,
+        "name": "MLFLOW_URL",
+        "type": "textbox"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": "Prometheus",
+        "definition": "label_values(optimizer_ml_model_mape, model_name)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Model",
+        "multi": true,
+        "name": "model_name",
+        "options": [],
+        "query": {
+          "query": "label_values(optimizer_ml_model_mape, model_name)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": "Prometheus",
+        "definition": "label_values(optimizer_ml_model_mape, version)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Version",
+        "multi": true,
+        "name": "version",
+        "options": [],
+        "query": {
+          "query": "label_values(optimizer_ml_model_mape, version)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": ["10s", "30s", "1m", "5m", "15m", "30m", "1h"],
+    "time_options": ["1h", "6h", "12h", "24h", "2d", "7d", "30d"]
+  },
+  "timezone": "browser",
+  "title": "MLflow Dashboard",
+  "uid": "mlflow-dashboard",
+  "version": 1
+}

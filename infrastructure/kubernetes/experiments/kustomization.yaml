@@ -1,0 +1,47 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: nhm-experiments
+
+# Resources base
+resources:
+  - namespace.yaml
+  - resourcequota.yaml
+  - networkpolicy.yaml
+  - limitrange.yaml
+  - rbac.yaml
+  - secrets.yaml
+
+# Labels comuns adicionados a todos os resources
+commonLabels:
+  app.kubernetes.io/part-of: neural-hive-mind
+  app.kubernetes.io/component: safe-experimentation
+
+# Annotations comuns
+commonAnnotations:
+  managed-by: "kustomize"
+  created-by: "EXPERIMENT-001"
+
+# ConfigMap para configurações ajustáveis via Helm values
+configMapGenerator:
+  - name: experiments-config
+    literals:
+      # Quota settings
+      - QUOTA_CPU_REQUESTS=8
+      - QUOTA_CPU_LIMITS=12
+      - QUOTA_MEMORY_REQUESTS=16Gi
+      - QUOTA_MEMORY_LIMITS=24Gi
+      - QUOTA_MAX_PODS=20
+      - QUOTA_MAX_PVCS=5
+
+      # LimitRange defaults
+      - DEFAULT_CPU_LIMIT=500m
+      - DEFAULT_MEMORY_LIMIT=512Mi
+      - DEFAULT_CPU_REQUEST=100m
+      - DEFAULT_MEMORY_REQUEST=128Mi
+      - MAX_CPU_LIMIT=2
+      - MAX_MEMORY_LIMIT=4Gi
+
+      # Network policy settings
+      - ENABLE_INTERNET_EGRESS=true
+      - ENABLE_MONITORING_INGRESS=true

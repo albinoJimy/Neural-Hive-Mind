@@ -1,0 +1,27 @@
+services:
+  hypothesis-library:
+    build: .
+    ports:
+      - "8010:8010"
+    environment:
+      - ENVIRONMENT=dev
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+      - MONGODB_URI=mongodb://mongodb:27017
+    depends_on:
+      - mongodb
+    volumes:
+      - .:/app
+    command: python main.py
+
+  mongodb:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGODB_INITDB_DATABASE=neural_hive
+    volumes:
+      - mongodb_data:/data/db
+
+volumes:
+  mongodb_data:

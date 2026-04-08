@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "neural-hive-opa"
+version = "0.1.0"
+description = "Open Policy Agent (OPA) integration for Neural Hive Mind services"
+readme = "README.md"
+requires-python = ">=3.12"
+license = {text = "MIT"}
+authors = [
+    {name = "Neural Hive Mind Team", email = "dev@neuralhive.ai"}
+]
+keywords = ["opa", "open policy agent", "authorization", "policy"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "httpx>=0.27.0",
+    "pydantic>=2.0.0",
+    "prometheus-client>=0.20.0",
+    "structlog>=24.0.0",
+    "tenacity>=8.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.0.0",
+    "black>=24.0.0",
+    "ruff>=0.3.0",
+    "mypy>=1.9.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/albinoJimy/Neural-Hive-Mind"
+Documentation = "https://github.com/albinoJimy/Neural-Hive-Mind/docs"
+Repository = "https://github.com/albinoJimy/Neural-Hive-Mind.git"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

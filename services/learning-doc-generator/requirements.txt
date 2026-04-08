@@ -1,0 +1,14 @@
+# Dependências base consolidadas para Neural-Hive-Mind
+-r ../../requirements-base.txt
+
+# Dependências específicas do learning-doc-generator
+mlflow==2.18.0
+jinja2==3.1.6
+markdown==3.7
+matplotlib==3.10.0
+plotly==5.24.1
+apscheduler==3.11.0
+
+# Opcionais para PDF export
+weasyprint==62.3
+kaleido==0.2.1

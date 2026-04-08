@@ -1,0 +1,165 @@
+# FluxCD GitOps Toolkit - Staging Cluster
+# Componentes base do FluxCD para Neural Hive-Mind (Staging)
+#
+# Ambiente: Staging/QA
+# Branch: main
+# Sync Interval: Moderado para balanceamento
+
+---
+# Namespace para componentes do FluxCD
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: flux-system
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+
+---
+# Source Controller - Gerencia fontes externas (Git, Helm, OCI)
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: neural-hive-mind
+  namespace: flux-system
+spec:
+  interval: 1m
+  url: ssh://git@github.com/albinoJimy/Neural-Hive-Mind.git
+  ref:
+    branch: main
+  secretRef:
+    name: neural-hive-mind-git-ssh
+  ignore: |
+    # exclude all
+    /*
+    # include deploy dir
+    !/infrastructure/fluxcd
+    !/helm-charts
+  gitImplementation: go-git
+  timeout: 60s
+
+---
+# Kustomization para infraestrutura base
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: infrastructure
+  namespace: flux-system
+spec:
+  interval: 5m
+  retryInterval: 1m
+  timeout: 5m
+  sourceRef:
+    kind: GitRepository
+    name: neural-hive-mind
+  path: ./infrastructure/fluxcd/clusters/staging/infrastructure
+  prune: true
+  wait: false
+  healthChecks:
+    - apiVersion: v1
+      kind: ConfigMap
+      name: kafka-config
+      namespace: neural-hive-staging
+
+---
+# Kustomization para serviços core
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: core-services
+  namespace: flux-system
+spec:
+  interval: 5m
+  retryInterval: 1m
+  timeout: 3m
+  sourceRef:
+    kind: GitRepository
+    name: neural-hive-mind
+  path: ./infrastructure/fluxcd/clusters/staging/services
+  prune: true
+  wait: true
+  dependsOn:
+    - name: infrastructure
+  healthChecks:
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: gateway-intencoes
+      namespace: neural-hive-staging
+
+---
+# Kustomization para especialistas
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: specialists
+  namespace: flux-system
+spec:
+  interval: 5m
+  retryInterval: 1m
+  timeout: 3m
+  sourceRef:
+    kind: GitRepository
+    name: neural-hive-mind
+  path: ./infrastructure/fluxcd/clusters/staging/specialists
+  prune: true
+  wait: true
+  dependsOn:
+    - name: core-services
+
+---
+# Kustomization para agentes
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: agents
+  namespace: flux-system
+spec:
+  interval: 5m
+  retryInterval: 1m
+  timeout: 3m
+  sourceRef:
+    kind: GitRepository
+    name: neural-hive-mind
+  path: ./infrastructure/fluxcd/clusters/staging/agents
+  prune: true
+  wait: true
+  dependsOn:
+    - name: core-services
+
+---
+# Helm Repository para charts locais
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: neural-hive-mind-charts
+  namespace: flux-system
+spec:
+  interval: 5m
+  url: file:///helm-charts
+
+---
+# ImageUpdateAutomation para staging (promoção automática de dev)
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageUpdateAutomation
+metadata:
+  name: staging-auto-promotion
+  namespace: flux-system
+spec:
+  interval: 5m
+  sourceRef:
+    kind: GitRepository
+    name: neural-hive-mind
+  gitCheckout:
+    ref:
+      branch: main
+  update:
+    path: ./infrastructure/fluxcd/clusters/staging
+    strategy: Setters
+  commit:
+    authorName: fluxcdbot
+    authorEmail: fluxcdbot@neural-hive-mind.org
+    message.template: |
+      Auto-promote dev to staging: {{range .Updated.Images}}{{println .}}{{end}}
+  push:
+    branch: main

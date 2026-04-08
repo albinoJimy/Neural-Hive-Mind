@@ -1,0 +1,35 @@
+# Kustomization para Infraestrutura Base - Staging
+# Configura serviços de infraestrutura: observabilidade, segurança, networking
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: neural-hive-staging
+
+resources:
+  - namespace.yaml
+  - network-policies.yaml
+  - configmaps.yaml
+
+configMapGenerator:
+  - name: flux-settings
+    literals:
+      - ENVIRONMENT=staging
+      - CLUSTER=neural-hive-staging
+      - LOG_LEVEL=info
+      - GITOPS_SYNC_INTERVAL=5m
+
+  - name: global-config
+    literals:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka.neural-hive-staging.svc.cluster.local:9092
+      - MONGODB_URL=mongodb://mongodb-staging-0.mongodb-staging.neural-hive-staging.svc.cluster.local:27017
+      - REDIS_URL=redis://redis-staging.neural-hive-staging.svc.cluster.local:6379
+      - TEMPORAL_HOST=temporal.neural-hive-staging.svc.cluster.local:7233
+      - NEO4J_URI=bolt://neo4j.neural-hive-staging.svc.cluster.local:7687
+
+secretGenerator:
+  - name: global-secrets
+    envs:
+      - .env.secrets
+    options:
+      disableNameSuffixHash: false

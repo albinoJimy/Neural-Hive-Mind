@@ -1,0 +1,77 @@
+---
+# LimitRange para garantir defaults de recursos para pods de experimentos
+# Garante que pods sem especificação de recursos recebam limites adequados
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: experiments-limits
+  namespace: nhm-experiments
+  labels:
+    component: safe-experimentation
+    tier: resource-control
+  annotations:
+    description: "Defaults e limites de recursos para containers de experimentos"
+spec:
+  limits:
+    # Limites para containers
+    - type: Container
+      default:
+        # Valores padrão quando não especificado (limits)
+        cpu: "500m"
+        memory: "512Mi"
+      defaultRequest:
+        # Valores padrão para requests (garantia mínima)
+        cpu: "100m"
+        memory: "128Mi"
+      max:
+        # Limites máximos que um container pode solicitar
+        cpu: "2"
+        memory: "4Gi"
+      min:
+        # Mínimos que um container deve solicitar
+        cpu: "10m"
+        memory: "32Mi"
+
+    # Limites para pods
+    - type: Pod
+      max:
+        # Limites máximos por pod
+        cpu: "4"
+        memory: "8Gi"
+
+    # Limites para PersistentVolumeClaims
+    - type: PersistentVolumeClaim
+      max:
+        storage: "10Gi"
+      min:
+        storage: "1Gi"
+      default:
+        storage: "5Gi"
+      defaultRequest:
+        storage: "2Gi"
+
+---
+# LimitRange específico para experimentos pequenos (low-resource)
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: experiments-small-limits
+  namespace: nhm-experiments
+  labels:
+    component: safe-experimentation
+    tier: resource-control
+    experiment-size: "small"
+  annotations:
+    description: "Defaults para experimentos pequenos (teste, protótipos)"
+spec:
+  limits:
+    - type: Container
+      default:
+        cpu: "200m"
+        memory: "256Mi"
+      defaultRequest:
+        cpu: "50m"
+        memory: "64Mi"
+      max:
+        cpu: "500m"
+        memory: "512Mi"

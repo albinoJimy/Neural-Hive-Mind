@@ -1,0 +1,13 @@
+# Kustomization para Agentes - Dev
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: neural-hive-dev
+
+resources:
+  - worker-agents.yaml
+  - queen-agent.yaml
+  - analyst-agents.yaml
+  - scout-agents.yaml
+  - guard-agents.yaml
+  - optimizer-agents.yaml

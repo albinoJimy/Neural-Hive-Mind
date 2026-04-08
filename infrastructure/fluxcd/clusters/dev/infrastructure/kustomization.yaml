@@ -7,10 +7,12 @@ kind: Kustomization
 namespace: neural-hive-dev
 
 resources:
+  # Namespace para a aplicação
+  - namespace.yaml
   # Network Policies
-  - ../../../k8s/network-policies.yaml
-  # RBAC base
-  - ../../../k8s/rbac/chaos-engineering-rbac.yaml
+  - network-policies.yaml
+  # ConfigMaps globais
+  - configmaps.yaml
 
 # Configurações globais
 configMapGenerator:
@@ -19,3 +21,23 @@ configMapGenerator:
       - ENVIRONMENT=dev
       - CLUSTER=neural-hive-dev
       - LOG_LEVEL=debug
+      - GITOPS_SYNC_INTERVAL=1m
+
+  - name: global-config
+    literals:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka.neural-hive-dev.svc.cluster.local:9092
+      - MONGODB_URL=mongodb://mongodb-dev-0.mongodb-dev.neural-hive-dev.svc.cluster.local:27017
+      - REDIS_URL=redis://redis-dev.neural-hive-dev.svc.cluster.local:6379
+      - TEMPORAL_HOST=temporal.neural-hive-dev.svc.cluster.local:7233
+      - NEO4J_URI=bolt://neo4j.neural-hive-dev.svc.cluster.local:7687
+
+secretGenerator:
+  - name: global-secrets
+    envs:
+      - .env.secrets
+    options:
+      disableNameSuffixHash: true
+
+images:
+  - name: global-image
+    digest: sha256:0000000000000000000000000000000000000000000000000000000000000000

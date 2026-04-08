@@ -1,0 +1,78 @@
+[tool.poetry]
+name = "learning-doc-generator"
+version = "1.0.0"
+description = "Learning Documentation Generator para Neural Hive-Mind - Geração automática de documentação de aprendizado"
+authors = ["Neural Hive-Mind Team <team@neural-hive.com>"]
+readme = "README.md"
+packages = [{include = "src"}]
+
+# NOTA: Este arquivo pyproject.toml é mantido para metadados do projeto.
+# A FONTE DE VERDADE para dependências de produção é requirements.txt
+# (usado pelos Dockerfiles). Mantenha este arquivo sincronizado com requirements.txt.
+
+[tool.poetry.dependencies]
+python = "^3.11"
+
+# Web Framework
+fastapi = "==0.115.6"
+uvicorn = {extras = ["standard"], version = "==0.34.0"}
+
+# Data Validation
+pydantic = "==2.10.4"
+pydantic-settings = "==2.7.1"
+httpx = "==0.28.1"
+
+# Kafka
+confluent-kafka = "==2.6.1"
+attrs = ">=23.1.0"
+authlib = ">=1.3.0"
+fastavro = "==1.9.7"
+cachetools = "==5.5.0"
+
+# MongoDB
+pymongo = "==4.10.1"
+motor = "==3.7.1"
+
+# Redis
+redis = {extras = ["hiredis"], version = "==5.2.1"}
+
+# MLflow Integration
+mlflow = "==2.18.0"
+
+# Report Generation
+jinja2 = "==3.1.6"
+markdown = "==3.7"
+weasyprint = {version = "==62.3", optional = true}
+
+# Plotting
+matplotlib = "==3.10.0"
+plotly = "==5.24.1"
+kaleido = {version = "==0.2.1", optional = true}
+
+# Scheduling
+apscheduler = "==3.11.0"
+
+# Logging
+structlog = "==24.4.0"
+python-json-logger = ">=2.0.7"
+
+# OpenTelemetry
+opentelemetry-api = "==1.29.0"
+opentelemetry-sdk = "==1.29.0"
+opentelemetry-exporter-otlp = "==1.29.0"
+opentelemetry-instrumentation-fastapi = "==0.50b0"
+
+# Prometheus
+prometheus-client = "==0.21.1"
+
+# Retry Logic
+tenacity = "==9.0.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=7.4.0"
+pytest-asyncio = ">=0.21.0"
+pytest-mock = ">=3.12.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

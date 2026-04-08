@@ -8,6 +8,7 @@ Implementa cache de descobertas e fallback para Service Registry indisponível.
 import asyncio
 from datetime import datetime, timedelta
 from enum import Enum
+from typing import Optional
 
 import httpx
 import structlog
@@ -56,8 +57,8 @@ class IntelligentScheduler:
         priority_calculator: PriorityCalculator,
         resource_allocator: ResourceAllocator,
         scheduling_optimizer=None,
-        scheduling_predictor: SchedulingPredictor | None = None,
-        load_predictor: LoadPredictor | None = None,
+        scheduling_predictor: Optional["SchedulingPredictor"] = None,
+        load_predictor: Optional["LoadPredictor"] = None,
         anomaly_detector=None,
         spiffe_manager=None,
     ):

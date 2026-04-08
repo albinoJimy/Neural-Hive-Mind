@@ -1,0 +1,793 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    {
+      "asDropdown": true,
+      "icon": "external link",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": ["fase4", "evolution"],
+      "targetBlank": true,
+      "title": "Fase 4 Dashboards",
+      "type": "dashboards"
+    }
+  ],
+  "panels": [
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
+      "id": 100,
+      "panels": [],
+      "title": "Active Learning Overview",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "blue", "value": null}]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 5, "w": 6, "x": 0, "y": 1},
+      "id": 1,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "active_learning_queue_size",
+          "refId": "A"
+        }
+      ],
+      "title": "Queue Size",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 5, "w": 6, "x": 6, "y": 1},
+      "id": 2,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "active_learning_cases_claimed_total",
+          "refId": "A"
+        }
+      ],
+      "title": "Cases Claimed",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 5, "w": 6, "x": 12, "y": 1},
+      "id": 3,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "active_learning_feedback_submitted_total",
+          "refId": "A"
+        }
+      ],
+      "title": "Feedback Submitted",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 30},
+              {"color": "green", "value": 70}
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 5, "w": 6, "x": 18, "y": 1},
+      "id": 4,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "text": {}
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "active_learning_balance_percentage * 100",
+          "refId": "A"
+        }
+      ],
+      "title": "Dataset Balance",
+      "type": "gauge"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 6},
+      "id": 101,
+      "panels": [],
+      "title": "Dataset Balance Metrics",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "Count",
+            "axisPlacement": "auto",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {"tooltip": false, "viz": false, "legend": false},
+            "lineWidth": 2,
+            "scaleDistribution": {"type": "linear"},
+            "thresholdsStyle": {"mode": "off"}
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 7},
+      "id": 5,
+      "options": {
+        "legend": {"calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "active_learning_class_balance{class=\"approve\"}",
+          "legendFormat": "Approve",
+          "refId": "A"
+        },
+        {
+          "expr": "active_learning_class_balance{class=\"reject\"}",
+          "legendFormat": "Reject",
+          "refId": "B"
+        },
+        {
+          "expr": "active_learning_class_balance{class=\"review_required\"}",
+          "legendFormat": "Review Required",
+          "refId": "C"
+        },
+        {
+          "expr": "active_learning_class_balance{class=\"conditional\"}",
+          "legendFormat": "Conditional",
+          "refId": "D"
+        }
+      ],
+      "title": "Class Distribution",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "hideFrom": {"legend": false, "tooltip": false, "viz": false}
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 7},
+      "id": 6,
+      "options": {
+        "legend": {"displayMode": "table", "placement": "right", "values": ["value", "percent"]},
+        "pieType": "donut",
+        "tooltip": {"mode": "single", "sort": "none"}
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "active_learning_class_balance",
+          "legendFormat": "{{class}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Current Class Balance",
+      "type": "piechart"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 15},
+      "id": 102,
+      "panels": [],
+      "title": "Confidence Distribution",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "Count",
+            "axisPlacement": "auto",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {"tooltip": false, "viz": false, "legend": false},
+            "lineWidth": 2,
+            "scaleDistribution": {"type": "linear"},
+            "thresholdsStyle": {"mode": "off"}
+          },
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16},
+      "id": 7,
+      "options": {
+        "legend": {"calcs": ["lastNotNull", "mean"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "active_learning_confidence_distribution{bucket=\"low\"}",
+          "legendFormat": "Low (0-0.3)",
+          "refId": "A"
+        },
+        {
+          "expr": "active_learning_confidence_distribution{bucket=\"medium\"}",
+          "legendFormat": "Medium (0.3-0.7)",
+          "refId": "B"
+        },
+        {
+          "expr": "active_learning_confidence_distribution{bucket=\"high\"}",
+          "legendFormat": "High (0.7-1.0)",
+          "refId": "C"
+        }
+      ],
+      "title": "Confidence Buckets Over Time",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 24},
+      "id": 103,
+      "panels": [],
+      "title": "Domain Distribution",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "hideFrom": {"legend": false, "tooltip": false, "viz": false}
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 25},
+      "id": 8,
+      "options": {
+        "legend": {"displayMode": "table", "placement": "right", "values": ["value", "percent"]},
+        "pieType": "donut",
+        "tooltip": {"mode": "single", "sort": "none"}
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "active_learning_domain_distribution",
+          "legendFormat": "{{domain}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Domain Distribution",
+      "type": "piechart"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "custom": {
+            "align": "left",
+            "displayMode": "auto",
+            "inspect": false
+          },
+          "mappings": []
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "Count"},
+            "properties": [
+              {"id": "custom.displayMode", "value": "color-background"},
+              {"id": "color", "value": {"mode": "continuous-GrYlRd"}},
+              {"id": "custom.width", "value": 120}
+            ]
+          },
+          {
+            "matcher": {"id": "byName", "options": "Domain"},
+            "properties": [
+              {"id": "custom.width", "value": 200}
+            ]
+          }
+        ]
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 25},
+      "id": 9,
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {"desc": true, "displayName": "Count"}
+        ]
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "active_learning_domain_distribution",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Domain Breakdown",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {"Time": true, "__name__": true, "endpoint": true, "instance": true, "job": true},
+            "indexByName": {},
+            "renameByName": {
+              "domain": "Domain",
+              "sum_value": "Count"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 33},
+      "id": 104,
+      "panels": [],
+      "title": "Semantic Features Coverage",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 20,
+            "gradientMode": "scheme",
+            "hideFrom": {"tooltip": false, "viz": false, "legend": false},
+            "lineWidth": 2,
+            "scaleDistribution": {"type": "linear"},
+            "thresholdsStyle": {"mode": "area"}
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 10},
+              {"color": "green", "value": 50}
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 34},
+      "id": 10,
+      "options": {
+        "legend": {"calcs": ["lastNotNull", "mean"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "active_learning_semantic_features_percentage * 100",
+          "legendFormat": "With Semantic Features",
+          "refId": "A"
+        }
+      ],
+      "title": "Semantic Features Coverage",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "Count",
+            "axisPlacement": "auto",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {"tooltip": false, "viz": false, "legend": false},
+            "lineWidth": 2,
+            "scaleDistribution": {"type": "linear"},
+            "thresholdsStyle": {"mode": "off"}
+          },
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 34},
+      "id": 11,
+      "options": {
+        "legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "active_learning_semantic_features_count",
+          "legendFormat": "With Semantic Features",
+          "refId": "A"
+        },
+        {
+          "expr": "active_learning_total_feedbacks - active_learning_semantic_features_count",
+          "legendFormat": "Without Semantic Features",
+          "refId": "B"
+        }
+      ],
+      "title": "Semantic Features Count",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 42},
+      "id": 105,
+      "panels": [],
+      "title": "Queue Activity",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {"tooltip": false, "viz": false, "legend": false},
+            "lineWidth": 2,
+            "scaleDistribution": {"type": "linear"},
+            "thresholdsStyle": {"mode": "off"}
+          },
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 43},
+      "id": 12,
+      "options": {
+        "legend": {"calcs": ["sum", "lastNotNull"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "rate(active_learning_cases_claimed_total[5m])",
+          "legendFormat": "Claims",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(active_learning_feedback_submitted_total[5m])",
+          "legendFormat": "Feedbacks",
+          "refId": "B"
+        },
+        {
+          "expr": "rate(active_learning_cases_released_total[5m])",
+          "legendFormat": "Releases",
+          "refId": "C"
+        }
+      ],
+      "title": "Queue Activity Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "hideFrom": {"legend": false, "tooltip": false, "viz": false}
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 43},
+      "id": 13,
+      "options": {
+        "legend": {"displayMode": "table", "placement": "right", "values": ["value", "percent"]},
+        "pieType": "donut",
+        "tooltip": {"mode": "single", "sort": "none"}
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "active_learning_queue_status",
+          "legendFormat": "{{status}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Queue Status Distribution",
+      "type": "piechart"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 51},
+      "id": 106,
+      "panels": [],
+      "title": "Information Value",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "Avg Information Value",
+            "axisPlacement": "auto",
+            "fillOpacity": 20,
+            "gradientMode": "scheme",
+            "hideFrom": {"tooltip": false, "viz": false, "legend": false},
+            "lineWidth": 2,
+            "scaleDistribution": {"type": "linear"},
+            "thresholdsStyle": {"mode": "area"}
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 0.5},
+              {"color": "green", "value": 0.8}
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 52},
+      "id": 14,
+      "options": {
+        "legend": {"calcs": ["lastNotNull", "mean", "max"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "active_learning_information_value",
+          "legendFormat": "Information Value",
+          "refId": "A"
+        }
+      ],
+      "title": "Average Information Value in Queue",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "custom": {
+            "align": "left",
+            "displayMode": "auto",
+            "inspect": false
+          },
+          "mappings": []
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "Information Value"},
+            "properties": [
+              {"id": "custom.displayMode", "value": "color-background"},
+              {"id": "color", "value": {"mode": "continuous-GrYlRd"}},
+              {"id": "custom.width", "value": 150}
+            ]
+          },
+          {
+            "matcher": {"id": "byName", "options": "Domain"},
+            "properties": [
+              {"id": "custom.width", "value": 150}
+            ]
+          },
+          {
+            "matcher": {"id": "byName", "options": "Confidence"},
+            "properties": [
+              {"id": "custom.displayMode", "value": "color-background"},
+              {"id": "color", "value": {"mode": "continuous-RdYlGn"}},
+              {"id": "custom.width", "value": 120}
+            ]
+          }
+        ]
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 52},
+      "id": 15,
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {"desc": true, "displayName": "Information Value"}
+        ]
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "active_learning_priority_cases",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Top Priority Cases (Information Value)",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {"Time": true, "__name__": true, "endpoint": true, "instance": true, "job": true},
+            "indexByName": {},
+            "renameByName": {
+              "confidence": "Confidence",
+              "domain": "Domain",
+              "information_value": "Information Value",
+              "queue_id": "Queue ID"
+            }
+          }
+        },
+        {
+          "id": "limit",
+          "options": {
+            "rowCount": 10
+          }
+        }
+      ],
+      "type": "table"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 27,
+  "style": "dark",
+  "tags": ["active-learning", "ml", "fase4", "evolution", "feedback"],
+  "templating": {
+    "list": [
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": "Prometheus",
+        "definition": "label_values(active_learning_domain_distribution, domain)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Domain",
+        "multi": true,
+        "name": "domain",
+        "options": [],
+        "query": {
+          "query": "label_values(active_learning_domain_distribution, domain)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": ["10s", "30s", "1m", "5m", "15m", "30m", "1h"],
+    "time_options": ["1h", "6h", "12h", "24h", "2d", "7d", "30d"]
+  },
+  "timezone": "browser",
+  "title": "Active Learning Dashboard",
+  "uid": "active-learning-dashboard",
+  "version": 1
+}

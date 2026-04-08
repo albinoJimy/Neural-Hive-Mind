@@ -1,0 +1,13 @@
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+motor>=3.3.0
+pymongo>=4.6.0
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+structlog>=24.1.0
+neural-hive-observability>=1.0.0
+
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+httpx>=0.25.0

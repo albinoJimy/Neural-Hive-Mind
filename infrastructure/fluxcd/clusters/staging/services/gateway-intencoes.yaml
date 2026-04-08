@@ -1,0 +1,55 @@
+# HelmRelease para Gateway Intenções - Staging
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: gateway-intencoes
+  namespace: neural-hive-staging
+spec:
+  interval: 5m
+  timeout: 5m
+  chart:
+    spec:
+      chart: ./helm-charts/gateway-intencoes
+      sourceRef:
+        kind: GitRepository
+        name: neural-hive-mind
+        namespace: flux-system
+  values:
+    image:
+      repository: ghcr.io/albinojimy/neural-hive-mind/gateway-intencoes
+      tag: "staging"
+      pullPolicy: IfNotPresent
+    replicas: 2
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+    autoscaling:
+      enabled: true
+      minReplicas: 2
+      maxReplicas: 10
+      targetCPUUtilizationPercentage: 70
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: "kafka.neural-hive-staging.svc.cluster.local:9092"
+      MONGODB_URL: "mongodb://mongodb-staging-0.mongodb-staging.neural-hive-staging.svc.cluster.local:27017"
+      REDIS_URL: "redis://redis-staging.neural-hive-staging.svc.cluster.local:6379"
+      LOG_LEVEL: "INFO"
+    labels:
+      kafka-access: "true"
+      mongodb-access: "true"
+      redis-access: "true"
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: 8000
+      initialDelaySeconds: 20
+      periodSeconds: 10
+    readinessProbe:
+      httpGet:
+        path: /ready
+        port: 8000
+      initialDelaySeconds: 10
+      periodSeconds: 5

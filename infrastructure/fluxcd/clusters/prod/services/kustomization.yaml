@@ -1,0 +1,13 @@
+# Kustomization para Serviços Core - Prod
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: neural-hive-prod
+
+resources:
+  - gateway-intencoes.yaml
+  - semantic-translation-engine.yaml
+  - consensus-engine.yaml
+  - orchestrator-dynamic.yaml
+  - approval-service.yaml
+  - service-registry.yaml

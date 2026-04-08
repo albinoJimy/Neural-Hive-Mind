@@ -1,40 +1,35 @@
-# Kustomization para Infraestrutura Base - Prod
+# Kustomization para Infraestrutura Base - Production
 # Configura serviços de infraestrutura: observabilidade, segurança, networking
 
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-namespace: neural-hive
+namespace: neural-hive-prod
 
 resources:
-  # Observabilidade Stack
-  - ../../../k8s/configmaps/tenant-configs.yaml
-  # Network Policies
-  - ../../../k8s/network-policies.yaml
-  # RBAC base
-  - ../../../k8s/rbac/chaos-engineering-rbac.yaml
+  - namespace.yaml
+  - network-policies.yaml
+  - configmaps.yaml
 
-# Patches estratégicos para produção
-patches:
-  - patch: |-
-      - op: add
-        path: /spec/replicas
-        value: 3
-    target:
-      kind: Deployment
-      name: "*"
-
-# Configurações globais
 configMapGenerator:
   - name: flux-settings
     literals:
-      - ENVIRONMENT=prod
+      - ENVIRONMENT=production
       - CLUSTER=neural-hive-prod
-      - LOG_LEVEL=info
+      - LOG_LEVEL=warn
+      - GITOPS_SYNC_INTERVAL=manual
 
-# Secret generator (valores sobrescritos via SOPS)
-secretGenerator:
-  - name: flux-secrets
-    behavior: merge
+  - name: global-config
     literals:
-      - ENCRYPTION_PROVIDER=sops
+      - KAFKA_BOOTSTRAP_SERVERS=kafka.neural-hive-prod.svc.cluster.local:9092
+      - MONGODB_URL=mongodb://mongodb-prod-0.mongodb-prod.neural-hive-prod.svc.cluster.local:27017
+      - REDIS_URL=redis://redis-prod.neural-hive-prod.svc.cluster.local:6379
+      - TEMPORAL_HOST=temporal.neural-hive-prod.svc.cluster.local:7233
+      - NEO4J_URI=bolt://neo4j.neural-hive-prod.svc.cluster.local:7687
+
+secretGenerator:
+  - name: global-secrets
+    envs:
+      - .env.secrets
+    options:
+      disableNameSuffixHash: false

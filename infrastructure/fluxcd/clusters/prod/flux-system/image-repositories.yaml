@@ -1,0 +1,434 @@
+# ImageRepositories e ImagePolicies para Ambiente Production
+# Atualização controlada com SemVer para produção
+
+---
+# ImageRepository para Gateway Intenções
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: gateway-intencoes
+  namespace: flux-system
+spec:
+  image: ghcr.io/albinojimy/neural-hive-mind/gateway-intencoes
+  interval: 5m
+  secretRef:
+    name: ghcr-credentials
+
+---
+# ImagePolicy para Gateway Intenções - Prod (SemVer)
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: gateway-intencoes-prod
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: gateway-intencoes
+  policy:
+    semver:
+      range: ">=1.0.0"
+
+---
+# ImageRepository para Semantic Translation Engine
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: semantic-translation-engine
+  namespace: flux-system
+spec:
+  image: ghcr.io/albinojimy/neural-hive-mind/semantic-translation-engine
+  interval: 5m
+  secretRef:
+    name: ghcr-credentials
+
+---
+# ImagePolicy para Semantic Translation Engine - Prod
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: semantic-translation-engine-prod
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: semantic-translation-engine
+  policy:
+    semver:
+      range: ">=1.0.0"
+
+---
+# ImageRepository para Consensus Engine
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: consensus-engine
+  namespace: flux-system
+spec:
+  image: ghcr.io/albinojimy/neural-hive-mind/consensus-engine
+  interval: 5m
+  secretRef:
+    name: ghcr-credentials
+
+---
+# ImagePolicy para Consensus Engine - Prod
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: consensus-engine-prod
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: consensus-engine
+  policy:
+    semver:
+      range: ">=1.0.0"
+
+---
+# ImageRepository para Orchestrator Dynamic
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: orchestrator-dynamic
+  namespace: flux-system
+spec:
+  image: ghcr.io/albinojimy/neural-hive-mind/orchestrator-dynamic
+  interval: 5m
+  secretRef:
+    name: ghcr-credentials
+
+---
+# ImagePolicy para Orchestrator Dynamic - Prod
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: orchestrator-dynamic-prod
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: orchestrator-dynamic
+  policy:
+    semver:
+      range: ">=1.0.0"
+
+---
+# ImageRepository para Approval Service
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: approval-service
+  namespace: flux-system
+spec:
+  image: ghcr.io/albinojimy/neural-hive-mind/approval-service
+  interval: 5m
+  secretRef:
+    name: ghcr-credentials
+
+---
+# ImagePolicy para Approval Service - Prod
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: approval-service-prod
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: approval-service
+  policy:
+    semver:
+      range: ">=1.0.0"
+
+---
+# ImageRepository para Service Registry
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: service-registry
+  namespace: flux-system
+spec:
+  image: ghcr.io/albinojimy/neural-hive-mind/service-registry
+  interval: 5m
+  secretRef:
+    name: ghcr-credentials
+
+---
+# ImagePolicy para Service Registry - Prod
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: service-registry-prod
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: service-registry
+  policy:
+    semver:
+      range: ">=1.0.0"
+
+---
+# ImageRepository para Worker Agents
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: worker-agents
+  namespace: flux-system
+spec:
+  image: ghcr.io/albinojimy/neural-hive-mind/worker-agents
+  interval: 5m
+  secretRef:
+    name: ghcr-credentials
+
+---
+# ImagePolicy para Worker Agents - Prod
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: worker-agents-prod
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: worker-agents
+  policy:
+    semver:
+      range: ">=1.0.0"
+
+---
+# ImageRepository para Queen Agent
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: queen-agent
+  namespace: flux-system
+spec:
+  image: ghcr.io/albinojimy/neural-hive-mind/queen-agent
+  interval: 5m
+  secretRef:
+    name: ghcr-credentials
+
+---
+# ImagePolicy para Queen Agent - Prod
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: queen-agent-prod
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: queen-agent
+  policy:
+    semver:
+      range: ">=1.0.0"
+
+---
+# ImageRepository para Analyst Agents
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: analyst-agents
+  namespace: flux-system
+spec:
+  image: ghcr.io/albinojimy/neural-hive-mind/analyst-agents
+  interval: 5m
+  secretRef:
+    name: ghcr-credentials
+
+---
+# ImagePolicy para Analyst Agents - Prod
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: analyst-agents-prod
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: analyst-agents
+  policy:
+    semver:
+      range: ">=1.0.0"
+
+---
+# ImageRepository para Scout Agents
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: scout-agents
+  namespace: flux-system
+spec:
+  image: ghcr.io/albinojimy/neural-hive-mind/scout-agents
+  interval: 5m
+  secretRef:
+    name: ghcr-credentials
+
+---
+# ImagePolicy para Scout Agents - Prod
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: scout-agents-prod
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: scout-agents
+  policy:
+    semver:
+      range: ">=1.0.0"
+
+---
+# ImageRepository para Guard Agents
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: guard-agents
+  namespace: flux-system
+spec:
+  image: ghcr.io/albinojimy/neural-hive-mind/guard-agents
+  interval: 5m
+  secretRef:
+    name: ghcr-credentials
+
+---
+# ImagePolicy para Guard Agents - Prod
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: guard-agents-prod
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: guard-agents
+  policy:
+    semver:
+      range: ">=1.0.0"
+
+---
+# ImageRepository para Optimizer Agents
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: optimizer-agents
+  namespace: flux-system
+spec:
+  image: ghcr.io/albinojimy/neural-hive-mind/optimizer-agents
+  interval: 5m
+  secretRef:
+    name: ghcr-credentials
+
+---
+# ImagePolicy para Optimizer Agents - Prod
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: optimizer-agents-prod
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: optimizer-agents
+  policy:
+    semver:
+      range: ">=1.0.0"
+
+---
+# ImageRepository para Self Healing Engine
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: self-healing-engine
+  namespace: flux-system
+spec:
+  image: ghcr.io/albinojimy/neural-hive-mind/self-healing-engine
+  interval: 5m
+  secretRef:
+    name: ghcr-credentials
+
+---
+# ImagePolicy para Self Healing Engine - Prod
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: self-healing-engine-prod
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: self-healing-engine
+  policy:
+    semver:
+      range: ">=1.0.0"
+
+---
+# ImageRepository para Execution Ticket Service
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: execution-ticket-service
+  namespace: flux-system
+spec:
+  image: ghcr.io/albinojimy/neural-hive-mind/execution-ticket-service
+  interval: 5m
+  secretRef:
+    name: ghcr-credentials
+
+---
+# ImagePolicy para Execution Ticket Service - Prod
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: execution-ticket-service-prod
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: execution-ticket-service
+  policy:
+    semver:
+      range: ">=1.0.0"
+
+---
+# ImageRepository para SLA Management System
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: sla-management-system
+  namespace: flux-system
+spec:
+  image: ghcr.io/albinojimy/neural-hive-mind/sla-management-system
+  interval: 5m
+  secretRef:
+    name: ghcr-credentials
+
+---
+# ImagePolicy para SLA Management System - Prod
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: sla-management-system-prod
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: sla-management-system
+  policy:
+    semver:
+      range: ">=1.0.0"
+
+---
+# ImageRepository para Code Forge
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: code-forge
+  namespace: flux-system
+spec:
+  image: ghcr.io/albinojimy/neural-hive-mind/code-forge
+  interval: 5m
+  secretRef:
+    name: ghcr-credentials
+
+---
+# ImagePolicy para Code Forge - Prod
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: code-forge-prod
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: code-forge
+  policy:
+    semver:
+      range: ">=1.0.0"

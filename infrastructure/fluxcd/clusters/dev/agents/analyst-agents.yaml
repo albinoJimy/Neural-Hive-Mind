@@ -1,0 +1,52 @@
+# HelmRelease para Analyst Agents - Dev
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: analyst-agents
+  namespace: neural-hive-dev
+spec:
+  interval: 2m
+  timeout: 5m
+  chart:
+    spec:
+      chart: ./helm-charts/analyst-agents
+      sourceRef:
+        kind: GitRepository
+        name: neural-hive-mind
+        namespace: flux-system
+  values:
+    image:
+      repository: ghcr.io/albinojimy/neural-hive-mind/analyst-agents
+      tag: "dev"
+      pullPolicy: Always
+    replicas: 1
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+    autoscaling:
+      enabled: false
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: "kafka.neural-hive-dev.svc.cluster.local:9092"
+      MONGODB_URL: "mongodb://mongodb-dev-0.mongodb-dev.neural-hive-dev.svc.cluster.local:27017"
+      REDIS_URL: "redis://redis-dev.neural-hive-dev.svc.cluster.local:6379"
+      LOG_LEVEL: "DEBUG"
+    labels:
+      kafka-access: "true"
+      mongodb-access: "true"
+      redis-access: "true"
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: 8008
+      initialDelaySeconds: 15
+      periodSeconds: 5
+    readinessProbe:
+      httpGet:
+        path: /ready
+        port: 8008
+      initialDelaySeconds: 10
+      periodSeconds: 3

@@ -1,0 +1,67 @@
+# Setters para ImageUpdateAutomation
+# Este arquivo define os padrões para atualização automática de imagens
+
+apiVersion: imagerepository.toolkit.fluxcd.io/v1
+kind: ImageRepository
+metadata:
+  name: setter-image-repo
+  namespace: flux-system
+
+---
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: setter-image-policy
+  namespace: flux-system
+
+---
+# Exemplo de uso nos HelmRelease:
+# tag: "1.0.0" # {"$imagepolicy": "flux-system:gateway-intencoes-dev:tag"}
+
+# Setters para cada serviço em cada ambiente
+
+# Dev Setters
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: gateway-intencoes-dev
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: gateway-intencoes
+  policy:
+    alphabetical:
+      order: desc
+
+---
+# Staging Setters
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: gateway-intencoes-staging
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: gateway-intencoes
+  filterTags:
+    pattern: "^staging-[a-f0-9]+-(?P<timestamp>[0-9]+)"
+    extract: "$timestamp"
+  policy:
+    numerical:
+      greaterThan: 0
+
+---
+# Prod Setters
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: gateway-intencoes-prod
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: gateway-intencoes
+  filterTags:
+    pattern: "^v(?P<major>[0-9]+)\.(?P<minor>[0-9]+)\.(?P<patch>[0-9]+)"
+  policy:
+    semver:
+      range: ">=1.0.0"

@@ -1,0 +1,37 @@
+---
+# ResourceQuota para limitar recursos consumidos por experimentos
+# Previne que experimentos consumam todos os recursos do cluster
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: experiments-quota
+  namespace: nhm-experiments
+  labels:
+    component: safe-experimentation
+    tier: resource-control
+  annotations:
+    description: "Quotas de recursos para pods de experimentos"
+spec:
+  hard:
+    # CPU total: 8 cores (pode ser ajustado via Helm values)
+    requests.cpu: "8"
+    limits.cpu: "12"
+
+    # Memória total: 16Gi (pode ser ajustado via Helm values)
+    requests.memory: "16Gi"
+    limits.memory: "24Gi"
+
+    # Número máximo de pods
+    pods: "20"
+
+    # Número máximo de PVCs
+    persistentvolumeclaims: "5"
+
+    # Número máximo de services (incluindo loadbalancers)
+    services: "10"
+    services.loadbalancers: "2"
+    services.nodeports: "5"
+
+  scopes:
+    # Aplica apenas a pods não-terminating (ignora pods com activeDeadlineSeconds)
+    - NotTerminating

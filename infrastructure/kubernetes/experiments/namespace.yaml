@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nhm-experiments
+  labels:
+    environment: experiments
+    managed-by: nhm
+    component: safe-experimentation
+    tier: isolation
+  annotations:
+    description: "Namespace isolado para experimentos Neural-Hive-Mind"
+    contact: "nhm-platform-team@example.com"
+    created-by: "EXPERIMENT-001"

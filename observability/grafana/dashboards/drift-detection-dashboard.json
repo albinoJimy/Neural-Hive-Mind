@@ -1,0 +1,762 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    {
+      "asDropdown": true,
+      "icon": "external link",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": ["fase4", "evolution"],
+      "targetBlank": true,
+      "title": "Fase 4 Dashboards",
+      "type": "dashboards"
+    }
+  ],
+  "panels": [
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
+      "id": 100,
+      "panels": [],
+      "title": "Drift Detection Overview",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [
+            {
+              "options": {
+                "0": {"color": "green", "index": 0, "text": "OK"},
+                "1": {"color": "yellow", "index": 1, "text": "WARNING"},
+                "2": {"color": "red", "index": 2, "text": "CRITICAL"}
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 1},
+              {"color": "red", "value": 2}
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 5, "w": 6, "x": 0, "y": 1},
+      "id": 1,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "value"
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "ml_drift_consolidated_status{model_name=\"duration-predictor\"}",
+          "refId": "A"
+        }
+      ],
+      "title": "Consolidated Drift Status",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "blue", "value": null}]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 5, "w": 6, "x": 6, "y": 1},
+      "id": 2,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "ml_drift_alerts_total{severity=\"critical\"}",
+          "refId": "A"
+        }
+      ],
+      "title": "Critical Alerts (24h)",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "orange", "value": null}]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 5, "w": 6, "x": 12, "y": 1},
+      "id": 3,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "ml_drift_alerts_total{severity=\"medium\"}",
+          "refId": "A"
+        }
+      ],
+      "title": "Medium Alerts (24h)",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 0.25}
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 5, "w": 6, "x": 18, "y": 1},
+      "id": 4,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "text": {}
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "ml_drift_psi_score{drift_type=\"feature_avg\", model_name=\"duration-predictor\"}",
+          "refId": "A"
+        }
+      ],
+      "title": "Average PSI (Feature Drift)",
+      "type": "gauge"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 6},
+      "id": 101,
+      "panels": [],
+      "title": "Feature Drift (PSI)",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "PSI",
+            "axisPlacement": "auto",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {"tooltip": false, "viz": false, "legend": false},
+            "lineWidth": 2,
+            "scaleDistribution": {"type": "linear"},
+            "thresholdsStyle": {"mode": "line"}
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 0.1},
+              {"color": "orange", "value": 0.25}
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 7},
+      "id": 5,
+      "options": {
+        "legend": {"calcs": ["lastNotNull", "max", "mean"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "ml_drift_psi_score{drift_type=\"feature\", model_name=\"duration-predictor\"}",
+          "legendFormat": "{{feature_name}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Population Stability Index (PSI) per Feature",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 15},
+      "id": 102,
+      "panels": [],
+      "title": "Prediction Drift (MAE Degradation)",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "MAE Ratio",
+            "axisPlacement": "auto",
+            "fillOpacity": 20,
+            "gradientMode": "scheme",
+            "hideFrom": {"tooltip": false, "viz": false, "legend": false},
+            "lineWidth": 2,
+            "scaleDistribution": {"type": "linear"},
+            "thresholdsStyle": {"mode": "area"}
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 1.2},
+              {"color": "red", "value": 1.5}
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+      "id": 6,
+      "options": {
+        "legend": {"calcs": ["lastNotNull", "max", "mean"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "ml_drift_mae_ratio{model_name=\"duration-predictor\"}",
+          "legendFormat": "7d Window",
+          "refId": "A"
+        }
+      ],
+      "title": "Prediction MAE Drift Ratio (Current/Baseline)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "MAE",
+            "axisPlacement": "auto",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {"tooltip": false, "viz": false, "legend": false},
+            "lineWidth": 2,
+            "scaleDistribution": {"type": "linear"},
+            "thresholdsStyle": {"mode": "off"}
+          },
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+      "id": 7,
+      "options": {
+        "legend": {"calcs": ["lastNotNull", "mean"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "ml_model_mae_baseline{model_name=\"duration-predictor\"}",
+          "legendFormat": "Baseline MAE",
+          "refId": "A"
+        },
+        {
+          "expr": "ml_model_mae_current{model_name=\"duration-predictor\"}",
+          "legendFormat": "Current MAE",
+          "refId": "B"
+        }
+      ],
+      "title": "MAE: Baseline vs Current",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 24},
+      "id": 103,
+      "panels": [],
+      "title": "Target Distribution Drift",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "p-value",
+            "axisPlacement": "auto",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {"tooltip": false, "viz": false, "legend": false},
+            "lineWidth": 2,
+            "scaleDistribution": {"type": "linear"},
+            "thresholdsStyle": {"mode": "line"}
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 0.1},
+              {"color": "red", "value": 0.05}
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 25},
+      "id": 8,
+      "options": {
+        "legend": {"calcs": ["lastNotNull", "min"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "ml_drift_ks_p_value{model_name=\"duration-predictor\", window=\"7d\"}",
+          "legendFormat": "7d - Kolmogorov-Smirnov p-value",
+          "refId": "A"
+        },
+        {
+          "expr": "ml_drift_ks_p_value{model_name=\"duration-predictor\", window=\"30d\"}",
+          "legendFormat": "30d - Kolmogorov-Smirnov p-value",
+          "refId": "B"
+        }
+      ],
+      "title": "Target Drift p-value (K-S Test)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "KS Statistic",
+            "axisPlacement": "auto",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {"tooltip": false, "viz": false, "legend": false},
+            "lineWidth": 2,
+            "scaleDistribution": {"type": "linear"},
+            "thresholdsStyle": {"mode": "line"}
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 0.05},
+              {"color": "red", "value": 0.1}
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 25},
+      "id": 9,
+      "options": {
+        "legend": {"calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "ml_drift_ks_statistic{model_name=\"duration-predictor\", window=\"7d\"}",
+          "legendFormat": "7d - KS Statistic",
+          "refId": "A"
+        },
+        {
+          "expr": "ml_drift_ks_statistic{model_name=\"duration-predictor\", window=\"30d\"}",
+          "legendFormat": "30d - KS Statistic",
+          "refId": "B"
+        }
+      ],
+      "title": "Target Drift KS Statistic",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 33},
+      "id": 104,
+      "panels": [],
+      "title": "Drift by Time Window",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "Drift Score",
+            "axisPlacement": "auto",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {"tooltip": false, "viz": false, "legend": false},
+            "lineWidth": 2,
+            "scaleDistribution": {"type": "linear"},
+            "thresholdsStyle": {"mode": "off"}
+          },
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 34},
+      "id": 10,
+      "options": {
+        "legend": {"calcs": ["lastNotNull", "mean", "max"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "ml_drift_score{model_name=\"duration-predictor\", window=\"7d\"}",
+          "legendFormat": "{{drift_type}} - 7d",
+          "refId": "A"
+        },
+        {
+          "expr": "ml_drift_score{model_name=\"duration-predictor\", window=\"30d\"}",
+          "legendFormat": "{{drift_type}} - 30d",
+          "refId": "B"
+        }
+      ],
+      "title": "Drift Score Comparison (7d vs 30d)",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 42},
+      "id": 105,
+      "panels": [],
+      "title": "Drift Detection Methods",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "align": "left",
+            "displayMode": "auto",
+            "inspect": false
+          },
+          "mappings": [
+            {
+              "options": {
+                "0": {"color": "green", "index": 0, "text": "No Drift"},
+                "1": {"color": "yellow", "index": 1, "text": "Warning"},
+                "2": {"color": "red", "index": 2, "text": "Drift"}
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "Status"},
+            "properties": [
+              {"id": "custom.displayMode", "value": "color-background"},
+              {"id": "mappings", "value": [{"options": {"0": {"color": "green", "index": 0, "text": "No Drift"}, "1": {"color": "yellow", "index": 1, "text": "Warning"}, "2": {"color": "red", "index": 2, "text": "Drift"}}, "type": "value"}]},
+              {"id": "width", "value": 120}
+            ]
+          },
+          {
+            "matcher": {"id": "byName", "options": "Score"},
+            "properties": [
+              {"id": "custom.displayMode", "value": "color-background"},
+              {"id": "color", "value": {"mode": "continuous-GrYlRd"}},
+              {"id": "custom.width", "value": 100}
+            ]
+          }
+        ]
+      },
+      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 43},
+      "id": 11,
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {"desc": true, "displayName": "Score"}
+        ]
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "ml_drift_method_status",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Drift Detection Methods Status",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {"Time": true, "__name__": true, "endpoint": true, "instance": true, "job": true},
+            "indexByName": {},
+            "renameByName": {
+              "drift_score": "Score",
+              "method": "Method",
+              "status": "Status"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 53},
+      "id": 106,
+      "panels": [],
+      "title": "Drift Alerts History",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {"tooltip": false, "viz": false, "legend": false},
+            "lineWidth": 2,
+            "scaleDistribution": {"type": "linear"},
+            "thresholdsStyle": {"mode": "off"}
+          },
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 54},
+      "id": 12,
+      "options": {
+        "legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom"},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "rate(ml_drift_alerts_total[5m])",
+          "legendFormat": "{{severity}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Alert Rate by Severity",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "align": "left",
+            "displayMode": "auto",
+            "inspect": false
+          },
+          "mappings": [
+            {
+              "options": {
+                "critical": {"color": "red", "index": 0, "text": "CRITICAL"},
+                "high": {"color": "orange", "index": 1, "text": "HIGH"},
+                "low": {"color": "blue", "index": 2, "text": "LOW"},
+                "medium": {"color": "yellow", "index": 3, "text": "MEDIUM"}
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "Severity"},
+            "properties": [
+              {"id": "custom.displayMode", "value": "color-background"},
+              {"id": "mappings", "value": [{"options": {"critical": {"color": "red", "index": 0, "text": "CRITICAL"}, "high": {"color": "orange", "index": 1, "text": "HIGH"}, "low": {"color": "blue", "index": 2, "text": "LOW"}, "medium": {"color": "yellow", "index": 3, "text": "MEDIUM"}}, "type": "value"}]},
+              {"id": "width", "value": 100}
+            ]
+          },
+          {
+            "matcher": {"id": "byName", "options": "Type"},
+            "properties": [
+              {"id": "custom.width", "value": 150}
+            ]
+          }
+        ]
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 54},
+      "id": 13,
+      "options": {
+        "showHeader": true
+      },
+      "pluginVersion": "8.5.0",
+      "targets": [
+        {
+          "expr": "ml_drift_alerts_recent",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Recent Drift Alerts",
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {"Time": true, "__name__": true, "endpoint": true, "instance": true, "job": true},
+            "indexByName": {},
+            "renameByName": {
+              "alert_id": "Alert ID",
+              "alert_message": "Message",
+              "alert_severity": "Severity",
+              "alert_timestamp": "Timestamp",
+              "drift_type": "Type"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    }
+  ],
+  "refresh": "1m",
+  "schemaVersion": 27,
+  "style": "dark",
+  "tags": ["drift", "ml", "fase4", "evolution", "monitoring"],
+  "templating": {
+    "list": [
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "duration-predictor",
+          "value": "duration-predictor"
+        },
+        "datasource": "Prometheus",
+        "definition": "label_values(ml_drift_psi_score, model_name)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Model",
+        "multi": false,
+        "name": "model_name",
+        "options": [],
+        "query": {
+          "query": "label_values(ml_drift_psi_score, model_name)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": ["10s", "30s", "1m", "5m", "15m", "30m", "1h"],
+    "time_options": ["1h", "6h", "12h", "24h", "2d", "7d", "30d"]
+  },
+  "timezone": "browser",
+  "title": "Drift Detection Dashboard",
+  "uid": "drift-detection-dashboard",
+  "version": 1
+}

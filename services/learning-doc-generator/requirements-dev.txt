@@ -1,0 +1,7 @@
+# Dependências de desenvolvimento para learning-doc-generator
+-r requirements.txt
+
+# Testing extras
+pytest-mock==3.14.0
+pytest-freezegun==0.4.2
+factory-boy==3.3.1

@@ -1,0 +1,305 @@
+---
+# Role para administradores de experimentos
+# Permite gerenciar pods, services, configmaps, etc no namespace de experimentos
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: experiments-admin
+  namespace: nhm-experiments
+  labels:
+    component: safe-experimentation
+    tier: rbac
+    role-type: admin
+  annotations:
+    description: "Permissões completas para gerir experimentos (sem RBAC)"
+rules:
+  # Gestão de pods
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "pods/exec", "pods/portforward"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # Gestão de deployments e statefulsets
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "replicasets", "daemonsets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # Gestão de jobs e cronjobs
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # Gestão de services
+  - apiGroups: [""]
+    resources: ["services", "endpoints", "endpointslices"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # Gestão de configmaps e secrets (apenas secrets não-sensíveis)
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch"]
+    resourceNames: []  # Vazio = todos, mas pode ser restringido
+
+  # Gestão de PVCs
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # Gestão de eventos (para troubleshooting)
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch"]
+
+  # Gestão de resourcequotas e limitranges (apenas read)
+  - apiGroups: [""]
+    resources: ["resourcequotas", "limitranges"]
+    verbs: ["get", "list", "watch"]
+
+  # Gestão de ingresses
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses", "networkpolicies"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+---
+# Role para visualizadores de experimentos (read-only)
+# Permite apenas visualizar recursos sem modificá-los
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: experiments-viewer
+  namespace: nhm-experiments
+  labels:
+    component: safe-experimentation
+    tier: rbac
+    role-type: viewer
+  annotations:
+    description: "Permissões read-only para visualizar experimentos"
+rules:
+  # Visualizar pods
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+
+  # Visualizar deployments e statefulsets
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "replicasets", "daemonsets"]
+    verbs: ["get", "list", "watch"]
+
+  # Visualizar jobs e cronjobs
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["get", "list", "watch"]
+
+  # Visualizar services
+  - apiGroups: [""]
+    resources: ["services", "endpoints", "endpointslices"]
+    verbs: ["get", "list", "watch"]
+
+  # Visualizar configmaps (mas não secrets)
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+
+  # Visualizar PVCs
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch"]
+
+  # Visualizar eventos
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch"]
+
+  # Visualizar quotas e limites
+  - apiGroups: [""]
+    resources: ["resourcequotas", "limitranges"]
+    verbs: ["get", "list", "watch"]
+
+  # Visualizar ingresses e network policies
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses", "networkpolicies"]
+    verbs: ["get", "list", "watch"]
+
+---
+# Role para execução de experimentos (permissões limitadas)
+# Para aplicações que precisam criar/manage pods durante experimentos
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: experiments-executor
+  namespace: nhm-experiments
+  labels:
+    component: safe-experimentation
+    tier: rbac
+    role-type: executor
+  annotations:
+    description: "Permissões para executar experimentos (criar pods, jobs)"
+rules:
+  # Criar e gerir pods
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # Criar e gerir jobs
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # Ler configmaps
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+
+  # Ler eventos para debugging
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["get", "list", "watch"]
+
+---
+# ServiceAccount para pods de experimento
+# Usado por aplicações que executam dentro do namespace de experimentos
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: experiment-pod
+  namespace: nhm-experiments
+  labels:
+    component: safe-experimentation
+    tier: rbac
+    account-type: pod
+  annotations:
+    description: "ServiceAccount para pods que executam experimentos"
+
+---
+# RoleBinding para admins (grupo OIDC/LDAP)
+# Vincula a role experiments-admin a grupos de administradores
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: experiments-admin-binding
+  namespace: nhm-experiments
+  labels:
+    component: safe-experimentation
+    tier: rbac
+    binding-type: admin
+  annotations:
+    description: "Vincula administradores ao namespace de experimentos"
+subjects:
+  # Grupo de administradores de plataforma (configurar conforme provedor OIDC)
+  - kind: Group
+    name: "nhm-platform-admins"
+    apiGroup: rbac.authorization.k8s.io
+  # Grupo de engenheiros de ML/data science
+  - kind: Group
+    name: "nhm-data-scientists"
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: experiments-admin
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# RoleBinding para viewers (grupo OIDC/LDAP)
+# Vincula a role experiments-viewer a grupos de visualização
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: experiments-viewer-binding
+  namespace: nhm-experiments
+  labels:
+    component: safe-experimentation
+    tier: rbac
+    binding-type: viewer
+  annotations:
+    description: "Vincula visualizadores ao namespace de experimentos"
+subjects:
+  # Grupo de visualizadores (read-only)
+  - kind: Group
+    name: "nhm-experiment-viewers"
+    apiGroup: rbac.authorization.k8s.io
+  # Grupo de stakeholders que precisam ver resultados
+  - kind: Group
+    name: "nhm-stakeholders"
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: experiments-viewer
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# RoleBinding para ServiceAccount de pods
+# Permite que pods usem o serviceaccount experiment-pod
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: experiments-executor-binding
+  namespace: nhm-experiments
+  labels:
+    component: safe-experimentation
+    tier: rbac
+    binding-type: executor
+  annotations:
+    description: "Vincula serviceaccount de pods ao namespace de experimentos"
+subjects:
+  - kind: ServiceAccount
+    name: experiment-pod
+    namespace: nhm-experiments
+roleRef:
+  kind: Role
+  name: experiments-executor
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ClusterRole para visualização de recursos cluster-wide necessários
+# (ex: ver ConfigMaps em outros namespaces para configurações partilhadas)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: experiments-cluster-viewer
+  labels:
+    component: safe-experimentation
+    tier: rbac
+    role-type: cluster-viewer
+  annotations:
+    description: "Permite visualizar recursos cluster necessários para experimentos"
+rules:
+  # Visualizar namespaces
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch"]
+
+  # Visualizar CustomResourceDefinitions (para CRDs experimentais)
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get", "list", "watch"]
+
+  # Visualizar PersistentVolumes (para troubleshooting de PVCs)
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["get", "list", "watch"]
+
+---
+# ClusterRoleBinding para vincular ClusterRole aos grupos
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: experiments-cluster-viewer-binding
+  labels:
+    component: safe-experimentation
+    tier: rbac
+    binding-type: cluster-viewer
+  annotations:
+    description: "Vincula visualizadores ao cluster-level resources"
+subjects:
+  - kind: Group
+    name: "nhm-platform-admins"
+    apiGroup: rbac.authorization.k8s.io
+  - kind: Group
+    name: "nhm-data-scientists"
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: experiments-cluster-viewer
+  apiGroup: rbac.authorization.k8s.io

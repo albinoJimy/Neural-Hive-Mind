@@ -1,0 +1,11 @@
+# Kustomization para Especialistas - Staging
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: neural-hive-staging
+
+resources:
+  - self-healing-engine.yaml
+  - execution-ticket-service.yaml
+  - sla-management-system.yaml
+  - code-forge.yaml

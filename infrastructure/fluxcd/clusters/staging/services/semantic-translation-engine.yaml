@@ -1,0 +1,55 @@
+# HelmRelease para semantic-translation-engine - Staging
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: semantic-translation-engine
+  namespace: neural-hive-staging
+spec:
+  interval: 5m
+  timeout: 5m
+  chart:
+    spec:
+      chart: ./helm-charts/semantic-translation-engine
+      sourceRef:
+        kind: GitRepository
+        name: neural-hive-mind
+        namespace: flux-system
+  values:
+    image:
+      repository: ghcr.io/albinojimy/neural-hive-mind/semantic-translation-engine
+      tag: "staging"
+      pullPolicy: IfNotPresent
+    replicas: 2
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+    autoscaling:
+      enabled: false
+      
+      
+      
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: "kafka.neural-hive-staging.svc.cluster.local:9092"
+      MONGODB_URL: "mongodb://mongodb-staging-0.mongodb-staging.neural-hive-staging.svc.cluster.local:27017"
+      REDIS_URL: "redis://redis-staging.neural-hive-staging.svc.cluster.local:6379"
+      LOG_LEVEL: "INFO"
+    labels:
+      kafka-access: "true"
+      mongodb-access: "true"
+      redis-access: "true"
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: 8001
+      initialDelaySeconds: 15
+      periodSeconds: 5
+    readinessProbe:
+      httpGet:
+        path: /ready
+        port: 8001
+      initialDelaySeconds: 10
+      periodSeconds: 3

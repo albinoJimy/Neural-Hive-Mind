@@ -1,0 +1,36 @@
+# Exemplo de configuração para GitHub Token e Secrets
+# Este é um arquivo de exemplo - NÃO commitar valores reais
+
+# Para criar o secret real:
+# kubectl create secret generic github-token -n flux-system \
+#   --from-literal=username=YOUR_GITHUB_USERNAME \
+#   --from-literal_token=YOUR_GITHUB_TOKEN
+
+# Para criar o secret do GHCR:
+# kubectl create secret docker-registry ghcr-credentials -n flux-system \
+#   --docker-server=ghcr.io \
+#   --docker-username=YOUR_GHCR_USERNAME \
+#   --docker-password=YOUR_GHCR_TOKEN
+
+# Para criar o secret SSH do Git:
+# kubectl create secret generic neural-hive-mind-git-ssh -n flux-system \
+#   --from-file=identity=./path/to/private/key \
+#   --from-file=known_hosts=./path/to/known_hosts
+
+# FluxCD instalação:
+# flux install --version=latest --namespace=flux-system --export > ./flux-system/gotk-components.yaml
+
+# FluxCD GitRepository:
+# flux create source git neural-hive-mind \
+#   --url=ssh://git@github.com/albinoJimy/Neural-Hive-Mind.git \
+#   --branch=develop \
+#   --secret-ref=neural-hive-mind-git-ssh \
+#   --interval=30s
+
+# FluxCD Kustomization:
+# flux create kustomization infrastructure \
+#   --source=GitRepository/neural-hive-mind \
+#   --path=./infrastructure/fluxcd/clusters/dev/infrastructure \
+#   --prune=true \
+#   --interval=1m \
+#   --health-check-timeout=3m

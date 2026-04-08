@@ -1,0 +1,109 @@
+# ConfigMaps Globais - Ambiente Production
+
+---
+# ConfigMap para configurações do Kafka
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-config
+  namespace: neural-hive-prod
+data:
+  bootstrap.servers: "kafka.neural-hive-prod.svc.cluster.local:9092"
+  group.initial.rebalance.delay.ms: "0"
+  auto.offset.reset: "earliest"
+  enable.auto.commit: "false"
+  security.protocol: "SASL_SSL"
+  sasl.mechanism: "SCRAM-SHA-256"
+  request.timeout.ms: "30000"
+
+---
+# ConfigMap para configurações do MongoDB
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mongodb-config
+  namespace: neural-hive-prod
+data:
+  connection.timeout.ms: "10000"
+  socket.timeout.ms: "60000"
+  server.selection.timeout.ms: "30000"
+  max.pool.size: "50"
+  min.pool.size: "10"
+  retryWrites: "true"
+  w: "majority"
+
+---
+# ConfigMap para configurações do Redis
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-config
+  namespace: neural-hive-prod
+data:
+  db: "0"
+  socket.connect.timeout: "10"
+  socket.timeout: "10"
+  max.connections: "200"
+  retry.on.timeout: "true"
+
+---
+# ConfigMap para configurações do Temporal
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: temporal-config
+  namespace: neural-hive-prod
+data:
+  host: "temporal.neural-hive-prod.svc.cluster.local"
+  port: "7233"
+  namespace: "default"
+  task.timeout: "60s"
+  workflow.timeout: "600s"
+  rpc.timeout: "30s"
+
+---
+# ConfigMap para configurações do Neo4j
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: neo4j-config
+  namespace: neural-hive-prod
+data:
+  uri: "bolt://neo4j.neural-hive-prod.svc.cluster.local:7687"
+  max.transaction.retry.time: "60"
+  connection.timeout: "60"
+  connection.acquisition.timeout: "120"
+  routing: "true"
+
+---
+# ConfigMap para observabilidade (OpenTelemetry)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-config
+  namespace: neural-hive-prod
+data:
+  otel.service.name: "neural-hive-mind"
+  otel.traces.exporter: "otlp"
+  otel.traces.sampler: "parentbased_traceidratio"
+  otel.traces.sampler.arg: "0.1"
+  otel.metrics.exporter: "otlp"
+  otel.logs.exporter: "otlp"
+  otel.exporter.otlp.endpoint: "http://otel-collector.neural-hive-prod.svc.cluster.local:4317"
+  otel.resource.attributes: "service.name=${SERVICE_NAME},deployment.environment=production"
+  otel.batch.timeout: "5000"
+  otel.batch.max.queue.size: "2048"
+
+---
+# ConfigMap para Health Checks
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: health-check-config
+  namespace: neural-hive-prod
+data:
+  health.check.interval.seconds: "60"
+  health.check.timeout.seconds: "10"
+  health.check.initial.delay.seconds: "120"
+  readiness.check.interval.seconds: "15"
+  failure.threshold: "3"

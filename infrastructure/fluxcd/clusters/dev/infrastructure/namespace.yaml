@@ -1,0 +1,11 @@
+# Namespace para Ambiente de Desenvolvimento
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: neural-hive-dev
+  labels:
+    environment: dev
+    project: neural-hive-mind
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

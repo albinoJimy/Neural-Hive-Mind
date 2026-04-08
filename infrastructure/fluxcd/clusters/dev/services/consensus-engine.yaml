@@ -1,0 +1,52 @@
+# HelmRelease para Consensus Engine - Dev
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: consensus-engine
+  namespace: neural-hive-dev
+spec:
+  interval: 2m
+  timeout: 5m
+  chart:
+    spec:
+      chart: ./helm-charts/consensus-engine
+      sourceRef:
+        kind: GitRepository
+        name: neural-hive-mind
+        namespace: flux-system
+  values:
+    image:
+      repository: ghcr.io/albinojimy/neural-hive-mind/consensus-engine
+      tag: "dev"
+      pullPolicy: Always
+    replicas: 1
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+    autoscaling:
+      enabled: false
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: "kafka.neural-hive-dev.svc.cluster.local:9092"
+      MONGODB_URL: "mongodb://mongodb-dev-0.mongodb-dev.neural-hive-dev.svc.cluster.local:27017"
+      REDIS_URL: "redis://redis-dev.neural-hive-dev.svc.cluster.local:6379"
+      LOG_LEVEL: "DEBUG"
+    labels:
+      kafka-access: "true"
+      mongodb-access: "true"
+      redis-access: "true"
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: 8002
+      initialDelaySeconds: 10
+      periodSeconds: 5
+    readinessProbe:
+      httpGet:
+        path: /ready
+        port: 8002
+      initialDelaySeconds: 5
+      periodSeconds: 3

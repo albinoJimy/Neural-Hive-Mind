@@ -1,0 +1,193 @@
+# Network Policies - Ambiente Production
+# Políticas de rede mais restritivas para produção
+
+---
+# Política padrão: negar todo o tráfego
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: neural-hive-prod
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+
+---
+# Política padrão: negar todo o egress (exceto DNS)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-egress
+  namespace: neural-hive-prod
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+---
+# Permitir tráfego entre serviços no mesmo namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-same-namespace
+  namespace: neural-hive-prod
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector: {}
+  egress:
+    - to:
+        - podSelector: {}
+
+---
+# Permitir tráfego de entrada para o Gateway (via ingress controller)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gateway-ingress
+  namespace: neural-hive-prod
+spec:
+  podSelector:
+    matchLabels:
+      app: gateway-intencoes
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8000
+
+---
+# Permitir comunicação com Kafka
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-kafka
+  namespace: neural-hive-prod
+spec:
+  podSelector:
+    matchLabels:
+      kafka-access: "true"
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: kafka
+      ports:
+        - protocol: TCP
+          port: 9092
+
+---
+# Permitir comunicação com MongoDB
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-mongodb
+  namespace: neural-hive-prod
+spec:
+  podSelector:
+    matchLabels:
+      mongodb-access: "true"
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: mongodb
+      ports:
+        - protocol: TCP
+          port: 27017
+
+---
+# Permitir comunicação com Redis
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-redis
+  namespace: neural-hive-prod
+spec:
+  podSelector:
+    matchLabels:
+      redis-access: "true"
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+
+---
+# Permitir comunicação com Temporal
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-temporal
+  namespace: neural-hive-prod
+spec:
+  podSelector:
+    matchLabels:
+      temporal-access: "true"
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: temporal
+      ports:
+        - protocol: TCP
+          port: 7233
+        - protocol: TCP
+          port: 7234
+        - protocol: TCP
+          port: 9090
+
+---
+# Permitir comunicação com OTEL Collector
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-otel
+  namespace: neural-hive-prod
+spec:
+  podSelector:
+    matchLabels:
+      otel-access: "true"
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: otel-collector
+      ports:
+        - protocol: TCP
+          port: 4317
+        - protocol: TCP
+          port: 4318

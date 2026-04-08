@@ -1,0 +1,127 @@
+# Pipeline de Promotion - Staging → Production
+# Gate de aprovação manual para produção
+
+---
+# ImageUpdateAutomation para promoção Staging → Production (MANUAL)
+# Este manifest requer aprovação manual antes de executar
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImageUpdateAutomation
+metadata:
+  name: staging-to-prod-promotion
+  namespace: flux-system
+  annotations:
+    fluxcd.io/sync-gate: "true"  # Requer aprovação manual
+    approval.neural-hive-mind.org/status: "pending"
+spec:
+  interval: 10m
+  sourceRef:
+    kind: GitRepository
+    name: neural-hive-mind
+  gitCheckout:
+    ref:
+      branch: main
+  update:
+    path: ./infrastructure/fluxcd/clusters/prod
+    strategy: Setters
+  commit:
+    authorName: fluxcdbot
+    authorEmail: fluxcdbot@neural-hive-mind.org
+    message.template: |
+      PROMOTE staging to production: {{range .Updated.Images}}{{println .}}{{end}}
+
+      IMPORTANT: This promotion requires manual approval!
+      Review staging tests and approve via: flux reconcile imageupdateautomation staging-to-prod-promotion --with-source
+  push:
+    branch: main
+
+---
+# Policy para produção - apenas versões estáveis
+apiVersion: image.toolkit.fluxcd.io/v1
+kind: ImagePolicy
+metadata:
+  name: prod-stable-policy
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: gateway-intencoes
+  filterTags:
+    pattern: "^v[0-9]+\.[0-9]+\.[0-9]+"
+  policy:
+    semver:
+      range: ">=1.0.0"
+
+---
+# Kustomization para Production com health checks extendidos
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: production-health-check
+  namespace: flux-system
+  annotations:
+    fluxcd.io/sync-gate: "true"  # Requer aprovação manual
+spec:
+  interval: 10m
+  timeout: 15m
+  sourceRef:
+    kind: GitRepository
+    name: neural-hive-mind
+  path: ./infrastructure/fluxcd/clusters/prod/services
+  prune: true
+  prunePropagationPolicy: foreground
+  wait: true
+  timeout: 10m
+  dependsOn:
+    - name: infrastructure
+  healthChecks:
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: gateway-intencoes
+      namespace: neural-hive-prod
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: orchestrator-dynamic
+      namespace: neural-hive-prod
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: consensus-engine
+      namespace: neural-hive-prod
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: worker-agents
+      namespace: neural-hive-prod
+  postBuild:
+    substitute:
+      ENVIRONMENT: "production"
+      PROMOTION_SOURCE: "staging"
+
+---
+# Notificação para Slack em caso de promoção pendente
+apiVersion: notification.toolkit.fluxcd.io/v1beta1
+kind: Alert
+metadata:
+  name: staging-ready-for-prod
+  namespace: flux-system
+spec:
+  providerRef:
+    name: slack
+  eventSources:
+    - kind: ImageUpdateAutomation
+      name: staging-to-prod-promotion
+      namespace: flux-system
+  eventSeverity: info
+  eventMetadata:
+    env: "staging"
+    action: "ready-for-prod"
+    approval: "required"
+
+---
+# Receiver para aprovação manual via Slack/HTTP
+apiVersion: notification.toolkit.fluxcd.io/v1beta1
+kind: Receiver
+metadata:
+  name: prod-approval-receiver
+  namespace: flux-system
+spec:
+  type: generic
+  secretRef:
+    name: webhook-token
