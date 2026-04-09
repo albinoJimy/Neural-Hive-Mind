@@ -2,13 +2,14 @@
 
 import os
 import pytest
-from datetime import datetime
+from datetime import datetime, utcnow
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from src.services import (
     DocumentRepository,
     ExperimentInsightExtractor,
     MarkdownReportGenerator,
+    PDFGenerator,
     PlotGenerator,
 )
 from src.models import DocumentFormat, DocumentStatus, DocumentType, LearningDocument
@@ -226,3 +227,149 @@ async def test_repository_lifecycle(output_dir):
         # Atualizar status
         success = await repo.update_status(doc_id, DocumentStatus.COMPLETED)
         assert success is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_pdf_generation_and_download(mock_experiment_runs, output_dir):
+    """Testa geração e download de PDF"""
+    with pytest.MonkeyPatch.context() as m:
+        m.setenv("DOCS_OUTPUT_DIR", output_dir)
+
+        pdf_gen = PDFGenerator()
+
+        # Verificar disponibilidade
+        if not pdf_gen.is_available():
+            pytest.skip("WeasyPrint não disponível - instalando apenas quando necessário")
+
+        generator = MarkdownReportGenerator()
+        await generator.initialize()
+
+        extractor = ExperimentInsightExtractor()
+        insights = await extractor.extract_insights(mock_experiment_runs)
+        summary = await extractor.generate_summary(mock_experiment_runs)
+        recommendations = await extractor.generate_recommendations(
+            insights, mock_experiment_runs
+        )
+
+        document = LearningDocument(
+            id="pdf_test_001",
+            title="PDF Test Document",
+            type=DocumentType.EXPERIMENT_REPORT,
+            status=DocumentStatus.COMPLETED,
+            generated_at=datetime(2026, 1, 15, 10, 30, 0),
+            period_start=datetime(2026, 1, 1),
+            period_end=datetime(2026, 1, 7),
+            summary=summary,
+            insights=insights,
+            experiment_runs=mock_experiment_runs,
+            recommendations=recommendations,
+        )
+
+        # Gerar Markdown
+        markdown_content = await generator.generate(document)
+        document.markdown_content = markdown_content
+
+        # Gerar PDF
+        pdf_path = await pdf_gen.generate_pdf(document)
+        assert pdf_path is not None
+        assert os.path.exists(pdf_path)
+        assert pdf_path.endswith(".pdf")
+
+        # Verificar tamanho do arquivo
+        file_size = os.path.getsize(pdf_path)
+        assert file_size > 0
+        assert file_size > 1000  # PDF deve ter conteúdo substancial
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_pdf_generation_with_custom_template(output_dir):
+    """Testa geração de PDF com template HTML customizado"""
+    with pytest.MonkeyPatch.context() as m:
+        m.setenv("DOCS_OUTPUT_DIR", output_dir)
+        m.setenv("DOCS_TEMPLATE_DIR", output_dir)
+
+        pdf_gen = PDFGenerator()
+
+        if not pdf_gen.is_available():
+            pytest.skip("WeasyPrint não disponível")
+
+        # Criar template customizado
+        custom_template = """<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ title }}</title>
+    <style>
+        body { font-family: Arial; padding: 2cm; }
+        .custom-header { background: #f0f0f0; padding: 1cm; }
+    </style>
+</head>
+<body>
+    <div class="custom-header">
+        <h1>RELATÓRIO CUSTOMIZADO: {{ title }}</h1>
+        <p>Data: {{ generated_at.strftime('%Y-%m-%d') }}</p>
+    </div>
+    <div>{{ content|safe }}</div>
+</body>
+</html>"""
+
+        template_path = os.path.join(output_dir, "custom_template.html")
+        with open(template_path, "w") as f:
+            f.write(custom_template)
+
+        document = LearningDocument(
+            title="Custom Template Test",
+            type=DocumentType.EXPERIMENT_REPORT,
+            markdown_content="# Custom Test\n\nThis uses a custom template.",
+        )
+
+        pdf_path = await pdf_gen.generate_pdf(document, template_name="custom_template.html")
+
+        assert os.path.exists(pdf_path)
+        assert os.path.getsize(pdf_path) > 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.integration
+async def test_pdf_batch_generation(output_dir):
+    """Testa geração em lote de PDFs"""
+    with pytest.MonkeyPatch.context() as m:
+        m.setenv("DOCS_OUTPUT_DIR", output_dir)
+
+        pdf_gen = PDFGenerator()
+
+        if not pdf_gen.is_available():
+            pytest.skip("WeasyPrint não disponível")
+
+        docs = [
+            (
+                LearningDocument(
+                    title="Batch Doc 1",
+                    type=DocumentType.EXPERIMENT_REPORT,
+                ),
+                "# Batch Document 1\n\nContent for doc 1",
+            ),
+            (
+                LearningDocument(
+                    title="Batch Doc 2",
+                    type=DocumentType.WEEKLY_SUMMARY,
+                ),
+                "# Batch Document 2\n\nContent for doc 2",
+            ),
+            (
+                LearningDocument(
+                    title="Batch Doc 3",
+                    type=DocumentType.DAILY_SUMMARY,
+                ),
+                "# Batch Document 3\n\nContent for doc 3",
+            ),
+        ]
+
+        pdf_paths = await pdf_gen.generate_batch(docs)
+
+        assert len(pdf_paths) == 3
+        for path in pdf_paths:
+            if path:  # Alguns podem falhar
+                assert os.path.exists(path)
+                assert path.endswith(".pdf")

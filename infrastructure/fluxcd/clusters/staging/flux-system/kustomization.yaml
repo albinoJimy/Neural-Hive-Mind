@@ -1,0 +1,27 @@
+# Kustomization para FluxCD - Staging Environment
+# Aplica todos os recursos do FluxCD para o cluster de staging
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: flux-system
+
+# Recursos base do FluxCD
+resources:
+  # Componentes base
+  - gotk-components.yaml
+  # Política de promoção
+  - promotion-policy.yaml
+  # Notificações Slack
+  - notifications.yaml
+
+# Labels adicionais para todos os recursos
+commonLabels:
+  environment: staging
+  gitops: fluxcd
+  cluster: neural-hive-mind-staging
+
+# Anotações comuns
+commonAnnotations:
+  docs.fluxcd.io/source: "https://fluxcd.io/docs/"
+  docs.nhm.local: "/infrastructure/fluxcd/docs/"

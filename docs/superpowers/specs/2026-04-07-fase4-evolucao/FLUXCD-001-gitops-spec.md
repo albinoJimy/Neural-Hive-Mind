@@ -48,7 +48,7 @@ Baseado na especificação da Fase 4, o componente deve:
 - [ ] FLUXCD-001-02: Definir manifests para todos os 15+ serviços
 - [ ] FLUXCD-001-03: Implementar pipeline de promotion (dev→staging→prod)
 - [ ] FLUXCD-001-04: Integrar testes automatizados no pipeline
-- [ ] FLUXCD-001-05: Implementar notification webhook (Slack)
+- [x] FLUXCD-001-05: Implementar notification webhook (Slack) ✅ (2026-04-08)
 - [ ] FLUXCD-001-06: Configurar drift detection
 - [ ] FLUXCD-001-07: Implementar automatic secret decryption
 - [ ] FLUXCD-001-08: Configurar ImageRepository para todos os containers
@@ -230,20 +230,23 @@ Integrar testes E2E e smoke tests no pipeline de promotion.
 
 ---
 
-### FLUXCD-001-05: Implementar notification webhook (Slack)
+### FLUXCD-001-05: Implementar notification webhook (Slack) ✅
 
 **Tipo:** feature
 **Estimativa:** S (2-3 dias)
+**Status:** COMPLETO (2026-04-08)
 
 **Descrição:**
 Configurar notificações Slack para eventos GitOps.
 
 **Acceptance Criteria:**
-- [ ] Notification provider configurado
-- [ ] Canal Slack por ambiente
-- [ ] Eventos: deploy success/failure, drift detected
-- [ ] Mensagens formatadas com informações relevantes
-- [ ] Alertas para falhas críticas
+- [x] Notification provider configurado (3 providers: dev, staging, prod)
+- [x] Canal Slack por ambiente (#nhm-gitops-dev, #nhm-gitops-staging, #nhm-gitops-prod)
+- [x] Eventos: deploy success/failure, drift detected
+- [x] Mensagens formatadas com informações relevantes
+- [x] Alertas para falhas críticas (com escalarão: on-call, security)
+
+**Relatório:** `./FLUXCD-001-05-IMPLEMENTATION.md`
 
 ---
 

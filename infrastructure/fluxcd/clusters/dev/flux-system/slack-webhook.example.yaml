@@ -1,0 +1,75 @@
+# Slack Webhook Configuration Example
+# ====================================
+#
+# Este ficheiro contém o exemplo de configuração para o webhook do Slack
+# que é usado pelas notificações do FluxCD.
+#
+# PASSOS PARA CONFIGURAR:
+#
+# 1. Criar um Incoming Webhook no Slack:
+#    - Aceder a: https://api.slack.com/messaging/webhooks
+#    - Clicar em "Create your Slack app"
+#    - Selecionar o workspace "Neural Hive Mind"
+#    - Ativar "Incoming Webhooks"
+#    - Clicar "Add New Webhook to Workspace"
+#    - Selecionar o canal apropriado (#nhm-gitops-dev, #nhm-gitops-staging, #nhm-gitops-prod)
+#    - Copiar a Webhook URL
+#
+# 2. Criar o secret com a webhook URL:
+#    Via kubectl:
+#    ```bash
+#    kubectl create secret generic slack-webhook \
+#      --namespace=flux-system \
+#      --from-literal=webhookUrl='https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK' \
+#      --from-literal=username='FluxCD Dev' \
+#      --from-literal=icon-emoji=':bee:' \
+#      --from-literal=channel='#nhm-gitops-dev'
+#    ```
+#
+#    Ou via SOPS para encriptação:
+#    ```bash
+#    sops --encrypt --kms 'arn:aws:kms:...' slack-webhook-secret.yaml > slack-webhook-secret.sops.yaml
+#    ```
+#
+# 3. Canais Slack Recomendados:
+#    - Desenvolvimento: #nhm-gitops-dev
+#    - Staging: #nhm-gitops-staging
+#    - Produção: #nhm-gitops-prod
+#    - Incidentes: #nhm-incidents
+#
+# 4. Aplicar a configuração:
+#    ```bash
+#    kubectl apply -f infrastructure/fluxcd/clusters/dev/flux-system/notifications.yaml
+#    ```
+#
+# 5. Verificar notificações:
+#    ```bash
+#    # Ver provider
+#    kubectl get provider -n flux-system
+#
+#    # Ver alerts
+#    kubectl get alert -n flux-system
+#
+#    # Ver eventos recentes
+#    kubectl get events -n flux-system --sort-by='.lastTimestamp'
+#    ```
+#
+# ESTRUTURA DO SECRET:
+# ====================
+#
+apiVersion: v1
+kind: Secret
+metadata:
+  name: slack-webhook
+  namespace: flux-system
+type: Opaque
+stringData:
+  # Webhook URL obtida do Slack (OBRIGATÓRIO)
+  webhookUrl: "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX"
+
+  # Configurações opcionais de formatação
+  username: "FluxCD Bot"      # Nome que aparece nas mensagens
+  icon-emoji: ":bee:"         # Ícone do bot
+  channel: "#nhm-gitops-dev"  # Canal destino (pode ser override no Provider)
+
+# NOTA: Em produção, usar SOPS ou External Secrets Operator para gerir este secret

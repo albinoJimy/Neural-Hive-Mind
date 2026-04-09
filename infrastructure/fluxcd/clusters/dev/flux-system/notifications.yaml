@@ -1,0 +1,232 @@
+# FluxCD Notifications - Development Environment
+# Configuração de notificações Slack para ambiente de desenvolvimento
+#
+# Ambiente: Development
+# Canal Slack: #nhm-gitops-dev
+# Eventos: Todos (info, warning, error, drift)
+
+---
+# Secret para Slack webhook
+# ATENÇÃO: O webhookUrl deve ser configurado via SOPS ou External Secrets
+apiVersion: v1
+kind: Secret
+metadata:
+  name: slack-webhook
+  namespace: flux-system
+type: Opaque
+stringData:
+  # Webhook URL do Slack - criar em: https://api.slack.com/messaging/webhooks
+  webhookUrl: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+  # Configurações opcionais de formatação
+  username: "FluxCD Dev"
+  icon-emoji: ":bee:"
+  channel: "#nhm-gitops-dev"
+
+---
+# Notification Provider para Slack - Desenvolvimento
+apiVersion: notification.toolkit.fluxcd.io/v1beta2
+kind: Provider
+metadata:
+  name: slack-dev
+  namespace: flux-system
+spec:
+  type: slack
+  channel: nhm-gitops-dev
+  secretRef:
+    name: slack-webhook
+  # Suspender notificações pode ser útil durante manutenção
+  suspend: false
+
+---
+# Alert para erros críticos de Kustomization
+apiVersion: notification.toolkit.fluxcd.io/v1beta2
+kind: Alert
+metadata:
+  name: kustomization-errors
+  namespace: flux-system
+spec:
+  providerRef:
+    name: slack-dev
+  eventSources:
+    - kind: Kustomization
+      name: "*"
+      namespace: flux-system
+  eventSeverity: error
+  eventMetadata:
+    env: "dev"
+    severity: "critical"
+    notification: "kustomization_error"
+  # Formatação customizada da mensagem
+  summary: "Erro crítico no Kustomization {{ .Kind }}/{{ .Name }}"
+  timeout: 5m
+
+---
+# Alert para erros de HelmRelease
+apiVersion: notification.toolkit.fluxcd.io/v1beta2
+kind: Alert
+metadata:
+  name: helmrelease-errors
+  namespace: flux-system
+spec:
+  providerRef:
+    name: slack-dev
+  eventSources:
+    - kind: HelmRelease
+      name: "*"
+      namespace: neural-hive-dev
+    - kind: HelmRelease
+      name: "*"
+      namespace: flux-system
+  eventSeverity: error
+  eventMetadata:
+    env: "dev"
+    severity: "critical"
+    notification: "helmrelease_error"
+  summary: "Erro no HelmRelease {{ .Kind }}/{{ .Name }}"
+  timeout: 5m
+
+---
+# Alert para detecção de drift
+apiVersion: notification.toolkit.fluxcd.io/v1beta2
+kind: Alert
+metadata:
+  name: drift-detection
+  namespace: flux-system
+spec:
+  providerRef:
+    name: slack-dev
+  eventSources:
+    - kind: Kustomization
+      name: "*"
+      namespace: flux-system
+    - kind: HelmRelease
+      name: "*"
+      namespace: neural-hive-dev
+  # Filtrar apenas eventos de drift
+  eventSeverity: error
+  eventMetadata:
+    env: "dev"
+    alert_type: "drift_detected"
+    notification: "drift"
+  summary: "⚠️ Drift detectado em {{ .Kind }}/{{ .Name }}"
+  timeout: 3m
+
+---
+# Alert para eventos de informação (deploy success)
+apiVersion: notification.toolkit.fluxcd.io/v1beta2
+kind: Alert
+metadata:
+  name: deployment-success
+  namespace: flux-system
+spec:
+  providerRef:
+    name: slack-dev
+  eventSources:
+    - kind: Kustomization
+      name: "*"
+      namespace: flux-system
+  # Incluir apenas eventos de sucesso
+  eventSeverity: info
+  eventMetadata:
+    env: "dev"
+    notification: "deployment_success"
+  summary: "✅ Deploy bem-sucedido: {{ .Kind }}/{{ .Name }}"
+  timeout: 2m
+
+---
+# Alert para warnings (comportamento degradado)
+apiVersion: notification.toolkit.fluxcd.io/v1beta2
+kind: Alert
+metadata:
+  name: health-check-warnings
+  namespace: flux-system
+spec:
+  providerRef:
+    name: slack-dev
+  eventSources:
+    - kind: Kustomization
+      name: "*"
+      namespace: flux-system
+    - kind: HelmRelease
+      name: "*"
+      namespace: neural-hive-dev
+  eventSeverity: warning
+  eventMetadata:
+    env: "dev"
+    notification: "health_warning"
+  summary: "⚠️ Health check warning: {{ .Kind }}/{{ .Name }}"
+  timeout: 5m
+
+---
+# Alert para eventos de ImageRepository
+apiVersion: notification.toolkit.fluxcd.io/v1beta2
+kind: Alert
+metadata:
+  name: image-repository-events
+  namespace: flux-system
+spec:
+  providerRef:
+    name: slack-dev
+  eventSources:
+    - kind: ImageRepository
+      name: "*"
+      namespace: flux-system
+  eventSeverity: info
+  eventMetadata:
+    env: "dev"
+    notification: "image_repository"
+  summary: "📦 ImageRepository updated: {{ .Kind }}/{{ .Name }}"
+  timeout: 5m
+
+---
+# Notification Rule para formatação customizada de mensagens
+# FluxCD v2 suporta templates customizados via annotation
+apiVersion: notification.toolkit.fluxcd.io/v1beta2
+kind: Receiver
+metadata:
+  name: slack-dev-receiver
+  namespace: flux-system
+spec:
+  # Slacks webhook receiver configuration
+  slack:
+    # Canal alternativo para incidentes críticos
+    channel: "#nhm-gitops-dev"
+    # Notificar em threads
+    notify: true
+    # Username do bot
+    username: "FluxCD Dev Bot"
+    # Ícone do bot
+    icon: ":bee:"
+    # Links clicáveis
+    slackConfig:
+      endpoint:
+        ref:
+          name: slack-webhook
+          key: webhookUrl
+
+---
+# Alert para falhas de reconciliação
+apiVersion: notification.toolkit.fluxcd.io/v1beta2
+kind: Alert
+metadata:
+  name: reconciliation-failure
+  namespace: flux-system
+spec:
+  providerRef:
+    name: slack-dev
+  eventSources:
+    - kind: Kustomization
+      name: "*"
+      namespace: flux-system
+    - kind: HelmRelease
+      name: "*"
+      namespace: neural-hive-dev
+  # Filtrar por evento de reconciliação falhada
+  eventSeverity: error
+  eventMetadata:
+    env: "dev"
+    notification: "reconciliation_failed"
+    exclude:
+      - ".*suspended.*"
+  summary: "🔴 Falha de reconciliação: {{ .Kind }}/{{ .Name }}"
+  timeout: 3m

@@ -1,6 +1,7 @@
 """API REST para documentos de aprendizado"""
 
 import asyncio
+import os
 import time
 from datetime import datetime
 from typing import List, Optional
@@ -23,6 +24,7 @@ from src.services import (
     DocumentRepository,
     ExperimentInsightExtractor,
     MarkdownReportGenerator,
+    PDFGenerator,
     PlotGenerator,
 )
 from src.observability.metrics import learning_doc_metrics
@@ -40,6 +42,7 @@ class AppState:
     insight_extractor: Optional[ExperimentInsightExtractor] = None
     report_generator: Optional[MarkdownReportGenerator] = None
     plot_generator: Optional[PlotGenerator] = None
+    pdf_generator: Optional[PDFGenerator] = None
 
 
 _state: Optional[AppState] = None
@@ -329,12 +332,14 @@ async def get_document(doc_id: str) -> LearningDocument:
 async def download_document(
     doc_id: str,
     format: DocumentFormat = Query(DocumentFormat.MARKDOWN, description="Formato"),
+    template: Optional[str] = Query(None, description="Template HTML customizado (para PDF)"),
 ) -> Response:
     """Download de documento
 
     Args:
         doc_id: ID do documento
-        format: Formato desejado
+        format: Formato desejado (markdown, pdf)
+        template: Template HTML customizado (opcional, para PDF)
 
     Returns:
         Arquivo para download
@@ -364,8 +369,66 @@ async def download_document(
                 "Content-Disposition": f'attachment; filename="{doc_id}.md"',
             },
         )
+
+    elif format == DocumentFormat.PDF:
+        if not state.pdf_generator:
+            raise HTTPException(
+                status_code=503,
+                detail="Geração de PDF não disponível - WeasyPrint não instalado",
+            )
+
+        if not document.markdown_content:
+            raise HTTPException(
+                status_code=404, detail="Conteúdo Markdown não disponível para gerar PDF"
+            )
+
+        # Verificar se PDF já foi gerado e ainda é válido
+        pdf_path = document.pdf_path
+        if pdf_path and os.path.exists(pdf_path):
+            # Verificar se o PDF é mais recente que o documento
+            pdf_mtime = datetime.fromtimestamp(os.path.getmtime(pdf_path))
+            if document.updated_at and pdf_mtime >= document.updated_at:
+                logger.info("Retornando PDF em cache", doc_id=doc_id, path=pdf_path)
+                return FileResponse(
+                    path=pdf_path,
+                    media_type="application/pdf",
+                    headers={
+                        "Content-Disposition": f'attachment; filename="{doc_id}.pdf"',
+                    },
+                )
+
+        # Gerar PDF
+        try:
+            pdf_path = await state.pdf_generator.generate_pdf(
+                document=document,
+                markdown_content=document.markdown_content,
+                template_name=template,
+            )
+
+            # Atualizar documento com caminho do PDF
+            document.pdf_path = pdf_path
+            await state.repository.update(doc_id, document)
+
+            # Retornar arquivo
+            return FileResponse(
+                path=pdf_path,
+                media_type="application/pdf",
+                headers={
+                    "Content-Disposition": f'attachment; filename="{doc_id}.pdf"',
+                },
+            )
+
+        except RuntimeError as e:
+            raise HTTPException(status_code=503, detail=str(e))
+        except Exception as e:
+            logger.error("Erro ao gerar PDF", doc_id=doc_id, error=str(e), exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Erro ao gerar PDF: {str(e)}")
+
     else:
-        raise HTTPException(status_code=400, detail=f"Formato {format} não implementado ainda")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Formato {format} não implementado. Use: markdown, pdf",
+        )
 
 
 @router.delete("/{doc_id}")

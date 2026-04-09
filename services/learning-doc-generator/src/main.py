@@ -15,6 +15,7 @@ from src.services import (
     DocumentRepository,
     ExperimentInsightExtractor,
     MarkdownReportGenerator,
+    PDFGenerator,
     PlotGenerator,
 )
 
@@ -46,6 +47,7 @@ class GlobalState:
     insight_extractor: ExperimentInsightExtractor = None
     report_generator: MarkdownReportGenerator = None
     plot_generator: PlotGenerator = None
+    pdf_generator: PDFGenerator = None
     health_checker: HealthChecker = None
     scheduler: DocumentScheduler = None
     kafka_consumer: LearningEventConsumer = None
@@ -113,6 +115,16 @@ async def startup_event():
         state.plot_generator = PlotGenerator()
         logger.info("Plot generator inicializado")
 
+        # Inicializar gerador de PDF (opcional)
+        state.pdf_generator = PDFGenerator()
+        if state.pdf_generator.is_available():
+            logger.info("PDF generator inicializado")
+        else:
+            logger.warning(
+                "PDF generator não disponível - WeasyPrint não instalado",
+                hint="Instale com: pip install weasyprint",
+            )
+
         # Inicializar Kafka Producer
         state.kafka_producer = KafkaLearningDocProducer()
         await state.kafka_producer.start()
@@ -143,6 +155,7 @@ async def startup_event():
         api_state.insight_extractor = state.insight_extractor
         api_state.report_generator = state.report_generator
         api_state.plot_generator = state.plot_generator
+        api_state.pdf_generator = state.pdf_generator
         set_state(api_state)
 
         # Registrar routers
@@ -196,6 +209,9 @@ async def shutdown_event():
 
     if state.plot_generator:
         await state.plot_generator.close()
+
+    if state.pdf_generator:
+        await state.pdf_generator.close()
 
     logger.info("Learning Documentation Generator encerrado")
 

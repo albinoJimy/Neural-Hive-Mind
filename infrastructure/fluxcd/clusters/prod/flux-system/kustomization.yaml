@@ -1,0 +1,32 @@
+# Kustomization para FluxCD - Production Environment
+# Aplica todos os recursos do FluxCD para o cluster de produção
+#
+# IMPORTANTE: Este ambiente requer aprovação manual para mudanças
+# Ver annotation fluxcd.io/sync-gate nos recursos do gotk-components.yaml
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: flux-system
+
+# Recursos base do FluxCD
+resources:
+  # Componentes base (inclui namespace e sync gates)
+  - gotk-components.yaml
+  # Repositórios de imagens
+  - image-repositories.yaml
+  # Notificações Slack (críticas apenas)
+  - notifications.yaml
+
+# Labels adicionais para todos os recursos
+commonLabels:
+  environment: prod
+  gitops: fluxcd
+  cluster: neural-hive-mind-prod
+
+# Anotações comuns
+commonAnnotations:
+  docs.fluxcd.io/source: "https://fluxcd.io/docs/"
+  docs.nhm.local: "/infrastructure/fluxcd/docs/"
+  approval: "manual"
+  critical: "true"

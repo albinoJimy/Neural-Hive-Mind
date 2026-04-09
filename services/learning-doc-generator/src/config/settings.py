@@ -123,7 +123,7 @@ class Settings(BaseSettings):
     )
 
     # Feature Flags
-    enable_pdf_generation: bool = Field(default=False, description="Habilitar geração de PDF")
+    enable_pdf_generation: bool = Field(default=True, description="Habilitar geração de PDF")
     enable_slack_notifications: bool = Field(default=False, description="Notificar Slack")
 
     # Slack (opcional)

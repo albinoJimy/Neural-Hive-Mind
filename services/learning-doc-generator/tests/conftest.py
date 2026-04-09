@@ -2,6 +2,7 @@
 
 import os
 from datetime import datetime
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -27,8 +28,13 @@ def test_settings() -> Settings:
 
 
 @pytest.fixture(autouse=True)
-def set_env_vars(monkeypatch):
+def set_env_vars(monkeypatch, tmp_path):
     """Define variáveis de ambiente para testes"""
+    output_dir = tmp_path / "output"
+    template_dir = tmp_path / "templates"
+    output_dir.mkdir(exist_ok=True)
+    template_dir.mkdir(exist_ok=True)
+
     monkeypatch.setenv("ENVIRONMENT", "test")
     monkeypatch.setenv("DEBUG", "true")
     monkeypatch.setenv("MONGODB_URI", "mongodb://localhost:27017")
@@ -36,7 +42,8 @@ def set_env_vars(monkeypatch):
     monkeypatch.setenv("MONGODB_COLLECTION", "test_learning_documents")
     monkeypatch.setenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
     monkeypatch.setenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
-    monkeypatch.setenv("DOCS_OUTPUT_DIR", "/tmp/test_learning_docs")
+    monkeypatch.setenv("DOCS_OUTPUT_DIR", str(output_dir))
+    monkeypatch.setenv("DOCS_TEMPLATE_DIR", str(template_dir))
 
 
 @pytest.fixture
@@ -178,19 +185,6 @@ def mock_mlflow_runs(mock_experiment_runs):
 
 
 @pytest.fixture(autouse=True)
-def set_env_vars(monkeypatch):
-    """Define variáveis de ambiente para testes"""
-    monkeypatch.setenv("ENVIRONMENT", "test")
-    monkeypatch.setenv("DEBUG", "true")
-    monkeypatch.setenv("MONGODB_URI", "mongodb://localhost:27017")
-    monkeypatch.setenv("MONGODB_DATABASE", "test_neural_hive")
-    monkeypatch.setenv("MONGODB_COLLECTION", "test_learning_documents")
-    monkeypatch.setenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
-    monkeypatch.setenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
-    monkeypatch.setenv("DOCS_OUTPUT_DIR", "/tmp/test_learning_docs")
-
-
-@pytest.fixture(autouse=True)
 def reset_settings():
     """Reseta settings para cada teste"""
     # Reset singleton
@@ -206,5 +200,5 @@ def reset_settings():
 def output_dir(tmp_path):
     """Diretório de saída para testes"""
     output = tmp_path / "output"
-    output.mkdir()
+    output.mkdir(exist_ok=True)
     return str(output)

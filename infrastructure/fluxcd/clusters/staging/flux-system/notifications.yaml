@@ -1,0 +1,248 @@
+# FluxCD Notifications - Staging Environment
+# Configuração de notificações Slack para ambiente de staging
+#
+# Ambiente: Staging/QA
+# Canal Slack: #nhm-gitops-staging
+# Eventos: Erros, warnings, drift e success de deploy
+
+---
+# Secret para Slack webhook
+# ATENÇÃO: O webhookUrl deve ser configurado via SOPS ou External Secrets
+apiVersion: v1
+kind: Secret
+metadata:
+  name: slack-webhook
+  namespace: flux-system
+type: Opaque
+stringData:
+  # Webhook URL do Slack - criar em: https://api.slack.com/messaging/webhooks
+  webhookUrl: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+  username: "FluxCD Staging"
+  icon-emoji: ":warning:"
+  channel: "#nhm-gitops-staging"
+
+---
+# Notification Provider para Slack - Staging
+apiVersion: notification.toolkit.fluxcd.io/v1beta2
+kind: Provider
+metadata:
+  name: slack-staging
+  namespace: flux-system
+spec:
+  type: slack
+  channel: nhm-gitops-staging
+  secretRef:
+    name: slack-webhook
+  suspend: false
+
+---
+# Alert para erros críticos de Kustomization
+apiVersion: notification.toolkit.fluxcd.io/v1beta2
+kind: Alert
+metadata:
+  name: kustomization-errors
+  namespace: flux-system
+spec:
+  providerRef:
+    name: slack-staging
+  eventSources:
+    - kind: Kustomization
+      name: "*"
+      namespace: flux-system
+  eventSeverity: error
+  eventMetadata:
+    env: "staging"
+    severity: "critical"
+    notification: "kustomization_error"
+  summary: "🚨 ERRO CRÍTICO [STAGING]: {{ .Kind }}/{{ .Name }}"
+  timeout: 3m
+
+---
+# Alert para erros de HelmRelease
+apiVersion: notification.toolkit.fluxcd.io/v1beta2
+kind: Alert
+metadata:
+  name: helmrelease-errors
+  namespace: flux-system
+spec:
+  providerRef:
+    name: slack-staging
+  eventSources:
+    - kind: HelmRelease
+      name: "*"
+      namespace: neural-hive-staging
+    - kind: HelmRelease
+      name: "*"
+      namespace: flux-system
+  eventSeverity: error
+  eventMetadata:
+    env: "staging"
+    severity: "critical"
+    notification: "helmrelease_error"
+  summary: "🚨 ERRO HELM [STAGING]: {{ .Kind }}/{{ .Name }}"
+  timeout: 3m
+
+---
+# Alert para detecção de drift (CRÍTICO em staging)
+apiVersion: notification.toolkit.fluxcd.io/v1beta2
+kind: Alert
+metadata:
+  name: drift-detection
+  namespace: flux-system
+spec:
+  providerRef:
+    name: slack-staging
+  eventSources:
+    - kind: Kustomization
+      name: "*"
+      namespace: flux-system
+    - kind: HelmRelease
+      name: "*"
+      namespace: neural-hive-staging
+  eventSeverity: error
+  eventMetadata:
+    env: "staging"
+    alert_type: "drift_detected"
+    notification: "drift"
+    action_required: "true"
+  summary: "⚠️ DRIFT DETECTADO [STAGING]: {{ .Kind }}/{{ .Name }}"
+  timeout: 2m
+
+---
+# Alert para eventos de informação (deploy success)
+apiVersion: notification.toolkit.fluxcd.io/v1beta2
+kind: Alert
+metadata:
+  name: deployment-success
+  namespace: flux-system
+spec:
+  providerRef:
+    name: slack-staging
+  eventSources:
+    - kind: Kustomization
+      name: "*"
+      namespace: flux-system
+    - kind: HelmRelease
+      name: "*"
+      namespace: neural-hive-staging
+  eventSeverity: info
+  eventMetadata:
+    env: "staging"
+    notification: "deployment_success"
+  summary: "✅ Deploy bem-sucedido [STAGING]: {{ .Kind }}/{{ .Name }}"
+  timeout: 3m
+
+---
+# Alert para warnings (comportamento degradado)
+apiVersion: notification.toolkit.fluxcd.io/v1beta2
+kind: Alert
+metadata:
+  name: health-check-warnings
+  namespace: flux-system
+spec:
+  providerRef:
+    name: slack-staging
+  eventSources:
+    - kind: Kustomization
+      name: "*"
+      namespace: flux-system
+    - kind: HelmRelease
+      name: "*"
+      namespace: neural-hive-staging
+  eventSeverity: warning
+  eventMetadata:
+    env: "staging"
+    notification: "health_warning"
+  summary: "⚠️ Health check WARNING [STAGING]: {{ .Kind }}/{{ .Name }}"
+  timeout: 5m
+
+---
+# Alert para eventos de ImageRepository
+apiVersion: notification.toolkit.fluxcd.io/v1beta2
+kind: Alert
+metadata:
+  name: image-repository-events
+  namespace: flux-system
+spec:
+  providerRef:
+    name: slack-staging
+  eventSources:
+    - kind: ImageRepository
+      name: "*"
+      namespace: flux-system
+  eventSeverity: info
+  eventMetadata:
+    env: "staging"
+    notification: "image_repository"
+  summary: "📦 Nova imagem disponível [STAGING]: {{ .Kind }}/{{ .Name }}"
+  timeout: 5m
+
+---
+# Alert para promoção de versões
+apiVersion: notification.toolkit.fluxcd.io/v1beta2
+kind: Alert
+metadata:
+  name: promotion-events
+  namespace: flux-system
+spec:
+  providerRef:
+    name: slack-staging
+  eventSources:
+    - kind: Kustomization
+      name: "core-services"
+      namespace: flux-system
+    - kind: Kustomization
+      name: "specialists"
+      namespace: flux-system
+  eventSeverity: info
+  eventMetadata:
+    env: "staging"
+    notification: "promotion"
+    action: "dev_to_staging"
+  summary: "🚀 Promoção DEV→STAGING: {{ .Kind }}/{{ .Name }}"
+  timeout: 3m
+
+---
+# Alert para falhas de reconciliação
+apiVersion: notification.toolkit.fluxcd.io/v1beta2
+kind: Alert
+metadata:
+  name: reconciliation-failure
+  namespace: flux-system
+spec:
+  providerRef:
+    name: slack-staging
+  eventSources:
+    - kind: Kustomization
+      name: "*"
+      namespace: flux-system
+    - kind: HelmRelease
+      name: "*"
+      namespace: neural-hive-staging
+  eventSeverity: error
+  eventMetadata:
+    env: "staging"
+    notification: "reconciliation_failed"
+  summary: "🔴 Falha de reconciliação [STAGING]: {{ .Kind }}/{{ .Name }}"
+  timeout: 2m
+
+---
+# Alert para testes de smoke pós-deploy
+apiVersion: notification.toolkit.fluxcd.io/v1beta2
+kind: Alert
+metadata:
+  name: smoke-test-results
+  namespace: flux-system
+spec:
+  providerRef:
+    name: slack-staging
+  eventSources:
+    - kind: Kustomization
+      name: "core-services"
+      namespace: flux-system
+  eventSeverity: info
+  eventMetadata:
+    env: "staging"
+    notification: "smoke_test"
+  summary: "🧪 Smoke Test [STAGING]: {{ .Kind }}/{{ .Name }}"
+  timeout: 5m
