@@ -44,14 +44,14 @@ Baseado na especificação da Fase 4, o componente deve:
 
 ### 1.3 Gaps de Funcionalidade
 
-- [ ] HYPOTH-001-01: Criar serviço `hypothesis-library`
-- [ ] HYPOTH-001-02: Implementar persistência MongoDB de hipóteses
-- [ ] HYPOTH-001-03: Implementar versionamento de hipóteses
-- [ ] HYPOTH-001-04: Implementar ciclo de vida (workflow)
-- [ ] HYPOTH-001-05: Criar API REST completa
-- [ ] HYPOTH-001-06: Implementar busca e filtros avançados
-- [ ] HYPOTH-001-07: Integração com ExperimentationEngine
-- [ ] HYPOTH-001-08: Sistema de aprovação de hipóteses
+- [x] HYPOTH-001-01: Criar serviço `hypothesis-library` ✅ (2026-04-09)
+- [x] HYPOTH-001-02: Implementar persistência MongoDB de hipóteses ✅ (2026-04-09)
+- [x] HYPOTH-001-03: Implementar versionamento de hipóteses ✅ (2026-04-09)
+- [x] HYPOTH-001-04: Implementar ciclo de vida (workflow) ✅ (2026-04-09)
+- [x] HYPOTH-001-05: Criar API REST completa ✅ (2026-04-09)
+- [x] HYPOTH-001-06: Implementar busca e filtros avançados ✅ (2026-04-09)
+- [x] HYPOTH-001-07: Integração com ExperimentationEngine ✅ (2026-04-09)
+- [x] HYPOTH-001-08: Sistema de aprovação de hipóteses ✅ (2026-04-09)
 
 ---
 
@@ -145,16 +145,17 @@ Baseado na especificação da Fase 4, o componente deve:
 
 **Tipo:** feature
 **Estimativa:** S (2-3 dias)
+**Status:** ✅ COMPLETO (2026-04-09)
 
 **Descrição:**
 Criar estrutura do serviço FastAPI.
 
 **Acceptance Criteria:**
-- [ ] Projeto criado com FastAPI
-- [ ] Configuração (settings, logging, MongoDB)
-- [ ] Dockerfile e docker-compose
-- [ ] Health check endpoint
-- [ ] Estrutura de diretórios
+- [x] Projeto criado com FastAPI
+- [x] Configuração (settings, logging, MongoDB)
+- [x] Dockerfile e docker-compose
+- [x] Health check endpoint
+- [x] Estrutura de diretórios
 
 ---
 
@@ -162,17 +163,18 @@ Criar estrutura do serviço FastAPI.
 
 **Tipo:** feature
 **Estimativa:** M (1 semana)
+**Status:** ✅ COMPLETO (2026-04-09)
 
 **Descrição:**
 Implementar models e repository para hipóteses.
 
 **Acceptance Criteria:**
-- [ ] Schema MongoDB (Pydantic models)
-- [ ] `Hypothesis` model com campos completos
-- [ ] `HypothesisRepository` class
-- [ ] Indexes: status, created_at, tags, author
-- [ ] CRUD operations
-- [ ] Testes de integração
+- [x] Schema MongoDB (Pydantic models)
+- [x] `Hypothesis` model com campos completos
+- [x] `HypothesisRepository` class
+- [x] Indexes: status, created_at, tags, author
+- [x] CRUD operations
+- [x] Testes de integração
 
 **Model Schema:**
 ```python
@@ -200,16 +202,17 @@ class Hypothesis(BaseModel):
 
 **Tipo:** feature
 **Estimativa:** M (1 semana)
+**Status:** ✅ COMPLETO (2026-04-09)
 
 **Descrição:**
 Implementar versionamento completo de hipóteses.
 
 **Acceptance Criteria:**
-- [ ] `HypothesisVersion` model
-- [ ] Sistema de versionamento (create_version, get_version, list_versions)
-- [ ] Comparação entre versões (diff)
-- [ ] Revert para versão anterior
-- [ ] Testes de versionamento
+- [x] `HypothesisVersion` model
+- [x] Sistema de versionamento (create_version, get_version, list_versions)
+- [x] Comparação entre versões (diff)
+- [x] Revert para versão anterior
+- [x] Testes de versionamento
 
 ---
 
@@ -217,6 +220,7 @@ Implementar versionamento completo de hipóteses.
 
 **Tipo:** feature
 **Estimativa:** M (1 semana)
+**Status:** ✅ COMPLETO (2026-04-09)
 
 **Descrição:**
 Implementar workflow de estados da hipótese.
@@ -232,11 +236,11 @@ Implementar workflow de estados da hipótese.
 - `ARCHIVED` - Arquivada
 
 **Acceptance Criteria:**
-- [ ] `HypothesisStatus` enum
-- [ ] Máquina de estados com transições válidas
-- [ ] `transition_to()` method com validação
-- [ ] Eventos Kafka em cada transição
-- [ ] Testes de transições
+- [x] `HypothesisStatus` enum
+- [x] Máquina de estados com transições válidas
+- [x] `transition_to()` method com validação
+- [x] Eventos Kafka em cada transição
+- [x] Testes de transições
 
 ---
 
@@ -244,6 +248,7 @@ Implementar workflow de estados da hipótese.
 
 **Tipo:** feature
 **Estimativa:** M (1 semana)
+**Status:** ✅ COMPLETO (2026-04-09)
 
 **Descrição:**
 Implementar API REST para gerenciar hipóteses.
@@ -262,11 +267,11 @@ Implementar API REST para gerenciar hipóteses.
 - `GET /api/v1/hypotheses/{id}/versions` - Listar versões
 
 **Acceptance Criteria:**
-- [ ] Todos os endpoints implementados
-- [ ] Validação de requests
-- [ ] Paginação e filtros
-- [ ] OpenAPI documentation
-- [ ] Testes de integração
+- [x] Todos os endpoints implementados
+- [x] Validação de requests
+- [x] Paginação e filtros
+- [x] OpenAPI documentation
+- [x] Testes de integração
 
 ---
 
@@ -274,18 +279,19 @@ Implementar API REST para gerenciar hipóteses.
 
 **Tipo:** feature
 **Estimativa:** S (2-3 dias)
+**Status:** ✅ COMPLETO (2026-04-09)
 
 **Descrição:**
 Implementar busca avançada com filtros múltiplos.
 
 **Acceptance Criteria:**
-- [ ] Busca por texto (title, description)
-- [ ] Filtro por status
-- [ ] Filtro por autor
-- [ ] Filtro por tags
-- [ ] Filtro por intervalo de datas
-- [ ] Ordenação (created_at, updated_at, title)
-- [ ] Agregações (count by status)
+- [x] Busca por texto (title, description)
+- [x] Filtro por status
+- [x] Filtro por autor
+- [x] Filtro por tags
+- [x] Filtro por intervalo de datas
+- [x] Ordenação (created_at, updated_at, title)
+- [x] Agregações (count by status)
 
 ---
 
@@ -293,17 +299,18 @@ Implementar busca avançada com filtros múltiplos.
 
 **Tipo:** feature
 **Estimativa:** M (1 semana)
+**Status:** ✅ COMPLETO (2026-04-09)
 
 **Descrição:**
 Integrar criação de experimentos a partir de hipóteses.
 
 **Acceptance Criteria:**
-- [ ] Método `to_experiment_request()` melhorado
-- [ ] Cliente HTTP/gRPC para ExperimentationEngine
-- [ ] Criação automática de experimento ao aprovar hipótese
-- [ ] Atualização do experiment_id na hipótese
-- [ ] Callback ao completar experimento
-- [ ] Testes de integração
+- [x] Método `to_experiment_request()` melhorado
+- [x] Cliente HTTP/gRPC para ExperimentationEngine
+- [x] Criação automática de experimento ao aprovar hipótese
+- [x] Atualização do experiment_id na hipótese
+- [x] Callback ao completar experimento
+- [x] Testes de integração
 
 ---
 
@@ -311,17 +318,18 @@ Integrar criação de experimentos a partir de hipóteses.
 
 **Tipo:** feature
 **Estimativa:** M (1 semana)
+**Status:** ✅ COMPLETO (2026-04-09)
 
 **Descrição:**
 Implementar sistema de aprovação com revisão.
 
 **Acceptance Criteria:**
-- [ ] Lista de revisores
-- [ ] Aprovação pode requerer N revisores
-- [ ] Comentários em hipóteses
-- [ ] Notificação (Slack/Kafka) em proposta
-- [ ] Histórico de aprovações
-- [ ] Testes de workflow
+- [x] Lista de revisores
+- [x] Aprovação pode requerer N revisores
+- [x] Comentários em hipóteses
+- [x] Notificação (Slack/Kafka) em proposta
+- [x] Histórico de aprovações
+- [x] Testes de workflow
 
 ---
 

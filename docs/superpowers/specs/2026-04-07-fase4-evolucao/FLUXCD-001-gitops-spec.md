@@ -44,14 +44,14 @@ Baseado na especificação da Fase 4, o componente deve:
 
 ### 1.3 Gaps de Funcionalidade
 
-- [ ] FLUXCD-001-01: Criar estrutura de repositório GitOps
-- [ ] FLUXCD-001-02: Definir manifests para todos os 15+ serviços
-- [ ] FLUXCD-001-03: Implementar pipeline de promotion (dev→staging→prod)
-- [ ] FLUXCD-001-04: Integrar testes automatizados no pipeline
+- [x] FLUXCD-001-01: Criar estrutura de repositório GitOps ✅ (2026-04-09)
+- [x] FLUXCD-001-02: Definir manifests para todos os 15+ serviços ✅ (2026-04-09)
+- [x] FLUXCD-001-03: Implementar pipeline de promotion (dev→staging→prod) ✅ (2026-04-09)
+- [x] FLUXCD-001-04: Integrar testes automatizados no pipeline ✅ (2026-04-09)
 - [x] FLUXCD-001-05: Implementar notification webhook (Slack) ✅ (2026-04-08)
-- [ ] FLUXCD-001-06: Configurar drift detection
-- [ ] FLUXCD-001-07: Implementar automatic secret decryption
-- [ ] FLUXCD-001-08: Configurar ImageRepository para todos os containers
+- [x] FLUXCD-001-06: Configurar drift detection ✅ (2026-04-09)
+- [ ] FLUXCD-001-07: Implementar automatic secret decryption ⚠️ (requer AWS/Vault)
+- [x] FLUXCD-001-08: Configurar ImageRepository para todos os containers ✅ (2026-04-09)
 
 ---
 
@@ -152,12 +152,14 @@ Baseado na especificação da Fase 4, o componente deve:
 **Descrição:**
 Criar estrutura monorepo ou multirepo para GitOps com organização de ambientes e serviços.
 
+**Status:** ✅ COMPLETO (2026-04-09)
+
 **Acceptance Criteria:**
-- [ ] Repositório `nhm-gitops` criado
-- [ ] Estrutura: `/clusters/{cluster}/`, `/apps/`, `/infrastructure/`
-- [ ] Ambientes: dev, staging, production
-- [ ] Documentação da estrutura
-- [ ] Política de branches
+- [x] Repositório `nhm-gitops` criado
+- [x] Estrutura: `/clusters/{cluster}/`, `/apps/`, `/infrastructure/`
+- [x] Ambientes: dev, staging, production
+- [x] Documentação da estrutura
+- [x] Política de branches
 
 ---
 
@@ -165,6 +167,7 @@ Criar estrutura monorepo ou multirepo para GitOps com organização de ambientes
 
 **Tipo:** feature
 **Estimativa:** L (2-3 semanas)
+**Status:** ✅ COMPLETO (2026-04-09)
 
 **Descrição:**
 Criar Helm charts e Kustomizations para todos os serviços do NHM.
@@ -187,11 +190,11 @@ Criar Helm charts e Kustomizations para todos os serviços do NHM.
 15. sla-management-system
 
 **Acceptance Criteria:**
-- [ ] Helm chart base criado (common)
-- [ ] Kustomization para cada serviço
-- [ ] Values por ambiente (dev, staging, prod)
-- [ ] Testes de aplicação
-- [ ] Documentação de customização
+- [x] Helm chart base criado (common)
+- [x] Kustomization para cada serviço
+- [x] Values por ambiente (dev, staging, prod)
+- [x] Testes de aplicação
+- [x] Documentação de customização
 
 ---
 
@@ -199,17 +202,18 @@ Criar Helm charts e Kustomizations para todos os serviços do NHM.
 
 **Tipo:** feature
 **Estimativa:** M (1 semana)
+**Status:** ✅ COMPLETO (2026-04-09)
 
 **Descrição:**
 Implementar pipeline automatizado de promoção entre ambientes com gates de aprovação.
 
 **Acceptance Criteria:**
-- [ ] FluxCD Kustomization por ambiente
-- [ ] Política de promotion automática para dev→staging
-- [ ] Aprovação manual para staging→prod
-- [ ] Testes automatizados como gate
-- [ ] Rollback automático em falha
-- [ ] Dashboard de status
+- [x] FluxCD Kustomization por ambiente
+- [x] Política de promotion automática para dev→staging
+- [x] Aprovação manual para staging→prod
+- [x] Testes automatizados como gate
+- [x] Rollback automático em falha
+- [x] Dashboard de status
 
 ---
 
@@ -217,16 +221,17 @@ Implementar pipeline automatizado de promoção entre ambientes com gates de apr
 
 **Tipo:** feature
 **Estimativa:** M (1 semana)
+**Status:** ✅ COMPLETO (2026-04-09)
 
 **Descrição:**
 Integrar testes E2E e smoke tests no pipeline de promotion.
 
 **Acceptance Criteria:**
-- [ ] Job Kubernetes pós-deploy em staging
-- [ ] Smoke tests para cada serviço
-- [ ] Testes E2E do cognitive pipeline
-- [ ] Report de testes no Slack
-- [ ] Bloqueio de promotion em falha
+- [x] Job Kubernetes pós-deploy em staging
+- [x] Smoke tests para cada serviço
+- [x] Testes E2E do cognitive pipeline
+- [x] Report de testes no Slack
+- [x] Bloqueio de promotion em falha
 
 ---
 
@@ -254,16 +259,17 @@ Configurar notificações Slack para eventos GitOps.
 
 **Tipo:** feature
 **Estimativa:** S (2-3 dias)
+**Status:** ✅ COMPLETO (2026-04-09)
 
 **Descrição:**
 Configurar detecção de drift entre estado Git e cluster.
 
 **Acceptance Criteria:**
-- [ ] Drift detection habilitado
-- [ ] Alertas em drift detectado
-- [ ] Auto-correção opcional (apenas dev)
-- [ ] Report de drift no dashboard
-- [ ] Integração com Slack para alertas
+- [x] Drift detection habilitado
+- [x] Alertas em drift detectado
+- [x] Auto-correção opcional (apenas dev)
+- [x] Report de drift no dashboard
+- [x] Integração com Slack para alertas
 
 ---
 
@@ -288,16 +294,17 @@ Integrar external secrets ou SOPS para gerenciar secrets via GitOps.
 
 **Tipo:** feature
 **Estimativa:** M (1 semana)
+**Status:** ✅ COMPLETO (2026-04-09)
 
 **Descrição:**
 Configurar ImageUpdateAutomation para atualização automática de imagens.
 
 **Acceptance Criteria:**
-- [ ] ImageRepository para cada serviço
-- [ ] ImagePolicy para semver ou tag regex
-- [ ] ImageUpdateAutomation automático
-- [ ] Notificação em nova imagem
-- [ ] Testes de atualização
+- [x] ImageRepository para cada serviço
+- [x] ImagePolicy para semver ou tag regex
+- [x] ImageUpdateAutomation automático
+- [x] Notificação em nova imagem
+- [x] Testes de atualização
 
 ---
 

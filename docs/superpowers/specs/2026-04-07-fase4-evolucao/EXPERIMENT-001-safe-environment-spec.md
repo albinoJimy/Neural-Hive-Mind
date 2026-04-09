@@ -141,16 +141,17 @@ Baseado na especificação da Fase 4, o componente deve:
 
 **Tipo:** feature
 **Estimativa:** XS (1 dia)
+**Status:** ✅ COMPLETO (2026-04-09)
 
 **Descrição:**
 Criar namespace Kubernetes dedicado para experimentos com configuração base.
 
 **Acceptance Criteria:**
-- [ ] Namespace `nhm-experiments` criado
-- [ ] Labels aplicados: `environment=experiments`, `managed-by=nhm`
-- [ ] Annotations para documentação
-- [ ] Teste de criação/destruição
-- [ ] Documentação no README
+- [x] Namespace `nhm-experiments` criado
+- [x] Labels aplicados: `environment=experiments`, `managed-by=nhm`
+- [x] Annotations para documentação
+- [x] Teste de criação/destruição
+- [x] Documentação no README
 
 ---
 
@@ -158,16 +159,17 @@ Criar namespace Kubernetes dedicado para experimentos com configuração base.
 
 **Tipo:** feature
 **Estimativa:** S (2-3 dias)
+**Status:** ✅ COMPLETO (2026-04-09)
 
 **Descrição:**
 Implementar ResourceQuota específico para limitar recursos consumidos por experimentos.
 
 **Acceptance Criteria:**
-- [ ] ResourceQuota `experiments-quota` criado
-- [ ] Limits: CPU=8, Memory=16Gi, Pods=20, PersistentVolumeClaims=5
-- [ ] Configuração via Helm values
-- [ ] Testes de limit enforcement
-- [ ] Documentação de como ajustar quotas
+- [x] ResourceQuota `experiments-quota` criado
+- [x] Limits: CPU=8, Memory=16Gi, Pods=20, PersistentVolumeClaims=5
+- [x] Configuração via Helm values
+- [x] Testes de limit enforcement
+- [x] Documentação de como ajustar quotas
 
 ---
 
@@ -175,16 +177,17 @@ Implementar ResourceQuota específico para limitar recursos consumidos por exper
 
 **Tipo:** feature
 **Estimativa:** S (2-3 dias)
+**Status:** ✅ COMPLETO (2026-04-09)
 
 **Descrição:**
 Implementar NetworkPolicy para isolar tráfego de experimentos.
 
 **Acceptance Criteria:**
-- [ ] NetworkPolicy `experiments-deny-all` criada
-- [ ] Regras seletivas para comunicação necessária
-- [ ] Isolamento de egress para Internet
-- [ ] Testes de conectividade
-- [ ] Documentação de regras
+- [x] NetworkPolicy `experiments-deny-all` criada
+- [x] Regras seletivas para comunicação necessária
+- [x] Isolamento de egress para Internet
+- [x] Testes de conectividade
+- [x] Documentação de regras
 
 ---
 
@@ -192,16 +195,17 @@ Implementar NetworkPolicy para isolar tráfego de experimentos.
 
 **Tipo:** feature
 **Estimativa:** S (2-3 dias)
+**Status:** ✅ COMPLETO (2026-04-09)
 
 **Descrição:**
 Implementar LimitRange para garantir defaults de recursos para pods de experimentos.
 
 **Acceptance Criteria:**
-- [ ] LimitRange `experiments-limits` criado
-- [ ] Defaults: CPU=100m, Memory=128Mi
-- [ ] Max: CPU=2, Memory=4Gi
-- [ ] Testes de aplicação de limits
-- [ ] Documentação de valores
+- [x] LimitRange `experiments-limits` criado
+- [x] Defaults: CPU=100m, Memory=128Mi
+- [x] Max: CPU=2, Memory=4Gi
+- [x] Testes de aplicação de limits
+- [x] Documentação de valores
 
 ---
 
@@ -209,17 +213,18 @@ Implementar LimitRange para garantir defaults de recursos para pods de experimen
 
 **Tipo:** feature
 **Estimativa:** M (1 semana)
+**Status:** ✅ COMPLETO (2026-04-09)
 
 **Descrição:**
 Implementar RBAC específico para controle de acesso ao namespace de experimentos.
 
 **Acceptance Criteria:**
-- [ ] Role `experiments-admin` criada
-- [ ] Role `experiments-viewer` criada
-- [ ] RoleBindings para grupos apropriados
-- [ ] ServiceAccount para experiment pods
-- [ ] Testes de permissões
-- [ ] Documentação de RBAC
+- [x] Role `experiments-admin` criada
+- [x] Role `experiments-viewer` criada
+- [x] RoleBindings para grupos apropriados
+- [x] ServiceAccount para experiment pods
+- [x] Testes de permissões
+- [x] Documentação de RBAC
 
 ---
 
@@ -227,16 +232,17 @@ Implementar RBAC específico para controle de acesso ao namespace de experimento
 
 **Tipo:** feature
 **Estimativa:** M (1 semana)
+**Status:** ✅ COMPLETO (2026-04-09)
 
 **Descrição:**
 Implementar segregação de secrets específicos para experimentos.
 
 **Acceptance Criteria:**
-- [ ] Secrets específicos no namespace experiments
-- [ ] External Secrets Operator integrado
-- [ ] Rotação automática de secrets
-- [ ] Testes de acesso a secrets
-- [ ] Documentação de gerenciamento
+- [x] Secrets específicos no namespace experiments
+- [x] External Secrets Operator integrado
+- [x] Rotação automática de secrets
+- [x] Testes de acesso a secrets
+- [x] Documentação de gerenciamento
 
 ---
 

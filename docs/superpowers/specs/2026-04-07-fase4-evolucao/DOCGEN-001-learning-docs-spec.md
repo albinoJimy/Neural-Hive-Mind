@@ -41,14 +41,14 @@ Baseado na especificação da Fase 4, o componente deve:
 
 ### 1.3 Gaps de Funcionalidade
 
-- [ ] DOCGEN-001-01: Criar serviço `learning-doc-generator`
-- [ ] DOCGEN-001-02: Implementar extractor de insights de experimentos
-- [ ] DOCGEN-001-03: Implementar gerador de relatórios Markdown
-- [ ] DOCGEN-001-04: Implementar gerador de visualizações (gráficos)
-- [ ] DOCGEN-001-05: Implementar armazenamento de histórico (MongoDB)
-- [ ] DOCGEN-001-06: Criar API REST para consulta de documentos
-- [ ] DOCGEN-001-07: Implementar geração periódica agendada
-- [ ] DOCGEN-001-08: Implementar geração on-demand via evento
+- [x] DOCGEN-001-01: Criar serviço `learning-doc-generator` ✅ (2026-04-09)
+- [x] DOCGEN-001-02: Implementar extractor de insights de experimentos ✅ (2026-04-09)
+- [x] DOCGEN-001-03: Implementar gerador de relatórios Markdown ✅ (2026-04-09)
+- [x] DOCGEN-001-04: Implementar gerador de visualizações (gráficos) ✅ (2026-04-09)
+- [x] DOCGEN-001-05: Implementar armazenamento de histórico (MongoDB) ✅ (2026-04-09)
+- [x] DOCGEN-001-06: Criar API REST para consulta de documentos ✅ (2026-04-09)
+- [x] DOCGEN-001-07: Implementar geração periódica agendada ✅ (2026-04-09)
+- [x] DOCGEN-001-08: Implementar geração on-demand via evento ✅ (2026-04-09)
 
 ---
 
@@ -142,16 +142,17 @@ Baseado na especificação da Fase 4, o componente deve:
 
 **Tipo:** feature
 **Estimativa:** S (2-3 dias)
+**Status:** ✅ COMPLETO (2026-04-09)
 
 **Descrição:**
 Criar estrutura do serviço FastAPI com configuração base.
 
 **Acceptance Criteria:**
-- [ ] Projeto criado com FastAPI
-- [ ] Configuração (settings, logging)
-- [ ] Dockerfile e docker-compose
-- [ ] Health check endpoint
-- [ ] Estrutura de diretórios
+- [x] Projeto criado com FastAPI
+- [x] Configuração (settings, logging)
+- [x] Dockerfile e docker-compose
+- [x] Health check endpoint
+- [x] Estrutura de diretórios
 
 ---
 
@@ -159,17 +160,18 @@ Criar estrutura do serviço FastAPI com configuração base.
 
 **Tipo:** feature
 **Estimativa:** M (1 semana)
+**Status:** ✅ COMPLETO (2026-04-09)
 
 **Descrição:**
 Implementar módulo para extrair insights de experimentos MLflow.
 
 **Acceptance Criteria:**
-- [ ] `ExperimentInsightExtractor` class
-- [ ] Conexão com MLflow Tracking Server
-- [ ] Extração de: métricas, parâmetros, feature importance
-- [ ] Comparação entre runs (baseline vs experiment)
-- [ ] Identificação de melhoria/piora
-- [ ] Testes unitários
+- [x] `ExperimentInsightExtractor` class
+- [x] Conexão com MLflow Tracking Server
+- [x] Extração de: métricas, parâmetros, feature importance
+- [x] Comparação entre runs (baseline vs experiment)
+- [x] Identificação de melhoria/piora
+- [x] Testes unitários
 
 ---
 
@@ -177,17 +179,18 @@ Implementar módulo para extrair insights de experimentos MLflow.
 
 **Tipo:** feature
 **Estimativa:** M (1 semana)
+**Status:** ✅ COMPLETO (2026-04-09)
 
 **Descrição:**
 Implementar gerador de relatórios em formato Markdown.
 
 **Acceptance Criteria:**
-- [ ] `MarkdownReportGenerator` class
-- [ ] Template configurável (Jinja2)
-- [ ] Seções: Summary, Experiment Details, Results, Insights, Recommendations
-- [ ] Tabelas de comparação
-- [ ] Code blocks para snippets
-- [ ] Testes de geração
+- [x] `MarkdownReportGenerator` class
+- [x] Template configurável (Jinja2)
+- [x] Seções: Summary, Experiment Details, Results, Insights, Recommendations
+- [x] Tabelas de comparação
+- [x] Code blocks para snippets
+- [x] Testes de geração
 
 ---
 
@@ -195,16 +198,17 @@ Implementar gerador de relatórios em formato Markdown.
 
 **Tipo:** feature
 **Estimativa:** M (1 semana)
+**Status:** ✅ COMPLETO (2026-04-09)
 
 **Descrição:**
 Implementar gerador de gráficos para relatórios.
 
 **Acceptance Criteria:**
-- [ ] `PlotGenerator` class
-- [ ] Gráficos: line (métricas over time), bar (comparação), scatter (correlações)
-- [ ] Export PNG/SVG
-- [ ] Integração com Matplotlib/Plotly
-- [ ] Testes de geração
+- [x] `PlotGenerator` class
+- [x] Gráficos: line (métricas over time), bar (comparação), scatter (correlações)
+- [x] Export PNG/SVG
+- [x] Integração com Matplotlib/Plotly
+- [x] Testes de geração
 
 ---
 
@@ -212,16 +216,17 @@ Implementar gerador de gráficos para relatórios.
 
 **Tipo:** feature
 **Estimativa:** S (2-3 dias)
+**Status:** ✅ COMPLETO (2026-04-09)
 
 **Descrição:**
 Implementar persistência de documentos gerados no MongoDB.
 
 **Acceptance Criteria:**
-- [ ] Schema MongoDB para documentos
-- [ ] `DocumentRepository` class
-- [ ] Indexes: date, experiment_id, tags
-- [ ] CRUD operations
-- [ ] Testes de integração
+- [x] Schema MongoDB para documentos
+- [x] `DocumentRepository` class
+- [x] Indexes: date, experiment_id, tags
+- [x] CRUD operations
+- [x] Testes de integração
 
 ---
 
@@ -229,6 +234,7 @@ Implementar persistência de documentos gerados no MongoDB.
 
 **Tipo:** feature
 **Estimativa:** M (1 semana)
+**Status:** ✅ COMPLETO (2026-04-09)
 
 **Descrição:**
 Implementar API REST para consultar documentos gerados.
@@ -240,11 +246,11 @@ Implementar API REST para consultar documentos gerados.
 - `GET /api/v1/docs/{doc_id}/download` - Download Markdown/PDF
 
 **Acceptance Criteria:**
-- [ ] Todos os endpoints implementados
-- [ ] Validação de requests
-- [ ] Paginação e filtros
-- [ ] OpenAPI documentation
-- [ ] Testes de integração
+- [x] Todos os endpoints implementados
+- [x] Validação de requests
+- [x] Paginação e filtros
+- [x] OpenAPI documentation
+- [x] Testes de integração
 
 ---
 
@@ -252,16 +258,17 @@ Implementar API REST para consultar documentos gerados.
 
 **Tipo:** feature
 **Estimativa:** S (2-3 dias)
+**Status:** ✅ COMPLETO (2026-04-09)
 
 **Descrição:**
 Implementar scheduler para geração automática periódica de documentos.
 
 **Acceptance Criteria:**
-- [ ] Scheduler com APScheduler
-- [ ] Configuração de cron: diário, semanal, mensal
-- [ ] Geração de relatório consolidado do período
-- [ ] Publicação em Kafka
-- [ ] Testes de scheduling
+- [x] Scheduler com APScheduler
+- [x] Configuração de cron: diário, semanal, mensal
+- [x] Geração de relatório consolidado do período
+- [x] Publicação em Kafka
+- [x] Testes de scheduling
 
 ---
 
@@ -269,6 +276,7 @@ Implementar scheduler para geração automática periódica de documentos.
 
 **Tipo:** feature
 **Estimativa:** S (2-3 dias)
+**Status:** ✅ COMPLETO (2026-04-09)
 
 **Descrição:**
 Implementar consumer Kafka para geração de documentos em resposta a eventos.
@@ -279,11 +287,11 @@ Implementar consumer Kafka para geração de documentos em resposta a eventos.
 - `deployment.rolled_back` - Gerar análise de rollback
 
 **Acceptance Criteria:**
-- [ ] Consumer Kafka implementado
-- [ ] Handlers para cada tipo de evento
-- [ ] Geração assíncrona (background tasks)
-- [ ] Retry em falha
-- [ ] Testes de integração
+- [x] Consumer Kafka implementado
+- [x] Handlers para cada tipo de evento
+- [x] Geração assíncrona (background tasks)
+- [x] Retry em falha
+- [x] Testes de integração
 
 ---
 
