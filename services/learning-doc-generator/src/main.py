@@ -7,7 +7,10 @@ from fastapi import FastAPI
 from prometheus_client import Counter, Histogram, make_asgi_app
 from src.api import v1
 from src.api.v1.docs import AppState, set_state
+from src.clients import KafkaLearningDocProducer
 from src.config import get_settings
+from src.consumers import LearningEventConsumer
+from src.scheduler import DocumentScheduler
 from src.services import (
     DocumentRepository,
     ExperimentInsightExtractor,
@@ -18,29 +21,12 @@ from src.services import (
 from neural_hive_observability import init_observability
 from neural_hive_observability.health import HealthChecker, HealthStatus
 
+from src.observability.metrics import learning_doc_metrics
+
 logger = structlog.get_logger()
 
 # Configurações
 settings = get_settings()
-
-# Métricas Prometheus
-docs_generated_total = Counter(
-    "learning_docs_generated_total",
-    "Total de documentos gerados",
-    ["doc_type", "status"],
-)
-
-docs_generation_duration = Histogram(
-    "learning_docs_generation_duration_seconds",
-    "Duração da geração de documentos",
-    ["doc_type"],
-)
-
-insights_extracted_total = Counter(
-    "learning_insights_extracted_total",
-    "Total de insights extraídos",
-    ["category", "confidence"],
-)
 
 # Aplicação FastAPI
 app = FastAPI(
@@ -61,6 +47,9 @@ class GlobalState:
     report_generator: MarkdownReportGenerator = None
     plot_generator: PlotGenerator = None
     health_checker: HealthChecker = None
+    scheduler: DocumentScheduler = None
+    kafka_consumer: LearningEventConsumer = None
+    kafka_producer: KafkaLearningDocProducer = None
 
 
 state = GlobalState()
@@ -124,6 +113,30 @@ async def startup_event():
         state.plot_generator = PlotGenerator()
         logger.info("Plot generator inicializado")
 
+        # Inicializar Kafka Producer
+        state.kafka_producer = KafkaLearningDocProducer()
+        await state.kafka_producer.start()
+        logger.info("Kafka producer inicializado")
+
+        # Inicializar Scheduler
+        state.scheduler = DocumentScheduler(
+            repository=state.repository,
+            insight_extractor=state.insight_extractor,
+            report_generator=state.report_generator,
+        )
+        await state.scheduler.start()
+        logger.info("Scheduler iniciado")
+
+        # Inicializar Kafka Consumer em background
+        state.kafka_consumer = LearningEventConsumer(
+            repository=state.repository,
+            insight_extractor=state.insight_extractor,
+            report_generator=state.report_generator,
+            kafka_producer=state.kafka_producer,
+        )
+        asyncio.create_task(state.kafka_consumer.start())
+        logger.info("Kafka consumer iniciado em background")
+
         # Configurar estado para API
         api_state = AppState()
         api_state.repository = state.repository
@@ -140,6 +153,12 @@ async def startup_event():
     except Exception as e:
         logger.error("Erro na inicialização", error=str(e), exc_info=True)
         # Cleanup
+        if state.scheduler:
+            await state.scheduler.stop()
+        if state.kafka_consumer:
+            await state.kafka_consumer.stop()
+        if state.kafka_producer:
+            await state.kafka_producer.stop()
         if state.repository:
             try:
                 await state.repository.close()
@@ -152,6 +171,21 @@ async def startup_event():
 async def shutdown_event():
     """Encerramento graceful"""
     logger.info("Encerrando Learning Documentation Generator")
+
+    # Parar scheduler
+    if state.scheduler:
+        await state.scheduler.stop()
+        logger.info("Scheduler parado")
+
+    # Parar Kafka consumer
+    if state.kafka_consumer:
+        await state.kafka_consumer.stop()
+        logger.info("Kafka consumer parado")
+
+    # Parar Kafka producer
+    if state.kafka_producer:
+        await state.kafka_producer.stop()
+        logger.info("Kafka producer parado")
 
     # Fechar serviços
     if state.insight_extractor:
@@ -179,6 +213,8 @@ async def readiness():
         "mongodb": False,
         "mlflow": False,
         "otel_pipeline": True,
+        "scheduler": False,
+        "kafka_producer": False,
     }
 
     try:
@@ -203,6 +239,15 @@ async def readiness():
             except Exception:
                 checks["otel_pipeline"] = False
 
+        # Verificar Scheduler
+        if state.scheduler and state.scheduler.is_running():
+            checks["scheduler"] = True
+
+        # Verificar Kafka Producer
+        if state.kafka_producer and await state.kafka_producer.health_check():
+            checks["kafka_producer"] = True
+
+        # Kafka consumer é opcional para readiness (roda em background)
         all_ready = all(checks.values())
         if not all_ready:
             from fastapi.responses import JSONResponse
@@ -224,6 +269,18 @@ async def metrics():
     from fastapi.responses import Response
     # O endpoint principal está montado abaixo, este é apenas para compatibilidade
     return Response(content="Prometheus metrics disponíveis em /metrics", media_type="text/plain")
+
+
+@app.get("/scheduler/status")
+async def scheduler_status():
+    """Status do scheduler e próximos runs"""
+    if not state.scheduler:
+        return {"running": False, "next_runs": {}}
+
+    return {
+        "running": state.scheduler.is_running(),
+        "next_runs": state.scheduler.get_next_run_times(),
+    }
 
 
 # Montar métricas Prometheus

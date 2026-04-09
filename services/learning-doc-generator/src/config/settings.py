@@ -38,9 +38,23 @@ class Settings(BaseSettings):
     )
 
     # Kafka
-    kafka_bootstrap_servers: str = Field(..., description="Kafka bootstrap servers")
-    kafka_consumer_group_id: str = Field(
+    kafka_bootstrap_servers: str = Field(
+        default="localhost:9092", description="Kafka bootstrap servers"
+    )
+    kafka_consumer_group: str = Field(
         default="learning-doc-generator", description="Consumer group ID"
+    )
+    kafka_topic_experiments: str = Field(
+        default="experiments", description="Tópico de experimentos"
+    )
+    kafka_topic_models: str = Field(
+        default="models", description="Tópico de modelos"
+    )
+    kafka_topic_deployments: str = Field(
+        default="deployments", description="Tópico de deployments"
+    )
+    kafka_enable_consumer: bool = Field(
+        default=True, description="Habilitar consumer Kafka"
     )
     kafka_security_protocol: str = Field(default="PLAINTEXT", description="Security protocol")
     kafka_sasl_mechanism: Optional[str] = Field(default=None, description="SASL mechanism")
@@ -62,7 +76,9 @@ class Settings(BaseSettings):
     )
 
     # MongoDB
-    mongodb_uri: str = Field(..., description="URI do MongoDB")
+    mongodb_uri: str = Field(
+        default="mongodb://localhost:27017", description="URI do MongoDB"
+    )
     mongodb_database: str = Field(default="neural_hive", description="Database MongoDB")
     mongodb_collection: str = Field(
         default="learning_documents", description="Collection de documentos"

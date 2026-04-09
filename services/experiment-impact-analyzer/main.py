@@ -1,4 +1,4 @@
-"""Hypothesis Library - Biblioteca Persistente de Hipóteses."""
+"""Experiment Impact Analyzer - Análise de Impacto de Experimentos."""
 
 import asyncio
 import signal
@@ -9,25 +9,23 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from neural_hive_observability import init_observability
-from prometheus_client import make_asgi_app
 
-from src.api import api_router, health_handler, root_handler
+from src.api import api_router
+from src.api.health_handlers import (
+    health_handler,
+    metrics_handler,
+    readiness_handler,
+    root_handler,
+)
 from src.clients.mongodb_client import MongoDBClient
 from src.config.settings import get_settings
-from src.repositories.hypothesis_repository import HypothesisRepository
-from src.repositories.version_repository import HypothesisVersionRepository
-from src.services.hypothesis_service import HypothesisService
-from src.services.versioning_service import VersioningService
-from src.observability.metrics import hypothesis_metrics
+from src.services.impact_analyzer import ImpactAnalyzer
 
 logger = structlog.get_logger()
 
 # Global instances
 mongodb_client: MongoDBClient | None = None
-hypothesis_repository: HypothesisRepository | None = None
-version_repository: HypothesisVersionRepository | None = None
-versioning_service: VersioningService | None = None
-hypothesis_service: HypothesisService | None = None
+impact_analyzer: ImpactAnalyzer | None = None
 
 app: FastAPI | None = None
 
@@ -40,8 +38,8 @@ def create_app() -> FastAPI:
     settings = get_settings()
 
     app = FastAPI(
-        title="Hypothesis Library",
-        description="Biblioteca Persistente de Hipóteses com Versionamento e Workflow",
+        title="Experiment Impact Analyzer",
+        description="Análise de Impacto de Experimentos de Curto e Longo Prazo",
         version=settings.service_version,
         docs_url="/docs",
         redoc_url="/redoc",
@@ -61,32 +59,29 @@ def create_app() -> FastAPI:
     app.include_router(api_router, prefix=settings.api_prefix)
     app.get("/")(root_handler)
     app.get("/health")(health_handler)
-
-    # Montar métricas Prometheus
-    metrics_app = make_asgi_app()
-    app.mount("/metrics", metrics_app)
+    app.get("/ready")(readiness_handler)
+    app.get("/metrics")(metrics_handler)
 
     # Eventos de lifecycle
     @app.on_event("startup")
     async def startup():
         """Tarefas de inicialização."""
-        global mongodb_client, hypothesis_repository, version_repository
-        global versioning_service, hypothesis_service
+        global mongodb_client, impact_analyzer
 
         settings = get_settings()
 
         logger.info(
-            "hypothesis_library_starting",
+            "experiment_impact_analyzer_starting",
             service=settings.service_name,
             version=settings.service_version,
         )
 
         # Inicializar observabilidade
         init_observability(
-            service_name="hypothesis-library",
+            service_name="experiment-impact-analyzer",
             service_version=settings.service_version,
-            neural_hive_component="hypothesis-library",
-            neural_hive_layer="biblioteca",
+            neural_hive_component="experiment-impact-analyzer",
+            neural_hive_layer="analise",
             neural_hive_domain="continuous-improvement",
             otel_endpoint=settings.otel_endpoint,
         )
@@ -96,34 +91,25 @@ def create_app() -> FastAPI:
         mongodb_client = MongoDBClient(settings)
         await mongodb_client.connect()
 
-        # Inicializar repositories
-        mongo_client_instance = mongodb_client.get_client()
-        hypothesis_repository = await HypothesisRepository.get_repository(
-            mongo_client_instance, settings
-        )
-        version_repository = await HypothesisVersionRepository.get_version_repository(
-            mongo_client_instance, settings
+        # Inicializar ImpactAnalyzer
+        impact_analyzer = ImpactAnalyzer(
+            settings=settings,
+            mongodb_client=mongodb_client,
         )
 
-        # Inicializar services
-        versioning_service = VersioningService(version_repository)
-        hypothesis_service = HypothesisService(
-            hypothesis_repository, versioning_service
-        )
-
-        logger.info("hypothesis_library_started")
+        logger.info("experiment_impact_analyzer_started")
 
     @app.on_event("shutdown")
     async def shutdown():
         """Tarefas de desligamento."""
         global mongodb_client
 
-        logger.info("hypothesis_library_shutting_down")
+        logger.info("experiment_impact_analyzer_shutting_down")
 
         if mongodb_client:
             await mongodb_client.disconnect()
 
-        logger.info("hypothesis_library_stopped")
+        logger.info("experiment_impact_analyzer_stopped")
 
     return app
 

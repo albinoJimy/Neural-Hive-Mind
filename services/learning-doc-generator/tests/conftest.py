@@ -26,6 +26,19 @@ def test_settings() -> Settings:
     )
 
 
+@pytest.fixture(autouse=True)
+def set_env_vars(monkeypatch):
+    """Define variáveis de ambiente para testes"""
+    monkeypatch.setenv("ENVIRONMENT", "test")
+    monkeypatch.setenv("DEBUG", "true")
+    monkeypatch.setenv("MONGODB_URI", "mongodb://localhost:27017")
+    monkeypatch.setenv("MONGODB_DATABASE", "test_neural_hive")
+    monkeypatch.setenv("MONGODB_COLLECTION", "test_learning_documents")
+    monkeypatch.setenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
+    monkeypatch.setenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+    monkeypatch.setenv("DOCS_OUTPUT_DIR", "/tmp/test_learning_docs")
+
+
 @pytest.fixture
 def mock_experiment_runs() -> list[ExperimentRun]:
     """Runs de experimento mockados"""
@@ -165,7 +178,20 @@ def mock_mlflow_runs(mock_experiment_runs):
 
 
 @pytest.fixture(autouse=True)
-def reset_settings(monkeypatch):
+def set_env_vars(monkeypatch):
+    """Define variáveis de ambiente para testes"""
+    monkeypatch.setenv("ENVIRONMENT", "test")
+    monkeypatch.setenv("DEBUG", "true")
+    monkeypatch.setenv("MONGODB_URI", "mongodb://localhost:27017")
+    monkeypatch.setenv("MONGODB_DATABASE", "test_neural_hive")
+    monkeypatch.setenv("MONGODB_COLLECTION", "test_learning_documents")
+    monkeypatch.setenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
+    monkeypatch.setenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+    monkeypatch.setenv("DOCS_OUTPUT_DIR", "/tmp/test_learning_docs")
+
+
+@pytest.fixture(autouse=True)
+def reset_settings():
     """Reseta settings para cada teste"""
     # Reset singleton
     import src.config.settings

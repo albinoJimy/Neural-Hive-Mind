@@ -1,0 +1,37 @@
+version: "3.8"
+
+services:
+  experiment-impact-analyzer:
+    build: .
+    ports:
+      - "8012:8012"
+      - "9092:9092"
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-dev}
+      - DEBUG=${DEBUG:-false}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - MONGODB_URI=${MONGODB_URI:-mongodb://mongodb:27017}
+      - MONGODB_DATABASE=${MONGODB_DATABASE:-neural_hive}
+      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI:-http://mlflow:5000}
+      - KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS:-kafka:9092}
+      - OTEL_ENDPOINT=${OTEL_ENDPOINT:-http://opentelemetry-collector:4317}
+    depends_on:
+      - mongodb
+    networks:
+      - neural-hive
+
+  mongodb:
+    image: mongo:7.0
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - neural-hive
+
+volumes:
+  mongodb_data:
+
+networks:
+  neural-hive:
+    external: true

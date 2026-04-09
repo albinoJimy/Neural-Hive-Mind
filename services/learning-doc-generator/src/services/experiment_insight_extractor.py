@@ -206,6 +206,59 @@ class ExperimentInsightExtractor:
         logger.info("Insights extraídos", total=len(insights))
         return insights
 
+    async def get_runs_by_period(
+        self,
+        start_time: datetime,
+        end_time: datetime,
+        experiment_id: Optional[int] = None,
+        limit: int = 100,
+    ) -> List[ExperimentRun]:
+        """Busca runs por período
+
+        Args:
+            start_time: Data de início
+            end_time: Data de fim
+            experiment_id: ID do experimento (opcional)
+            limit: Número máximo de runs
+
+        Returns:
+            Lista de ExperimentRun
+        """
+        return await self.fetch_experiment_runs(
+            experiment_ids=[experiment_id] if experiment_id else None,
+            period_start=start_time,
+            period_end=end_time,
+            max_runs=limit,
+        )
+
+    async def get_run_by_id(self, run_id: str):
+        """Busca um run específico por ID
+
+        Args:
+            run_id: ID do run MLflow
+
+        Returns:
+            Objeto run do MLflow ou None
+        """
+        try:
+            return self._mlflow_client.get_run(run_id)
+        except Exception as e:
+            logger.error("Erro ao buscar run por ID", run_id=run_id, error=str(e))
+            return None
+
+    async def extract_insights_from_runs(
+        self, runs: List[ExperimentRun]
+    ) -> List[Insight]:
+        """Extrai insights de uma lista de runs (alias para extract_insights)
+
+        Args:
+            runs: Lista de experiment runs
+
+        Returns:
+            Lista de insights
+        """
+        return await self.extract_insights(runs)
+
     async def _extract_experiment_insights(
         self, runs: List[ExperimentRun], baseline_metrics: Dict[str, float]
     ) -> List[Insight]:

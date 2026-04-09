@@ -1,6 +1,7 @@
 """Rotas da API para hipóteses."""
 
-from datetime import datetime
+import time
+from datetime import datetime, timezone
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -18,8 +19,11 @@ from src.models.hypothesis import (
 from src.models.hypothesis_version import VersionDiff
 from src.models.workflow import WorkflowTransition
 from src.services.hypothesis_service import HypothesisService
+from src.observability.metrics import hypothesis_metrics
 
 router = APIRouter()
+
+UTC = timezone.utc
 
 
 # Schemas para requests/responses
@@ -88,7 +92,17 @@ async def create_hypothesis(
     - **priority**: Prioridade (CRITICAL, HIGH, MEDIUM, LOW)
     - **tags**: Tags para categorização
     """
-    return await service.create(data, author=author)
+    hypothesis = await service.create(data, author=author)
+
+    # Registrar métrica
+    priority = hypothesis.priority.value if hasattr(hypothesis.priority, 'value') else str(hypothesis.priority)
+    hypothesis_metrics.record_hypothesis_created(priority=priority, author=author)
+    hypothesis_metrics.update_status_count(
+        status=hypothesis.status.value if hasattr(hypothesis.status, 'value') else str(hypothesis.status),
+        count=1,  # Será atualizado por agregação
+    )
+
+    return hypothesis
 
 
 @router.get("", response_model=HypothesisListResponse)
@@ -155,7 +169,22 @@ async def get_aggregations(
     - **in_testing**: Hipóteses em teste
     - **pending_approval**: Hipóteses aguardando aprovação
     """
-    return await service.get_aggregations()
+    aggregations = await service.get_aggregations()
+
+    # Atualizar métricas de gauges com os dados agregados
+    by_status = aggregations.get("by_status", {})
+    for status_value, count in by_status.items():
+        hypothesis_metrics.update_status_count(status=status_value, count=count)
+
+    by_priority = aggregations.get("by_priority", {})
+    for priority_value, status_counts in by_priority.items():
+        if isinstance(status_counts, dict):
+            for status_value, count in status_counts.items():
+                hypothesis_metrics.update_priority_count(
+                    priority=priority_value, status=status_value, count=count
+                )
+
+    return aggregations
 
 
 @router.get("/{hypothesis_id}", response_model=HypothesisResponse)
@@ -287,6 +316,20 @@ async def approve_hypothesis(
             detail=f"Hypothesis {hypothesis_id} not found",
         )
 
+    # Registrar métricas
+    priority = hypothesis.priority.value if hasattr(hypothesis.priority, 'value') else str(hypothesis.priority)
+    hypothesis_metrics.record_hypothesis_approved(priority=priority, reviewer=approved_by)
+
+    # Calcular e registrar duração da aprovação
+    if hypothesis.created_at and transition.timestamp:
+        approval_duration = (transition.timestamp.replace(tzinfo=UTC) - hypothesis.created_at.replace(tzinfo=UTC)).total_seconds()
+        hypothesis_metrics.record_approval_duration(priority, approval_duration)
+
+    # Registrar transição
+    from_status = transition.from_status.value if hasattr(transition.from_status, 'value') else str(transition.from_status)
+    to_status = transition.to_status.value if hasattr(transition.to_status, 'value') else str(transition.to_status)
+    hypothesis_metrics.record_transition(from_status, to_status, approved_by)
+
     return TransitionResponse(hypothesis=hypothesis, transition=transition)
 
 
@@ -343,6 +386,11 @@ async def start_testing(
             detail=f"Hypothesis {hypothesis_id} not found",
         )
 
+    # Registrar transição
+    from_status = transition.from_status.value if hasattr(transition.from_status, 'value') else str(transition.from_status)
+    to_status = transition.to_status.value if hasattr(transition.to_status, 'value') else str(transition.to_status)
+    hypothesis_metrics.record_transition(from_status, to_status, started_by)
+
     return TransitionResponse(hypothesis=hypothesis, transition=transition)
 
 
@@ -360,6 +408,16 @@ async def complete_testing(
 
     - **results**: Resultados do experimento
     """
+    hypothesis = await service.get_by_id(hypothesis_id)
+    testing_start = None
+
+    # Buscar timestamp de início do teste para calcular duração
+    if hypothesis:
+        for transition in await service.get_transition_history(hypothesis_id):
+            if transition.to_status == HypothesisStatus.IN_TESTING:
+                testing_start = transition.timestamp
+                break
+
     hypothesis, transition = await service.complete(
         hypothesis_id,
         results=results,
@@ -371,6 +429,21 @@ async def complete_testing(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Hypothesis {hypothesis_id} not found",
         )
+
+    # Registrar métricas
+    outcome = results.outcome.value if hasattr(results.outcome, 'value') else str(results.outcome)
+    hypothesis_metrics.record_hypothesis_tested(outcome=outcome)
+
+    # Calcular duração do teste
+    if testing_start and transition.timestamp:
+        testing_duration = (transition.timestamp.replace(tzinfo=UTC) - testing_start.replace(tzinfo=UTC)).total_seconds()
+        priority = hypothesis.priority.value if hasattr(hypothesis.priority, 'value') else str(hypothesis.priority)
+        hypothesis_metrics.record_testing_duration(priority, testing_duration)
+
+    # Registrar transição
+    from_status = transition.from_status.value if hasattr(transition.from_status, 'value') else str(transition.from_status)
+    to_status = transition.to_status.value if hasattr(transition.to_status, 'value') else str(transition.to_status)
+    hypothesis_metrics.record_transition(from_status, to_status, completed_by)
 
     return TransitionResponse(hypothesis=hypothesis, transition=transition)
 

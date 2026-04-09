@@ -1,6 +1,7 @@
 """API REST para documentos de aprendizado"""
 
 import asyncio
+import time
 from datetime import datetime
 from typing import List, Optional
 
@@ -24,6 +25,7 @@ from src.services import (
     MarkdownReportGenerator,
     PlotGenerator,
 )
+from src.observability.metrics import learning_doc_metrics
 
 logger = structlog.get_logger()
 settings = get_settings()
@@ -69,11 +71,17 @@ async def generate_document_task(
         request: Request de geração
         state: Estado global
     """
+    start_time = time.time()
+    doc_type = request.type.value if hasattr(request.type, 'value') else str(request.type)
+
     try:
         logger.info("Iniciando geração de documento", doc_id=doc_id, type=request.type)
 
         # Atualizar status para generating
         await state.repository.update_status(doc_id, DocumentStatus.GENERATING)
+
+        # Registrar início na fila de métricas
+        learning_doc_metrics.update_queue_size(0)  # Será decrementado pelo scheduler
 
         # Buscar experiment runs
         runs = await state.insight_extractor.fetch_experiment_runs(
@@ -88,10 +96,31 @@ async def generate_document_task(
                 doc_id, DocumentStatus.FAILED, "Nenhum experimento encontrado"
             )
             logger.warning("Nenhum experimento encontrado", doc_id=doc_id)
+
+            # Registrar métrica de erro
+            learning_doc_metrics.record_generation_error(doc_type, "no_experiments")
+            learning_doc_metrics.record_doc_generated(
+                doc_type=doc_type,
+                status="failed",
+                duration=time.time() - start_time,
+            )
             return
+
+        # Registrar experimentos processados
+        for run in runs:
+            status = "success" if run.status == "FINISHED" else "failed"
+            learning_doc_metrics.record_experiment_processed(status)
 
         # Extrair insights
         insights = await state.insight_extractor.extract_insights(runs)
+
+        # Registrar insights extraídos
+        for insight in insights:
+            confidence_value = insight.confidence.value if hasattr(insight.confidence, 'value') else str(insight.confidence)
+            learning_doc_metrics.record_insight_extracted(
+                category=insight.category or "unknown",
+                confidence=confidence_value,
+            )
 
         # Gerar resumo
         summary = await state.insight_extractor.generate_summary(runs)
@@ -105,6 +134,12 @@ async def generate_document_task(
             plots = await state.plot_generator.generate_all_plots(
                 runs, format_type=request.plot_format
             )
+
+            # Registrar plots gerados
+            for plot in plots:
+                plot_type = plot.get("type", "unknown")
+                plot_format = request.plot_format or "png"
+                learning_doc_metrics.record_plot_generated(plot_type, plot_format)
 
         # Buscar documento atualizado
         document = await state.repository.get_by_id(doc_id)
@@ -138,16 +173,37 @@ async def generate_document_task(
         # Atualizar status para completed
         await state.repository.update_status(doc_id, DocumentStatus.COMPLETED)
 
+        duration = time.time() - start_time
+        doc_size = len(markdown_content.encode('utf-8'))
+
+        # Registrar métricas de sucesso
+        learning_doc_metrics.record_doc_generated(
+            doc_type=doc_type,
+            status="success",
+            duration=duration,
+            size_bytes=doc_size,
+        )
+
         logger.info(
             "Documento gerado com sucesso",
             doc_id=doc_id,
             runs=len(runs),
             insights=len(insights),
+            duration=duration,
         )
 
     except Exception as e:
         logger.error("Erro na geração de documento", doc_id=doc_id, error=str(e), exc_info=True)
         await state.repository.update_status(doc_id, DocumentStatus.FAILED, str(e))
+
+        # Registrar métrica de erro
+        duration = time.time() - start_time
+        learning_doc_metrics.record_doc_generated(
+            doc_type=doc_type,
+            status="failed",
+            duration=duration,
+        )
+        learning_doc_metrics.record_generation_error(doc_type, type(e).__name__)
 
 
 @router.post("/generate", response_model=DocumentGenerationResponse)
