@@ -8,10 +8,15 @@ UTC = timezone.utc  # type: ignore
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from src.clients.mongodb_client import MongoDBClient
+from src.clients.redis_client import RedisClient
 from src.repositories.optimization_repository import (
     OptimizationRepository,
     get_repository,
 )
+from src.services.optimization_engine import OptimizationEngine
+from src.services.slo_adjuster import SLOAdjuster
+from src.services.weight_recalibrator import WeightRecalibrator
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/optimizations", tags=["optimizations"])
@@ -228,3 +233,68 @@ async def get_workflow_timeline(
         "workflow_id": workflow_id,
         "optimizations": optimizations,
     }
+
+
+# ============================================================================
+# Dependency Injection Functions
+# ============================================================================
+# These are default providers that return HTTP 503 when not overridden.
+# In main.py, app.dependency_overrides replaces these with actual implementations.
+
+
+def get_mongodb_client() -> MongoDBClient:
+    """
+    Dependency para injetar MongoDBClient.
+
+    Returns HTTP 503 if not overridden via app.dependency_overrides in main.py.
+    """
+    raise HTTPException(
+        status_code=503, detail="MongoDBClient not available. Service is starting or misconfigured."
+    )
+
+
+def get_redis_client() -> RedisClient:
+    """
+    Dependency para injetar RedisClient.
+
+    Returns HTTP 503 if not overridden via app.dependency_overrides in main.py.
+    """
+    raise HTTPException(
+        status_code=503, detail="RedisClient not available. Service is starting or misconfigured."
+    )
+
+
+def get_optimization_engine() -> OptimizationEngine:
+    """
+    Dependency para injetar OptimizationEngine.
+
+    Returns HTTP 503 if not overridden via app.dependency_overrides in main.py.
+    """
+    raise HTTPException(
+        status_code=503,
+        detail="OptimizationEngine not available. Service is starting or misconfigured.",
+    )
+
+
+def get_weight_recalibrator() -> WeightRecalibrator:
+    """
+    Dependency para injetar WeightRecalibrator.
+
+    Returns HTTP 503 if not overridden via app.dependency_overrides in main.py.
+    """
+    raise HTTPException(
+        status_code=503,
+        detail="WeightRecalibrator not available. Service is starting or misconfigured.",
+    )
+
+
+def get_slo_adjuster() -> SLOAdjuster:
+    """
+    Dependency para injetar SLOAdjuster.
+
+    Returns HTTP 503 if not overridden via app.dependency_overrides in main.py.
+    """
+    raise HTTPException(
+        status_code=503,
+        detail="SLOAdjuster not available. Service is starting or misconfigured.",
+    )

@@ -8,18 +8,65 @@ from typing import Any, Callable, Dict, List, Optional
 import structlog
 import yaml
 from kubernetes import client, config
-from prometheus_client import Counter, Histogram
+from prometheus_client import Counter, Histogram, REGISTRY
 
 from neural_hive_observability import get_tracer
 from src.services.circuit_breaker import CircuitBreaker, CircuitBreakerOpenError
 
 logger = structlog.get_logger()
 
-# OPA validation metrics
-OPA_VALIDATION_TOTAL = Counter(
+
+def _get_or_create_metric(metric_class, name, description, labels=None, **kwargs):
+    """
+    Retorna metrica existente ou cria nova se nao existir.
+
+    Verifica primeiro no REGISTRY para evitar duplicacao.
+    """
+    # Verificar se metrica ja existe no registry usando as chaves do dicionario
+    # O registry usa os nomes das metricas como chaves
+    if name in REGISTRY._names_to_collectors:
+        return REGISTRY._names_to_collectors[name]
+
+    # Para Counter, verificar tambem a versao base (sem _total)
+    base_name = name.replace("_total", "") if name.endswith("_total") else name
+    if base_name in REGISTRY._names_to_collectors:
+        return REGISTRY._names_to_collectors[base_name]
+
+    # Metrica nao existe, criar nova
+    try:
+        if labels:
+            return metric_class(name, description, labels, **kwargs)
+        return metric_class(name, description, **kwargs)
+    except ValueError:
+        # Fallback: buscar por _name do collector
+        for collector in list(REGISTRY._names_to_collectors.values()):
+            if hasattr(collector, "_name") and collector._name == name:
+                return collector
+        raise
+
+
+# OPA validation metrics (singleton)
+OPA_VALIDATION_TOTAL = _get_or_create_metric(
+    Counter,
     "self_healing_opa_validation_total",
     "Total OPA policy validations for self-healing actions",
     ["action", "result"],
+)
+
+# Playbook execution metrics (singleton)
+PLAYBOOK_EXECUTION_TOTAL = _get_or_create_metric(
+    Counter,
+    "self_healing_playbook_execution_total",
+    "Total de execuções de playbook",
+    ["playbook", "status"],
+)
+
+PLAYBOOK_EXECUTION_DURATION_SECONDS = _get_or_create_metric(
+    Histogram,
+    "self_healing_playbook_execution_duration_seconds",
+    "Duração da execução de playbooks",
+    ["playbook"],
+    buckets=[0.1, 0.5, 1, 2, 5, 10, 30, 60, 120, 300, 600],
 )
 
 
@@ -75,18 +122,9 @@ class PlaybookExecutor:
                 ),
             }
 
-        # Métricas de execução de playbook
-        self.playbook_execution_total = Counter(
-            "self_healing_playbook_execution_total",
-            "Total de execuções de playbook",
-            ["playbook", "status"],
-        )
-        self.playbook_execution_duration_seconds = Histogram(
-            "self_healing_playbook_execution_duration_seconds",
-            "Duração da execução de playbooks",
-            ["playbook"],
-            buckets=[0.1, 0.5, 1, 2, 5, 10, 30, 60, 120, 300, 600],
-        )
+        # Métricas de execução de playbook (usar singleton)
+        self.playbook_execution_total = PLAYBOOK_EXECUTION_TOTAL
+        self.playbook_execution_duration_seconds = PLAYBOOK_EXECUTION_DURATION_SECONDS
 
         # Actions that require OPA validation
         self._opa_validated_actions = {
