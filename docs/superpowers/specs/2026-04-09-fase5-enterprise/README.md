@@ -1,7 +1,7 @@
 # FASE 5 Enterprise — Specs Índice
 
 **Data:** 2026-04-09 (atualizado 2026-04-10)
-**Status:** VALIDAÇÃO COMPLETA ✅
+**Status:** VALIDAÇÃO COMPLETA ✅ + ANÁLISE K8S PROBES 🆕
 
 ---
 
@@ -46,18 +46,25 @@ Total de **12 componentes** analisados contra o template DESIGN.md.
 - Index validation no startup ✅
 - Impacto em Database Optimization
 
+**Análise de Kubernetes Probes (2026-04-10 🆕):**
+- Health endpoints existem em 8/13 serviços
+- **Kubernetes probes NÃO configurados em nenhum serviço** (gap crítico)
+- HPAs e PDBs já implementados na maioria dos serviços
+- Impacto: High Availability Setup 85% → 90%
+- Template de probes recomendado criado
+
 **Análises de Código Detalhadas:**
 1. COMPLIANCE-001: 45% → 70% (+25 pontos)
 2. DR-001: 45% → 75% (+30 pontos)
-3. HA-001: 65% → 85% (+20 pontos) ⭐
+3. HA-001: 65% → 85% → **90%** (+25 pontos) ⭐⭐ 🆕
 4. PERF-001: 35% → 60% (+25 pontos) ⭐
 5. SEC-001: 45% → 65% (+20 pontos) ⭐
-6. **CACHING-001: 45% → 70% (+25 pontos)** ⭐
-7. **LOADBALANCING-001: 60% → 85% (+25 pontos)** ⭐
-8. **MULTI-001: 65% → 75% (+10 pontos)** 🆕
-9. **DB-OPT: 65% → 75% (+10 pontos)** 🆕
+6. CACHING-001: 45% → 70% (+25 pontos) ⭐
+7. LOADBALANCING-001: 60% → 85% (+25 pontos) ⭐
+8. MULTI-001: 65% → 75% (+10 pontos)
+9. DB-OPT: 65% → 75% (+10 pontos)
 
-**Redução de Estimativa:** 58 → **40 → 36 semanas** (-22 semanas, -38%)
+**Redução de Estimativa:** 58 → **36 semanas** (-22 semanas, -38%)
 
 **Documentos de Análise:**
 - `COMPLIANCE-001-CODE-ANALYSIS.md`
@@ -65,8 +72,9 @@ Total de **12 componentes** analisados contra o template DESIGN.md.
 - `RESILIENCE-library-analysis.md`
 - `CACHING-001-CODE-ANALYSIS.md`
 - `LOADBALANCING-001-CODE-ANALYSIS.md`
-- `MULTI-001-CODE-ANALYSIS.md` 🆕
-- `DB-OPT-001-CODE-ANALYSIS.md` 🆕
+- `MULTI-001-CODE-ANALYSIS.md`
+- `DB-OPT-001-CODE-ANALYSIS.md`
+- `HA-001-K8S-PROBES-ANALYSIS.md` 🆕
 
 ---
 
@@ -100,13 +108,14 @@ Total de **12 componentes** analisados contra o template DESIGN.md.
 - [Análise de código](DR-001-disaster-recovery-CODE-ANALYSIS.md) 🆕
 
 ### 4. HA-001: High Availability Setup
-- **Status:** 85% completo ⬆️ (reavaliado)
-- **Prioridade:** BAIXA ⬇️
-- **Estimativa:** 2 semanas ⬇️
-- **Gaps:** 8 ⬇️
+- **Status:** 90% completo ⬆️ (reavaliado após análise de K8s probes)
+- **Prioridade:** MÉDIA ⬆️ (probes são críticos)
+- **Estimativa:** 1 semana ⬇️
+- **Gaps:** 3 ⬇️
 - **Código:** neural_hive_resilience (~3.631 LOC)
 - [Especificação completa](HA-001-high-availability-spec.md)
-- [Análise: RESILIENCE](RESILIENCE-library-analysis.md) 🆕
+- [Análise: RESILIENCE](RESILIENCE-library-analysis.md)
+- [Análise: K8s Probes](HA-001-K8S-PROBES-ANALYSIS.md) 🆕
 
 ### 5. SEC-001: Security Hardening
 - **Status:** 65% completo ⬆️ (reavaliado)
@@ -221,8 +230,9 @@ Total de **12 componentes** analisados contra o template DESIGN.md.
 - [Análise: neural_hive_resilience](RESILIENCE-library-analysis.md)
 - [Análise: Caching Strategy](CACHING-001-CODE-ANALYSIS.md)
 - [Análise: Load Balancing](LOADBALANCING-001-CODE-ANALYSIS.md)
-- [Análise: Multi-Tenancy](MULTI-001-CODE-ANALYSIS.md) 🆕
-- [Análise: Database Optimization](DB-OPT-001-CODE-ANALYSIS.md) 🆕
+- [Análise: Multi-Tenancy](MULTI-001-CODE-ANALYSIS.md)
+- [Análise: Database Optimization](DB-OPT-001-CODE-ANALYSIS.md)
+- [Análise: K8s Probes](HA-001-K8S-PROBES-ANALYSIS.md) 🆕
 
 ---
 
