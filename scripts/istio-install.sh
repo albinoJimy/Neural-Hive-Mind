@@ -1,8 +1,22 @@
 #!/bin/bash
 set -e
 
+# Verify required commands
+for cmd in kubectl helm jq; do
+  if ! command -v $cmd &> /dev/null; then
+    echo "Error: $cmd is not installed"
+    exit 1
+  fi
+done
+
 NAMESPACE="istio-system"
 ENV=${1:-dev}
+
+# Validate environment parameter
+if [[ ! "$ENV" =~ ^(dev|staging|prod)$ ]]; then
+  echo "Error: ENV must be one of: dev, staging, prod"
+  exit 1
+fi
 
 echo "Installing Istio in $ENV environment..."
 
