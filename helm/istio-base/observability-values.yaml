@@ -1,0 +1,20 @@
+meshConfig:
+  enablePrometheusMerge: true
+  defaultConfig:
+    tracing:
+      sampling: 100.0
+      zipkin:
+        address: otel-collector.observability.svc.cluster.local:9411
+    metrics:
+      prometheus:
+        host: prometheus.observability.svc.cluster.local
+        port: 9090
+
+istiod:
+  env:
+    PILOT_ENABLE_STATUS: true
+    PILOT_ENABLE_MESH_GATEWAY: true
+
+sidecarInjector:
+  env:
+    PILOT_ENABLE_CROSS_CLUSTER_WORKLOAD_ENTRY: false

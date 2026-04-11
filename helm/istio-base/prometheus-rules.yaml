@@ -1,0 +1,29 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: istio-alerts
+  namespace: istio-system
+spec:
+  groups:
+  - name: istio.rules
+    interval: 30s
+    rules:
+    - alert: IstiodDeploymentUnavailable
+      expr: |
+        up{job="istiod"} < 1
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "istiod deployment unavailable"
+        description: "istiod has been unavailable for 5 minutes"
+
+    - alert: IstioHighRequestRate
+      expr: |
+        rate(istio_requests_total[5m]) > 1000
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High request rate detected"
+        description: "Request rate exceeds 1000 req/sec"
