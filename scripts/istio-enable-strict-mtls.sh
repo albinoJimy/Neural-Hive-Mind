@@ -23,4 +23,16 @@ else
   echo "No pods found in neural-hive namespace"
 fi
 
+echo ""
+echo "Final STRICT mode verification..."
+for ns in istio-system neural-hive kafka redis-cluster; do
+  mode=$(kubectl get peerauthentication -n $ns -o jsonpath='{.items[0].spec.mtls.mode}' 2>/dev/null || echo "N/A")
+  if [ "$mode" = "STRICT" ]; then
+    echo "✓ $ns: STRICT mode confirmed"
+  else
+    echo "✗ $ns: $mode (expected STRICT)"
+    exit 1
+  fi
+done
+
 echo "mTLS STRICT enabled successfully!"
