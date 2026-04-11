@@ -1,6 +1,5 @@
 import pytest
 from kubernetes import client, config
-import time
 
 
 @pytest.fixture(scope="module")
