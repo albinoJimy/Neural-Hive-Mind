@@ -1,0 +1,22 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: istio-ca-issuer
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: istio-ingressgateway-cert
+  namespace: istio-system
+spec:
+  secretName: istio-ingressgateway-certs
+  duration: 2160h
+  renewBefore: 360h
+  commonName: istio-ingressgateway.istio-system.svc
+  dnsNames:
+  - istio-ingressgateway.istio-system.svc.cluster.local
+  issuerRef:
+    name: istio-ca-issuer
+    kind: ClusterIssuer
