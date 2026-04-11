@@ -1,0 +1,8 @@
+apiVersion: v2
+name: gatekeeper
+version: 1.0.0
+description: OPA Gatekeeper for Neural-Hive-Mind policy governance
+dependencies:
+  - name: gatekeeper
+    version: 3.16.0
+    repository: https://open-policy-agent.github.io/gatekeeper/charts
