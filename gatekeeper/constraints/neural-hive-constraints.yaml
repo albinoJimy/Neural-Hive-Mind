@@ -1,0 +1,43 @@
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sRequiredLabels
+metadata:
+  name: neural-hive-service-labels
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Service"]
+    namespaces: ["neural-hive"]
+  parameters:
+    labels:
+      - "app"
+      - "component"
+      - "part-of"
+      - "managed-by"
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sRequiredLabels
+metadata:
+  name: neural-hive-pod-labels
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    namespaces: ["neural-hive"]
+  parameters:
+    labels:
+      - "app"
+      - "component"
+      - "version"
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sDisallowAnonymous
+metadata:
+  name: neural-hive-no-anonymous-access
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["ServiceAccount"]
+    namespaces: ["neural-hive"]

@@ -1,0 +1,42 @@
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sRequiredLabels
+metadata:
+  name: global-required-labels
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod", "Deployment", "Service"]
+    namespaces: ["*"]
+  parameters:
+    labels:
+      - "app"
+      - "part-of"
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sContainerLimits
+metadata:
+  name: global-container-limits
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    namespaces: ["neural-hive", "approval", "neural-hive-orchestration"]
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sAllowedRepos
+metadata:
+  name: neural-hive-allowed-repos
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    namespaces: ["neural-hive", "approval", "neural-hive-orchestration"]
+  parameters:
+    repos:
+      - "ghcr.io/albinojimy/neural-hive-mind"
+      - "gcr.io/distroless"
+      - "redis"
+      - "bitnami"
