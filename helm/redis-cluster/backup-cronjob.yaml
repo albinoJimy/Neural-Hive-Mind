@@ -1,0 +1,64 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: redis-backup
+  namespace: redis-cluster
+spec:
+  schedule: "0 2 * * *"
+  successfulJobsHistoryLimit: 7
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: backup
+            image: redis:7.2.4-alpine
+            command:
+            - /bin/sh
+            - -c
+            - |
+              BACKUP_DIR="/backup/$(date +%Y%m%d_%H%M%S)"
+              mkdir -p $BACKUP_DIR
+
+              redis-cli -c -h redis-cluster -a $REDIS_PASSWORD --tls --cacert /tls/ca.crt \
+                --rdb $BACKUP_DIR/dump.rdb
+
+              cp $BACKUP_DIR/dump.rdb /backup-storage/
+
+              find /backup-storage/ -name "dump.rdb" -mtime +7 -delete
+
+              echo "Backup completed: $BACKUP_DIR"
+            env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-password
+                  key: password
+            volumeMounts:
+            - name: tls
+              mountPath: /tls
+              readOnly: true
+            - name: backup-storage
+              mountPath: /backup-storage
+          volumes:
+          - name: tls
+            secret:
+              secretName: redis-client-tls
+          - name: backup-storage
+            persistentVolumeClaim:
+              claimName: redis-backup-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-backup-pvc
+  namespace: redis-cluster
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: longhorn

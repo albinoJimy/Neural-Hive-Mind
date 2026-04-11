@@ -1,0 +1,39 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: redis-alerts
+  namespace: redis-cluster
+spec:
+  groups:
+  - name: redis.rules
+    interval: 30s
+    rules:
+    - alert: RedisDown
+      expr: |
+        redis_up{namespace="redis-cluster"} == 0
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Redis instance down"
+        description: "Redis {{ $labels.instance }} is down for more than 1 minute"
+
+    - alert: RedisHighMemoryUsage
+      expr: |
+        (redis_memory_used_bytes / redis_memory_max_bytes) > 0.9
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Redis high memory usage"
+        description: "Redis {{ $labels.instance }} memory usage is above 90%"
+
+    - alert: RedisClusterFragmented
+      expr: |
+        redis_cluster_state != 1
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Redis cluster not OK"
+        description: "Redis cluster {{ $labels.instance }} is in failed state"
