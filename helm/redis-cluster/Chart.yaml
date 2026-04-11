@@ -1,0 +1,8 @@
+apiVersion: v2
+name: redis-cluster
+version: 1.0.0
+description: Redis Cluster with TLS for Neural-Hive-Mind
+dependencies:
+  - name: redis
+    version: 18.6.0
+    repository: https://charts.bitnami.com/bitnami
