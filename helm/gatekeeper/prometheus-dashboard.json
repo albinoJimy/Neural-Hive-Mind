@@ -1,0 +1,45 @@
+{
+  "dashboard": {
+    "title": "Gatekeeper Policy Enforcement",
+    "tags": ["gatekeeper", "security", "policies"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "title": "Violations by Namespace",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(gatekeeper_violations{namespace=~\".+\"}) by (namespace)"
+          }
+        ]
+      },
+      {
+        "title": "Constraint Enforcement Actions",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(gatekeeper_enforcement_actions_total)"
+          }
+        ]
+      },
+      {
+        "title": "Webhook Response Time",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.99, rate(gatekeeper_validation_seconds_bucket[5m]))"
+          }
+        ]
+      },
+      {
+        "title": "Active Constraints",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "gatekeeper_constraints"
+          }
+        ]
+      }
+    ]
+  }
+}
