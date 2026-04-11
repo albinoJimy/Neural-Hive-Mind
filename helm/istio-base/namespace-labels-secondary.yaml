@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: observability
+  labels:
+    istio-injection: enabled
+    istio.io_rev: default
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: keycloak
+  labels:
+    istio-injection: enabled
+    istio.io_rev: default
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: neural-hive-mcp
+  labels:
+    istio-injection: enabled
+    istio.io_rev: default
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: neural-hive-mind
+  labels:
+    istio-injection: enabled
+    istio.io_rev: default
