@@ -1,0 +1,31 @@
+gatekeeper:
+  replicas: 2
+  auditPodCount: 1
+
+  controllerManager:
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+
+  audit:
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+
+  enableMetrics: true
+  metricsBackends: ["prometheus"]
+
+  validatingWebhookFailurePolicy: Fail
+  mutatingWebhookFailurePolicy: Fail
+
+  enableMutatingWebhook: false
+
+  auditInterval: 60
