@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: neural-hive
+  labels:
+    istio-injection: enabled
+    istio.io_rev: default
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: approval
+  labels:
+    istio-injection: enabled
+    istio.io_rev: default
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: neural-hive-orchestration
+  labels:
+    istio-injection: enabled
+    istio.io_rev: default
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kafka
+  labels:
+    istio-injection: enabled
+    istio.io_rev: default
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: redis-cluster
+  labels:
+    istio-injection: enabled
+    istio.io_rev: default
