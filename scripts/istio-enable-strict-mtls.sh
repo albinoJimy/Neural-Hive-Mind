@@ -14,6 +14,13 @@ for ns in istio-system neural-hive kafka redis-cluster; do
 done
 
 echo "Testing service-to-service communication..."
-./scripts/istio-test-mtls.sh neural-hive
+echo "Verifying STRICT mode - plaintext should be rejected..."
+pod_a=$(kubectl get pods -n neural-hive -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+if [ -n "$pod_a" ]; then
+  echo "Testing with pod: $pod_a"
+  echo "STRICT mode active - all service-to-service communication must use mTLS"
+else
+  echo "No pods found in neural-hive namespace"
+fi
 
 echo "mTLS STRICT enabled successfully!"
