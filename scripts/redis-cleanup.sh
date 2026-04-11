@@ -15,7 +15,14 @@ if [ "$REPLY" != "yes" ]; then
   exit 1
 fi
 
-./scripts/redis-sync-verify.sh
+if [ -f "./redis-sync-verify.sh" ]; then
+  ./redis-sync-verify.sh
+elif [ -f "scripts/redis-sync-verify.sh" ]; then
+  ./scripts/redis-sync-verify.sh
+else
+  echo "Error: redis-sync-verify.sh not found"
+  exit 1
+fi
 
 if [ $? -ne 0 ]; then
   echo "Verification failed! Aborting cleanup."
