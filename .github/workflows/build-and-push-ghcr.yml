@@ -336,10 +336,10 @@ jobs:
         if: steps.check-dockerfile.outputs.dockerfile_exists == 'true'
         uses: docker/setup-buildx-action@v3
         with:
-          # Usar driver 'docker' para evitar necessidade de autenticação no Docker Hub
-          # Nota: --mount=type=cache funciona com cache registry local em vez de bind mount
-          driver: docker
-          buildkitd-flags: --debug
+          # Usar driver docker-containerd para suportar cache export
+          driver-opts: |
+            image=ghcr.io/moby/buildkit:latest
+            network=host
 
       - name: Login no GHCR
         if: steps.check-dockerfile.outputs.dockerfile_exists == 'true'
