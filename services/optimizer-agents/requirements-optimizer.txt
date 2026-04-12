@@ -13,3 +13,4 @@ pmdarima==2.0.4
 holidays==0.35
 kubernetes==28.1.0
 grpcio-health-checking==1.68.1
+psutil==5.9.8
