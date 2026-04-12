@@ -336,10 +336,8 @@ jobs:
         if: steps.check-dockerfile.outputs.dockerfile_exists == 'true'
         uses: docker/setup-buildx-action@v3
         with:
-          # Usar driver docker-containerd para suportar cache export
-          driver-opts: |
-            image=ghcr.io/moby/buildkit:latest
-            network=host
+          # Usar driver nativo docker para evitar dependencias externas
+          driver: docker
 
       - name: Login no GHCR
         if: steps.check-dockerfile.outputs.dockerfile_exists == 'true'
@@ -433,11 +431,9 @@ jobs:
             REGISTRY=ghcr.io/${{ steps.owner.outputs.lowercase }}
             VERSION=${{ inputs.version_tag || 'latest' }}
             CACHE_BUST=${{ github.sha }}
-          # Cache re-enabled with proper invalidation via CACHE_BUST arg
-          # The cache-bust argument changes every commit, forcing layer rebuild
-          # Note: type=registry for GHCR (not type=ghcr)
+          # Cache: cache-from funciona com docker driver, cache-to requer driver diferente
           cache-from: type=registry,ref=ghcr.io/${{ steps.owner.outputs.lowercase }}/neural-hive-mind/${{ matrix.service }}:buildcache
-          cache-to: type=registry,ref=ghcr.io/${{ steps.owner.outputs.lowercase }}/neural-hive-mind/${{ matrix.service }}:buildcache,mode=max
+          # cache-to desabilitado para docker driver (nao suportado)
           pull: true
           provenance: false
 
