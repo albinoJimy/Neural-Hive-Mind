@@ -14,7 +14,8 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copy requirements and install dependencies
-COPY services/self-healing-engine/requirements.txt .
+COPY requirements-base.txt requirements-base.txt
+COPY services/self-healing-engine/requirements.txt requirements.txt
 COPY libraries/python/neural_hive_resilience /tmp/neural_hive_resilience
 COPY libraries/neural_hive_integration /tmp/neural_hive_integration
 

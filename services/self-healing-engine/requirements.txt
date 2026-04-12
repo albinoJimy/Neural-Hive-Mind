@@ -1,5 +1,5 @@
 # Dependências base consolidadas para Neural-Hive-Mind
--r ../../requirements-base.txt
+-r requirements-base.txt
 
 # Service-specific dependencies
 kubernetes>=28.1.0
