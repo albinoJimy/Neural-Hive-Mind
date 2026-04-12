@@ -35,9 +35,13 @@ spec:
       ports:
         - port: 27017
     - to:
-        - podSelector:
+        - namespaceSelector:
             matchLabels:
-              app: redis
+              name: redis-cluster
+          podSelector:
+            matchLabels:
+              app: redis-cluster
       ports:
         - port: 6379
+        - port: 16379  # Redis Cluster bus port
     - to: []  # Permitir todo egress para DNS e external APIs

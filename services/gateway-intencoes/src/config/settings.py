@@ -129,6 +129,10 @@ class Settings(BaseSettings):
     redis_cluster_nodes: str = Field(
         default="neural-hive-cache.redis-cluster.svc.cluster.local:6379"
     )
+    redis_mode: str = Field(
+        default="cluster",
+        description="Modo de conexão Redis: 'cluster' para Redis Cluster (segue redirecionamentos MOVED/ASK), 'standalone' para Redis single-node"
+    )
     redis_password: str | None = Field(default=None)
     redis_ca_cert_path: str | None = Field(default=None)
     redis_default_ttl: int = Field(default=600)  # 10 minutos

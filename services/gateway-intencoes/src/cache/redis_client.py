@@ -137,11 +137,14 @@ class RedisClient:
                 nodes.append({"host": host, "port": int(port)})
 
             # Determinar se devemos usar cluster mode
-            # 1. Se temos múltiplos nodes, tentar cluster
-            # 2. Se variável de ambiente REDIS_MODE=standalone, usar standalone
-            redis_mode = self.settings.redis_mode if hasattr(self.settings, "redis_mode") else None
+            # Redis Cluster requer que o cliente siga redirecionamentos MOVED/ASK
+            # Priorizamos sempre cluster mode a menos que explicitamente desabilitado
+            redis_mode = getattr(self.settings, "redis_mode", None)
             force_standalone = redis_mode == "standalone"
-            use_cluster_mode = len(nodes) > 1 and not force_standalone
+
+            # Tentar cluster mode primeiro (mesmo com um único nó - o cliente descobrirá o resto)
+            # Apenas usar standalone se explicitamente forçado
+            use_cluster_mode = not force_standalone
 
             # Configurar SSL se necessário
             ssl_context = None
@@ -189,7 +192,9 @@ class RedisClient:
             if self.settings.redis_password:
                 auth_kwargs["password"] = self.settings.redis_password
 
-            # Tentar conectar em cluster mode primeiro se múltiplos nodes
+            # Tentar conectar em cluster mode primeiro
+            # O cliente RedisCluster descobrirá automaticamente os nós do cluster
+            # e seguirá os redirecionamentos MOVED/ASK conforme necessário
             if use_cluster_mode:
                 try:
                     logger.info(
@@ -205,6 +210,9 @@ class RedisClient:
                         socket_connect_timeout=5.0,
                         decode_responses=True,
                         health_check_interval=30,
+                        full_coverage=True,  # Assegura cobertura completa de slots do cluster
+                        skip_full_coverage_check=False,  # Verifica cobertura ao inicializar
+                        max_connections=self.settings.redis_connection_pool_max_connections,
                     )
 
                     # Testar conexão e verificar se cluster está habilitado
