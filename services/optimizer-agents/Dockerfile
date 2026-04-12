@@ -4,7 +4,8 @@ FROM ${REGISTRY}/neural-hive-mind/python-mlops-base:1.0.7 AS builder
 
 WORKDIR /app
 
-# Copiar e instalar bibliotecas internas
+# Copiar requirements base e bibliotecas internas
+COPY requirements-base.txt requirements-base.txt
 COPY libraries/python/neural_hive_ml /tmp/neural_hive_ml
 COPY libraries/python/neural_hive_observability /tmp/neural_hive_observability
 COPY libraries/python/neural_hive_resilience /tmp/neural_hive_resilience
