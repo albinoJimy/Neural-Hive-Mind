@@ -474,10 +474,6 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
           fi
 
-          if [[ "${{ needs.detect-changes.outputs.has_changes }}" == "true" ]]; then
-            echo "### Servicos Buildados" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-
       - name: Build Summary
         if: always()
         run: |
