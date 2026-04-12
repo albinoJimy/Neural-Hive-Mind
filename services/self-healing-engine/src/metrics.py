@@ -122,19 +122,8 @@ kafka_consumer_lag_total = Gauge(
 )
 
 # Métricas de Playbook
-playbook_execution_total = Counter(
-    "self_healing_playbook_execution_total",
-    "Total de execuções de playbook",
-    ["playbook_id", "outcome"],
-)
-
-playbook_execution_duration_seconds = Histogram(
-    "self_healing_playbook_execution_duration_seconds",
-    "Duração da execução do playbook",
-    ["playbook_id"],
-    buckets=[1.0, 5.0, 10.0, 30.0, 60.0, 300.0],
-)
-
+# NOTA: playbook_execution_total e playbook_execution_duration_seconds
+# sao definidas em src/services/playbook_executor.py para evitar duplicacao
 playbook_step_execution_total = Counter(
     "self_healing_playbook_step_execution_total",
     "Total de execuções de steps de playbook",

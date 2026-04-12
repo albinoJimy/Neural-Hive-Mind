@@ -27,10 +27,17 @@ def _get_or_create_metric(metric_class, name, description, labels=None, **kwargs
     if name in REGISTRY._names_to_collectors:
         return REGISTRY._names_to_collectors[name]
 
-    # Para Counter, verificar tambem a versao base (sem _total)
+    # Para Counter, verificar varias versoes de nomes
+    # (com e sem _total, ja que o Prometheus adiciona _total automaticamente)
     base_name = name.replace("_total", "") if name.endswith("_total") else name
     if base_name in REGISTRY._names_to_collectors:
         return REGISTRY._names_to_collectors[base_name]
+
+    # Verificar tambem com _total adicionado
+    if not name.endswith("_total") and metric_class == Counter:
+        total_name = f"{name}_total"
+        if total_name in REGISTRY._names_to_collectors:
+            return REGISTRY._names_to_collectors[total_name]
 
     # Metrica nao existe, criar nova
     try:
@@ -38,11 +45,16 @@ def _get_or_create_metric(metric_class, name, description, labels=None, **kwargs
             return metric_class(name, description, labels, **kwargs)
         return metric_class(name, description, **kwargs)
     except ValueError:
-        # Fallback: buscar por _name do collector
+        # Fallback: buscar por _name do collector ou nome similar
         for collector in list(REGISTRY._names_to_collectors.values()):
-            if hasattr(collector, "_name") and collector._name == name:
+            collector_name = getattr(collector, "_name", "")
+            if collector_name == name or collector_name == base_name or collector_name == f"{name}_total":
                 return collector
-        raise
+        # Se ainda nao encontrou, relançar o erro com informacao útil
+        raise ValueError(
+            f"Metric '{name}' already exists in registry. "
+            f"Existing metrics: {list(REGISTRY._names_to_collectors.keys())}"
+        )
 
 
 # OPA validation metrics (singleton)
@@ -53,21 +65,26 @@ OPA_VALIDATION_TOTAL = _get_or_create_metric(
     ["action", "result"],
 )
 
-# Playbook execution metrics (singleton)
-PLAYBOOK_EXECUTION_TOTAL = _get_or_create_metric(
+# Import metrics from central metrics module to avoid duplication
+# These will be created using _get_or_create_metric to handle duplicates
+_playbook_execution_total_base = _get_or_create_metric(
     Counter,
-    "self_healing_playbook_execution_total",
+    "self_healing_playbook_execution",
     "Total de execuções de playbook",
     ["playbook", "status"],
 )
 
-PLAYBOOK_EXECUTION_DURATION_SECONDS = _get_or_create_metric(
+_playbook_execution_duration_seconds_base = _get_or_create_metric(
     Histogram,
     "self_healing_playbook_execution_duration_seconds",
     "Duração da execução de playbooks",
     ["playbook"],
     buckets=[0.1, 0.5, 1, 2, 5, 10, 30, 60, 120, 300, 600],
 )
+
+# Aliases for compatibility
+PLAYBOOK_EXECUTION_TOTAL = _playbook_execution_total_base
+PLAYBOOK_EXECUTION_DURATION_SECONDS = _playbook_execution_duration_seconds_base
 
 
 class PlaybookExecutor:

@@ -42,6 +42,7 @@ except ImportError:
     ML_CENTRALIZED = False
 
 from src.api import api_router
+from src.api import ab_testing, experiments, optimizations
 from src.config.settings import get_settings
 from src.consumers import ExperimentsConsumer, InsightsConsumer, TelemetryConsumer
 from src.grpc_service import GrpcServer, OptimizerServicer
