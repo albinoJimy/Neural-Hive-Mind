@@ -24,7 +24,12 @@ data:
   LOG_LEVEL: "INFO"
   ENVIRONMENT: "kubernetes"
   SCHEMA_PATH: "/app/schemas/intent-envelope.avsc"
-  TOKEN_VALIDATION_ENABLED: "false"
+  # OAuth2/Keycloak - Token Validation
+  TOKEN_VALIDATION_ENABLED: "true"
+  KEYCLOAK_URL: "https://keycloak.neural-hive.local"
+  KEYCLOAK_REALM: "neural-hive"
+  KEYCLOAK_CLIENT_ID: "gateway-intencoes"
+  JWKS_URI: "https://keycloak.neural-hive.local/auth/realms/neural-hive/protocol/openid-connect/certs"
   SCHEMA_REGISTRY_URL: "http://schema-registry.kafka.svc.cluster.local:8081/apis/ccompat/v6"
   NLU_CONFIDENCE_THRESHOLD: "0.5"
   NLU_CONFIDENCE_THRESHOLD_STRICT: "0.75"
