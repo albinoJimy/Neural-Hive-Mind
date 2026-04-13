@@ -1,0 +1,50 @@
+groups:
+  - name: neural-hive.queen-agent
+    rules:
+      - alert: QueenAgentDown
+        expr: up{job="queen-agent"} == 0
+        for: 3m
+        labels:
+          severity: critical
+          neural_hive_component: queen-agent
+          neural_hive_layer: coordination
+        annotations:
+          summary: "Queen Agent inativo"
+          description: "Queen Agent está inativo há mais de 3 minutos"
+          runbook_url: "https://docs.neural-hive.local/runbooks/queen-agent-down"
+
+      - alert: QueenAgentHighErrorRate
+        expr: sum(rate(queen_agent_requests_total{status="error"}[5m])) / sum(rate(queen_agent_requests_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          neural_hive_component: queen-agent
+          neural_hive_layer: coordination
+        annotations:
+          summary: "Queen Agent com alta taxa de erro"
+          description: "Queen Agent com {{ $value | humanizePercentage }} taxa de erro por mais de 5 minutos"
+          runbook_url: "https://docs.neural-hive.local/runbooks/queen-agent-high-errors"
+
+      - alert: QueenAgentNotLeader
+        expr: queen_agent_is_leader == 0
+        for: 10m
+        labels:
+          severity: info
+          neural_hive_component: queen-agent
+          neural_hive_layer: coordination
+        annotations:
+          summary: "Queen Agent não é líder"
+          description: "Queen Agent não é líder há mais de 10 minutos (pode ser normal em HA)"
+          runbook_url: "https://docs.neural-hive.local/runbooks/queen-agent-not-leader"
+
+      - alert: QueenAgentNoWorkers
+        expr: queen_agent_active_workers < 1
+        for: 5m
+        labels:
+          severity: critical
+          neural_hive_component: queen-agent
+          neural_hive_layer: coordination
+        annotations:
+          summary: "Queen Agent sem workers registados"
+          description: "Queen Agent não tem workers registados há mais de 5 minutos"
+          runbook_url: "https://docs.neural-hive.local/runbooks/queen-agent-no-workers"

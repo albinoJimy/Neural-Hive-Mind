@@ -1,0 +1,50 @@
+groups:
+  - name: neural-hive.service-registry
+    rules:
+      - alert: ServiceRegistryDown
+        expr: up{job="service-registry"} == 0
+        for: 3m
+        labels:
+          severity: critical
+          neural_hive_component: service-registry
+          neural_hive_layer: coordination
+        annotations:
+          summary: "Service Registry inativo"
+          description: "Service Registry está inativo há mais de 3 minutos"
+          runbook_url: "https://docs.neural-hive.local/runbooks/service-registry-down"
+
+      - alert: ServiceRegistryHighErrorRate
+        expr: sum(rate(service_registry_lookups_total{status="error"}[5m])) / sum(rate(service_registry_lookups_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          neural_hive_component: service-registry
+          neural_hive_layer: coordination
+        annotations:
+          summary: "Service Registry com alta taxa de erro"
+          description: "Service Registry com {{ $value | humanizePercentage }} taxa de erro por mais de 5 minutos"
+          runbook_url: "https://docs.neural-hive.local/runbooks/service-registry-high-errors"
+
+      - alert: ServiceRegistryNoServices
+        expr: service_registry_registered_services < 1
+        for: 10m
+        labels:
+          severity: critical
+          neural_hive_component: service-registry
+          neural_hive_layer: coordination
+        annotations:
+          summary: "Service Registry sem serviços registados"
+          description: "Service Registry não tem serviços registados há mais de 10 minutos"
+          runbook_url: "https://docs.neural-hive.local/runbooks/service-registry-no-services"
+
+      - alert: ServiceRegistryHighLatency
+        expr: histogram_quantile(0.95, rate(service_registry_lookup_duration_seconds_bucket[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          neural_hive_component: service-registry
+          neural_hive_layer: coordination
+        annotations:
+          summary: "Service Registry com alta latência"
+          description: "Service Registry com P95 latência acima de 500ms por mais de 5 minutos"
+          runbook_url: "https://docs.neural-hive.local/runbooks/service-registry-high-latency"

@@ -1,0 +1,38 @@
+groups:
+  - name: neural-hive.consensus-engine
+    rules:
+      - alert: ConsensusEngineDown
+        expr: up{job="consensus-engine"} == 0
+        for: 3m
+        labels:
+          severity: critical
+          neural_hive_component: consensus-engine
+          neural_hive_layer: cognitive
+        annotations:
+          summary: "Consensus Engine inativo"
+          description: "Consensus Engine está inativo há mais de 3 minutos"
+          runbook_url: "https://docs.neural-hive.local/runbooks/consensus-engine-down"
+
+      - alert: ConsensusEngineHighFailureRate
+        expr: sum(rate(consensus_decisions_failed_total[5m])) / sum(rate(consensus_decisions_total[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          neural_hive_component: consensus-engine
+          neural_hive_layer: cognitive
+        annotations:
+          summary: "Consensus Engine com alta taxa de falha"
+          description: "Consensus Engine com {{ $value | humanizePercentage }} taxa de falha por mais de 5 minutos"
+          runbook_url: "https://docs.neural-hive.local/runbooks/consensus-engine-high-failures"
+
+      - ConsensusEngineNoQuorum
+        expr: consensus_quorum_size < 3
+        for: 10m
+        labels:
+          severity: critical
+          neural_hive_component: consensus-engine
+          neural_hive_layer: cognitive
+        annotations:
+          summary: "Consensus Engine sem quórum"
+          description: "Consensus Engine com apenas {{ $value }} especialistas (mínimo 3)"
+          runbook_url: "https://docs.neural-hive.local/runbooks/consensus-engine-no-quorum"

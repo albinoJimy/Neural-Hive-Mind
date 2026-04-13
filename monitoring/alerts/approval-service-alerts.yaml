@@ -1,0 +1,38 @@
+groups:
+  - name: neural-hive.approval-service
+    rules:
+      - alert: ApprovalServiceDown
+        expr: up{job="approval-service"} == 0
+        for: 3m
+        labels:
+          severity: critical
+          neural_hive_component: approval-service
+          neural_hive_layer: cognitive
+        annotations:
+          summary: "Approval Service inativo"
+          description: "Approval Service está inativo há mais de 3 minutos"
+          runbook_url: "https://docs.neural-hive.local/runbooks/approval-service-down"
+
+      - alert: ApprovalServiceQueueBacklog
+        expr: approval_queue_size > 100
+        for: 10m
+        labels:
+          severity: warning
+          neural_hive_component: approval-service
+          neural_hive_layer: cognitive
+        annotations:
+          summary: "Approval Service com backlog de fila"
+          description: "Approval Service com {{ $value }} pedidos em fila há mais de 10 minutos"
+          runbook_url: "https://docs.neural-hive.local/runbooks/approval-service-backlog"
+
+      - alert: ApprovalServiceHighRejectionRate
+        expr: sum(rate(approval_requests_rejected_total[5m])) / sum(rate(approval_requests_total[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          neural_hive_component: approval-service
+          neural_hive_layer: cognitive
+        annotations:
+          summary: "Approval Service com alta taxa de rejeição"
+          description: "Approval Service a rejeitar {{ $value | humanizePercentage }} dos pedidos por mais de 5 minutos"
+          runbook_url: "https://docs.neural-hive.local/runbooks/approval-service-high-rejections"

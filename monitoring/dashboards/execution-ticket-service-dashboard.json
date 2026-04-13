@@ -1,0 +1,30 @@
+{
+  "annotations": {
+    "list": [{"builtIn": 1, "datasource": "-- Grafana --", "enable": true, "hide": true, "iconColor": "rgba(0, 211, 255, 1)", "name": "Annotations & Alerts", "type": "dashboard"}]
+  },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0}, "id": 1, "panels": [], "title": "Overview", "type": "row"},
+    {"datasource": "Prometheus", "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}, "unit": "short"}}, "gridPos": {"h": 4, "w": 6, "x": 0, "y": 1}, "id": 2, "options": {"colorMode": "value", "graphMode": "none", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"}, "pluginVersion": "8.0.0", "targets": [{"expr": "up{job=\"execution-ticket-service\"}", "refId": "A"}], "title": "Pods Running", "type": "stat"},
+    {"datasource": "Prometheus", "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 10}, {"color": "red", "value": 50}]}}, "gridPos": {"h": 4, "w": 6, "x": 6, "y": 1}, "id": 3, "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"}, "pluginVersion": "8.0.0", "targets": [{"expr": "sum(rate(execution_ticket_requests_total[5m]))", "refId": "A"}], "title": "Request Rate (5m)", "type": "stat"},
+    {"datasource": "Prometheus", "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 100}, {"color": "red", "value": 500}]}}, "gridPos": {"h": 4, "w": 6, "x": 12, "y": 1}, "id": 4, "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"}, "pluginVersion": "8.0.0", "targets": [{"expr": "histogram_quantile(0.95, rate(execution_ticket_processing_duration_seconds_bucket[5m]))", "refId": "A"}], "title": "P95 Processing Latency", "type": "stat"},
+    {"datasource": "Prometheus", "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 0.01}, {"color": "red", "value": 0.05}]}}, "gridPos": {"h": 4, "w": 6, "x": 18, "y": 1}, "id": 5, "options": {"colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "textMode": "auto"}, "pluginVersion": "8.0.0", "targets": [{"expr": "sum(rate(execution_ticket_requests_total{status=\"error\"}[5m])) / sum(rate(execution_ticket_requests_total[5m]))", "refId": "A"}], "title": "Error Rate", "type": "stat"},
+    {"collapsed": false, "gridPos": {"h": 1, "w": 24, "x": 0, "y": 5}, "id": 6, "panels": [], "title": "Ticket Lifecycle", "type": "row"},
+    {"datasource": "Prometheus", "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"axisLabel": "", "align": "left"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}}, "gridPos": {"h": 8, "w": 8, "x": 0, "y": 6}, "id": 7, "options": {"legend": {"calcs": ["mean", "lastNotNull"], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}}, "pluginVersion": "8.0.0", "targets": [{"expr": "execution_ticket_created_total", "refId": "A", "legendFormat": "Created"}, {"expr": "execution_ticket_started_total", "refId": "B", "legendFormat": "Started"}, {"expr": "execution_ticket_completed_total", "refId": "C", "legendFormat": "Completed"}, {"expr": "execution_ticket_failed_total", "refId": "D", "legendFormat": "Failed"}], "title": "Ticket Status", "type": "timeseries"},
+    {"datasource": "Prometheus", "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"axisLabel": "", "align": "left"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}}, "gridPos": {"h": 8, "w": 8, "x": 8, "y": 6}, "id": 8, "options": {"legend": {"calcs": ["mean", "lastNotNull"], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}}, "pluginVersion": "8.0.0", "targets": [{"expr": "histogram_quantile(0.50, rate(execution_ticket_lifecycle_duration_seconds_bucket[5m]))", "refId": "A", "legendFormat": "Median"}, {"expr": "histogram_quantile(0.95, rate(execution_ticket_lifecycle_duration_seconds_bucket[5m]))", "refId": "B", "legendFormat": "P95"}, {"expr": "histogram_quantile(0.99, rate(execution_ticket_lifecycle_duration_seconds_bucket[5m]))", "refId": "C", "legendFormat": "P99"}], "title": "Ticket Lifecycle Duration", "type": "timeseries"},
+    {"datasource": "Prometheus", "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "custom": {"axisLabel": "", "align": "left"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}}, "gridPos": {"h": 8, "w": 8, "x": 16, "y": 6}, "id": 9, "options": {"legend": {"calcs": ["mean", "lastNotNull"], "displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}}, "pluginVersion": "8.0.0", "targets": [{"expr": "execution_ticket_queue_size", "refId": "A", "legendFormat": "Queue Size"}], "title": "Queue Size", "type": "timeseries"}
+  ],
+  "refresh": "10s",
+  "schemaVersion": 27,
+  "style": "dark",
+  "tags": ["neural-hive", "execution", "tickets"],
+  "templating": {"list": []},
+  "time": {"from": "now-1h", "to": "now"},
+  "title": "Execution Ticket Service Dashboard",
+  "uid": "execution-ticket-service-dashboard",
+  "version": 1
+}
