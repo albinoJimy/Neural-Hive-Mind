@@ -1,0 +1,270 @@
+---
+# Webhook Logger Service - Simplified version without PyYAML dependency
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: webhook-logger-config
+  namespace: observability
+data:
+  # Configuração simples sem YAML
+  config.json: |
+    {
+      "forward": {
+        "critical": {"enabled": false},
+        "warning": {"enabled": false},
+        "nhm": {"enabled": false}
+      },
+      "log_level": "info"
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webhook-logger
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: webhook-logger
+    app.kubernetes.io/component: alertmanager
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+    name: http
+  selector:
+    app.kubernetes.io/name: webhook-logger
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webhook-logger
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: webhook-logger
+    app.kubernetes.io/component: alertmanager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: webhook-logger
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: webhook-logger
+        app.kubernetes.io/component: alertmanager
+        sidecar.istio.io/inject: "false"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+      - name: webhook-logger
+        image: python:3.12-slim
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -e
+
+          # Create the Python script (no external dependencies)
+          cat > /tmp/server.py << 'PYSCRIPT'
+          from http.server import HTTPServer, BaseHTTPRequestHandler
+          import json
+          import logging
+          from datetime import datetime
+          import threading
+          import time
+
+          # Configure logging
+          logging.basicConfig(
+              level=logging.INFO,
+              format='%(asctime)s - %(levelname)s - %(message)s'
+          )
+          logger = logging.getLogger('webhook-logger')
+
+          # Metrics (thread-safe)
+          class Metrics:
+              def __init__(self):
+                  self.lock = threading.Lock()
+                  self.alerts_received = 0
+                  self.alerts_forwarded = 0
+                  self.alerts_by_severity = {'critical': 0, 'warning': 0, 'info': 0}
+
+              def record_alert(self, severity):
+                  with self.lock:
+                      self.alerts_received += 1
+                      if severity in self.alerts_by_severity:
+                          self.alerts_by_severity[severity] += 1
+
+          metrics = Metrics()
+
+          class AlertHandler(BaseHTTPRequestHandler):
+              def log_message(self, format, *args):
+                  logger.info(f"{self.address_string()} - {format % args}")
+
+              def do_GET(self):
+                  if self.path == '/health':
+                      self.send_json({
+                          'status': 'healthy',
+                          'timestamp': datetime.now().isoformat(),
+                          'alerts_received': metrics.alerts_received
+                      })
+                  elif self.path == '/metrics':
+                      self.send_metrics()
+                  elif self.path == '/':
+                      self.send_json({
+                          'service': 'webhook-logger',
+                          'version': '1.0.0',
+                          'endpoints': ['/health', '/metrics', '/alerts', '/critical', '/warning', '/nhm']
+                      })
+                  else:
+                      self.send_response(404)
+                      self.end_headers()
+
+              def do_POST(self):
+                  endpoint = self.path.rstrip('/').split('/')[-1]
+                  content_length = int(self.headers.get('Content-Length', 0))
+
+                  try:
+                      body = self.rfile.read(content_length)
+                      data = json.loads(body.decode('utf-8'))
+
+                      alerts = data.get('alerts', [])
+                      count = len(alerts)
+
+                      for alert in alerts:
+                          status = alert.get('status', 'unknown')
+                          alertname = alert.get('labels', {}).get('alertname', 'unknown')
+                          severity = alert.get('labels', {}).get('severity', 'unknown')
+                          component = alert.get('labels', {}).get('neural_hive_component', 'N/A')
+                          layer = alert.get('labels', {}).get('neural_hive_layer', 'N/A')
+                          summary = alert.get('annotations', {}).get('summary', 'no summary')
+                          description = alert.get('annotations', {}).get('description', '')
+
+                          # Log the alert with full context
+                          logger.info(
+                              f"ALERT [{status}] {alertname} | "
+                              f"Severity: {severity} | "
+                              f"Component: {component} | "
+                              f"Layer: {layer} | "
+                              f"Summary: {summary}"
+                          )
+
+                          # Record metrics
+                          metrics.record_alert(severity)
+
+                      self.send_json({
+                          'status': 'processed',
+                          'endpoint': endpoint,
+                          'count': count
+                      })
+
+                  except json.JSONDecodeError as e:
+                      logger.error(f"JSON decode error: {e}")
+                      self.send_error(400, 'Invalid JSON')
+                  except Exception as e:
+                      logger.error(f"Error processing request: {e}")
+                      self.send_error(500, str(e))
+
+              def send_json(self, data):
+                  self.send_response(200)
+                  self.send_header('Content-Type', 'application/json')
+                  self.end_headers()
+                  self.wfile.write(json.dumps(data).encode())
+
+              def send_metrics(self):
+                  self.send_response(200)
+                  self.send_header('Content-Type', 'text/plain; charset=utf-8')
+                  self.end_headers()
+
+                  with metrics.lock:
+                      lines = [
+                          '# HELP webhook_logger_alerts_received_total Total alerts received',
+                          '# TYPE webhook_logger_alerts_received_total counter',
+                          f'webhook_logger_alerts_received_total {metrics.alerts_received}',
+                          '',
+                          '# HELP webhook_logger_alerts_by_severity Total alerts by severity',
+                          '# TYPE webhook_logger_alerts_by_severity gauge',
+                          f'webhook_logger_alerts_by_severity{{severity="critical"}} {metrics.alerts_by_severity["critical"]}',
+                          f'webhook_logger_alerts_by_severity{{severity="warning"}} {metrics.alerts_by_severity["warning"]}',
+                          f'webhook_logger_alerts_by_severity{{severity="info"}} {metrics.alerts_by_severity["info"]}',
+                          '',
+                          '# HELP webhook_logger_up Service health',
+                          '# TYPE webhook_logger_up gauge',
+                          'webhook_logger_up 1',
+                      ]
+
+                  self.wfile.write('\n'.join(lines).encode())
+
+          if __name__ == '__main__':
+              logger.info('=' * 60)
+              logger.info('Webhook Logger starting on port 8080')
+              logger.info('Endpoints:')
+              logger.info('  GET  /health - Health check')
+              logger.info('  GET  /metrics - Prometheus metrics')
+              logger.info('  POST /alerts - Generic alert endpoint')
+              logger.info('  POST /critical - Critical alerts')
+              logger.info('  POST /warning - Warning alerts')
+              logger.info('  POST /nhm - Neural Hive Mind alerts')
+              logger.info('=' * 60)
+
+              server = HTTPServer(('0.0.0.0', 8080), AlertHandler)
+              server.serve_forever()
+          PYSCRIPT
+
+          echo "Starting webhook-logger..."
+          cd /tmp && python /tmp/server.py
+
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        ports:
+        - containerPort: 8080
+          name: http
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 3
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: 64Mi
+            cpu: 50m
+          limits:
+            memory: 128Mi
+            cpu: 100m
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          runAsUser: 1000
+          seccompProfile:
+            type: RuntimeDefault
+---
+# ServiceMonitor
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: webhook-logger
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: webhook-logger
+    release: neural-hive-prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: webhook-logger
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s

@@ -1,0 +1,134 @@
+global:
+  resolve_timeout: 5m
+  # SLA para resolução de incidentes
+  slack_api_url: 'https://hooks.slack.com/services/PLACEHOLDER'  # Substituir por URL real
+
+route:
+  receiver: 'default-receiver'
+  group_by:
+  - namespace
+  - alertname
+  - severity
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 12h
+  routes:
+
+  # Rotas para alertas críticos
+  - matchers:
+    - severity = "critical"
+    receiver: 'critical-receiver'
+    continue: true
+
+  # Rotas para alertas de warning
+  - matchers:
+    - severity = "warning"
+    receiver: 'warning-receiver'
+    continue: true
+
+  # Rotas para Neural Hive Mind
+  - matchers:
+    - neural_hive_component =~ ".*"
+    receiver: 'nhm-receiver'
+    group_by:
+    - neural_hive_component
+    - neural_hive_layer
+
+  # Ignorar Watchdog e InfoInhibitor
+  - receiver: "null"
+    matchers:
+    - alertname =~ "Watchdog|InfoInhibitor"
+
+# Inhibit rules - suprimir alertas quando há alertas mais severos
+inhibit_rules:
+# Suprimir warnings quando há critical no mesmo namespace
+- target_matchers:
+  - severity =~ "warning|info"
+  source_matchers:
+  - severity = "critical"
+  equal:
+  - namespace
+  - alertname
+
+# Suprimir info quando há warning
+- target_matchers:
+  - severity = "info"
+  source_matchers:
+  - severity = "warning"
+  equal:
+  - namespace
+  - alertname
+
+# Suprimir InfoInhibitor quando há qualquer outro alerta
+- target_matchers:
+  - severity = "info"
+  source_matchers:
+  - alertname = "InfoInhibitor"
+  equal:
+  - namespace
+
+receivers:
+# Receiver padrão - webhook genérico
+- name: 'default-receiver'
+  webhook_configs:
+  - url: 'http://webhook-logger.observability.svc.cluster.local:8080/alerts'
+    send_resolved: true
+    http_config:
+      bearer_token: 'PLACEHOLDER_TOKEN'
+
+# Receiver para críticos - notificação imediata
+- name: 'critical-receiver'
+  webhook_configs:
+  - url: 'http://webhook-logger.observability.svc.cluster.local:8080/critical'
+    send_resolved: true
+    http_config:
+      bearer_token: 'PLACEHOLDER_TOKEN'
+
+# Receiver para warnings - agregado
+- name: 'warning-receiver'
+  webhook_configs:
+  - url: 'http://webhook-logger.observability.svc.cluster.local:8080/warning'
+    send_resolved: true
+    http_config:
+      bearer_token: 'PLACEHOLDER_TOKEN'
+
+# Receiver específico para Neural Hive Mind
+- name: 'nhm-receiver'
+  webhook_configs:
+  - url: 'http://webhook-logger.observability.svc.cluster.local:8080/nhm'
+    send_resolved: true
+    http_config:
+      bearer_token: 'PLACEHOLDER_TOKEN'
+
+# Slack receiver (opcional - descomentar e configurar)
+# - name: 'slack-critical'
+#   slack_configs:
+#   - api_url: 'https://hooks.slack.com/services/YOUR/WEBHOOK/URL'
+#     channel: '#nhm-critical'
+#     title: '🚨 {{ .GroupLabels.alertname }}'
+#     text: |-
+#       *Summary:* {{ .CommonAnnotations.summary }}
+#       *Description:* {{ .CommonAnnotations.description }}
+#       *Severity:* {{ .CommonLabels.severity }}
+#       *Component:* {{ .CommonLabels.neural_hive_component }}
+#     send_resolved: true
+#     color: '{{ if eq .Status "firing" }}danger{{ else }}good{{ end }}'
+#     icon_emoji: ':alert:'
+#     username: 'Neural Hive Alertmanager'
+
+# Email receiver (opcional - descomentar e configurar)
+# - name: 'email-receiver'
+#   email_configs:
+#   - to: 'oncall@neural-hive.local'
+#     from: 'alertmanager@neural-hive.local'
+#     smarthost: 'smtp.neural-hive.local:587'
+#     auth_username: 'alertmanager@neural-hive.local'
+#     auth_password: 'PLACEHOLDER'
+#     require_tls: true
+#     send_resolved: true
+
+# Null receiver para descartar alertas
+- name: 'null'
+
+templates:
+- /etc/alertmanager/config/*.tmpl
