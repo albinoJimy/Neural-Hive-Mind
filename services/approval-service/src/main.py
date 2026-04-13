@@ -21,6 +21,13 @@ from src.clients.mongodb_client import MongoDBClient
 from src.config.settings import get_settings
 from src.consumers.approval_request_consumer import ApprovalRequestConsumer
 from src.observability.metrics import NeuralHiveMetrics, register_metrics
+
+# Neural Hive Observability
+try:
+    from neural_hive_observability import init_observability
+    HAS_OBSERVABILITY = True
+except ImportError:
+    HAS_OBSERVABILITY = False
 from src.producers.approval_response_producer import ApprovalResponseProducer
 from src.services.approval_service import ApprovalService
 from src.services.ml_predictor_service import get_ml_predictor_service
@@ -125,6 +132,22 @@ async def lifespan(app: FastAPI):
         version=settings.service_version,
         environment=settings.environment,
     )
+
+    # Inicializa observabilidade (tracing, metrics)
+    if HAS_OBSERVABILITY:
+        try:
+            init_observability(
+                service_name="approval-service",
+                service_version=settings.service_version,
+                neural_hive_component="approval",
+                neural_hive_layer="cognitive",
+                neural_hive_domain="decision-making",
+                otel_endpoint=settings.otel_endpoint,
+                prometheus_port=0,  # Desabilitado - usando /metrics endpoint do FastAPI
+            )
+            logger.info("Observabilidade inicializada", otel_endpoint=settings.otel_endpoint)
+        except Exception as e:
+            logger.warning("Falha ao inicializar observabilidade", error=str(e))
 
     try:
         # Inicializa MongoDB client
