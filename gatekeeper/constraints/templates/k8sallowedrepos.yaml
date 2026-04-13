@@ -16,7 +16,7 @@ spec:
               items:
                 type: string
   targets:
-    - target: admission.k8s.io/v1
+    - target: admission.k8s.gatekeeper.sh
       rego: |
         package k8sallowedrepos
         violation[{"msg": msg}] {
@@ -25,7 +25,7 @@ spec:
           not allowed_repos[repo]
           msg := sprintf("Container image %q not in allowed repos", [repo])
         }
-        allowed_repos[repo] {
-          repo := input.parameters.repos[_]
-          startswith(container.image, repo)
+        allowed_repos[r] {
+          r := input.parameters.repos[_]
+          startswith(container.image, r)
         }

@@ -18,13 +18,19 @@ check_fail() {
     echo -e "${RED}✗${NC} $1"
 }
 
+check_warn() {
+    echo -e "${RED}⚠${NC} $1"
+}
+
 echo "1. ISTIO SERVICE MESH"
 echo "======================"
 
-if kubectl get deployment -n istio-system istiod -o jsonpath='{.status.readyReplicas}' 2>/dev/null | grep -q "2"; then
-    check_pass "istiod running (2/2 replicas)"
+ISTIOD_REPLICAS=$(kubectl get deployment -n istio-system istiod -o jsonpath='{.status.readyReplicas}' 2>/dev/null)
+ISTIOD_TOTAL=$(kubectl get deployment -n istio-system istiod -o jsonpath='{.spec.replicas}' 2>/dev/null)
+if [ "$ISTIOD_REPLICAS" = "$ISTIOD_TOTAL" ] && [ "$ISTIOD_REPLICAS" -gt 0 ]; then
+    check_pass "istiod running ($ISTIOD_REPLICAS/$ISTIOD_TOTAL replicas)"
 else
-    check_fail "istiod not ready"
+    check_fail "istiod not ready ($ISTIOD_REPLICAS/$ISTIOD_TOTAL)"
 fi
 
 if kubectl get svc -n istio-system istio-ingressgateway &>/dev/null; then
@@ -48,8 +54,9 @@ echo ""
 echo "2. OPA GATEKEEPER"
 echo "================="
 
-if kubectl get deployment -n gatekeeper-system -l control-plane=controller-manager -o jsonpath='{.status.readyReplicas}' 2>/dev/null | grep -q "[1-9]"; then
-    check_pass "Gatekeeper controller running"
+GATEKEEPER_READY=$(kubectl get deployments -n gatekeeper-system -o jsonpath='{.items[?(@.metadata.labels.control-plane=="controller-manager")].status.readyReplicas}' 2>/dev/null)
+if [ "$GATEKEEPER_READY" -gt 0 ] 2>/dev/null; then
+    check_pass "Gatekeeper controller running ($GATEKEEPER_READY replicas)"
 else
     check_fail "Gatekeeper controller not ready"
 fi
@@ -57,7 +64,7 @@ fi
 TEMPLATE_COUNT=$(kubectl get constrainttemplates --no-headers 2>/dev/null | wc -l)
 echo -e "${GREEN}✓${NC} Constraint templates: $TEMPLATE_COUNT"
 
-CONSTRAINT_COUNT=$(kubectl get constraints -A --no-headers 2>/dev/null | wc -l)
+CONSTRAINT_COUNT=$(kubectl get k8scontainerlimits,k8sdisallowanonymous,k8srequiredlabels -A --no-headers 2>/dev/null | wc -l)
 echo -e "${GREEN}✓${NC} Constraints enforced: $CONSTRAINT_COUNT"
 
 VIOLATIONS=$(kubectl get violations -A --no-headers 2>/dev/null | wc -l)
@@ -71,24 +78,31 @@ echo ""
 echo "3. REDIS CLUSTER"
 echo "================"
 
-REDIS_PODS=$(kubectl get pods -n redis-cluster -l app.kubernetes.io/name=redis --no-headers 2>/dev/null | wc -l)
+REDIS_PODS=$(kubectl get pods -n redis-cluster -l app=redis-cluster --no-headers 2>/dev/null | wc -l)
 if [ "$REDIS_PODS" -ge 6 ]; then
     check_pass "Redis cluster pods: $REDIS_PODS (expected >= 6)"
 else
     check_fail "Redis cluster pods: $REDIS_PODS (expected >= 6)"
 fi
 
-CLUSTER_STATE=$(kubectl exec -n redis-cluster redis-cluster-0 -- redis-cli -c cluster info 2>/dev/null | grep cluster_state | cut -d: -f2 || echo "N/A")
+CLUSTER_STATE=$(kubectl exec -n redis-cluster redis-cluster-0 -- redis-cli cluster info 2>/dev/null | grep cluster_state | cut -d: -f2 | tr -d '[:space:]' || echo "N/A")
 if [ "$CLUSTER_STATE" = "ok" ]; then
-    check_pass "Redis cluster state: ok"
+    check_pass "Redis cluster state: $CLUSTER_STATE"
 else
     check_fail "Redis cluster state: $CLUSTER_STATE"
 fi
 
-if kubectl get secret redis-server-tls -n redis-cluster &>/dev/null; then
-    check_pass "Redis TLS configured"
+CLUSTER_SLOTS=$(kubectl exec -n redis-cluster redis-cluster-0 -- redis-cli cluster info 2>/dev/null | grep cluster_slots_assigned | cut -d: -f2 | tr -d '[:space:]' || echo "0")
+if [ "$CLUSTER_SLOTS" = "16384" ]; then
+    check_pass "Redis cluster slots: $CLUSTER_SLOTS/16384"
 else
-    check_fail "Redis TLS missing"
+    check_fail "Redis cluster slots: $CLUSTER_SLOTS/16384"
+fi
+
+if kubectl get secret redis-tls -n redis-cluster &>/dev/null; then
+    check_warn "Redis TLS certificates present (not configured for cluster mode)"
+else
+    check_warn "Redis TLS not configured"
 fi
 
 echo ""

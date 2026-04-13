@@ -16,7 +16,7 @@ spec:
               items:
                 type: string
   targets:
-    - target: admission.k8s.io/v1
+    - target: admission.k8s.gatekeeper.sh
       rego: |
         package k8srequiredlabels
         violation[{"msg": msg}] {
@@ -25,5 +25,5 @@ spec:
           missing := [label for label in required
             if not provided[label]]
           count(missing) > 0
-          msg := sprintf("Missing required labels: %v", missing)
+          msg := sprintf("Missing required labels: %v", [missing])
         }

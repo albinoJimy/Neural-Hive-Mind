@@ -6,7 +6,7 @@ metadata:
   labels:
     strimzi.io/cluster: neural-hive-kafka
 spec:
-  replicas: 1
+  replicas: 3
   roles:
     - controller
   storage:
@@ -30,7 +30,7 @@ metadata:
   labels:
     strimzi.io/cluster: neural-hive-kafka
 spec:
-  replicas: 1
+  replicas: 2
   roles:
     - broker
   storage:
@@ -40,11 +40,11 @@ spec:
     deleteClaim: false
   resources:
     requests:
-      memory: 1Gi
-      cpu: 500m
+      memory: 768Mi
+      cpu: 300m
     limits:
-      memory: 2Gi
-      cpu: 1000m
+      memory: 1536Mi
+      cpu: 700m
 ---
 apiVersion: kafka.strimzi.io/v1beta2
 kind: Kafka
@@ -68,11 +68,11 @@ spec:
         type: internal
         tls: true
     config:
-      offsets.topic.replication.factor: 1
-      transaction.state.log.replication.factor: 1
-      transaction.state.log.min.isr: 1
-      default.replication.factor: 1
-      min.insync.replicas: 1
+      offsets.topic.replication.factor: 2
+      transaction.state.log.replication.factor: 2
+      transaction.state.log.min.isr: 2
+      default.replication.factor: 2
+      min.insync.replicas: 2
   entityOperator:
     topicOperator:
       resources:
@@ -101,7 +101,7 @@ metadata:
 spec:
   topicName: intentions.business
   partitions: 3
-  replicas: 1
+  replicas: 2
   config:
     retention.ms: 604800000  # 7 days
     segment.bytes: 1073741824
@@ -117,7 +117,7 @@ metadata:
 spec:
   topicName: intentions.technical
   partitions: 3
-  replicas: 1
+  replicas: 2
   config:
     retention.ms: 604800000
     segment.bytes: 1073741824
@@ -133,7 +133,7 @@ metadata:
 spec:
   topicName: intentions.infrastructure
   partitions: 3
-  replicas: 1
+  replicas: 2
   config:
     retention.ms: 604800000
     segment.bytes: 1073741824
@@ -149,7 +149,7 @@ metadata:
 spec:
   topicName: intentions.security
   partitions: 3
-  replicas: 1
+  replicas: 2
   config:
     retention.ms: 604800000
     segment.bytes: 1073741824
@@ -165,7 +165,7 @@ metadata:
 spec:
   topicName: intentions.validation
   partitions: 3
-  replicas: 1
+  replicas: 2
   config:
     retention.ms: 604800000
     segment.bytes: 1073741824

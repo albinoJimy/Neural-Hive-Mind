@@ -16,11 +16,14 @@ spec:
             memory:
               type: string
   targets:
-    - target: admission.k8s.io/v1
+    - target: admission.k8s.gatekeeper.sh
       rego: |
         package k8scontainerlimits
         violation[{"msg": msg}] {
           container := input.review.object.spec.containers[_]
-          not container.resources.limits
+          not has_field(container.resources, "limits")
           msg := sprintf("Container %q must have resource limits", [container.name])
+        }
+        has_field(obj, field) {
+          obj[field]
         }

@@ -1,0 +1,14 @@
+[req]
+req_extensions = v3_req
+distinguished_name = req_distinguished_name
+
+[req_distinguished_name]
+
+[v3_req]
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = redis-cluster
+DNS.2 = redis-cluster.redis-cluster.svc.cluster.local
+DNS.3 = *.redis-cluster.svc.cluster.local
+IP.1 = 127.0.0.1

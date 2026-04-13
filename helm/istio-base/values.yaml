@@ -6,32 +6,32 @@ global:
     zipkin:
       address: otel-collector.observability.svc.cluster.local:9411
 
+# Base chart (CRDs)
+base:
+  enabled: true
+
+# Istiod control plane
 istiod:
+  enabled: true
   replicaCount: 2
   env:
     PILOT_ENABLE_WORKLOAD_ENTRY_AUTOREGISTRATION: true
     PILOT_TRACE_SAMPLING: 100
+  meshConfig:
+    mtls:
+      mode: PERMISSIVE
+    enablePrometheusMerge: true
 
-meshConfig:
-  mtls:
-    mode: PERMISSIVE
-  enablePrometheusMerge: true
-
-base:
-  enabled: true
-
-istiod:
-  enabled: true
-
+# Ingress gateway
 gateway:
   enabled: true
   name: istio-ingressgateway
   service:
     type: LoadBalancer
   ports:
-  - name: http2
-    port: 80
-    targetPort: 8080
-  - name: https
-    port: 443
-    targetPort: 8443
+    - name: http2
+      port: 80
+      targetPort: 8080
+    - name: https
+      port: 443
+      targetPort: 8443

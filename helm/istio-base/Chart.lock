@@ -1,0 +1,12 @@
+dependencies:
+- name: base
+  repository: https://istio-release.storage.googleapis.com/charts
+  version: 1.20.0
+- name: istiod
+  repository: https://istio-release.storage.googleapis.com/charts
+  version: 1.20.0
+- name: gateway
+  repository: https://istio-release.storage.googleapis.com/charts
+  version: 1.20.0
+digest: sha256:a8788e1cf42cc826ab80a4c5f9b7ff431351f530e7b06998463534107c049871
+generated: "2026-04-11T22:44:52.077301548+01:00"

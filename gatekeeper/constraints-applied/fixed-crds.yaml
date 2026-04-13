@@ -1,0 +1,97 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    metadata.gatekeeper.sh/version: 1.1.0
+  name: k8sdisallowanonymous.constraints.gatekeeper.sh
+spec:
+  group: constraints.gatekeeper.sh
+  names:
+    kind: K8sDisallowAnonymous
+    listKind: K8sDisallowAnonymousList
+    plural: k8sdisallowanonymous
+    singular: k8sdisallowanonymous
+  scope: Cluster
+  versions:
+  - name: v1beta1
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              match:
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              parameters:
+                type: object
+                properties:
+                  allowedRoles:
+                    type: array
+                    items:
+                      type: string
+                  disallowAuthenticated:
+                    type: boolean
+            required:
+            - match
+          status:
+            type: object
+            x-kubernetes-preserve-unknown-fields: true
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    metadata.gatekeeper.sh/version: 1.1.2
+  name: k8srequiredlabels.constraints.gatekeeper.sh
+spec:
+  group: constraints.gatekeeper.sh
+  names:
+    kind: K8sRequiredLabels
+    listKind: K8sRequiredLabelsList
+    plural: k8srequiredlabels
+    singular: k8srequiredlabels
+  scope: Cluster
+  versions:
+  - name: v1beta1
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              match:
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              parameters:
+                type: object
+                properties:
+                  labels:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        allowedRegex:
+                          type: string
+                        key:
+                          type: string
+                      required:
+                      - key
+                  message:
+                    type: string
+            required:
+            - match
+          status:
+            type: object
+            x-kubernetes-preserve-unknown-fields: true
+    served: true
+    storage: true
+    subresources:
+      status: {}

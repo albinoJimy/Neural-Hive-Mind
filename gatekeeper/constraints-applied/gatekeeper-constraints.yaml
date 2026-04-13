@@ -1,0 +1,56 @@
+# 1. Container Resource Limits
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sContainerLimits
+metadata:
+  name: container-must-have-limits
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    namespaces:
+      - "neural-hive"
+      - "default"
+  parameters:
+    cpu: "2000m"
+    memory: "4Gi"
+    exemptImages:
+      - "quay.io/open-policy-agent/gatekeeper:*"
+      - "gcr.io/gke-policy-controller:*"
+
+---
+# 2. Disallow Anonymous Access
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sDisallowAnonymous
+metadata:
+  name: disallow-anonymous-access
+spec:
+  match:
+    kinds:
+      - apiGroups: ["rbac.authorization.k8s.io"]
+        kinds: ["ClusterRoleBinding", "RoleBinding"]
+  parameters:
+    allowedRoles: []
+    disallowAuthenticated: false
+
+---
+# 3. Required Labels
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sRequiredLabels
+metadata:
+  name: must-have-app-label
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod", "Deployment", "StatefulSet", "DaemonSet"]
+    namespaces:
+      - "neural-hive"
+      - "default"
+  parameters:
+    labels:
+      - key: app
+        allowedRegex: "^[a-z0-9-]+$"
+      - key: app.kubernetes.io/name
+        allowedRegex: "^[a-z0-9-]+$"
+    message: "All resources must have 'app' and 'app.kubernetes.io/name' labels"
