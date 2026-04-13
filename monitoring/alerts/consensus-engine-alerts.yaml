@@ -25,7 +25,7 @@ groups:
           description: "Consensus Engine com {{ $value | humanizePercentage }} taxa de falha por mais de 5 minutos"
           runbook_url: "https://docs.neural-hive.local/runbooks/consensus-engine-high-failures"
 
-      - ConsensusEngineNoQuorum
+      - alert: ConsensusEngineNoQuorum
         expr: consensus_quorum_size < 3
         for: 10m
         labels:

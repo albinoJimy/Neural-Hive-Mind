@@ -1,0 +1,61 @@
+---
+# ConfigMap para Configuração de Provisioning do Grafana
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-provisioning-dashboards
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: provisioning
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: 'Neural Hive Mind'
+        orgId: 1
+        folder: 'Neural Hive Mind'
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 30
+        allowUiUpdates: true
+        options:
+          path: /var/lib/grafana/dashboards
+          foldersFromFilesStructure: true
+---
+# ConfigMap para DataSource Prometheus
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-provisioning-datasources
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: provisioning
+data:
+  prometheus.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus-operated.observability.svc.cluster.local:9090
+        isDefault: true
+        editable: true
+        jsonData:
+          timeInterval: '15s'
+          queryTimeout: '60s'
+          httpMethod: POST
+        uid: prometheus
+---
+# ConfigMap para Dashboards do Neural Hive Mind
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards-nhm
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: dashboards
+  annotations:
+    description: Dashboards de monitoramento do Neural Hive Mind
