@@ -1,0 +1,38 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  annotations:
+    meta.helm.sh/release-name: consensus-engine
+    meta.helm.sh/release-namespace: neural-hive
+  creationTimestamp: "2026-01-31T23:15:03Z"
+  generation: 1
+  labels:
+    app.kubernetes.io/component: consensus-aggregator
+    app.kubernetes.io/instance: consensus-engine
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: consensus-engine
+    app.kubernetes.io/version: 1.0.8
+    helm.sh/chart: consensus-engine-0.1.8
+    neural-hive.io/component: consensus-engine
+    neural-hive.io/domain: consensus
+    neural-hive.io/layer: cognitiva
+    neural.hive/component: consensus-aggregator
+    neural.hive/layer: cognitiva
+    neural.hive/metrics: enabled
+    prometheus: neural-hive
+    release: neural-hive-prometheus
+  name: consensus-engine
+  namespace: neural-hive
+  resourceVersion: "52289123"
+  uid: 985652f9-345d-474d-8b5e-996e40b59a75
+spec:
+  endpoints:
+  - interval: 30s
+    path: /metrics
+    port: metrics
+    scheme: http
+    scrapeTimeout: 10s
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: consensus-engine
+      app.kubernetes.io/name: consensus-engine

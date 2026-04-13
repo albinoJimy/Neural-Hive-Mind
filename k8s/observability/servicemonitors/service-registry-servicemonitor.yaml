@@ -1,0 +1,34 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  annotations:
+    meta.helm.sh/release-name: service-registry
+    meta.helm.sh/release-namespace: neural-hive
+  creationTimestamp: "2026-02-03T01:19:28Z"
+  generation: 1
+  labels:
+    app.kubernetes.io/component: service-registry
+    app.kubernetes.io/instance: service-registry
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: service-registry
+    app.kubernetes.io/part-of: neural-hive-mind
+    app.kubernetes.io/version: 1.0.0
+    helm.sh/chart: service-registry-1.0.0
+    neural-hive.io/component: service-registry
+    neural-hive.io/domain: service-discovery
+    neural-hive.io/layer: infrastructure
+    release: neural-hive-prometheus
+  name: service-registry
+  namespace: neural-hive
+  resourceVersion: "52289107"
+  uid: dadb2a3c-354e-4f94-8192-4a9de3d13ae9
+spec:
+  endpoints:
+  - interval: 30s
+    path: /metrics
+    port: metrics
+    scrapeTimeout: 10s
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: service-registry
+      app.kubernetes.io/name: service-registry

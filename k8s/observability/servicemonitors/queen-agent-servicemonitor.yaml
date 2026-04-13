@@ -1,0 +1,33 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  annotations:
+    meta.helm.sh/release-name: queen-agent
+    meta.helm.sh/release-namespace: neural-hive
+  creationTimestamp: "2026-01-09T23:08:23Z"
+  generation: 1
+  labels:
+    app.kubernetes.io/component: queen-agent
+    app.kubernetes.io/instance: queen-agent
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: queen-agent
+    app.kubernetes.io/part-of: neural-hive-mind
+    app.kubernetes.io/version: 1.0.0
+    helm.sh/chart: queen-agent-0.1.0
+    neural-hive.io/component: queen-agent
+    neural-hive.io/domain: hive-coordination
+    neural-hive.io/layer: coordination
+    release: neural-hive-prometheus
+  name: queen-agent
+  namespace: neural-hive
+  resourceVersion: "18282010"
+  uid: fb0af977-fb59-46a1-b211-a5bce2d3a711
+spec:
+  endpoints:
+  - interval: 30s
+    path: /metrics
+    port: metrics
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: queen-agent
+      app.kubernetes.io/name: queen-agent

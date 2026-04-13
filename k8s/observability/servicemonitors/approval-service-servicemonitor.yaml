@@ -1,0 +1,26 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"monitoring.coreos.com/v1","kind":"ServiceMonitor","metadata":{"annotations":{},"labels":{"app.kubernetes.io/component":"approval-service","app.kubernetes.io/name":"approval-service","app.kubernetes.io/part-of":"neural-hive-mind","release":"neural-hive-prometheus"},"name":"approval-service","namespace":"neural-hive"},"spec":{"endpoints":[{"interval":"30s","path":"/metrics","port":"metrics"}],"selector":{"matchLabels":{"app.kubernetes.io/instance":"approval-service","app.kubernetes.io/name":"approval-service"}}}}
+  creationTimestamp: "2026-04-13T19:21:21Z"
+  generation: 1
+  labels:
+    app.kubernetes.io/component: approval-service
+    app.kubernetes.io/name: approval-service
+    app.kubernetes.io/part-of: neural-hive-mind
+    release: neural-hive-prometheus
+  name: approval-service
+  namespace: neural-hive
+  resourceVersion: "52289295"
+  uid: e7f71417-8d2d-4801-867b-5396196815a7
+spec:
+  endpoints:
+  - interval: 30s
+    path: /metrics
+    port: metrics
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: approval-service
+      app.kubernetes.io/name: approval-service
