@@ -10,6 +10,10 @@ import pybreaker
 import structlog
 from fastapi import FastAPI, Response, status
 from fastapi.responses import JSONResponse, PlainTextResponse
+
+# SEC-001: Security Headers
+from neural_hive_security import SecurityHeadersMiddleware
+
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
@@ -150,6 +154,9 @@ def create_fastapi_app(specialist, config) -> FastAPI:
         redoc_url=None,
     )
 
+    # SEC-001: Adicionar middleware de security headers
+    app.add_middleware(SecurityHeadersMiddleware)
+
     @app.get("/health", response_class=JSONResponse, status_code=200)
     async def health_check():
         """
@@ -236,12 +243,12 @@ def create_fastapi_app(specialist, config) -> FastAPI:
                 "heuristic_mode": heuristic_mode,
                 "model_loaded": model_loaded,
                 "dependencies": {
-                    "mongodb": mongodb_health
-                    if isinstance(mongodb_health, dict)
-                    else {"status": "error"},
-                    "neo4j": neo4j_health
-                    if isinstance(neo4j_health, dict)
-                    else {"status": "error"},
+                    "mongodb": (
+                        mongodb_health if isinstance(mongodb_health, dict) else {"status": "error"}
+                    ),
+                    "neo4j": (
+                        neo4j_health if isinstance(neo4j_health, dict) else {"status": "error"}
+                    ),
                 },
             }
 
@@ -290,9 +297,11 @@ def create_fastapi_app(specialist, config) -> FastAPI:
             response = {
                 "specialist_type": specialist.specialist_type,
                 "version": specialist.version,
-                "mlflow_enabled": getattr(specialist.mlflow_client, "_enabled", False)
-                if specialist.mlflow_client
-                else False,
+                "mlflow_enabled": (
+                    getattr(specialist.mlflow_client, "_enabled", False)
+                    if specialist.mlflow_client
+                    else False
+                ),
                 "circuit_breakers": circuit_breaker_states,
                 "status": health_info.get("status", "UNKNOWN"),
                 "details": health_info.get("details", {}),
@@ -305,9 +314,11 @@ def create_fastapi_app(specialist, config) -> FastAPI:
             return {
                 "specialist_type": specialist.specialist_type,
                 "version": specialist.version,
-                "mlflow_enabled": getattr(specialist.mlflow_client, "_enabled", False)
-                if specialist.mlflow_client
-                else False,
+                "mlflow_enabled": (
+                    getattr(specialist.mlflow_client, "_enabled", False)
+                    if specialist.mlflow_client
+                    else False
+                ),
                 "circuit_breakers": circuit_breaker_states,
                 "status": "NOT_SERVING",
                 "details": {"degraded_reasons": [str(e)]},
