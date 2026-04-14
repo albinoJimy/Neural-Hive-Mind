@@ -131,6 +131,11 @@ class ExperimentsConsumer:
                 logger.warning("experiment_not_found", experiment_id=experiment_id)
                 return
 
+            # Sincronizar resultado com hypothesis-library se aplicável
+            hypothesis_library_id = experiment.get("hypothesis_library_id")
+            if hypothesis_library_id:
+                await self._sync_hypothesis_result(experiment_id, hypothesis_library_id, result, experiment)
+
             # Extrair métricas
             baseline_metrics = experiment.get("baseline_metrics", {})
             final_metrics = result.get("metrics", {})
@@ -188,6 +193,60 @@ class ExperimentsConsumer:
         except Exception as e:
             logger.error(
                 "process_completed_experiment_failed", experiment_id=experiment_id, error=str(e)
+            )
+
+    async def _sync_hypothesis_result(
+        self, experiment_id: str, hypothesis_library_id: str, result: dict, experiment: dict
+    ):
+        """
+        Sincronizar resultado do experimento com hypothesis-library.
+
+        Args:
+            experiment_id: ID do experimento
+            hypothesis_library_id: ID da hipótese no hypothesis-library
+            result: Resultado do experimento
+            experiment: Documento do experimento
+        """
+        try:
+            # Analisar resultado do experimento
+            analysis = await self.experiment_manager.analyze_experiment_results(experiment_id)
+
+            if not analysis:
+                logger.warning(
+                    "experiment_analysis_failed_skipping_sync",
+                    experiment_id=experiment_id,
+                    hypothesis_library_id=hypothesis_library_id
+                )
+                return
+
+            # Completar hipótese no hypothesis-library
+            sync_result = await self.experiment_manager.complete_experiment_with_hypothesis(
+                experiment_id=experiment_id,
+                hypothesis_id=hypothesis_library_id,
+                analysis=analysis
+            )
+
+            if sync_result and sync_result.get("hypothesis_updated"):
+                logger.info(
+                    "hypothesis_result_synced",
+                    experiment_id=experiment_id,
+                    hypothesis_library_id=hypothesis_library_id,
+                    outcome=sync_result.get("outcome")
+                )
+            else:
+                logger.warning(
+                    "hypothesis_result_sync_failed",
+                    experiment_id=experiment_id,
+                    hypothesis_library_id=hypothesis_library_id,
+                    error=sync_result.get("error") if sync_result else "unknown"
+                )
+
+        except Exception as e:
+            logger.error(
+                "sync_hypothesis_result_failed",
+                experiment_id=experiment_id,
+                hypothesis_library_id=hypothesis_library_id,
+                error=str(e)
             )
 
     async def _process_failed_experiment(self, experiment_id: str, result: dict):

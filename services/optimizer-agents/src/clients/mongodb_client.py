@@ -222,6 +222,30 @@ class MongoDBClient:
             logger.error("experiment_get_failed", experiment_id=experiment_id, error=str(e))
             return None
 
+    async def set_hypothesis_library_id(self, experiment_id: str, hypothesis_library_id: str) -> bool:
+        """Associar hypothesis_library_id ao experimento."""
+        try:
+            result = await self.experiments_collection.update_one(
+                {"experiment_id": experiment_id},
+                {"$set": {"hypothesis_library_id": hypothesis_library_id, "_updated_at": datetime.now(UTC)}}
+            )
+            if result.modified_count > 0:
+                logger.info(
+                    "hypothesis_library_id_set",
+                    experiment_id=experiment_id,
+                    hypothesis_library_id=hypothesis_library_id
+                )
+                return True
+            return False
+        except Exception as e:
+            logger.error(
+                "set_hypothesis_library_id_failed",
+                experiment_id=experiment_id,
+                hypothesis_library_id=hypothesis_library_id,
+                error=str(e)
+            )
+            return False
+
     async def get_optimization_history(self, component: str, days: int = 30) -> list[dict]:
         """Histórico de otimizações por componente."""
         try:

@@ -260,6 +260,12 @@ class Settings(BaseSettings):
         default=14, description="Dias de retencao de metricas no Redis"
     )
 
+    # Hypothesis Library Configuration
+    hypothesis_library_url: str = Field(
+        default="http://hypothesis-library.hypothesis-library.svc.cluster.local:8001",
+        description="URL base do Hypothesis Library API"
+    )
+
     @field_validator(
         "min_improvement_threshold", "max_weight_adjustment", "max_slo_adjustment_percentage"
     )

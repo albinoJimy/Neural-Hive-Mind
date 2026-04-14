@@ -4,6 +4,11 @@ from src.clients.analyst_agents_grpc_client import AnalystAgentsGrpcClient
 from src.clients.argo_workflows_client import ArgoWorkflowsClient
 from src.clients.clickhouse_client import ClickHouseClient
 from src.clients.consensus_engine_grpc_client import ConsensusEngineGrpcClient
+from src.clients.hypothesis_library_client import (
+    HypothesisLibraryClient,
+    HypothesisLibraryClientError,
+    HypothesisLibraryTimeoutError,
+)
 from src.clients.mlflow_client import MLflowClient
 from src.clients.mongodb_client import MongoDBClient
 from src.clients.optimizer_mcp_client import (
@@ -27,6 +32,9 @@ __all__ = [
     "ArgoWorkflowsClient",
     "ClickHouseClient",
     "ConsensusEngineGrpcClient",
+    "HypothesisLibraryClient",
+    "HypothesisLibraryClientError",
+    "HypothesisLibraryTimeoutError",
     "MLflowClient",
     "MongoDBClient",
     "OrchestratorGrpcClient",

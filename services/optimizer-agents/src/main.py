@@ -51,7 +51,9 @@ from src.grpc_service.orchestrator_optimization_servicer import OrchestratorOpti
 from src.ml import SchedulingOptimizer, TrainingPipeline
 from src.observability.metrics import setup_metrics
 from src.producers import ExperimentProducer, OptimizationProducer
+from src.clients.hypothesis_library_client import HypothesisLibraryClient
 from src.services.experiment_manager import ExperimentManager
+from src.services.hypothesis_converter import HypothesisConverter
 from src.services.optimization_engine import OptimizationEngine
 from src.services.slo_adjuster import SLOAdjuster
 from src.services.weight_recalibrator import WeightRecalibrator
@@ -88,6 +90,10 @@ experiment_manager = None
 weight_recalibrator = None
 slo_adjuster = None
 
+# Hypothesis Library integration
+hypothesis_library_client = None
+hypothesis_converter = None
+
 # ML Subsystem
 model_registry = None
 load_predictor = None
@@ -118,6 +124,7 @@ async def startup():
     global model_registry, load_predictor, scheduling_optimizer, training_pipeline, metrics_instance
     global grpc_server, grpc_task
     global background_tasks, consumer_tasks
+    global hypothesis_library_client, hypothesis_converter
 
     settings = get_settings()
     logger.info(
@@ -295,6 +302,34 @@ async def startup():
         except Exception as e:
             logger.error("agent_registration_failed", error=str(e))
 
+    # Inicializar cliente Hypothesis Library (opcional - não bloqueia startup)
+    try:
+        hypothesis_library_client = HypothesisLibraryClient(
+            base_url=settings.hypothesis_library_url
+        )
+        # Verificar se o serviço está disponível
+        is_healthy = await hypothesis_library_client.health_check()
+        if is_healthy:
+            logger.info(
+                "hypothesis_library_client_initialized",
+                url=settings.hypothesis_library_url
+            )
+        else:
+            logger.warning(
+                "hypothesis_library_unhealthy_continuing_without",
+                url=settings.hypothesis_library_url
+            )
+            hypothesis_library_client = None
+    except Exception as e:
+        logger.warning(
+            "hypothesis_library_client_initialization_failed_continuing_without",
+            error=str(e)
+        )
+        hypothesis_library_client = None
+
+    # Inicializar conversor de hipóteses
+    hypothesis_converter = HypothesisConverter() if hypothesis_library_client else None
+
     # Inicializar serviços
     try:
         # NOTA: OptimizationEngine será inicializado APÓS load_predictor para injetá-lo
@@ -308,8 +343,13 @@ async def startup():
             redis_client=redis_client,
             consensus_engine_client=consensus_engine_client,
             orchestrator_client=orchestrator_client,
+            hypothesis_converter=hypothesis_converter,
+            hypothesis_client=hypothesis_library_client,
         )
-        logger.info("experiment_manager_initialized")
+        logger.info(
+            "experiment_manager_initialized",
+            hypothesis_integration_enabled=(hypothesis_converter is not None)
+        )
 
         # Weight Recalibrator
         weight_recalibrator = WeightRecalibrator(
