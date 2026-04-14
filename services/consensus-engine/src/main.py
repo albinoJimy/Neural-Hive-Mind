@@ -238,6 +238,18 @@ async def health():
     return {"status": "healthy", "service": "consensus-engine"}
 
 
+@app.get("/health/startup")
+async def startup():
+    """Startup probe - indica que o serviço completou a inicialização"""
+    from datetime import datetime, timezone
+    return {
+        "status": "started",
+        "service": "consensus-engine",
+        "version": "1.0.0",
+        "started_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 @app.get("/ready")
 async def readiness():
     """Readiness check"""

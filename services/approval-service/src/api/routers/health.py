@@ -35,6 +35,20 @@ async def health_check():
     return {"status": "healthy", "service": "approval-service", "version": "1.0.0"}
 
 
+@router.get("/health/startup")
+async def startup_check():
+    """
+    Startup probe - indica que o serviço completou a inicialização
+    """
+    from datetime import datetime, timezone
+    return {
+        "status": "started",
+        "service": "approval-service",
+        "version": "1.0.0",
+        "started_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 @router.get("/ready")
 async def readiness_check():
     """

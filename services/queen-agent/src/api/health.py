@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Any
 
 import structlog
@@ -12,6 +13,17 @@ router = APIRouter()
 async def health() -> dict[str, Any]:
     """Liveness probe - verifica se o serviço está ativo"""
     return {"status": "healthy", "service": "queen-agent", "version": "1.0.0"}
+
+
+@router.get("/health/startup", status_code=status.HTTP_200_OK)
+async def startup() -> dict[str, Any]:
+    """Startup probe - indica que o serviço completou a inicialização"""
+    return {
+        "status": "started",
+        "service": "queen-agent",
+        "version": "1.0.0",
+        "started_at": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 @router.get("/ready")

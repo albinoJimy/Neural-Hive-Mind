@@ -281,6 +281,17 @@ def create_http_server(config, app_state):
             "checks": {"vault": vault_status},
         }
 
+    @app.get("/health/startup")
+    async def startup():
+        """Startup probe - indica que o serviço completou a inicialização"""
+        from datetime import datetime, timezone
+        return {
+            "status": "started",
+            "service": "worker-agents",
+            "version": "1.0.0",
+            "started_at": datetime.now(timezone.utc).isoformat(),
+        }
+
     @app.get("/ready")
     async def ready():
         """Readiness check"""

@@ -24,6 +24,17 @@ async def health() -> HealthResponse:
     )
 
 
+@router.get("/health/startup", status_code=status.HTTP_200_OK)
+async def startup() -> dict:
+    """Startup probe - indica que o serviço completou a inicialização"""
+    return {
+        "status": "started",
+        "service": "self-healing-engine",
+        "version": settings.service_version,
+        "started_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 @router.get("/health/liveness", status_code=status.HTTP_200_OK)
 @router.get("/health/live", status_code=status.HTTP_200_OK)
 async def liveness() -> dict:

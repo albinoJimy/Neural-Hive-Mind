@@ -41,6 +41,17 @@ async def liveness():
     return {"status": "alive", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 
+@app.get("/health/startup")
+async def startup():
+    """Startup probe - indica que o serviço completou a inicialização"""
+    return {
+        "status": "started",
+        "service": "scout-agents",
+        "version": "1.0.0",
+        "started_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 @app.get("/health/ready")
 async def readiness():
     """Readiness probe - checks if service is ready to accept traffic"""

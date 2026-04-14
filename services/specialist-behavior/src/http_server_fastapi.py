@@ -145,6 +145,19 @@ def create_fastapi_app(specialist, config) -> FastAPI:
             "version": specialist.version,
         }
 
+    @app.get("/health/startup", response_class=JSONResponse, status_code=200)
+    async def startup_check():
+        """
+        Startup probe - indica que o serviço completou a inicialização.
+        """
+        from datetime import datetime, timezone
+        return {
+            "status": "started",
+            "service": f"specialist-{specialist.specialist_type}",
+            "version": specialist.version,
+            "started_at": datetime.now(timezone.utc).isoformat(),
+        }
+
     @app.get("/ready", response_class=JSONResponse)
     async def readiness_check(response: Response):
         """
