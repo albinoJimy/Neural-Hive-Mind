@@ -52,6 +52,13 @@ from .health import (
     KafkaHealthCheck,
     MemoryHealthCheck,
 )
+from .health_endpoints import (
+    create_startup_router,
+    create_liveness_router,
+    create_readiness_router,
+    StartupResponse,
+    HealthResponse,
+)
 from .health_checks import ClickHouseSchemaHealthCheck, OTELPipelineHealthCheck
 from .context import ContextManager
 from .grpc_instrumentation import (
@@ -231,6 +238,12 @@ __all__ = [
     "get_health_checker",
     "ClickHouseSchemaHealthCheck",
     "OTELPipelineHealthCheck",
+    # Health endpoints
+    "create_startup_router",
+    "create_liveness_router",
+    "create_readiness_router",
+    "StartupResponse",
+    "HealthResponse",
     # Context
     "ContextManager",
     "get_context_manager",
