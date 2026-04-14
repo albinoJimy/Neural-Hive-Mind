@@ -41,24 +41,23 @@
       },
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
-                "value": null
+                "value": 0,
+                "color": "red"
               },
               {
-                "color": "yellow",
-                "value": 60
+                "value": 50,
+                "color": "yellow"
               },
               {
-                "color": "green",
-                "value": 80
+                "value": 75,
+                "color": "green"
               }
             ]
           }
@@ -84,7 +83,17 @@
         "showThresholdMarkers": true
       },
       "pluginVersion": "9.5.0",
-      "targets": [],
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "(sum(rate(hypothesis_outcome_total{outcome=\"accepted\"}[7d])) * 10 + sum(rate(optimizer_experiments_successful_total[7d])) * 5) / max(1, sum(rate(hypothesis_created_total[7d])))",
+          "legendFormat": "Evolution Score",
+          "refId": "A"
+        }
+      ],
       "title": "Evolution Score",
       "type": "gauge",
       "hide": 1
@@ -104,19 +113,12 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 60
-              },
-              {
                 "color": "green",
-                "value": 80
+                "value": null
               }
             ]
-          }
+          },
+          "unit": "short"
         }
       },
       "gridPos": {
@@ -127,21 +129,24 @@
       },
       "id": 11,
       "options": {
-        "orientation": "auto",
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": ""
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
+        "colorMode": "value",
+        "graphMode": "area",
+        "orientation": "auto"
       },
       "pluginVersion": "9.5.0",
-      "targets": [],
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "optimizer_experiments_active",
+          "legendFormat": "Active",
+          "refId": "A"
+        }
+      ],
       "title": "Active Experiments",
-      "type": "gauge",
+      "type": "stat",
       "hide": 1
     },
     {
@@ -152,26 +157,10 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
           },
           "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 60
-              },
-              {
-                "color": "green",
-                "value": 80
-              }
-            ]
-          }
+          "unit": "short"
         }
       },
       "gridPos": {
@@ -182,21 +171,42 @@
       },
       "id": 12,
       "options": {
-        "orientation": "auto",
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": ""
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
+        "colorMode": "value",
+        "graphMode": "none",
+        "orientation": "auto"
       },
       "pluginVersion": "9.5.0",
-      "targets": [],
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(hypothesis_status_current{status=\"DRAFT\"})",
+          "legendFormat": "Draft",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(hypothesis_status_current{status=\"IN_TESTING\"})",
+          "legendFormat": "Testing",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(hypothesis_status_current{status=\"PENDING_APPROVAL\"})",
+          "legendFormat": "Pending",
+          "refId": "C"
+        }
+      ],
       "title": "Hypotheses in Pipeline",
-      "type": "gauge",
+      "type": "stat",
       "hide": 1
     },
     {
@@ -206,24 +216,23 @@
       },
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
+          "unit": "percent",
+          "min": 0,
+          "max": 50,
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
-                "value": null
+                "value": 0,
+                "color": "red"
               },
               {
-                "color": "yellow",
-                "value": 60
+                "value": 5,
+                "color": "yellow"
               },
               {
-                "color": "green",
-                "value": 80
+                "value": 10,
+                "color": "green"
               }
             ]
           }
@@ -249,7 +258,17 @@
         "showThresholdMarkers": true
       },
       "pluginVersion": "9.5.0",
-      "targets": [],
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "optimizer_average_improvement_percentage",
+          "legendFormat": "Lift",
+          "refId": "A"
+        }
+      ],
       "title": "Avg Improvement Lift",
       "type": "gauge",
       "hide": 1
