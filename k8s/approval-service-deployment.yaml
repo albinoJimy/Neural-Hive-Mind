@@ -120,6 +120,14 @@ spec:
           initialDelaySeconds: 30
           periodSeconds: 30
           timeoutSeconds: 10
+        startupProbe:
+          httpGet:
+            path: /health/startup
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 6
         readinessProbe:
           httpGet:
             path: /ready
