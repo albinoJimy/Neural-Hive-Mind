@@ -8,6 +8,7 @@ do Neural Hive-Mind. Converte Intent Envelopes em Cognitive Plans executáveis.
 import asyncio
 import json
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 
 import structlog
 from confluent_kafka.admin import AdminClient
@@ -724,6 +725,17 @@ async def readiness_check():
             status_code=503,
             media_type="application/json",
         )
+
+
+@app.get("/health/startup")
+async def startup_check():
+    """Startup probe para Kubernetes. O lifespan garante que este endpoint só está disponível após completa inicialização."""
+    return {
+        "status": "started",
+        "service": "semantic-translation-engine",
+        "version": "1.0.0",
+        "started_at": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 @app.get("/metrics")
