@@ -104,3 +104,62 @@ mcp-servers/**/.coverage
 .worktrees/
 worktrees/
 
+
+# Temporary analysis docs
+CODE_REVIEW*
+ANALISE*
+RELATORIO*
+HANDOFF*
+GAPS_CONSOLIDADO*
+
+# Alertmanager configs (temporary)
+k8s/observability/alertmanager-config*.yaml
+monitoring/alerts/test-alert.yaml
+monitoring/alertmanager/webhook-logger/deployment-v*.yaml
+
+# Monitoring configs (temporary)
+k8s/observability/alertmanager-config.yaml
+k8s/observability/alertmanager-config-v2.yaml
+k8s/observability/consensus-to-queen-grpc-authz.yaml
+k8s/observability/executive-evolution-dashboard-configmap.yaml
+k8s/observability/istio-metrics-services.yaml
+k8s/observability/istio-permissive-metrics.yaml
+k8s/observability/istio-prometheus-scraping.yaml
+k8s/observability/prometheus-scraping-netpol.yaml
+k8s/observability/neural-hive-alertmanager.yaml
+k8s/observability/servicemonitors-metrics/
+k8s/observability/alertmanager-config.yaml
+
+# Superpowers plans (temporary)
+docs/superpowers/plans/2026-04-14-*
+docs/superpowers/plans/2026-04-14-executive-evolution-dashboard.md
+docs/superpowers/plans/2026-04-14-ha-001-probes.md
+Confidential analysis reports
+docs/ALERTMANAGER*
+docs/ANALISE_DUPLICACOES*
+docs/CONSENSUS_ENGINE_RBAC_ISSUE.md
+docs/HANDOFF_GAPS_CRITICOS_2026-04-14.md
+docs/ISTIO_MTLS_METRICS_RESOLUTION.md
+
+
+# Relatórios de análise temporários
+docs/CODE_REVIEW_CONSOLIDADO_EXECUTIVO.md
+docs/CODE_REVIEW_FASE0_INFRAESTRUTURA.md
+docs/CODE_REVIEW_FASE1_COGNITIVA.md
+docs/CODE_REVIEW_FASE2.1_ARCHITECT_PIPELINE.md
+docs/CODE_REVIEW_FASE2.2_SCHEDULER.md
+docs/CODE_REVIEW_FASE2.3-2.13_GAPS_CONSOLIDADOS.md
+docs/CODE_REVIEW_FASE2.3_CODE_FORGE.md
+docs/CODE_REVIEW_FASE3_AUTO_RECUPERACAO.md
+docs/CODE_REVIEW_FASE4_EVOLUCAO.md
+docs/CODE_REVIEW_FASE5_ENTERPRISE.md
+docs/CONSENSUS_ENGINE_RBAC_ISSUE.md
+docs/GAPS_CONSOLIDADO_FASE0_5.md
+docs/GAPS_CONSOLIDADO_FASE0_5_ATUALIZADO.md
+docs/HANDOFF_GAPS_CRITICOS_2026-04-14.md
+docs/ANALISE_DUPLICACOES_RESPONSABILIDADES_EXISTENTES.md
+docs/ANALISE_FINAL_CONSOLIDADA.md
+
+# Superpowers plans (referência)
+docs/superpowers/plans/2026-04-14-executive-evolution-dashboard.md
+docs/superpowers/plans/2026-04-14-ha-001-probes.md
