@@ -7,7 +7,9 @@ Ajusta prioridade de tickets considerando histórico de execução:
 - Consumo de recursos
 """
 from collections import defaultdict
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+UTC = timezone.utc
 from typing import Any
 
 import structlog

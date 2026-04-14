@@ -10,7 +10,8 @@ import base64
 import io
 import time
 from dataclasses import asdict, dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+UTC = timezone.utc, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 

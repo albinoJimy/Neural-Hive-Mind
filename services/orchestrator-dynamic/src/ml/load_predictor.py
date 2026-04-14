@@ -10,7 +10,9 @@ Não participa de treinamento/registro no MLflow; é um componente de fallback s
 """
 
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+UTC = timezone.utc
 from typing import Any
 
 import structlog

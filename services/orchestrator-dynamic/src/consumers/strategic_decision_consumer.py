@@ -10,8 +10,9 @@ Author: Neural-Hive-Mind
 Created: 2026-03-30 (Epic J)
 """
 import json
-from datetime import UTC, datetime
-from enum import StrEnum
+from datetime import datetime, timezone
+UTC = timezone.utc, datetime
+from enum import Enum
 from typing import Any
 
 import structlog
@@ -23,7 +24,7 @@ from neural_hive_observability.context import extract_context_from_headers, set_
 logger = structlog.get_logger(__name__)
 
 
-class StrategicDecisionType(StrEnum):
+class StrategicDecisionType(str, Enum):
     """Tipos de decisões estratégicas"""
 
     WORKFLOW_ADJUSTMENT = "WORKFLOW_ADJUSTMENT"

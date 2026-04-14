@@ -12,8 +12,9 @@ Implementa promoção segura de modelos ML com:
 import asyncio
 import contextlib
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
-from enum import StrEnum
+from datetime import datetime, timezone
+UTC = timezone.utc, datetime
+from enum import Enum
 from typing import TYPE_CHECKING, Any, Optional
 
 import structlog
@@ -26,7 +27,7 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-class PromotionStage(StrEnum):
+class PromotionStage(str, Enum):
     """Estágios de promoção."""
 
     PENDING = "pending"
@@ -39,7 +40,7 @@ class PromotionStage(StrEnum):
     ROLLED_BACK = "rolled_back"
 
 
-class PromotionResult(StrEnum):
+class PromotionResult(str, Enum):
     """Resultados possíveis de promoção."""
 
     SUCCESS = "success"

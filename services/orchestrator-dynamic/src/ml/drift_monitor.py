@@ -8,8 +8,10 @@ com janela deslizante, e dispara alertas quando drift detectado.
 import asyncio
 import contextlib
 from collections import deque
-from datetime import UTC, datetime, timedelta
-from enum import StrEnum
+from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+UTC = timezone.utc
+from enum import Enum
 from typing import Any
 
 import numpy as np
@@ -18,7 +20,7 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 
-class DriftSeverity(StrEnum):
+class DriftSeverity(str, Enum):
     """Níveis de severidade de drift."""
 
     LOW = "low"

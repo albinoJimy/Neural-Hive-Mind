@@ -4,8 +4,9 @@ PreemptionRules - Regras para preempção de tickets de baixa prioridade.
 Define quando um ticket de alta prioridade pode preemptar
 um ticket de baixa prioridade que está em execução.
 """
-from datetime import UTC
-from enum import StrEnum
+from datetime import datetime, timezone
+UTC = timezone.utc
+from enum import Enum
 from typing import Any
 
 import structlog
@@ -13,7 +14,7 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 
-class PreemptionDecision(StrEnum):
+class PreemptionDecision(str, Enum):
     """Decisão de preempção."""
 
     ALLOWED = "ALLOWED"

@@ -4,8 +4,9 @@ PreemptionManager - Gerencia preempção de tickets em execução.
 Coordena a preempção de tickets de baixa prioridade
 para dar lugar a tickets de alta prioridade.
 """
-from datetime import UTC
-from enum import StrEnum
+from datetime import datetime, timezone
+UTC = timezone.utc
+from enum import Enum
 from typing import Any
 
 import structlog
@@ -16,7 +17,7 @@ from src.scheduler.priority_queues import PriorityLevel
 logger = structlog.get_logger(__name__)
 
 
-class PreemptionStatus(StrEnum):
+class PreemptionStatus(str, Enum):
     """Status de uma preempção."""
 
     SUCCESS = "SUCCESS"

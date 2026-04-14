@@ -9,7 +9,7 @@ NOTA: Este módulo usa Pydantic v2.
 import hashlib
 import json
 from datetime import datetime
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -31,7 +31,7 @@ def _get_enum_value(val) -> str:
     return val.value if hasattr(val, "value") else str(val)
 
 
-class TaskType(StrEnum):
+class TaskType(str, Enum):
     """Tipos de tarefa.
 
     Inclui tipos legados (lowercase) para compatibilidade com mensagens antigas.
@@ -57,7 +57,7 @@ class TaskType(StrEnum):
     review = "review"
 
 
-class TicketStatus(StrEnum):
+class TicketStatus(str, Enum):
     """Status do ticket de execução."""
 
     PENDING = "PENDING"
@@ -68,7 +68,7 @@ class TicketStatus(StrEnum):
     COMPENSATED = "COMPENSATED"
 
 
-class Priority(StrEnum):
+class Priority(str, Enum):
     """Prioridade de execução."""
 
     LOW = "LOW"
@@ -77,7 +77,7 @@ class Priority(StrEnum):
     CRITICAL = "CRITICAL"
 
 
-class RiskBand(StrEnum):
+class RiskBand(str, Enum):
     """Banda de risco."""
 
     low = "low"
@@ -86,7 +86,7 @@ class RiskBand(StrEnum):
     critical = "critical"
 
 
-class SecurityLevel(StrEnum):
+class SecurityLevel(str, Enum):
     """Nível de segurança."""
 
     PUBLIC = "PUBLIC"
@@ -95,7 +95,7 @@ class SecurityLevel(StrEnum):
     RESTRICTED = "RESTRICTED"
 
 
-class DeliveryMode(StrEnum):
+class DeliveryMode(str, Enum):
     """Modo de entrega."""
 
     AT_MOST_ONCE = "AT_MOST_ONCE"
@@ -103,14 +103,14 @@ class DeliveryMode(StrEnum):
     EXACTLY_ONCE = "EXACTLY_ONCE"
 
 
-class Consistency(StrEnum):
+class Consistency(str, Enum):
     """Nível de consistência."""
 
     EVENTUAL = "EVENTUAL"
     STRONG = "STRONG"
 
 
-class Durability(StrEnum):
+class Durability(str, Enum):
     """Modo de durabilidade."""
 
     TRANSIENT = "TRANSIENT"

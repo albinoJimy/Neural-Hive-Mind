@@ -4,8 +4,9 @@ Modelos de estado para coordenacao de Saga.
 Define os modelos Pydantic para representar o estado de uma transacao
 Saga distribuida com compensacao automatica.
 """
-from datetime import UTC, datetime
-from enum import StrEnum
+from datetime import datetime, timezone
+UTC = timezone.utc, datetime
+from enum import Enum
 from typing import Any
 from uuid import uuid4
 
@@ -16,7 +17,7 @@ class SagaConcurrentModificationError(Exception):
     """Excecao lancada quando uma Saga e modificada concorrentemente."""
 
 
-class SagaStatus(StrEnum):
+class SagaStatus(str, Enum):
     """Status de uma Saga."""
 
     PENDING = "PENDING"  # Criada, nao iniciada
@@ -28,7 +29,7 @@ class SagaStatus(StrEnum):
     FAILED = "FAILED"  # Falha sem compensacao possivel
 
 
-class SagaEventType(StrEnum):
+class SagaEventType(str, Enum):
     """Tipos de eventos de Saga."""
 
     saga_created = "saga_created"
@@ -42,7 +43,7 @@ class SagaEventType(StrEnum):
     saga_failed = "saga_failed"
 
 
-class StepStatus(StrEnum):
+class StepStatus(str, Enum):
     """Status de um step individual de Saga."""
 
     PENDING = "PENDING"

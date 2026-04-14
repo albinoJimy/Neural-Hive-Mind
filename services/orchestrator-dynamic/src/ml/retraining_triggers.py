@@ -10,7 +10,9 @@ Implementa múltiplos gatilhos:
 
 import asyncio
 from collections.abc import Callable
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+UTC = timezone.utc
 from enum import Enum, StrEnum
 from typing import Any
 
@@ -19,7 +21,7 @@ import structlog
 logger = structlog.get_logger(__name__)
 
 
-class TriggerType(StrEnum):
+class TriggerType(str, Enum):
     """Tipos de gatilhos de re-treinamento."""
 
     SCHEDULED = "scheduled"

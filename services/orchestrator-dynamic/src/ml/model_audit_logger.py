@@ -7,9 +7,11 @@ Provides full traceability for compliance, debugging, and operational insights.
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
-from enum import StrEnum
+from datetime import datetime, timedelta, timezone
+from enum import Enum
 from typing import Any
+
+UTC = timezone.utc
 
 import structlog
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -18,7 +20,7 @@ from pymongo import ASCENDING, DESCENDING
 logger = structlog.get_logger(__name__)
 
 
-class ModelLifecycleEvent(StrEnum):
+class ModelLifecycleEvent(str, Enum):
     """Types of model lifecycle events."""
 
     TRAINING_STARTED = "training_started"

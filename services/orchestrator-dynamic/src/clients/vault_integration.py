@@ -3,7 +3,9 @@ Cliente de integração Vault para orchestrator-dynamic service
 """
 
 import asyncio
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+UTC = timezone.utc
 
 import structlog
 from prometheus_client import Counter
