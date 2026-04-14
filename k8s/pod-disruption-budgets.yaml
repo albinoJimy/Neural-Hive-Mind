@@ -1,0 +1,283 @@
+# Pod Disruption Budgets - Neural Hive Mind
+#
+# Propósito: Garantir disponibilidade mínima durante maintenance (node drains, updates)
+# Especificação: HA-001-04
+#
+# PDBs configurados para:
+# - minAvailable: Número mínimo de pods que devem permanecer disponíveis
+# - maxUnavailable: Número máximo de pods que podem ficar indisponíveis
+#
+# Strategy: Para serviços com replicação >= 3, usar minAvailable: 1
+#            Para serviços com replicação >= 2, usar maxUnavailable: 1
+
+---
+# Gateway de Intenções - Ponto de entrada principal
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: gateway-intencoes-pdb
+  namespace: neural-hive
+  labels:
+    app: gateway-intencoes
+    component: api-gateway
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: gateway-intencoes
+
+---
+# Semantic Translation Engine
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: semantic-translation-engine-pdb
+  namespace: neural-hive
+  labels:
+    app: semantic-translation-engine
+    component: nlu
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: semantic-translation-engine
+
+---
+# Consensus Engine
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: consensus-engine-pdb
+  namespace: neural-hive
+  labels:
+    app: consensus-engine
+    component: consensus
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: consensus-engine
+
+---
+# Orchestrator Dynamic
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: orchestrator-dynamic-pdb
+  namespace: neural-hive
+  labels:
+    app: orchestrator-dynamic
+    component: orchestration
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: orchestrator-dynamic
+
+---
+# Approval Service
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: approval-service-pdb
+  namespace: neural-hive
+  labels:
+    app: approval-service
+    component: approval
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: approval-service
+
+---
+# Worker Agents
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: worker-agents-pdb
+  namespace: neural-hive
+  labels:
+    app: worker-agents
+    component: execution
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: worker-agents
+
+---
+# Queen Agent
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: queen-agent-pdb
+  namespace: neural-hive
+  labels:
+    app: queen-agent
+    component: coordination
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: queen-agent
+
+---
+# Service Registry
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: service-registry-pdb
+  namespace: neural-hive
+  labels:
+    app: service-registry
+    component: discovery
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: service-registry
+
+---
+# Specialist Evolution
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: specialist-evolution-pdb
+  namespace: neural-hive
+  labels:
+    app: specialist-evolution
+    component: ml
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: specialist-evolution
+
+---
+# Analyst Agents
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: analyst-agents-pdb
+  namespace: neural-hive
+  labels:
+    app: analyst-agents
+    component: analysis
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: analyst-agents
+
+---
+# Scout Agents
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: scout-agents-pdb
+  namespace: neural-hive
+  labels:
+    app: scout-agents
+    component: discovery
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: scout-agents
+
+---
+# Optimizer Agents
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: optimizer-agents-pdb
+  namespace: neural-hive
+  labels:
+    app: optimizer-agents
+    component: optimization
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: optimizer-agents
+
+---
+# Self-Healing Engine
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: self-healing-engine-pdb
+  namespace: neural-hive
+  labels:
+    app: self-healing-engine
+    component: resilience
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: self-healing-engine
+
+---
+# Execution Ticket Service
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: execution-ticket-service-pdb
+  namespace: neural-hive
+  labels:
+    app: execution-ticket-service
+    component: ticketing
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: execution-ticket-service
+
+---
+# SLA Management System
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: sla-management-system-pdb
+  namespace: neural-hive
+  labels:
+    app: sla-management-system
+    component: monitoring
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: sla-management-system
+
+---
+# Code Forge
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: code-forge-pdb
+  namespace: neural-hive
+  labels:
+    app: code-forge
+    component: codegen
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: code-forge
+
+---
+# Guard Agents
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: guard-agents-pdb
+  namespace: neural-hive
+  labels:
+    app: guard-agents
+    component: security
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: guard-agents
