@@ -16,6 +16,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from prometheus_client import make_asgi_app
 
+# SEC-001: Security Headers
+from neural_hive_security import SecurityHeadersMiddleware
+
 from neural_hive_observability import get_logger, init_observability
 from src.config import get_settings
 from src.consumers.decision_consumer import DecisionConsumer
@@ -1031,6 +1034,9 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
 )
+
+# SEC-001: Configurar Security Headers
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Montar métricas Prometheus
 metrics_app = make_asgi_app()

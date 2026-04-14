@@ -34,8 +34,12 @@ from .grpc_channel_factory import (
     create_secure_grpc_channel_sync,
     get_grpc_metadata_with_jwt,
 )
+from .security_headers import (
+    SecurityHeadersMiddleware,
+    SecurityHeadersMiddlewareConfig,
+)
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 __all__ = [
     # Vault client
@@ -62,4 +66,7 @@ __all__ = [
     "create_secure_grpc_channel",
     "create_secure_grpc_channel_sync",
     "get_grpc_metadata_with_jwt",
+    # Security headers
+    "SecurityHeadersMiddleware",
+    "SecurityHeadersMiddlewareConfig",
 ]
