@@ -1,6 +1,6 @@
 import base64
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 import structlog
 from fastapi import Depends, FastAPI, HTTPException, Request
@@ -291,6 +291,16 @@ def create_http_server(config, app_state):
         if is_ready:
             return {"ready": True, "checks": checks}
         return {"ready": False, "checks": checks}, 503
+
+    @app.get("/health/startup")
+    async def startup_probe():
+        """Startup probe para Kubernetes. Indica que o worker agent completou sua inicialização e está pronto para aceitar tarefas."""
+        return {
+            "status": "started",
+            "agent_id": config.agent_id,
+            "timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
+            "started_at": datetime.now(timezone.utc).isoformat(),
+        }
 
     @app.get("/metrics")
     async def metrics():
