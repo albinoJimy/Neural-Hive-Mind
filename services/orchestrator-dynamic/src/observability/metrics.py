@@ -1,6 +1,7 @@
 """
 Métricas Prometheus customizadas para o Orchestrator Dynamic.
 """
+
 from functools import lru_cache
 from typing import Any
 
@@ -902,6 +903,24 @@ class OrchestratorMetrics:
             buckets=[0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
         )
 
+        # INFRA-011: Métricas de LoadPredictor
+        self.load_predictor_usage_total = Counter(
+            "orchestrator_load_predictor_usage_total",
+            "Total de usos do LoadPredictor",
+            ["success", "failure"],
+        )
+
+        self.load_predictor_forecast_value = Gauge(
+            "orchestrator_load_forecast_value",
+            "Valor de forecast de carga do sistema (0-1)",
+        )
+
+        self.load_predictor_bottlenecks_detected_total = Counter(
+            "orchestrator_load_predictor_bottlenecks_detected_total",
+            "Total de bottlenecks detectados pelo LoadPredictor",
+            ["component"],
+        )
+
         logger.info("Métricas Prometheus inicializadas", service=service_name, component=component)
 
     # Métodos helper para registrar métricas
@@ -975,6 +994,35 @@ class OrchestratorMetrics:
             status: Status da compensação (success, failed)
         """
         self.compensations_executed_total.labels(reason=reason, status=status).inc()
+
+    # INFRA-011: Métodos helper para LoadPredictor
+
+    def record_load_predictor_usage(self, success: bool = True):
+        """
+        Registra uso do LoadPredictor.
+
+        Args:
+            success: True se a chamada foi bem-sucedida, False caso contrário
+        """
+        self.load_predictor_usage_total.labels(success="true" if success else "false").inc()
+
+    def set_load_forecast_value(self, value: float):
+        """
+        Atualiza gauge com valor de forecast de carga.
+
+        Args:
+            value: Valor de carga previsto (0.0 a 1.0)
+        """
+        self.load_predictor_forecast_value.set(max(0.0, min(1.0, value)))
+
+    def record_bottleneck_detected(self, component: str):
+        """
+        Registra detecção de bottleneck.
+
+        Args:
+            component: Componente que está em bottleneck
+        """
+        self.load_predictor_bottlenecks_detected_total.labels(component=component).inc()
 
     def record_jwt_validation_failure(self, tenant_id: str, reason: str):
         """

@@ -8,6 +8,7 @@ Valida:
 - Cache Redis
 - Métricas Prometheus
 """
+
 import pytest
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 from datetime import datetime, timedelta
@@ -54,9 +55,7 @@ def mock_redis():
 def mock_mongodb():
     """Cliente MongoDB mockado."""
     mock = AsyncMock()
-    mock.db = {
-        "execution_tickets": AsyncMock()
-    }
+    mock.db = {"execution_tickets": AsyncMock()}
     return mock
 
 
@@ -76,32 +75,34 @@ def mock_metrics():
 def mock_registry_client():
     """Cliente do Service Registry mockado."""
     mock = AsyncMock()
-    mock.discover_agents = AsyncMock(return_value=[
-        {
-            "agent_id": "worker-1",
-            "agent_type": "query-worker",
-            "status": "HEALTHY",
-            "capabilities": ["query", "sql"],
-            "telemetry": {
-                "success_rate": 0.95,
-                "avg_duration_ms": 2000,
-                "total_executions": 50
+    mock.discover_agents = AsyncMock(
+        return_value=[
+            {
+                "agent_id": "worker-1",
+                "agent_type": "query-worker",
+                "status": "HEALTHY",
+                "capabilities": ["query", "sql"],
+                "telemetry": {
+                    "success_rate": 0.95,
+                    "avg_duration_ms": 2000,
+                    "total_executions": 50,
+                },
+                "endpoint": "grpc://worker-1:8005",
             },
-            "endpoint": "grpc://worker-1:8005"
-        },
-        {
-            "agent_id": "worker-2",
-            "agent_type": "query-worker",
-            "status": "HEALTHY",
-            "capabilities": ["query", "sql"],
-            "telemetry": {
-                "success_rate": 0.90,
-                "avg_duration_ms": 2500,
-                "total_executions": 30
+            {
+                "agent_id": "worker-2",
+                "agent_type": "query-worker",
+                "status": "HEALTHY",
+                "capabilities": ["query", "sql"],
+                "telemetry": {
+                    "success_rate": 0.90,
+                    "avg_duration_ms": 2500,
+                    "total_executions": 30,
+                },
+                "endpoint": "grpc://worker-2:8005",
             },
-            "endpoint": "grpc://worker-2:8005"
-        }
-    ])
+        ]
+    )
     return mock
 
 
@@ -121,7 +122,7 @@ def load_predictor_wrapper(mock_config, mock_redis, mock_metrics, mock_mongodb):
             config=mock_config,
             redis_client=mock_redis,
             mongodb_client=mock_mongodb,
-            metrics=mock_metrics
+            metrics=mock_metrics,
         )
 
         return factory.create_load_predictor()
@@ -142,14 +143,14 @@ class TestLoadPredictorIntegration:
             mock_load_predictor.predict_bottlenecks = AsyncMock(return_value=[])
 
             with patch(
-                "src.ml.load_predictor_factory.LoadPredictor",
-                return_value=mock_load_predictor
+                "src.ml.load_predictor_factory.CentralLoadPredictor",
+                return_value=mock_load_predictor,
             ):
                 factory = LoadPredictorFactory(
                     config=mock_config,
                     redis_client=mock_redis,
                     mongodb_client=mock_mongodb,
-                    metrics=mock_metrics
+                    metrics=mock_metrics,
                 )
 
                 wrapper = await factory.create_load_predictor()
@@ -167,7 +168,7 @@ class TestLoadPredictorIntegration:
                 config=mock_config,
                 redis_client=mock_redis,
                 mongodb_client=mock_mongodb,
-                metrics=mock_metrics
+                metrics=mock_metrics,
             )
 
             wrapper = await factory.create_load_predictor()
@@ -188,7 +189,7 @@ class TestLoadPredictorIntegration:
                 config=mock_config,
                 redis_client=mock_redis,
                 mongodb_client=mock_mongodb,
-                metrics=mock_metrics
+                metrics=mock_metrics,
             )
 
             wrapper = await factory.create_load_predictor()
@@ -204,8 +205,13 @@ class TestIntelligentSchedulerIntegration:
 
     @pytest.mark.asyncio
     async def test_scheduler_obtains_load_forecast(
-        self, mock_config, mock_redis, mock_mongodb, mock_registry_client,
-        mock_priority_calculator, mock_metrics
+        self,
+        mock_config,
+        mock_redis,
+        mock_mongodb,
+        mock_registry_client,
+        mock_priority_calculator,
+        mock_metrics,
     ):
         """Testa que scheduler obtém load forecast do LoadPredictor."""
         with patch("src.ml.load_predictor_factory.ML_AVAILABLE", True):
@@ -217,24 +223,29 @@ class TestIntelligentSchedulerIntegration:
             mock_load_predictor.predict_bottlenecks = AsyncMock(return_value=[])
 
             with patch(
-                "src.ml.load_predictor_factory.LoadPredictor",
-                return_value=mock_load_predictor
+                "src.ml.load_predictor_factory.CentralLoadPredictor",
+                return_value=mock_load_predictor,
             ):
                 # Patch clients
-                with patch("src.scheduler.intelligent_scheduler.get_redis_client", return_value=mock_redis):
-                    with patch("src.scheduler.intelligent_scheduler.get_mongodb_client", return_value=mock_mongodb):
+                with patch(
+                    "src.scheduler.intelligent_scheduler.get_redis_client", return_value=mock_redis
+                ):
+                    with patch(
+                        "src.scheduler.intelligent_scheduler.get_mongodb_client",
+                        return_value=mock_mongodb,
+                    ):
                         # Criar scheduler
                         resource_allocator = ResourceAllocator(
                             registry_client=mock_registry_client,
                             config=mock_config,
-                            metrics=mock_metrics
+                            metrics=mock_metrics,
                         )
 
                         scheduler = IntelligentScheduler(
                             config=mock_config,
                             metrics=mock_metrics,
                             priority_calculator=mock_priority_calculator,
-                            resource_allocator=resource_allocator
+                            resource_allocator=resource_allocator,
                         )
 
                         # Obter load forecast
@@ -245,8 +256,13 @@ class TestIntelligentSchedulerIntegration:
 
     @pytest.mark.asyncio
     async def test_scheduler_detects_bottlenecks(
-        self, mock_config, mock_redis, mock_mongodb, mock_registry_client,
-        mock_priority_calculator, mock_metrics
+        self,
+        mock_config,
+        mock_redis,
+        mock_mongodb,
+        mock_registry_client,
+        mock_priority_calculator,
+        mock_metrics,
     ):
         """Testa que scheduler detecta bottlenecks via LoadPredictor."""
         with patch("src.ml.load_predictor_factory.ML_AVAILABLE", True):
@@ -256,7 +272,7 @@ class TestIntelligentSchedulerIntegration:
                     "predicted_load": 0.85,
                     "severity": "HIGH",
                     "type": "worker_saturation",
-                    "minutes_ahead": 120
+                    "minutes_ahead": 120,
                 }
             ]
 
@@ -266,25 +282,32 @@ class TestIntelligentSchedulerIntegration:
             mock_load_predictor.predict_bottlenecks = AsyncMock(return_value=mock_bottlenecks)
 
             with patch(
-                "src.ml.load_predictor_factory.LoadPredictor",
-                return_value=mock_load_predictor
+                "src.ml.load_predictor_factory.CentralLoadPredictor",
+                return_value=mock_load_predictor,
             ):
-                with patch("src.scheduler.intelligent_scheduler.get_redis_client", return_value=mock_redis):
-                    with patch("src.scheduler.intelligent_scheduler.get_mongodb_client", return_value=mock_mongodb):
+                with patch(
+                    "src.scheduler.intelligent_scheduler.get_redis_client", return_value=mock_redis
+                ):
+                    with patch(
+                        "src.scheduler.intelligent_scheduler.get_mongodb_client",
+                        return_value=mock_mongodb,
+                    ):
                         resource_allocator = ResourceAllocator(
                             registry_client=mock_registry_client,
                             config=mock_config,
-                            metrics=mock_metrics
+                            metrics=mock_metrics,
                         )
 
                         scheduler = IntelligentScheduler(
                             config=mock_config,
                             metrics=mock_metrics,
                             priority_calculator=mock_priority_calculator,
-                            resource_allocator=resource_allocator
+                            resource_allocator=resource_allocator,
                         )
 
-                        bottlenecks = await scheduler._get_predicted_bottlenecks(horizon_minutes=360)
+                        bottlenecks = await scheduler._get_predicted_bottlenecks(
+                            horizon_minutes=360
+                        )
 
                         assert len(bottlenecks) == 1
                         assert bottlenecks[0]["severity"] == "HIGH"
@@ -302,7 +325,7 @@ class TestResourceAllocatorIntegration:
         with patch("src.ml.load_predictor_factory.ML_AVAILABLE", True):
             mock_forecast = {
                 "forecast": [0.5, 0.6, 0.55],
-                "timestamps": ["2026-04-05T10:00:00", "2026-04-05T10:01:00", "2026-04-05T10:02:00"]
+                "timestamps": ["2026-04-05T10:00:00", "2026-04-05T10:01:00", "2026-04-05T10:02:00"],
             }
 
             mock_load_predictor = AsyncMock()
@@ -311,14 +334,14 @@ class TestResourceAllocatorIntegration:
             mock_load_predictor.predict_bottlenecks = AsyncMock(return_value=[])
 
             with patch(
-                "src.ml.load_predictor_factory.LoadPredictor",
-                return_value=mock_load_predictor
+                "src.ml.load_predictor_factory.CentralLoadPredictor",
+                return_value=mock_load_predictor,
             ):
                 factory = LoadPredictorFactory(
                     config=mock_config,
                     redis_client=mock_redis,
                     mongodb_client=mock_mongodb,
-                    metrics=mock_metrics
+                    metrics=mock_metrics,
                 )
 
                 wrapper = await factory.create_load_predictor()
@@ -327,20 +350,20 @@ class TestResourceAllocatorIntegration:
                     {
                         "agent_id": "worker-1",
                         "status": "HEALTHY",
-                        "telemetry": {"total_executions": 50}
+                        "telemetry": {"total_executions": 50},
                     },
                     {
                         "agent_id": "worker-2",
                         "status": "HEALTHY",
-                        "telemetry": {"total_executions": 100}
-                    }
+                        "telemetry": {"total_executions": 100},
+                    },
                 ]
 
                 allocator = ResourceAllocator(
                     registry_client=AsyncMock(),
                     config=mock_config,
                     metrics=mock_metrics,
-                    load_predictor_wrapper=wrapper
+                    load_predictor_wrapper=wrapper,
                 )
 
                 enriched = await allocator.enrich_workers_with_load_forecast(
@@ -354,15 +377,23 @@ class TestResourceAllocatorIntegration:
                 assert all(w.get("load_predictor_enriched") for w in enriched)
 
                 # Workers com mais execuções devem ter carga mais alta
-                load_worker_1 = next(w for w in enriched if w["agent_id"] == "worker-1")["predicted_load_pct"]
-                load_worker_2 = next(w for w in enriched if w["agent_id"] == "worker-2")["predicted_load_pct"]
+                load_worker_1 = next(w for w in enriched if w["agent_id"] == "worker-1")[
+                    "predicted_load_pct"
+                ]
+                load_worker_2 = next(w for w in enriched if w["agent_id"] == "worker-2")[
+                    "predicted_load_pct"
+                ]
                 assert load_worker_2 > load_worker_1
 
 
 @pytest.mark.asyncio
 async def test_end_to_end_load_predictor_in_scheduling(
-    mock_config, mock_redis, mock_mongodb, mock_registry_client,
-    mock_priority_calculator, mock_metrics
+    mock_config,
+    mock_redis,
+    mock_mongodb,
+    mock_registry_client,
+    mock_priority_calculator,
+    mock_metrics,
 ):
     """
     Teste E2E: LoadPredictor no fluxo completo de scheduling.
@@ -374,7 +405,7 @@ async def test_end_to_end_load_predictor_in_scheduling(
     with patch("src.ml.load_predictor_factory.ML_AVAILABLE", True):
         mock_forecast = {
             "forecast": [0.5, 0.6, 0.7],
-            "timestamps": ["2026-04-05T10:00:00", "2026-04-05T10:01:00", "2026-04-05T10:02:00"]
+            "timestamps": ["2026-04-05T10:00:00", "2026-04-05T10:01:00", "2026-04-05T10:02:00"],
         }
 
         mock_load_predictor = AsyncMock()
@@ -383,14 +414,19 @@ async def test_end_to_end_load_predictor_in_scheduling(
         mock_load_predictor.predict_bottlenecks = AsyncMock(return_value=[])
 
         with patch("src.ml.load_predictor_factory.LoadPredictor", return_value=mock_load_predictor):
-            with patch("src.scheduler.intelligent_scheduler.get_redis_client", return_value=mock_redis):
-                with patch("src.scheduler.intelligent_scheduler.get_mongodb_client", return_value=mock_mongodb):
+            with patch(
+                "src.scheduler.intelligent_scheduler.get_redis_client", return_value=mock_redis
+            ):
+                with patch(
+                    "src.scheduler.intelligent_scheduler.get_mongodb_client",
+                    return_value=mock_mongodb,
+                ):
                     # Criar wrapper para allocator
                     factory = LoadPredictorFactory(
                         config=mock_config,
                         redis_client=mock_redis,
                         mongodb_client=mock_mongodb,
-                        metrics=mock_metrics
+                        metrics=mock_metrics,
                     )
                     wrapper = await factory.create_load_predictor()
 
@@ -398,14 +434,14 @@ async def test_end_to_end_load_predictor_in_scheduling(
                         registry_client=mock_registry_client,
                         config=mock_config,
                         metrics=mock_metrics,
-                        load_predictor_wrapper=wrapper
+                        load_predictor_wrapper=wrapper,
                     )
 
                     scheduler = IntelligentScheduler(
                         config=mock_config,
                         metrics=mock_metrics,
                         priority_calculator=mock_priority_calculator,
-                        resource_allocator=resource_allocator
+                        resource_allocator=resource_allocator,
                     )
 
                     # Ticket de teste
@@ -418,7 +454,7 @@ async def test_end_to_end_load_predictor_in_scheduling(
                         "required_capabilities": ["query"],
                         "namespace": "neural-hive",
                         "security_level": "INTERNAL",
-                        "estimated_duration_ms": 5000
+                        "estimated_duration_ms": 5000,
                     }
 
                     # Agendar ticket
@@ -427,4 +463,131 @@ async def test_end_to_end_load_predictor_in_scheduling(
                     # Verificar alocação
                     assert "allocation_metadata" in result
                     assert result["allocation_metadata"]["agent_id"] in ["worker-1", "worker-2"]
-                    assert result["allocation_metadata"]["allocation_method"] == "intelligent_scheduler"
+                    assert (
+                        result["allocation_metadata"]["allocation_method"]
+                        == "intelligent_scheduler"
+                    )
+
+
+class TestEnrichTicketWithPredictions:
+    """Testes INFRA-011: Enriquecimento de ticket com LoadPredictor."""
+
+    @pytest.mark.asyncio
+    async def test_enrich_ticket_with_load_predictions(
+        self, mock_config, mock_redis, mock_mongodb, mock_metrics
+    ):
+        """Testa que ticket é enriquecido com previsões de carga do LoadPredictor."""
+        # Criar mock do LoadPredictor
+        mock_load_predictor = AsyncMock()
+        mock_load_predictor.initialize = AsyncMock()
+
+        # Mock predict_load para retornar forecast
+        mock_load_predictor.predict_load = AsyncMock(
+            return_value={"predicted_load_pct": 0.75, "confidence": 0.85}
+        )
+
+        # Mock predict_bottlenecks para retornar bottlenecks
+        mock_load_predictor.predict_bottlenecks = AsyncMock(
+            return_value=[
+                {"component": "worker-query", "severity": "HIGH", "load_pct": 0.92},
+                {"component": "worker-sql", "severity": "MEDIUM", "load_pct": 0.78},
+            ]
+        )
+
+        # Criar scheduler com load_predictor
+        resource_allocator = Mock()
+        priority_calculator = Mock()
+
+        scheduler = IntelligentScheduler(
+            config=mock_config,
+            metrics=mock_metrics,
+            priority_calculator=priority_calculator,
+            resource_allocator=resource_allocator,
+            load_predictor=mock_load_predictor,
+        )
+
+        # Ticket de teste
+        ticket = {"ticket_id": "test-123", "task_type": "query", "priority": "MEDIUM"}
+
+        # Enriquecer ticket
+        enriched = await scheduler._enrich_ticket_with_predictions(ticket)
+
+        # Verificar que predictions foi adicionado
+        assert "predictions" in enriched
+        assert "system_load" in enriched["predictions"]
+        assert enriched["predictions"]["system_load"] == 0.75
+        assert "bottlenecks" in enriched["predictions"]
+
+        # Verificar que ticket tem campos diretos
+        assert enriched.get("predicted_load_pct") == 0.75
+        assert enriched.get("predicted_bottlenecks") is not None
+
+    @pytest.mark.asyncio
+    async def test_enrich_ticket_without_load_predictor(
+        self, mock_config, mock_redis, mock_mongodb, mock_metrics
+    ):
+        """Testa que enriquecimento funciona sem LoadPredictor (fallback)."""
+        resource_allocator = Mock()
+        priority_calculator = Mock()
+
+        scheduler = IntelligentScheduler(
+            config=mock_config,
+            metrics=mock_metrics,
+            priority_calculator=priority_calculator,
+            resource_allocator=resource_allocator,
+            load_predictor=None,  # Sem LoadPredictor
+            scheduling_predictor=None,  # Sem scheduling_predictor
+            anomaly_detector=None,  # Sem anomaly_detector
+        )
+
+        # Ticket de teste
+        ticket = {"ticket_id": "test-123", "task_type": "query", "priority": "MEDIUM"}
+
+        # Enriquecer ticket
+        enriched = await scheduler._enrich_ticket_with_predictions(ticket)
+
+        # Sem preditores, não deve ter predictions (código só adiciona se houver predições)
+        assert "predictions" not in enriched
+        assert enriched.get("predicted_load_pct") is None
+
+    @pytest.mark.asyncio
+    async def test_enrich_ticket_load_predictor_failure(
+        self, mock_config, mock_redis, mock_mongodb, mock_metrics
+    ):
+        """Testa que falha do LoadPredictor é tratada gracefulmente."""
+        # Criar mock que falha
+        mock_load_predictor = AsyncMock()
+        mock_load_predictor.initialize = AsyncMock()
+
+        # Mock para levantar exceção
+        mock_load_predictor.predict_load = AsyncMock(
+            side_effect=Exception("Load prediction service unavailable")
+        )
+        mock_load_predictor.predict_bottlenecks = AsyncMock(
+            side_effect=Exception("Load prediction service unavailable")
+        )
+
+        resource_allocator = Mock()
+        priority_calculator = Mock()
+
+        scheduler = IntelligentScheduler(
+            config=mock_config,
+            metrics=mock_metrics,
+            priority_calculator=priority_calculator,
+            resource_allocator=resource_allocator,
+            load_predictor=mock_load_predictor,
+            scheduling_predictor=None,  # Sem outros preditores
+            anomaly_detector=None,
+        )
+
+        # Ticket de teste
+        ticket = {"ticket_id": "test-123", "task_type": "query", "priority": "MEDIUM"}
+
+        # Enriquecer ticket - não deve levantar exceção
+        enriched = await scheduler._enrich_ticket_with_predictions(ticket)
+
+        # Com falha do LoadPredictor e sem outros preditores, não deve ter predictions
+        assert "predictions" not in enriched
+
+        # Métricas de falha devem ter sido registradas
+        mock_metrics.record_load_predictor_usage.assert_called_with(success=False)

@@ -8,6 +8,7 @@ Implementa cache de descobertas e fallback para Service Registry indisponível.
 import asyncio
 from datetime import datetime, timedelta
 from enum import Enum
+from typing import Optional
 
 import httpx
 import structlog
@@ -56,8 +57,8 @@ class IntelligentScheduler:
         priority_calculator: PriorityCalculator,
         resource_allocator: ResourceAllocator,
         scheduling_optimizer=None,
-        scheduling_predictor: SchedulingPredictor | None = None,
-        load_predictor: LoadPredictor | None = None,
+        scheduling_predictor: Optional[SchedulingPredictor] = None,
+        load_predictor: Optional[LoadPredictor] = None,
         anomaly_detector=None,
         spiffe_manager=None,
     ):
@@ -464,9 +465,9 @@ class IntelligentScheduler:
                 cache_key=cache_key,
                 timeout_seconds=5.0,
                 reason="service_registry_discovery_exceeded_5s_timeout",
-                circuit_breaker_state=self.registry_breaker.state.name
-                if self.registry_breaker
-                else "not_configured",
+                circuit_breaker_state=(
+                    self.registry_breaker.state.name if self.registry_breaker else "not_configured"
+                ),
             )
             self.metrics.record_discovery_failure("timeout")
             return []
@@ -617,6 +618,62 @@ class IntelligentScheduler:
             except Exception as e:
                 self.logger.warning(
                     "anomaly_detection_failed", ticket_id=ticket.get("ticket_id"), error=str(e)
+                )
+
+        # Previsão de carga do sistema (INFRA-011)
+        if self.load_predictor:
+            try:
+                load_forecast = await self.load_predictor.predict_load(
+                    horizon_minutes=60, features=ticket
+                )
+                predicted_load = load_forecast.get("predicted_load_pct", 0.5)
+                predictions["system_load"] = predicted_load
+
+                # Registrar métricas
+                if self.metrics:
+                    self.metrics.record_load_predictor_usage(success=True)
+                    self.metrics.set_load_forecast_value(predicted_load)
+
+                self.logger.debug(
+                    "load_prediction_added",
+                    ticket_id=ticket.get("ticket_id"),
+                    predicted_load_pct=predicted_load,
+                )
+            except Exception as e:
+                self.logger.warning(
+                    "load_prediction_failed", ticket_id=ticket.get("ticket_id"), error=str(e)
+                )
+                # Registrar falha nas métricas
+                if self.metrics:
+                    self.metrics.record_load_predictor_usage(success=False)
+
+        # Detecção de bottlenecks (INFRA-011)
+        if self.load_predictor:
+            try:
+                bottlenecks = await self.load_predictor.predict_bottlenecks(
+                    horizon_minutes=60, current_load=ticket
+                )
+                predictions["bottlenecks"] = bottlenecks
+
+                # Registrar métricas de bottlenecks detectados
+                if self.metrics and isinstance(bottlenecks, list):
+                    for bottleneck in bottlenecks:
+                        component = bottleneck.get("component", "unknown")
+                        self.metrics.record_bottleneck_detected(component)
+
+                ticket["predicted_load_pct"] = (
+                    predicted_load if "predicted_load" in locals() else None
+                )
+                ticket["predicted_bottlenecks"] = bottlenecks
+
+                self.logger.debug(
+                    "bottleneck_prediction_added",
+                    ticket_id=ticket.get("ticket_id"),
+                    bottlenecks_count=len(bottlenecks) if isinstance(bottlenecks, list) else 0,
+                )
+            except Exception as e:
+                self.logger.warning(
+                    "bottleneck_prediction_failed", ticket_id=ticket.get("ticket_id"), error=str(e)
                 )
 
         # Atualizar ticket apenas se houver predições
