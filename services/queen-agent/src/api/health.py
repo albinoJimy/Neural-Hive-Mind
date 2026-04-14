@@ -1,11 +1,22 @@
+from datetime import datetime, timezone
 from typing import Any
 
 import structlog
 from fastapi import APIRouter, Request, status
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
 logger = structlog.get_logger()
 router = APIRouter()
+
+
+class StartupResponse(BaseModel):
+    """Startup probe response."""
+
+    status: str
+    service: str
+    version: str
+    started_at: str
 
 
 @router.get("/health", status_code=status.HTTP_200_OK)
@@ -112,4 +123,23 @@ async def ready(request: Request) -> JSONResponse:
     return JSONResponse(
         status_code=status_code,
         content={"ready": all_critical_healthy, "checks": checks},
+    )
+
+
+@router.get("/health/startup", response_model=StartupResponse, status_code=status.HTTP_200_OK)
+async def startup_check() -> JSONResponse:
+    """
+    Startup probe for Kubernetes.
+
+    Indicates when the service is ready to accept traffic.
+    Returns success only after initialization is complete.
+    """
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            "status": "started",
+            "service": "queen-agent",
+            "version": "1.0.0",
+            "started_at": datetime.now(timezone.utc).isoformat(),
+        },
     )

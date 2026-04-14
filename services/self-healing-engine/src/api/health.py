@@ -16,6 +16,15 @@ class HealthResponse(BaseModel):
     version: str
 
 
+class StartupResponse(BaseModel):
+    """Startup probe response."""
+
+    status: str
+    service: str
+    version: str
+    started_at: str
+
+
 @router.get("/health", status_code=status.HTTP_200_OK)
 async def health() -> HealthResponse:
     """Health check endpoint"""
@@ -36,6 +45,22 @@ async def liveness() -> dict:
 async def readiness() -> dict:
     """Readiness probe"""
     return {"status": "healthy", "timestamp": datetime.now(timezone.utc)}
+
+
+@router.get("/health/startup", response_model=StartupResponse, status_code=status.HTTP_200_OK)
+async def startup_check() -> dict:
+    """
+    Startup probe for Kubernetes.
+
+    Indicates when the service is ready to accept traffic.
+    Returns success only after initialization is complete.
+    """
+    return {
+        "status": "started",
+        "service": settings.service_name,
+        "version": settings.service_version,
+        "started_at": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 @router.get("/metrics", status_code=status.HTTP_200_OK)

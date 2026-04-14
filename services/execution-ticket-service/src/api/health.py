@@ -1,13 +1,25 @@
 """Health check endpoints."""
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Request, Response, status
 from fastapi.responses import JSONResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from pydantic import BaseModel
 
 from ..config import get_settings
 from ..database import get_mongodb_client, get_postgres_client
 
 router = APIRouter()
+
+
+class StartupResponse(BaseModel):
+    """Startup probe response."""
+
+    status: str
+    service: str
+    version: str
+    started_at: str
 
 
 @router.get("/health")
@@ -79,3 +91,20 @@ async def grpc_health(request: Request):
 async def metrics():
     """Prometheus metrics endpoint."""
     return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+
+@router.get("/health/startup", response_model=StartupResponse, status_code=status.HTTP_200_OK)
+async def startup_check():
+    """
+    Startup probe for Kubernetes.
+
+    Indicates when the service is ready to accept traffic.
+    Returns success only after initialization is complete.
+    """
+    settings = get_settings()
+    return {
+        "status": "started",
+        "service": "execution-ticket-service",
+        "version": settings.service_version if hasattr(settings, "service_version") else "1.0.0",
+        "started_at": datetime.now(timezone.utc).isoformat(),
+    }

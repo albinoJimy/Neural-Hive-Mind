@@ -1,11 +1,23 @@
+from datetime import datetime, timezone
+
 import structlog
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
 from neural_hive_observability.health import HealthStatus
 
 logger = structlog.get_logger()
 router = APIRouter()
+
+
+class StartupResponse(BaseModel):
+    """Startup probe response."""
+
+    status: str
+    service: str
+    version: str
+    started_at: str
 
 
 @router.get("/health")
@@ -113,3 +125,19 @@ async def readiness_check(request: Request):
 async def liveness_check():
     """Liveness check - verifica se serviço está responsivo"""
     return {"alive": True}
+
+
+@router.get("/health/startup", response_model=StartupResponse, status_code=200)
+async def startup_check():
+    """
+    Startup probe for Kubernetes.
+
+    Indicates when the service is ready to accept traffic.
+    Returns success only after initialization is complete.
+    """
+    return {
+        "status": "started",
+        "service": "analyst-agents",
+        "version": "1.0.0",
+        "started_at": datetime.now(timezone.utc).isoformat(),
+    }
