@@ -235,6 +235,15 @@ def create_fastapi_app(specialist, config) -> FastAPI:
             response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
             return {"ready": False, "specialist_type": specialist.specialist_type, "error": str(e)}
 
+    @app.get("/health/startup", response_class=JSONResponse, status_code=200)
+    async def startup_check():
+        """Startup probe para Kubernetes. Retorna imediatamente pois o FastAPI só está disponível após completa inicialização do specialist."""
+        return {
+            "status": "started",
+            "specialist_type": specialist.specialist_type,
+            "version": specialist.version,
+        }
+
     @app.get("/metrics", response_class=PlainTextResponse)
     async def metrics():
         """
@@ -330,7 +339,7 @@ def create_fastapi_app(specialist, config) -> FastAPI:
     logger.info(
         "FastAPI app created",
         specialist_type=specialist.specialist_type,
-        endpoints=["/health", "/ready", "/metrics", "/status", "/api/v1/feedback"],
+        endpoints=["/health", "/ready", "/health/startup", "/metrics", "/status", "/api/v1/feedback"],
     )
 
     return app
