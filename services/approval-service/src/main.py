@@ -13,6 +13,9 @@ from confluent_kafka.admin import AdminClient
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+# SEC-001: Security Headers
+from neural_hive_security import SecurityHeadersMiddleware
+
 from src.adapters.feedback_config_adapter import create_feedback_collector_config
 from src.api.routers import active_learning, approvals, dashboard, health
 from src.clients.cognitive_ledger_client import CognitiveLedgerClient
@@ -357,6 +360,9 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["X-Request-ID", "X-Correlation-ID"],
 )
+
+# SEC-001: Adicionar middleware de security headers
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Registra metricas
 register_metrics()

@@ -5,6 +5,9 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from prometheus_client import make_asgi_app
 from redis.asyncio import Redis
+
+# SEC-001: Security Headers
+from neural_hive_security import SecurityHeadersMiddleware
 from src.clients import (
     AnalystAgentGrpcClient,
     MongoDBClient,
@@ -36,6 +39,9 @@ app = FastAPI(
     version="1.0.0",
     description="Mecanismo de Consenso Multi-Agente - Neural Hive-Mind",
 )
+
+# SEC-001: Adicionar middleware de security headers
+app.add_middleware(SecurityHeadersMiddleware)
 
 
 # Estado global

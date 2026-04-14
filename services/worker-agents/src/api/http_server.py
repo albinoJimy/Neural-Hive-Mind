@@ -6,6 +6,10 @@ import structlog
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import PlainTextResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
+# SEC-001: Security Headers
+from neural_hive_security import SecurityHeadersMiddleware
+
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import BaseModel, Field
 
@@ -163,6 +167,9 @@ def create_http_server(config, app_state):
         version="1.0.0",
         description="Worker Agents para execução distribuída de tarefas",
     )
+
+    # SEC-001: Adicionar middleware de security headers
+    app.add_middleware(SecurityHeadersMiddleware)
 
     # SPIFFE JWT validator instance
     jwt_validator = SPIFFEJWTValidator(config, app_state)

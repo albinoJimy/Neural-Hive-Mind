@@ -26,6 +26,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse, Response
 from fastapi.security import HTTPBearer
+
+# SEC-001: Security Headers (centralizado)
+from neural_hive_security import SecurityHeadersMiddleware
+
 from kafka.producer import KafkaIntentProducer
 from middleware.auth_middleware import (
     create_auth_middleware,
@@ -337,53 +341,7 @@ app.add_middleware(
 # A propriedade allowed_hosts_property garante defaults seguros sem wildcard em produção
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts_property)
 
-
-# Middleware de Security Headers
-class SecurityHeadersMiddleware:
-    """Adiciona headers de segurança HTTP a todas as respostas."""
-
-    async def __call__(self, request: Request, call_next):
-        response = await call_next(request)
-
-        # Headers de segurança OWASP recomendados
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
-            "style-src 'self' 'unsafe-inline'; "
-            "img-src 'self' data: https:; "
-            "font-src 'self' data:; "
-            "connect-src 'self'; "
-            "frame-ancestors 'none'; "
-            "base-uri 'self'; "
-            "form-action 'self';"
-        )
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Permissions-Policy"] = (
-            "geolocation=(), "
-            "microphone=(), "
-            "camera=(), "
-            "payment=(), "
-            "usb=(), "
-            "magnetometer=(), "
-            "gyroscope=(), "
-            "accelerometer=()"
-        )
-        response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
-        response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
-
-        # Remove informações de servidor
-        if "Server" in response.headers:
-            del response.headers["Server"]
-        if "X-Powered-By" in response.headers:
-            del response.headers["X-Powered-By"]
-
-        return response
-
-
+# SEC-001: Adicionar middleware de security headers (centralizado)
 app.add_middleware(SecurityHeadersMiddleware)
 
 # Middleware de autenticação OAuth2
@@ -462,21 +420,25 @@ async def health_check():
             # Production mode com neural_hive_observability
             for name, result in health_results.items():
                 component_statuses[name] = {
-                    "status": result.status.value
-                    if hasattr(result, "status")
-                    else result.get("status", "unknown"),
-                    "message": result.message
-                    if hasattr(result, "message")
-                    else result.get("message", ""),
-                    "duration_seconds": result.duration_seconds
-                    if hasattr(result, "duration_seconds")
-                    else 0,
-                    "timestamp": result.timestamp
-                    if hasattr(result, "timestamp")
-                    else datetime.now(UTC).isoformat(),
-                    "details": result.details
-                    if hasattr(result, "details")
-                    else result.get("details", {}),
+                    "status": (
+                        result.status.value
+                        if hasattr(result, "status")
+                        else result.get("status", "unknown")
+                    ),
+                    "message": (
+                        result.message if hasattr(result, "message") else result.get("message", "")
+                    ),
+                    "duration_seconds": (
+                        result.duration_seconds if hasattr(result, "duration_seconds") else 0
+                    ),
+                    "timestamp": (
+                        result.timestamp
+                        if hasattr(result, "timestamp")
+                        else datetime.now(UTC).isoformat()
+                    ),
+                    "details": (
+                        result.details if hasattr(result, "details") else result.get("details", {})
+                    ),
                 }
 
         # Overall status handling
