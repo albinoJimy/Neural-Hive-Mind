@@ -96,7 +96,7 @@
       ],
       "title": "Evolution Score",
       "type": "gauge",
-      "hide": 1
+      "hide": 0
     },
     {
       "datasource": {
@@ -147,7 +147,7 @@
       ],
       "title": "Active Experiments",
       "type": "stat",
-      "hide": 1
+      "hide": 0
     },
     {
       "datasource": {
@@ -207,7 +207,7 @@
       ],
       "title": "Hypotheses in Pipeline",
       "type": "stat",
-      "hide": 1
+      "hide": 0
     },
     {
       "datasource": {
@@ -271,7 +271,7 @@
       ],
       "title": "Avg Improvement Lift",
       "type": "gauge",
-      "hide": 1
+      "hide": 0
     }
   ],
   "refresh": "30s",
