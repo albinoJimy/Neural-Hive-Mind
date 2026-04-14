@@ -25,9 +25,93 @@
   "refresh": "30s",
   "schemaVersion": 27,
   "style": "dark",
-  "tags": ["evolution", "executive", "ml", "experiments", "hypotheses"],
+  "tags": [
+    "evolution",
+    "executive",
+    "ml",
+    "experiments",
+    "hypotheses"
+  ],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "Executive",
+          "value": "executive"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "view_type",
+        "options": [
+          {
+            "selected": true,
+            "text": "Executive",
+            "value": "executive"
+          },
+          {
+            "selected": false,
+            "text": "Technical",
+            "value": "technical"
+          },
+          {
+            "selected": false,
+            "text": "Product",
+            "value": "product"
+          },
+          {
+            "selected": false,
+            "text": "Timeline",
+            "value": "timeline"
+          }
+        ],
+        "query": "Executive,Technical,Product,Timeline",
+        "queryValue": "",
+        "skipUrlSync": false,
+        "type": "custom"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(neural_hive_auto_approval_rate, specialist_type)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "specialist_type",
+        "query": {
+          "query": "label_values(neural_hive_auto_approval_rate, specialist_type)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(hypothesis_by_priority, priority)",
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "name": "priority",
+        "query": {
+          "query": "label_values(hypothesis_by_priority, priority)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
   },
   "time": {
     "from": "now-7d",
