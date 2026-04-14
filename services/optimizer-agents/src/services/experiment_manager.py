@@ -6,6 +6,7 @@ UTC = timezone.utc  # type: ignore
 import structlog
 
 from src.clients.consensus_engine_grpc_client import ConsensusEngineGrpcClient
+from src.clients.hypothesis_library_client import HypothesisLibraryClient
 from src.clients.orchestrator_grpc_client import OrchestratorGrpcClient
 from src.config.settings import get_settings
 from src.experimentation.ab_testing_engine import ABTestingEngine
@@ -19,6 +20,7 @@ from src.models.experiment_request import (
     RandomizationStrategy,
 )
 from src.models.optimization_hypothesis import OptimizationHypothesis
+from src.services.hypothesis_converter import HypothesisConverter
 
 logger = structlog.get_logger()
 
@@ -39,6 +41,8 @@ class ExperimentManager:
         redis_client=None,
         consensus_engine_client: ConsensusEngineGrpcClient | None = None,
         orchestrator_client: OrchestratorGrpcClient | None = None,
+        hypothesis_converter: HypothesisConverter | None = None,
+        hypothesis_client: HypothesisLibraryClient | None = None,
     ):
         self.settings = settings or get_settings()
         self.argo_client = argo_client  # ArgoWorkflowsClient (a ser implementado)
@@ -46,6 +50,8 @@ class ExperimentManager:
         self.redis_client = redis_client
         self.consensus_engine_client = consensus_engine_client
         self.orchestrator_client = orchestrator_client
+        self.hypothesis_converter = hypothesis_converter
+        self.hypothesis_client = hypothesis_client
 
         # Inicializar ABTestingEngine para A/B tests
         self.ab_testing_engine = ABTestingEngine(
@@ -68,7 +74,12 @@ class ExperimentManager:
         # Inicializar SampleSizeCalculator para calculo de tamanho de amostra
         self.sample_calculator = SampleSizeCalculator()
 
-        logger.info("experiment_manager_initialized")
+        logger.info(
+            "experiment_manager_initialized",
+            hypothesis_integration_enabled=(
+                self.hypothesis_converter is not None and self.hypothesis_client is not None
+            ),
+        )
 
     async def submit_experiment(self, hypothesis: OptimizationHypothesis) -> str | None:
         """
@@ -175,6 +186,205 @@ class ExperimentManager:
             # Liberar lock em caso de erro
             if self.redis_client:
                 await self.redis_client.unlock_component(hypothesis.target_component)
+            return None
+
+    async def submit_experiment_with_hypothesis(
+        self, opt_hypothesis: OptimizationHypothesis
+    ) -> dict | None:
+        """
+        Submeter experimento e criar hipotese no hypothesis-library.
+
+        Este metodo integra o ExperimentManager com o Hypothesis Library,
+        permitindo que hipoteses de otimizacao sejam persistidas e rastreadas
+        de forma centralizada.
+
+        Fluxo:
+        1. Converte OptimizationHypothesis para formato do hypothesis-library
+        2. Cria hipotese via hypothesis_client.create_hypothesis()
+        3. Submete experimento via submit_experiment()
+        4. Inicia teste da hipotese via hypothesis_client.start_testing()
+
+        Args:
+            opt_hypothesis: Hipotese de otimizacao a ser testada
+
+        Returns:
+            Dict com:
+                - experiment_id: ID do experimento criado
+                - hypothesis_id: ID da hipotese no hypothesis-library
+                - hypothesis_created: True se hipotese foi criada com sucesso
+                - testing_started: True se teste foi iniciado com sucesso
+                - error: Mensagem de erro (se houver)
+            None se experimento falhou completamente
+        """
+        hypothesis_id = None
+        hypothesis_created = False
+        testing_started = False
+        error_message = None
+
+        try:
+            # Verificar se integracao com hypothesis-library esta disponivel
+            if not self.hypothesis_converter or not self.hypothesis_client:
+                logger.warning(
+                    "hypothesis_library_integration_not_available",
+                    hypothesis_id=opt_hypothesis.hypothesis_id,
+                    falling_back_to="submit_experiment",
+                )
+                # Fallback: submeter experimento sem hipotese
+                experiment_id = await self.submit_experiment(opt_hypothesis)
+                if experiment_id:
+                    return {
+                        "experiment_id": experiment_id,
+                        "hypothesis_id": None,
+                        "hypothesis_created": False,
+                        "testing_started": False,
+                        "fallback_mode": True,
+                    }
+                return None
+
+            logger.info(
+                "submit_experiment_with_hypothesis_started",
+                hypothesis_id=opt_hypothesis.hypothesis_id,
+                target_component=opt_hypothesis.target_component,
+            )
+
+            # 1. Converter para formato do hypothesis-library
+            hypothesis_data = None
+            try:
+                hypothesis_data = self.hypothesis_converter.to_hypothesis_create(opt_hypothesis)
+                logger.debug(
+                    "hypothesis_converted",
+                    hypothesis_id=opt_hypothesis.hypothesis_id,
+                    title=hypothesis_data.get("title", "")[:50],
+                )
+            except Exception as e:
+                logger.error(
+                    "hypothesis_conversion_failed",
+                    hypothesis_id=opt_hypothesis.hypothesis_id,
+                    error=str(e),
+                )
+                error_message = f"hypothesis_conversion_failed: {str(e)}"
+                # Continuar mesmo se conversao falhar - tentar submeter experimento
+
+            # 2. Criar hipotese no hypothesis-library (se conversao teve sucesso)
+            if hypothesis_data:
+                try:
+                    created_hypothesis = await self.hypothesis_client.create_hypothesis(
+                        hypothesis_data, author="optimizer-agents"
+                    )
+                    if created_hypothesis:
+                        hypothesis_id = created_hypothesis.get("hypothesis_id")
+                        hypothesis_created = True
+                        logger.info(
+                            "hypothesis_created_in_library",
+                            hypothesis_id=hypothesis_id,
+                            original_id=opt_hypothesis.hypothesis_id,
+                        )
+                    else:
+                        logger.warning(
+                            "hypothesis_creation_returned_none",
+                            hypothesis_id=opt_hypothesis.hypothesis_id,
+                        )
+                        error_message = error_message or "hypothesis_creation_returned_none"
+                except Exception as e:
+                    logger.error(
+                        "hypothesis_library_creation_failed",
+                        hypothesis_id=opt_hypothesis.hypothesis_id,
+                        error=str(e),
+                    )
+                    error_message = error_message or f"hypothesis_creation_failed: {str(e)}"
+                    # Continuar mesmo se criacao falhou - tentar submeter experimento
+
+            # 3. Submeter experimento (sempre tentar, mesmo se hipotese falhou)
+            experiment_id = await self.submit_experiment(opt_hypothesis)
+            if not experiment_id:
+                logger.error(
+                    "experiment_submission_failed",
+                    hypothesis_id=opt_hypothesis.hypothesis_id,
+                    library_hypothesis_id=hypothesis_id,
+                )
+                # Se hipotese foi criada mas experimento falhou, ainda retornamos info
+                if hypothesis_id:
+                    return {
+                        "experiment_id": None,
+                        "hypothesis_id": hypothesis_id,
+                        "hypothesis_created": True,
+                        "testing_started": False,
+                        "error": "experiment_submission_failed_after_hypothesis_created",
+                    }
+                return None
+
+            # 4. Iniciar teste da hipotese (se hipotese foi criada)
+            if hypothesis_id and experiment_id:
+                try:
+                    start_result = await self.hypothesis_client.start_testing(
+                        hypothesis_id=hypothesis_id,
+                        experiment_id=experiment_id,
+                        started_by="optimizer-agents",
+                    )
+                    if start_result:
+                        testing_started = True
+                        logger.info(
+                            "hypothesis_testing_started",
+                            hypothesis_id=hypothesis_id,
+                            experiment_id=experiment_id,
+                        )
+
+                        # Salvar associacao experiment_id <-> hypothesis_library_id
+                        if self.mongodb_client:
+                            await self.mongodb_client.set_hypothesis_library_id(
+                                experiment_id=experiment_id,
+                                hypothesis_library_id=hypothesis_id
+                            )
+                    else:
+                        logger.warning(
+                            "start_testing_returned_none",
+                            hypothesis_id=hypothesis_id,
+                            experiment_id=experiment_id,
+                        )
+                        error_message = error_message or "start_testing_returned_none"
+                except Exception as e:
+                    logger.error(
+                        "start_testing_failed",
+                        hypothesis_id=hypothesis_id,
+                        experiment_id=experiment_id,
+                        error=str(e),
+                    )
+                    error_message = error_message or f"start_testing_failed: {str(e)}"
+                    # Nao eh fatal - hipotese e experimento foram criados
+
+            logger.info(
+                "submit_experiment_with_hypothesis_completed",
+                experiment_id=experiment_id,
+                hypothesis_id=hypothesis_id,
+                hypothesis_created=hypothesis_created,
+                testing_started=testing_started,
+            )
+
+            return {
+                "experiment_id": experiment_id,
+                "hypothesis_id": hypothesis_id,
+                "hypothesis_created": hypothesis_created,
+                "testing_started": testing_started,
+                "error": error_message,
+            }
+
+        except Exception as e:
+            logger.error(
+                "submit_experiment_with_hypothesis_failed",
+                hypothesis_id=opt_hypothesis.hypothesis_id,
+                experiment_id=experiment_id,
+                library_hypothesis_id=hypothesis_id,
+                error=str(e),
+            )
+            # Retornar info parcial se disponivel
+            if experiment_id or hypothesis_id:
+                return {
+                    "experiment_id": experiment_id,
+                    "hypothesis_id": hypothesis_id,
+                    "hypothesis_created": hypothesis_created,
+                    "testing_started": testing_started,
+                    "error": str(e),
+                }
             return None
 
     async def monitor_experiment(self, experiment_id: str) -> dict | None:
@@ -421,6 +631,189 @@ class ExperimentManager:
         except Exception as e:
             logger.error("experiment_analysis_failed", experiment_id=experiment_id, error=str(e))
             return None
+
+    async def complete_experiment_with_hypothesis(
+        self,
+        experiment_id: str,
+        hypothesis_id: str,
+        analysis: dict,
+    ) -> dict | None:
+        """
+        Completar experimento e atualizar hipotese no hypothesis-library.
+
+        Este metodo deve ser chamado apos a conclusao de um experimento
+        para atualizar o status da hipotese correspondente no hypothesis-library.
+
+        Args:
+            experiment_id: ID do experimento concluido
+            hypothesis_id: ID da hipotese no hypothesis-library
+            analysis: Resultados da analise do experimento (de analyze_experiment_results)
+
+        Returns:
+            Dict com:
+                - hypothesis_updated: True se hipotese foi atualizada
+                - outcome: Outcome da hipotese (validated, refuted, inconclusive)
+                - error: Mensagem de erro (se houver)
+            None se operacao falhou completamente
+        """
+        try:
+            # Verificar se integracao com hypothesis-library esta disponivel
+            if not self.hypothesis_client:
+                logger.warning(
+                    "hypothesis_library_client_not_available",
+                    experiment_id=experiment_id,
+                    hypothesis_id=hypothesis_id,
+                )
+                return {
+                    "hypothesis_updated": False,
+                    "outcome": None,
+                    "error": "hypothesis_library_client_not_available",
+                }
+
+            logger.info(
+                "complete_experiment_with_hypothesis_started",
+                experiment_id=experiment_id,
+                hypothesis_id=hypothesis_id,
+                recommendation=analysis.get("recommendation"),
+            )
+
+            # Determinar outcome baseado na analise
+            recommendation = analysis.get("recommendation")
+            if recommendation == "APPLY":
+                outcome = "validated"
+            elif recommendation == "REJECT":
+                outcome = "refuted"
+            else:
+                outcome = "inconclusive"
+
+            # Recuperar experimento para obter metricas atualizadas
+            experiment_doc = None
+            if self.mongodb_client:
+                experiment_doc = await self.mongodb_client.get_experiment(experiment_id)
+
+            # Montar resultados para hypothesis-library
+            results = {
+                "experiment_id": experiment_id,
+                "status": "COMPLETED" if analysis.get("success") else "FAILED",
+                "outcome": outcome,
+                "confidence_level": analysis.get("confidence", 0.0),
+                "improvement_percentage": analysis.get("improvement_percentage", 0.0),
+                "statistical_significance": (
+                    analysis.get("confidence", 0.0) > 0.95
+                ),  # Simplificacao
+                "actual_baseline_metrics": analysis.get("baseline_metrics", {}),
+                "actual_target_metrics": analysis.get("experimental_metrics", {}),
+                "lessons_learned": self._generate_lessons_learned(analysis, experiment_doc),
+                "completed_at": int(datetime.now(UTC).timestamp() * 1000),
+                "metadata": {
+                    "recommendation": recommendation,
+                    "control_size": analysis.get("control_size", 0),
+                    "treatment_size": analysis.get("treatment_size", 0),
+                    "early_stopped": analysis.get("early_stopped", False),
+                    "early_stop_reason": analysis.get("early_stop_reason"),
+                },
+            }
+
+            # Completar teste no hypothesis-library
+            complete_result = await self.hypothesis_client.complete_testing(
+                hypothesis_id=hypothesis_id,
+                results=results,
+                completed_by="optimizer-agents",
+            )
+
+            if complete_result:
+                logger.info(
+                    "hypothesis_testing_completed",
+                    experiment_id=experiment_id,
+                    hypothesis_id=hypothesis_id,
+                    outcome=outcome,
+                )
+                return {
+                    "hypothesis_updated": True,
+                    "outcome": outcome,
+                    "hypothesis_status": complete_result.get("hypothesis", {}).get("status"),
+                }
+            else:
+                logger.warning(
+                    "complete_testing_returned_none",
+                    experiment_id=experiment_id,
+                    hypothesis_id=hypothesis_id,
+                )
+                return {
+                    "hypothesis_updated": False,
+                    "outcome": outcome,
+                    "error": "complete_testing_returned_none",
+                }
+
+        except Exception as e:
+            logger.error(
+                "complete_experiment_with_hypothesis_failed",
+                experiment_id=experiment_id,
+                hypothesis_id=hypothesis_id,
+                error=str(e),
+            )
+            return {
+                "hypothesis_updated": False,
+                "outcome": None,
+                "error": str(e),
+            }
+
+    def _generate_lessons_learned(self, analysis: dict, experiment_doc: dict | None) -> str:
+        """
+        Gerar texto de aprendizados a partir da analise do experimento.
+
+        Args:
+            analysis: Resultados da analise
+            experiment_doc: Documento do experimento (opcional)
+
+        Returns:
+            Texto com aprendizados do experimento
+        """
+        lessons_parts = []
+
+        # Outcome principal
+        recommendation = analysis.get("recommendation")
+        if recommendation == "APPLY":
+            lessons_parts.append("**Outcome:** Hipotese validada. Recomendado aplicar a otimizacao.")
+        elif recommendation == "REJECT":
+            lessons_parts.append("**Outcome:** Hipotese refutada. Otimizacao nao apresentou resultados positivos.")
+        else:
+            lessons_parts.append("**Outcome:** Resultados inconclusivos. Mais dados necessarios.")
+
+        # Melhoria observada
+        improvement = analysis.get("improvement_percentage", 0.0)
+        lessons_parts.append(f"**Melhoria Observada:** {improvement:+.1f}%")
+
+        # Confianca estatistica
+        confidence = analysis.get("confidence", 0.0)
+        lessons_parts.append(f"**Confianca Estatistica:** {confidence:.1%}")
+
+        # Metricas analisadas
+        if "primary_metrics_analysis" in analysis:
+            lessons_parts.append("\n**Metricas Primarias:**")
+            for metric_analysis in analysis.get("primary_metrics_analysis", [])[:3]:
+                metric_name = metric_analysis.get("metric_name", "unknown")
+                control_mean = metric_analysis.get("control_mean", 0)
+                treatment_mean = metric_analysis.get("treatment_mean", 0)
+                if control_mean > 0:
+                    pct_change = ((treatment_mean - control_mean) / control_mean) * 100
+                    lessons_parts.append(f"- {metric_name}: {control_mean:.3f} -> {treatment_mean:.3f} ({pct_change:+.1f}%)")
+
+        # Violacoes de guardrails
+        guardrail_details = analysis.get("guardrail_details", {})
+        if guardrail_details.get("violations"):
+            lessons_parts.append("\n**Violacoes de Guardrails:**")
+            for violation in guardrail_details.get("violations", []):
+                metric = violation.get("metric_name", "unknown")
+                degradation = violation.get("degradation", "unknown")
+                lessons_parts.append(f"- {metric}: {degradation} degradacao")
+
+        # Early stopping
+        if analysis.get("early_stopped"):
+            reason = analysis.get("early_stop_reason", "unknown")
+            lessons_parts.append(f"\n**Parada Antecipada:** {reason}")
+
+        return "\n".join(lessons_parts)
 
     async def validate_hypothesis(self, hypothesis: OptimizationHypothesis) -> bool:
         """
