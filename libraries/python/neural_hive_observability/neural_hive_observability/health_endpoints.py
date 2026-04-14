@@ -6,7 +6,7 @@ compatíveis com Kubernetes probes, seguindo padrões consistentes entre serviç
 """
 
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Awaitable, Callable, Optional
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
@@ -86,7 +86,7 @@ def create_startup_router(
 def create_liveness_router(
     service_name: str,
     service_version: str,
-    health_check_fn: Optional[callable] = None,
+    health_check_fn: Optional[Callable[[], Awaitable[str]]] = None,
 ) -> APIRouter:
     """
     Cria router FastAPI com endpoint /health/live.
@@ -148,7 +148,7 @@ def create_liveness_router(
 def create_readiness_router(
     service_name: str,
     service_version: str,
-    health_check_fn: Optional[callable] = None,
+    health_check_fn: Optional[Callable[[], Awaitable[str]]] = None,
 ) -> APIRouter:
     """
     Cria router FastAPI com endpoint /health/ready.
