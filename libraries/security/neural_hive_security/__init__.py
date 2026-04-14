@@ -5,6 +5,7 @@ Provides centralized secrets management and workload identity integration
 for Neural Hive-Mind services using HashiCorp Vault and SPIFFE/SPIRE.
 
 SEC-008: Added JWT/JWK verification components for trust bundle validation.
+SEC-001: Added SecurityHeadersMiddleware for HTTP security headers.
 """
 
 from .vault_client import (
@@ -36,6 +37,10 @@ from .grpc_channel_factory import (
     create_secure_grpc_channel_sync,
     get_grpc_metadata_with_jwt,
 )
+from .security_headers import (
+    SecurityHeadersMiddleware,
+    SecurityHeadersMiddlewareConfig,
+)
 
 # SEC-008: JWT verification components
 try:
@@ -66,7 +71,7 @@ except ImportError:
     get_jwt_verification_metrics = None
     get_jwk_validation_metrics = None
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 __all__ = [
     # Vault client
@@ -93,6 +98,9 @@ __all__ = [
     "create_secure_grpc_channel",
     "create_secure_grpc_channel_sync",
     "get_grpc_metadata_with_jwt",
+    # Security headers
+    "SecurityHeadersMiddleware",
+    "SecurityHeadersMiddlewareConfig",
 ]
 
 # SEC-008: Adicionar componentes JWT às exportações se disponíveis
