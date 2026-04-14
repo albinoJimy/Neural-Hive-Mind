@@ -55,6 +55,17 @@ async def readiness():
     }
 
 
+@app.get("/health/startup")
+async def startup():
+    """Startup probe para Kubernetes. O scout agent reports "started" quando o exploration engine está rodando."""
+    status = "started" if _engine and _engine._is_running else "starting"
+    return {
+        "status": status,
+        "agent_id": _agent_id,
+        "started_at": _agent_start_time.isoformat() if status == "started" else None,
+    }
+
+
 @app.get("/metrics", response_class=PlainTextResponse)
 async def metrics():
     """Prometheus metrics endpoint"""

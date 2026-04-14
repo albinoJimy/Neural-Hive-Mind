@@ -249,6 +249,86 @@ class TestSignalDetectionEndpoints:
             http_server_module._engine = original_engine
 
 
+class TestHealthEndpoints:
+    """Testes de endpoints de health."""
+
+    def test_liveness(self, client):
+        """Testa liveness probe."""
+        response = client.get("/health/live")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "alive"
+        assert "timestamp" in data
+
+    def test_readiness(self, client):
+        """Testa readiness probe."""
+        response = client.get("/health/ready")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "ready"
+        assert "agent_id" in data
+        assert "timestamp" in data
+
+    def test_readiness_engine_not_running(self, client):
+        """Testa readiness probe quando engine não está rodando."""
+        import src.api.http_server as http_server_module
+
+        # Setar engine como não rodando
+        http_server_module._engine._is_running = False
+
+        try:
+            response = client.get("/health/ready")
+            assert response.status_code == 503
+            assert "not running" in response.json()["detail"].lower()
+        finally:
+            http_server_module._engine._is_running = True
+
+    def test_startup(self, client):
+        """Testa startup probe quando engine está rodando."""
+        response = client.get("/health/startup")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "started"
+        assert "agent_id" in data
+        assert "started_at" is not None
+
+    def test_startup_engine_not_running(self, client):
+        """Testa startup probe quando engine não está rodando."""
+        import src.api.http_server as http_server_module
+
+        # Setar engine como não rodando
+        http_server_module._engine._is_running = False
+
+        try:
+            response = client.get("/health/startup")
+            assert response.status_code == 200
+            data = response.json()
+            assert data["status"] == "starting"
+            assert data["started_at"] is None
+        finally:
+            http_server_module._engine._is_running = True
+
+    def test_startup_engine_none(self, client):
+        """Testa startup probe quando engine é None."""
+        import src.api.http_server as http_server_module
+
+        # Setar engine como None
+        original_engine = http_server_module._engine
+        http_server_module._engine = None
+
+        try:
+            response = client.get("/health/startup")
+            assert response.status_code == 200
+            data = response.json()
+            assert data["status"] == "starting"
+            assert data["started_at"] is None
+        finally:
+            http_server_module._engine = original_engine
+
+
 class TestCuriosityEndpoints:
     """Testes de endpoints de curiosidade."""
 
