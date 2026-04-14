@@ -1,0 +1,93 @@
+---
+# Istio Policy para permitir scraping de métricas pelo Prometheus
+# Esta policy permite que pods no namespace observability (Prometheus)
+# façam scraping de pods no namespace neural-hive na porta 9090
+
+apiVersion: security.istio.io/v1beta1
+kind: PeeringRouting
+metadata:
+  name: prometheus-scraping
+  namespace: neural-hive
+spec:
+  from:
+    - namespace: observability
+  to:
+    - namespace: neural-hive
+---
+# Alternative: Istio AuthorizationPolicy para permitir scraping
+# Note: Istio AuthorizationPolicy é mais específico mas requer mTLS configurado corretamente
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: prometheus-metrics-scraping
+  namespace: neural-hive
+spec:
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        namespaces: ["observability"]
+    to:
+    - operation:
+        methods: ["GET"]
+        ports: ["9090"]
+---
+# WorkloadGroup para exceção de scraping (mais abrangente)
+apiVersion: security.istio.io/v1beta1
+kind: WorkloadGroup
+metadata:
+  name: prometheus-scraping
+  namespace: neural-hive
+spec:
+  matchLabels:
+    # Aplicar a todos os pods que têm a porta 9090
+    app.kubernetes.io/present: metrics
+
+---
+# Para Istio 1.10+, usar RequestAuthentication
+apiVersion: security.istio.io/v1beta1
+kind: RequestAuthentication
+metadata:
+  name: prometheus-scraping
+  namespace: neural-hive
+spec:
+  jwtRules:
+  - issuer: TESTING_ONLY
+    jwks: ""
+---
+# MeshPolicy para permitir scraping entre namespaces específicos
+apiVersion: security.istio.io/v1beta1
+kind: MeshPolicy
+metadata:
+  name: prometheus-scraping-meshpolicy
+  namespace: neural-hive
+  annotations:
+    description: "Permite scraping de métricas do namespace neural-hive pelo Prometheus"
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/present: metrics
+  patchContext:
+    # Patch para adicionar sidecar bypass para scraping
+    # Nota: Requer Istio 1.8+
+    patches:
+    - applyTo: HTTP_FILTER
+      match:
+        context:
+          gateway: workload
+      patch:
+        operation: INSERT_BEFORE
+        value:
+          name: envoy.filters.http.bypass
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.bypass.v3.Bypass
+            bypass_request:
+              predicate:
+                or_match:
+                  predicates:
+                  - headers_match:
+                      name: ":method"
+                      string_match: "GET"
+                  - headers_match:
+                      name: ":path"
+                      string_match: "/metrics"

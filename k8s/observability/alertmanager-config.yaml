@@ -1,0 +1,91 @@
+# Configuração do AlertManager via Custom Resource
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: webhook-logger-config
+  namespace: observability
+  labels:
+    release: neural-hive-prometheus
+spec:
+  # Configuração global
+  global:
+    resolve_timeout: 5m
+
+  # Rota principal
+  route:
+    receiver: 'default-receiver'
+    group_by:
+    - namespace
+    - alertname
+    - severity
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 12h
+    routes:
+
+    # Alertas críticos
+    - matchers:
+      - severity = "critical"
+      receiver: 'critical-receiver'
+      continue: true
+
+    # Alertas de warning
+    - matchers:
+      - severity = "warning"
+      receiver: 'warning-receiver'
+      continue: true
+
+    # Neural Hive Mind
+    - matchers:
+      - neural_hive_component =~ ".*"
+      receiver: 'nhm-receiver'
+      group_by:
+      - neural_hive_component
+      - neural_hive_layer
+
+    # Ignorar Watchdog e InfoInhibitor
+    - receiver: "null"
+      matchers:
+      - alertname =~ "Watchdog|InfoInhibitor"
+
+  # Inhibit rules
+  inhibit_rules:
+  - target_matchers:
+    - severity =~ "warning|info"
+    source_matchers:
+    - severity = "critical"
+    equal:
+    - namespace
+    - alertname
+
+  - target_matchers:
+    - severity = "info"
+    source_matchers:
+    - severity = "warning"
+    equal:
+    - namespace
+    - alertname
+
+  # Receivers
+  receivers:
+  - name: 'default-receiver'
+    webhook_configs:
+    - url: 'http://webhook-logger.observability.svc.cluster.local:8080/alerts'
+      send_resolved: true
+
+  - name: 'critical-receiver'
+    webhook_configs:
+    - url: 'http://webhook-logger.observability.svc.cluster.local:8080/critical'
+      send_resolved: true
+
+  - name: 'warning-receiver'
+    webhook_configs:
+    - url: 'http://webhook-logger.observability.svc.cluster.local:8080/warning'
+      send_resolved: true
+
+  - name: 'nhm-receiver'
+    webhook_configs:
+    - url: 'http://webhook-logger.observability.svc.cluster.local:8080/nhm'
+      send_resolved: true
+
+  - name: 'null'

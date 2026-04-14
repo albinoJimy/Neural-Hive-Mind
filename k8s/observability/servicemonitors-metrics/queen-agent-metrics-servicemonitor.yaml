@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: queen-agent-metrics
+  namespace: neural-hive
+  labels:
+    app.kubernetes.io/component: queen-agent
+    app.kubernetes.io/name: queen-agent
+    app.kubernetes.io/part-of: neural-hive-mind
+    release: neural-hive-prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: queen-agent-metrics
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics

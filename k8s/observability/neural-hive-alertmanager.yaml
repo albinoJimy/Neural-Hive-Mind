@@ -1,0 +1,86 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: neural-hive-alertmanager-config
+  namespace: observability
+stringData:
+  alertmanager.yaml: |
+    global:
+      resolve_timeout: 5m
+    route:
+      receiver: default-receiver
+      group_by:
+      - namespace
+      - alertname
+      - severity
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+      routes:
+      - match:
+        - severity: critical
+        receiver: critical-receiver
+        continue: true
+      - match:
+        - severity: warning
+        receiver: warning-receiver
+        continue: true
+      - match:
+        - alertname: "QueenAgentDown"
+        receiver: nhm-critical-receiver
+      - match:
+        - alertname: "Watchdog|InfoInhibitor"
+        receiver: null
+    receivers:
+    - name: default-receiver
+      webhook_configs:
+      - url: http://webhook-logger.observability.svc.cluster.local:8080/alerts
+        send_resolved: true
+    - name: critical-receiver
+      webhook_configs:
+      - url: http://webhook-logger.observability.svc.cluster.local:8080/critical
+        send_resolved: true
+    - name: warning-receiver
+      webhook_configs:
+      - url: http://webhook-logger.observability.svc.cluster.local:8080/warning
+        send_resolved: true
+    - name: nhm-critical-receiver
+      webhook_configs:
+      - url: http://webhook-logger.observability.svc.cluster.local:8080/critical
+        send_resolved: true
+    - name: null
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: neural-hive-alertmanager
+  namespace: observability
+  labels:
+    alertmanager: neural-hive
+    app.kubernetes.io/component: alertmanager
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9093
+    targetPort: 9093
+    name: web
+  selector:
+    alertmanager: neural-hive
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: neural-hive-alertmanager
+  namespace: observability
+  labels:
+    release: neural-hive-prometheus
+spec:
+  selector:
+    matchLabels:
+      alertmanager: neural-hive
+  endpoints:
+  - port: web
+    interval: 30s
+    path: /metrics

@@ -1,0 +1,119 @@
+---
+# Configuração para permitir scraping de métricas pelo Prometheus
+# com mTLS STRICT habilitado no Istio
+
+# Solução 1: Anotação no Deployment para excluir scraping do mTLS
+# Adicionar esta anotação aos deployments que expõem métricas:
+# annotation: sidecar.istio.io/inject: "false"
+# Isso removerá o sidecar do pod, permitindo scraping direto
+
+# Solução 2: Usar Istio Proxy para métricas (não aplicável aqui)
+
+# Solução 3: WorkloadEntry para scraping específico (Istio 1.10+)
+
+apiVersion: networking.istio.io/v1beta1
+kind: WorkloadEntry
+metadata:
+  name: prometheus-scraping
+  namespace: neural-hive
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/present: metrics
+  address: http://prometheus-operated.observability.svc.cluster.local:9090
+  ports:
+  - name: http-metrics
+    number: 9090
+    protocol: HTTP
+
+---
+# Serviço alternativo para métricas que bypassa o Istio sidecar
+# Istio não intercepta serviços que não tenham os labels corretos
+apiVersion: v1
+kind: Service
+metadata:
+  name: queen-agent-metrics
+  namespace: neural-hive
+  labels:
+    app.kubernetes.io/name: queen-agent
+    app.kubernetes.io/component: metrics
+  annotations:
+    # Esta anotação faz com que o Istio não intercepte este serviço
+    traffic.sidecar.istio.io/excludeInboundPorts: "9090"
+    traffic.sidecar.istio.io/excludeOutboundPorts: "9090"
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9090
+    name: metrics
+    targetPort: 9090
+    protocol: TCP
+  selector:
+    app.kubernetes.io/name: queen-agent
+  sessionAffinity: None
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-registry-metrics
+  namespace: neural-hive
+  labels:
+    app.kubernetes.io/name: service-registry
+    app.kubernetes.io/component: metrics
+  annotations:
+    traffic.sidecar.istio.io/excludeInboundPorts: "9090"
+    traffic.sidecar.istio.io/excludeOutboundPorts: "9090"
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9090
+    name: metrics
+    targetPort: 9090
+    protocol: TCP
+  selector:
+    app.kubernetes.io/name: service-registry
+  sessionAffinity: None
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: consensus-engine-metrics
+  namespace: neural-hive
+  labels:
+    app.kubernetes.io/name: consensus-engine
+    app.kubernetes.io/component: metrics
+  annotations:
+    traffic.sidecar.istio.io/excludeInboundPorts: "9090"
+    traffic.sidecar.istio.io/excludeOutboundPorts: "9090"
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9090
+    name: metrics
+    targetPort: 9090
+    protocol: TCP
+  selector:
+    app.kubernetes.io/name: consensus-engine
+  sessionAffinity: None
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: approval-service-metrics
+  namespace: neural-hive
+  labels:
+    app.kubernetes.io/name: approval-service
+    app.kubernetes.io/component: metrics
+  annotations:
+    traffic.sidecar.istio.io/excludeInboundPorts: "9090"
+    traffic.sidecar.istio.io/excludeOutboundPorts: "9090"
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9090
+    name: metrics
+    targetPort: 9090
+    protocol: TCP
+  selector:
+    app.kubernetes.io/name: approval-service
+  sessionAffinity: None

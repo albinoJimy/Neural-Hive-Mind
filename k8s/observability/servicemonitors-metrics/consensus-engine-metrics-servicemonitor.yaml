@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: consensus-engine-metrics
+  namespace: neural-hive
+  labels:
+    app.kubernetes.io/component: consensus-engine
+    app.kubernetes.io/name: consensus-engine
+    app.kubernetes.io/part-of: neural-hive-mind
+    release: neural-hive-prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: consensus-engine-metrics
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics

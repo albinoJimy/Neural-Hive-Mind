@@ -1,0 +1,75 @@
+---
+# NetworkPolicy para permitir que o Prometheus faça scraping dos pods
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: prometheus-scraping-neural-hive
+  namespace: neural-hive
+  labels:
+    neural-hive.io/phase: observability
+    neural-hive.io/component: monitoring
+spec:
+  podSelector:
+    matchExpressions:
+    # Aplicar a todos os pods que têm a porta metrics (9090)
+    - key: app.kubernetes.io/name
+      operator: Exists
+  policyTypes:
+  - Ingress
+  ingress:
+  # Permitir tráfego do namespace observability para a porta de métricas
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: observability
+    ports:
+    - protocol: TCP
+      port: 9090
+---
+# NetworkPolicy para permitir scraping via Services (ClusterIP)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-from-observability
+  namespace: neural-hive
+  labels:
+    neural-hive.io/phase: observability
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: observability
+    ports:
+    - protocol: TCP
+      port: 9090  # Métricas
+---
+# NetworkPolicy no namespace observability para permitir tráfego de saída
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-to-neural-hive-metrics
+  namespace: observability
+  labels:
+    neural-hive.io/phase: observability
+    neural-hive.io/component: monitoring
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: prometheus
+  policyTypes:
+  - Egress
+  egress:
+  # Permitir tráfego para neural-hive (todas as portas)
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: neural-hive
+  # Permitir resolução DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          k8s-app: kube-dns

@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: approval-service-metrics
+  namespace: neural-hive
+  labels:
+    app.kubernetes.io/component: approval-service
+    app.kubernetes.io/name: approval-service
+    app.kubernetes.io/part-of: neural-hive-mind
+    release: neural-hive-prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: approval-service-metrics
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics

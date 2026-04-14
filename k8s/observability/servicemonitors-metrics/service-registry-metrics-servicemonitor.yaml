@@ -1,0 +1,18 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: service-registry-metrics
+  namespace: neural-hive
+  labels:
+    app.kubernetes.io/component: service-registry
+    app.kubernetes.io/name: service-registry
+    app.kubernetes.io/part-of: neural-hive-mind
+    release: neural-hive-prometheus
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: service-registry-metrics
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics

@@ -1,0 +1,56 @@
+# Istio AuthorizationPolicy: Allow consensus-engine to queen-agent gRPC traffic
+#
+# This policy allows the consensus-engine service to connect to the queen-agent
+# service via gRPC on port 50053. It resolves the RBAC: access denied issue.
+#
+# Created: 2026-04-13
+# Issue: CONSENSUS_ENGINE_RBAC_ISSUE.md
+
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: consensus-to-queen-grpc
+  namespace: neural-hive
+  labels:
+    neural-hive.io/component: security
+    neural-hive.io/phase: authorization
+spec:
+  action: ALLOW
+  rules:
+  # Allow consensus-engine service account to access queen-agent gRPC port
+  - from:
+    - source:
+        namespaces:
+        - neural-hive
+        principals:
+        - cluster.local/ns/neural-hive/sa/consensus-engine
+  - to:
+    - operation:
+        ports:
+        - "50053"
+        methods:
+        - "POST"
+---
+# Additional policy: Allow all neural-hive services to access queen-agent gRPC
+# This is a broader policy if the specific SA-based policy doesn't work
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: neural-hive-to-queen-grpc
+  namespace: neural-hive
+  labels:
+    neural-hive.io/component: security
+    neural-hive.io/phase: authorization
+spec:
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        namespaces:
+        - neural-hive
+  - to:
+    - operation:
+        ports:
+        - "50053"
+        methods:
+        - "POST"

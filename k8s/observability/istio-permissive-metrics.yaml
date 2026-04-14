@@ -1,0 +1,48 @@
+---
+# PeerAuthentication para permitir scraping de métricas pelo Prometheus
+# Permite tráfego PERMISSIVE na porta de métricas para serviços específicos
+# NOTA: Istio namespace-level PeerAuthentication não pode ter portLevelMtls
+# Precisamos criar políticas por workload ou remover a restrição STRICT
+#
+# Solução alternativa: AuthorizationPolicy permite tráfego do namespace observability
+---
+# AuthorizationPolicy para permitir que Prometheus faça scrape
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: prometheus-metrics-scraping
+  namespace: neural-hive
+  labels:
+    neural-hive.io/phase: observability
+    neural-hive.io/component: monitoring
+spec:
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        namespaces: ["observability"]
+  - to:
+    - operation:
+        methods: ["GET"]
+        ports: ["9090", "8000", "8080"]
+        paths: ["/metrics"]
+---
+# AuthorizationPolicy adicional para garantir acesso do ServiceAccount do Prometheus
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: prometheus-sa-scraping
+  namespace: neural-hive
+  labels:
+    neural-hive.io/phase: observability
+    neural-hive.io/component: monitoring
+spec:
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/observability/sa/prometheus-kub-prometheus"]
+  - to:
+    - operation:
+        methods: ["GET"]
+        ports: ["9090", "8000", "8080"]
