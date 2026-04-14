@@ -277,12 +277,12 @@ class SLOManager:
                 "layer": spec.get("layer"),
                 "target": spec.get("target"),
                 "windowDays": spec.get("windowDays", 30),
-                "sliQuery": {
-                    "metricName": sli_query_spec.get("metricName"),
-                    "query": sli_query_spec.get("query"),
-                    "aggregation": sli_query_spec.get("aggregation", "avg"),
-                    "labels": sli_query_spec.get("labels", {}),
-                },
+                "sliQuery": SLIQuery(
+                    metric_name=sli_query_spec.get("metricName"),
+                    query=sli_query_spec.get("query"),
+                    aggregation=sli_query_spec.get("aggregation", "avg"),
+                    labels=sli_query_spec.get("labels", {}),
+                ).model_dump(),
                 "enabled": spec.get("enabled", True),
                 "metadata": spec.get("metadata", {}),
             }

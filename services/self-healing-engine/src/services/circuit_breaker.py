@@ -103,6 +103,11 @@ class CircuitBreaker:
         """Timestamp da última falha."""
         return self._last_failure_time
 
+    @property
+    def is_open(self) -> bool:
+        """Retorna True se o circuit breaker está aberto (OPEN)."""
+        return self._state == CircuitBreakerState.OPEN
+
     def record_success(self):
         """
         Registra uma chamada bem-sucedida.
