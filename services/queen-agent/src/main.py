@@ -6,6 +6,9 @@ import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+# SEC-001: Security Headers
+from neural_hive_security import SecurityHeadersMiddleware
+
 from neural_hive_observability import (
     ObservabilityConfig,
     create_instrumented_async_grpc_server,
@@ -459,6 +462,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# SEC-001: Adicionar middleware de security headers
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Montar routers
 app.include_router(health_router)

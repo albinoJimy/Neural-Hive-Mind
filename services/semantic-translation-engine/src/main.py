@@ -14,6 +14,10 @@ import structlog
 from confluent_kafka.admin import AdminClient
 from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
+
+# SEC-001: Security Headers
+from neural_hive_security import SecurityHeadersMiddleware
+
 from src.clients.mongodb_client import MongoDBClient
 from src.clients.neo4j_client import Neo4jClient
 from src.clients.redis_client import RedisClient
@@ -561,6 +565,9 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
 )
+
+# SEC-001: Adicionar middleware de security headers
+app.add_middleware(SecurityHeadersMiddleware)
 
 # Register metrics
 register_metrics()
