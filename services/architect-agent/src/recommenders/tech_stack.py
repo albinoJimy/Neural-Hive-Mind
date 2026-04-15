@@ -5,12 +5,12 @@ import json
 from openai import AsyncOpenAI
 from structlog import get_logger
 
-from architect.models.tech_stack import (
+from src.models.tech_stack import (
     TechStackRecommendation,
     TechChoice,
     Constraint
 )
-from architect.recommenders.knowledge_base import TECH_KNOWLEDGE_BASE
+from src.recommenders.knowledge_base import TECH_KNOWLEDGE_BASE
 
 logger = get_logger(__name__)
 

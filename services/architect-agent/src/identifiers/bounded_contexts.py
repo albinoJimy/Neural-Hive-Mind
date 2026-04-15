@@ -5,7 +5,7 @@ import json
 from openai import AsyncOpenAI
 from structlog import get_logger
 
-from architect.models.bounded_context import (
+from src.models.bounded_context import (
     BoundedContext,
     BoundedContextRelationship,
     BoundedContextsAnalysis,

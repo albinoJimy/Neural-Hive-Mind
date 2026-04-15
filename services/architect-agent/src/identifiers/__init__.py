@@ -1,8 +1,7 @@
 """Bounded Context identification module."""
 
-from architect.identifiers.bounded_contexts import (
+from src.identifiers.bounded_contexts import (
     BoundedContextsIdentifier,
-    BoundedContext,
 )
 
-__all__ = ["BoundedContextsIdentifier", "BoundedContext"]
+__all__ = ["BoundedContextsIdentifier"]
