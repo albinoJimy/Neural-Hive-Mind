@@ -1,8 +1,8 @@
 """Unit tests for BoundedContextsIdentifier."""
 
 import pytest
-from architect.identifiers.bounded_contexts import BoundedContextsIdentifier
-from architect.models.bounded_context import BoundedContext, BoundedContextsAnalysis
+from src.identifiers.bounded_contexts import BoundedContextsIdentifier
+from src.models.bounded_context import BoundedContext, BoundedContextsAnalysis
 
 
 @pytest.mark.asyncio
