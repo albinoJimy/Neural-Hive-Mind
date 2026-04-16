@@ -12,6 +12,8 @@ from fastapi.responses import JSONResponse
 from src.api.routers.documents import router as documents_router
 from src.api.routers.parsing import router as parsing_router
 from src.config.settings import get_settings
+from src.db.mongodb import get_mongodb_client
+from src.producers.doc_producer import DocProducer
 
 # Service Registry client - placeholder for future implementation
 # from src.clients.service_registry_client import DocIngestionServiceRegistryClient
@@ -36,15 +38,25 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("starting_doc_ingestion_service")
 
-    # TODO: Inicializar MongoDB Client
-    # from src.db.mongodb import MongoDBClient
-    # _mongodb_client = MongoDBClient()
-    # await _mongodb_client.connect()
+    # Inicializar MongoDB Client
+    try:
+        _mongodb_client = await get_mongodb_client()
+        if await _mongodb_client.ping():
+            logger.info("mongodb_connected_successfully")
+        else:
+            logger.warning("mongodb_ping_failed")
+    except Exception as e:
+        logger.error("mongodb_init_error", error=str(e))
+        # Continue sem MongoDB para desenvolvimento
 
-    # TODO: Inicializar Kafka Producer
-    # from src.producers.entity_producer import EntityProducer
-    # _kafka_producer = EntityProducer()
-    # await _kafka_producer.start()
+    # Inicializar Kafka Producer
+    try:
+        _kafka_producer = DocProducer()
+        await _kafka_producer.start()
+        logger.info("kafka_producer_started")
+    except Exception as e:
+        logger.error("kafka_producer_init_error", error=str(e))
+        # Continue sem Kafka para desenvolvimento
 
     # TODO: Registrar no Service Registry
     # _registry_client = DocIngestionServiceRegistryClient(settings)
@@ -58,7 +70,7 @@ async def lifespan(app: FastAPI):
     #             "entity_extraction",
     #         ],
     #         metadata={
-    #             "kafka_producer": "entity_producer",
+    #             "kafka_producer": "doc_producer",
     #             "version": "1.0.0",
     #         },
     #     )
@@ -89,13 +101,19 @@ async def lifespan(app: FastAPI):
     # if _registry_client:
     #     await _registry_client.close()
 
-    # TODO: Fechar Kafka Producer
-    # if _kafka_producer:
-    #     await _kafka_producer.stop()
+    # Fechar Kafka Producer
+    if _kafka_producer:
+        try:
+            await _kafka_producer.stop()
+        except Exception as e:
+            logger.error("kafka_producer_shutdown_error", error=str(e))
 
-    # TODO: Fechar MongoDB Client
-    # if _mongodb_client:
-    #     await _mongodb_client.disconnect()
+    # Fechar MongoDB Client
+    if _mongodb_client:
+        try:
+            await _mongodb_client.disconnect()
+        except Exception as e:
+            logger.error("mongodb_shutdown_error", error=str(e))
 
     logger.info("doc_ingestion_service_stopped")
 
@@ -127,16 +145,34 @@ async def log_requests(request, call_next):
     return response
 
 
+# Helper functions for dependency injection
+def get_doc_producer() -> DocProducer | None:
+    """Retorna instância do Kafka producer."""
+    return _kafka_producer
+
+
+def get_mongodb_client():
+    """Retorna instância do cliente MongoDB."""
+    return _mongodb_client
+
+
 # Health check
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
+    mongodb_connected = False
+    if _mongodb_client:
+        try:
+            mongodb_connected = await _mongodb_client.ping()
+        except Exception:
+            pass
+
     return {
         "service": settings.service_name,
         "status": "healthy",
         "version": settings.service_version,
         "kafka_connected": _kafka_producer is not None,
-        "mongodb_connected": _mongodb_client is not None,
+        "mongodb_connected": mongodb_connected,
     }
 
 
