@@ -225,3 +225,150 @@ class ArchitectureDiagramGenerator:
         diagrams.append(container)
 
         return diagrams
+
+    async def generate_sequence(
+        self,
+        title: str,
+        steps: List[str],
+        artifacts: Optional[List[str]] = None,
+        render: bool = True
+    ) -> Diagram:
+        """
+        Gera diagrama de sequência.
+
+        Args:
+            title: Título do diagrama
+            steps: Lista de passos da sequência (formato: "Actor->System: message")
+            artifacts: Artefatos envolvidos (opcional)
+            render: Se True, renderiza para SVG
+
+        Returns:
+            Diagram com código Mermaid e caminho SVG
+        """
+        self._logger.info("generating_sequence_diagram", title=title)
+
+        # Construir código Mermaid para sequência
+        mermaid_lines = ["sequenceDiagram"]
+        for step in steps:
+            mermaid_lines.append(f"    {step}")
+
+        # Adicionar notas para artefatos se fornecidos
+        if artifacts:
+            for artifact in artifacts:
+                mermaid_lines.append(f"    Note over {artifact}: {artifact}")
+
+        mermaid_code = "\n".join(mermaid_lines)
+
+        svg_url = None
+        if render:
+            output_path = self._output_dir / "sequence"
+            svg_url = await self._renderer.render_to_svg(
+                mermaid_code,
+                str(output_path)
+            )
+
+        return Diagram(
+            diagram_id=f"{title.lower().replace(' ', '-')}-sequence",
+            type=DiagramType.SEQUENCE,
+            title=title,
+            mermaid_code=mermaid_code,
+            svg_url=svg_url
+        )
+
+    async def generate_from_description(
+        self,
+        description: str,
+        render: bool = True
+    ) -> Diagram:
+        """
+        Gera diagrama a partir de descrição em linguagem natural.
+
+        Este método usa heurísticas para determinar o tipo de diagrama
+        mais apropriado baseado em palavras-chave na descrição.
+
+        Args:
+            description: Descrição do sistema/fluxo em linguagem natural
+            render: Se True, renderiza para SVG
+
+        Returns:
+            Diagram gerado baseado na descrição
+        """
+        self._logger.info("generating_from_description", desc_preview=description[:100])
+
+        description_lower = description.lower()
+
+        # Heurísticas para determinar tipo de diagrama
+        if any(word in description_lower for word in ["sequence", "flow", "step", "then", "after"]):
+            # Diagrama de sequência
+            title = "Generated Sequence Diagram"
+            steps = self._parse_sequence_from_description(description)
+            return await self.generate_sequence(title, steps, render=render)
+
+        elif any(word in description_lower for word in ["context", "system", "user", "external"]):
+            # Diagrama de contexto C4
+            title = "Generated Context Diagram"
+            project_name = "System"
+            actors = ["User"]
+            external_systems = []
+            mermaid_code = self._c4_generator.generate_context(
+                project_name=project_name,
+                system_description=description,
+                actors=actors,
+                external_systems=external_systems
+            )
+            return Diagram(
+                diagram_id=f"{project_name}-context",
+                type=DiagramType.C4_CONTEXT,
+                title=title,
+                mermaid_code=mermaid_code,
+                svg_url=None
+            )
+        else:
+            # Fallback: diagrama de contexto simples
+            title = "Generated Diagram"
+            mermaid_code = f"graph TD\n    A[{description[:50]}...]\n    B[Component B]\n    A --> B"
+            return Diagram(
+                diagram_id="generated-diagram",
+                type=DiagramType.C4_CONTEXT,
+                title=title,
+                mermaid_code=mermaid_code,
+                svg_url=None
+            )
+
+    def _parse_sequence_from_description(self, description: str) -> List[str]:
+        """
+        Parseia passos de sequência de uma descrição textual.
+
+        Args:
+            description: Descrição textual
+
+        Returns:
+            Lista de passos formatados para Mermaid
+        """
+        steps = []
+        lines = description.split(".")
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+
+            # Tentar identificar actor e ação
+            if " then " in line.lower():
+                parts = line.lower().split(" then ")
+                for i, part in enumerate(parts):
+                    part = part.strip()
+                    if part:
+                        steps.append(f"Step{i+1}->>Step{i+2}: {part}")
+            elif "user" in line.lower() or "system" in line.lower():
+                if "user" in line.lower():
+                    steps.append(f"User->>System: {line}")
+                else:
+                    steps.append(f"System->>User: {line}")
+            else:
+                steps.append(f"Actor->>System: {line}")
+
+        # Garantir pelo menos um passo
+        if not steps:
+            steps = ["User->>System: Process request", "System->>User: Return response"]
+
+        return steps
