@@ -3,7 +3,7 @@
 from typing import Any, Dict, List, Optional
 
 import structlog
-from qdrant_client import QdrantClient as QdrantSyncClient
+from qdrant_client import AsyncQdrantClient as QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct, Filter, FieldCondition, MatchValue
 
 from knowledge_graph_rag.config.settings import get_settings
@@ -28,13 +28,13 @@ class QdrantClient:
         """
         self.host = host or settings.qdrant_host
         self.port = port or settings.qdrant_port
-        self.client: Optional[QdrantSyncClient] = None
+        self.client: Optional[QdrantClient] = None
         self.collection_templates = settings.qdrant_collection_templates
         self.collection_code = settings.qdrant_collection_code
 
     async def connect(self):
         """Estabelece conexão com Qdrant."""
-        self.client = QdrantSyncClient(host=self.host, port=self.port)
+        self.client = QdrantClient(host=self.host, port=self.port)
         await self._ensure_collections()
         logger.info("qdrant_connected", host=self.host)
 
@@ -53,10 +53,10 @@ class QdrantClient:
 
         for collection_name, description in collections:
             try:
-                self.client.create_collection(
+                await self.client.create_collection(
                     collection_name=collection_name,
                     vectors_config=VectorParams(
-                        size=settings.embedding_dimension,
+                        size=settings.embedding_dimensions,
                         distance=Distance.COSINE
                     )
                 )
@@ -81,7 +81,7 @@ class QdrantClient:
         Returns:
             Lista de templates similares
         """
-        results = self.client.search(
+        results = await self.client.search(
             collection_name=self.collection_templates,
             query_vector=query_vector,
             query_filter=None,
@@ -122,7 +122,7 @@ class QdrantClient:
                 must=[FieldCondition(key="language", match=MatchValue(value=language_filter))]
             )
 
-        results = self.client.search(
+        results = await self.client.search(
             collection_name=self.collection_code,
             query_vector=query_vector,
             query_filter=query_filter,
@@ -139,7 +139,7 @@ class QdrantClient:
             for r in results
         ]
 
-    async def upsert_template(
+    async def index_template(
         self,
         template_id: str,
         vector: List[float],
@@ -158,14 +158,14 @@ class QdrantClient:
             payload=payload
         )
 
-        self.client.upsert(
+        await self.client.upsert(
             collection_name=self.collection_templates,
             points=[point]
         )
 
         logger.info("template_indexed", template_id=template_id)
 
-    async def upsert_code(
+    async def index_code(
         self,
         code_id: str,
         vector: List[float],
@@ -184,7 +184,7 @@ class QdrantClient:
             payload=payload
         )
 
-        self.client.upsert(
+        await self.client.upsert(
             collection_name=self.collection_code,
             points=[point]
         )
@@ -198,7 +198,7 @@ class QdrantClient:
             collection_name: Nome da coleção
             ids: IDs dos pontos a remover
         """
-        self.client.delete(
+        await self.client.delete(
             collection_name=collection_name,
             points_selector=ids
         )

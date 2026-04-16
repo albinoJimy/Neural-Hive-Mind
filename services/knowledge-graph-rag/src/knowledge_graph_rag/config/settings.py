@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     # OpenAI Embeddings
     openai_api_key: str = Field(default="", validation_alias="OPENAI_API_KEY")
     embedding_model: str = "text-embedding-3-small"
-    embedding_dimension: int = 1536
+    embedding_dimensions: int = 1536
 
     # LLM
     llm_provider: str = "openai"

@@ -31,7 +31,7 @@ class KnowledgeGraphRAG:
         settings = get_settings()
         self._llm_client = llm_client or AsyncOpenAI(api_key=settings.openai_api_key)
         self._embedding_model = settings.embedding_model
-        self._embedding_dim = settings.embedding_dimension
+        self._embedding_dim = settings.embedding_dimensions
         self._logger = logger
 
     async def create_node(

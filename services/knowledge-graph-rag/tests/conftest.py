@@ -36,7 +36,7 @@ def mock_settings():
     settings = Settings(
         openai_api_key="test-key",
         embedding_model="text-embedding-3-small",
-        embedding_dimension=1536,
+        embedding_dimensions=1536,
         neo4j_uri="bolt://localhost:7687",
         neo4j_user="neo4j",
         neo4j_password="password",
