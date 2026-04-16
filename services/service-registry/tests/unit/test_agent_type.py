@@ -197,9 +197,9 @@ class TestAgentTypeEnumValues:
         """Verifica que ANALYST.value é 'ANALYST'"""
         assert AgentType.ANALYST.value == "ANALYST"
 
-    def test_enum_has_exactly_four_members(self):
-        """Verifica que o enum tem exatamente 4 membros"""
-        assert len(AgentType) == 4
+    def test_enum_has_nine_members(self):
+        """Verifica que o enum tem 9 membros (4 agentes originais + 5 serviços de engenharia)"""
+        assert len(AgentType) == 9
 
     def test_enum_is_str_enum(self):
         """Verifica que AgentType é um str enum"""
@@ -207,3 +207,76 @@ class TestAgentTypeEnumValues:
         assert isinstance(AgentType.SCOUT, str)
         assert isinstance(AgentType.GUARD, str)
         assert isinstance(AgentType.ANALYST, str)
+        # Novos tipos de serviços
+        assert isinstance(AgentType.REQUIREMENTS_ENGINEERING, str)
+        assert isinstance(AgentType.DOCUMENTATION_GENERATION, str)
+        assert isinstance(AgentType.KNOWLEDGE_GRAPH_RAG, str)
+        assert isinstance(AgentType.APPROVAL_GATEWAY, str)
+        assert isinstance(AgentType.ARCHITECT_AGENT, str)
+
+
+class TestAgentTypeEngineeringServices:
+    """Testes para os novos tipos de serviços de engenharia"""
+
+    def test_requirements_engineering_value(self):
+        """Verifica que REQUIREMENTS_ENGINEERING existe e tem valor correto"""
+        assert AgentType.REQUIREMENTS_ENGINEERING.value == "REQUIREMENTS_ENGINEERING"
+
+    def test_documentation_generation_value(self):
+        """Verifica que DOCUMENTATION_GENERATION existe e tem valor correto"""
+        assert AgentType.DOCUMENTATION_GENERATION.value == "DOCUMENTATION_GENERATION"
+
+    def test_knowledge_graph_rag_value(self):
+        """Verifica que KNOWLEDGE_GRAPH_RAG existe e tem valor correto"""
+        assert AgentType.KNOWLEDGE_GRAPH_RAG.value == "KNOWLEDGE_GRAPH_RAG"
+
+    def test_approval_gateway_value(self):
+        """Verifica que APPROVAL_GATEWAY existe e tem valor correto"""
+        assert AgentType.APPROVAL_GATEWAY.value == "APPROVAL_GATEWAY"
+
+    def test_architect_agent_value(self):
+        """Verifica que ARCHITECT_AGENT existe e tem valor correto"""
+        assert AgentType.ARCHITECT_AGENT.value == "ARCHITECT_AGENT"
+
+    def test_string_requirements_engineering_returns_enum(self):
+        """Testa que string 'REQUIREMENTS_ENGINEERING' retorna o enum correto"""
+        result = AgentType.from_proto_value("REQUIREMENTS_ENGINEERING")
+        assert result == AgentType.REQUIREMENTS_ENGINEERING
+
+    def test_string_lowercase_requirements_engineering(self):
+        """Testa que string 'requirements_engineering' (lowercase) funciona"""
+        result = AgentType.from_proto_value("requirements_engineering")
+        assert result == AgentType.REQUIREMENTS_ENGINEERING
+
+    def test_string_documentation_generation_returns_enum(self):
+        """Testa que string 'DOCUMENTATION_GENERATION' retorna o enum correto"""
+        result = AgentType.from_proto_value("DOCUMENTATION_GENERATION")
+        assert result == AgentType.DOCUMENTATION_GENERATION
+
+    def test_string_knowledge_graph_rag_returns_enum(self):
+        """Testa que string 'KNOWLEDGE_GRAPH_RAG' retorna o enum correto"""
+        result = AgentType.from_proto_value("KNOWLEDGE_GRAPH_RAG")
+        assert result == AgentType.KNOWLEDGE_GRAPH_RAG
+
+    def test_string_approval_gateway_returns_enum(self):
+        """Testa que string 'APPROVAL_GATEWAY' retorna o enum correto"""
+        result = AgentType.from_proto_value("APPROVAL_GATEWAY")
+        assert result == AgentType.APPROVAL_GATEWAY
+
+    def test_string_architect_agent_returns_enum(self):
+        """Testa que string 'ARCHITECT_AGENT' retorna o enum correto"""
+        result = AgentType.from_proto_value("ARCHITECT_AGENT")
+        assert result == AgentType.ARCHITECT_AGENT
+
+    def test_engineering_service_enum_passthrough(self):
+        """Testa que passar o enum diretamente funciona"""
+        for service_type in [
+            AgentType.REQUIREMENTS_ENGINEERING,
+            AgentType.DOCUMENTATION_GENERATION,
+            AgentType.KNOWLEDGE_GRAPH_RAG,
+            AgentType.APPROVAL_GATEWAY,
+            AgentType.ARCHITECT_AGENT,
+        ]:
+            result = AgentType.from_proto_value(service_type)
+            assert result == service_type
+            assert result is service_type

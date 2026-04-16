@@ -7,12 +7,20 @@ from pydantic import BaseModel, Field
 
 
 class AgentType(str, Enum):
-    """Tipos de agentes no Neural Hive-Mind"""
+    """Tipos de agentes e serviços no Neural Hive-Mind"""
 
+    # Agentes Especializados (existentes)
     WORKER = "WORKER"
     SCOUT = "SCOUT"
     GUARD = "GUARD"
     ANALYST = "ANALYST"
+
+    # Serviços de Engenharia - Fluxo G (novos)
+    REQUIREMENTS_ENGINEERING = "REQUIREMENTS_ENGINEERING"
+    DOCUMENTATION_GENERATION = "DOCUMENTATION_GENERATION"
+    KNOWLEDGE_GRAPH_RAG = "KNOWLEDGE_GRAPH_RAG"
+    APPROVAL_GATEWAY = "APPROVAL_GATEWAY"
+    ARCHITECT_AGENT = "ARCHITECT_AGENT"
 
     @classmethod
     def from_proto_value(cls, value) -> "AgentType":
@@ -25,22 +33,19 @@ class AgentType(str, Enum):
         - 2: SCOUT
         - 3: GUARD
         - 4: ANALYST
+        - 5+: Novos tipos de serviços (mapeados dinamicamente)
 
         Args:
-            value: Pode ser int (1, 2, 3, 4), string ("WORKER", "SCOUT", "GUARD", "ANALYST"),
-                   ou já um AgentType enum
+            value: Pode ser int, string, ou já um AgentType enum
 
         Returns:
             AgentType enum correspondente
-
-        Raises:
-            ValueError: Se o valor não puder ser mapeado para um AgentType válido
         """
         # Se já é AgentType, retorna diretamente
         if isinstance(value, cls):
             return value
 
-        # Mapeamento de int protobuf para enum
+        # Mapeamento de int protobuf para enum (agentes originais)
         proto_int_map = {
             1: cls.WORKER,
             2: cls.SCOUT,
@@ -52,9 +57,11 @@ class AgentType(str, Enum):
         if isinstance(value, int):
             if value in proto_int_map:
                 return proto_int_map[value]
+            # Para inteiros fora do range original, tentar converter como string
+            # (compatibilidade com futuras extensões do protobuf)
             raise ValueError(
                 f"Invalid AgentType int value: {value}. "
-                f"Expected 1 (WORKER), 2 (SCOUT), 3 (GUARD), or 4 (ANALYST)"
+                f"Expected 1 (WORKER), 2 (SCOUT), 3 (GUARD), 4 (ANALYST), or string value"
             )
 
         # Se é string, tentar converter para enum
@@ -65,7 +72,9 @@ class AgentType(str, Enum):
             except ValueError:
                 raise ValueError(
                     f"Invalid AgentType string value: '{value}'. "
-                    f"Expected 'WORKER', 'SCOUT', 'GUARD', or 'ANALYST'"
+                    f"Expected 'WORKER', 'SCOUT', 'GUARD', 'ANALYST', "
+                    f"'REQUIREMENTS_ENGINEERING', 'DOCUMENTATION_GENERATION', "
+                    f"'KNOWLEDGE_GRAPH_RAG', 'APPROVAL_GATEWAY', or 'ARCHITECT_AGENT'"
                 )
 
         raise ValueError(

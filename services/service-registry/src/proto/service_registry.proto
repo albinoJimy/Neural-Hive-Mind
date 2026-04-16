@@ -2,13 +2,20 @@ syntax = "proto3";
 
 package neural_hive.service_registry;
 
-// Enumeração de tipos de agentes
+// Enumeração de tipos de agentes e serviços
 enum AgentType {
   AGENT_TYPE_UNSPECIFIED = 0;
+  // Agentes Especializados (existentes)
   WORKER = 1;
   SCOUT = 2;
   GUARD = 3;
   ANALYST = 4;
+  // Serviços de Engenharia - Fluxo G (novos)
+  REQUIREMENTS_ENGINEERING = 5;
+  DOCUMENTATION_GENERATION = 6;
+  KNOWLEDGE_GRAPH_RAG = 7;
+  APPROVAL_GATEWAY = 8;
+  ARCHITECT_AGENT = 9;
 }
 
 // Enumeração de status de saúde

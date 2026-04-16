@@ -368,8 +368,19 @@ class ServiceRegistryClient:
         status_map = {0: "AGENT_STATUS_UNSPECIFIED", 1: "HEALTHY", 2: "UNHEALTHY", 3: "DEGRADED"}
         status_str = status_map.get(agent_info.status, "UNKNOWN")
 
-        # Converter AgentType enum para string
-        type_map = {0: "AGENT_TYPE_UNSPECIFIED", 1: "WORKER", 2: "SCOUT", 3: "GUARD"}
+        # Converter AgentType enum para string (incluindo novos serviços de engenharia)
+        type_map = {
+            0: "AGENT_TYPE_UNSPECIFIED",
+            1: "WORKER",
+            2: "SCOUT",
+            3: "GUARD",
+            4: "ANALYST",
+            5: "REQUIREMENTS_ENGINEERING",
+            6: "DOCUMENTATION_GENERATION",
+            7: "KNOWLEDGE_GRAPH_RAG",
+            8: "APPROVAL_GATEWAY",
+            9: "ARCHITECT_AGENT",
+        }
         type_str = type_map.get(agent_info.agent_type, "UNKNOWN")
 
         return {

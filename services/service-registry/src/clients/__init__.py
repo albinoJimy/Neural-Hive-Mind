@@ -8,7 +8,17 @@ Notas de migração etcd→Redis (OPS-003):
 """
 
 from .autocura_producer import AutocuraEventProducer
+from .engineering_service_registry_client import (
+    EngineeringServiceRegistryClient,
+    register_engineering_service,
+)
 from .pheromone_client import PheromoneClient
 from .redis_registry_client import RedisRegistryClient
 
-__all__ = ["AutocuraEventProducer", "RedisRegistryClient", "PheromoneClient"]
+__all__ = [
+    "AutocuraEventProducer",
+    "RedisRegistryClient",
+    "PheromoneClient",
+    "EngineeringServiceRegistryClient",
+    "register_engineering_service",
+]
