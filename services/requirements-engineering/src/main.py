@@ -9,8 +9,12 @@ import structlog
 from fastapi import FastAPI, status
 from fastapi.responses import JSONResponse
 from src.api.routers.requirements import router as requirements_router
+from src.clients.engineering_service_registry_client import (
+    EngineeringServiceRegistryClient,
+)
 from src.config.settings import get_settings
 from src.consumers.cognitive_plan_consumer import CognitivePlanConsumer
+from src.proto import service_registry_pb2
 from src.producers.requirements_producer import RequirementsProducer
 from src.services.requirements_engineer import RequirementsEngineer
 
@@ -23,6 +27,7 @@ _requirements_engineer: RequirementsEngineer | None = None
 _kafka_consumer: CognitivePlanConsumer | None = None
 _kafka_producer: RequirementsProducer | None = None
 _consumer_task: asyncio.Task | None = None
+_registry_client: EngineeringServiceRegistryClient | None = None
 
 shutdown_event = asyncio.Event()
 
@@ -30,7 +35,7 @@ shutdown_event = asyncio.Event()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager para iniciar/parar componentes."""
-    global _requirements_engineer, _kafka_consumer, _kafka_producer, _consumer_task
+    global _requirements_engineer, _kafka_consumer, _kafka_producer, _consumer_task, _registry_client
 
     # Startup
     logger.info("starting_requirements_engineering_service")
@@ -52,6 +57,45 @@ async def lifespan(app: FastAPI):
     # Iniciar consumer em background
     _consumer_task = asyncio.create_task(_kafka_consumer.consume())
 
+    # Registrar no Service Registry
+    try:
+        _registry_client = EngineeringServiceRegistryClient(
+            service_name="requirements-engineering",
+            agent_type=service_registry_pb2.REQUIREMENTS_ENGINEERING,
+        )
+
+        if await _registry_client.initialize():
+            agent_id = await _registry_client.register(
+                capabilities=[
+                    "requirements_generation",
+                    "user_stories",
+                    "acceptance_criteria",
+                    "data_model_design",
+                ],
+                metadata={
+                    "kafka_consumer": "cognitive_plan_consumer",
+                    "kafka_producer": "requirements_producer",
+                    "version": "1.0.0",
+                },
+            )
+
+            if agent_id:
+                logger.info(
+                    "service_registered_successfully",
+                    service="requirements-engineering",
+                    agent_id=agent_id,
+                    port=8010,
+                )
+                # Iniciar heartbeat a cada 30s
+                await _registry_client.start_heartbeat(interval_seconds=30)
+                app.state.registry_client = _registry_client
+            else:
+                logger.error("service_registration_failed", service="requirements-engineering")
+        else:
+            logger.error("service_registry_init_failed", service="requirements-engineering")
+    except Exception as e:
+        logger.error("service_registry_exception", error=str(e))
+
     # Setup signal handlers
     def signal_handler(sig: int, frame):
         logger.info("shutdown_signal_received", signal=sig)
@@ -64,6 +108,12 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     logger.info("shutting_down_requirements_engineering_service")
+    if _registry_client:
+        try:
+            await _registry_client.close()
+            logger.info("service_deregistered", service="requirements-engineering")
+        except Exception as e:
+            logger.error("service_deregister_failed", error=str(e))
     if _kafka_consumer:
         await _kafka_consumer.stop()
     if _kafka_producer:
