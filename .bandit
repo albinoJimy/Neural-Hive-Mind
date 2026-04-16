@@ -1,0 +1,31 @@
+# Bandit configuration for Neural Hive Mind
+# https://bandit.readthedocs.io/
+
+[exclude_dirs]
+# Directórios a excluir do scan
+/tests/
+/.venv/
+/venv/
+/__pycache__/
+/.pytest_cache/
+/.mypy_cache/
+/build/
+/dist/
+/*.egg-info/
+
+[tests]
+# Testes a ser ignorados (B101: Assert usado)
+B101
+
+[plugins]
+# Plugins desabilitados
+# B601: paramiko calls (não usamos paramiko)
+B601
+
+[yaml]
+# Configurações para arquivos YAML se usarmos
+# (opcional)
+
+[asserts]
+# Não alertar sobre asserts em código de teste
+# (isto já é tratado pelo exclude_dirs acima)
