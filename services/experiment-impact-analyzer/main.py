@@ -21,6 +21,7 @@ from src.clients.mongodb_client import MongoDBClient
 from src.config.settings import get_settings
 from src.services.impact_analyzer import ImpactAnalyzer
 from src.consumers import ExperimentCompletedConsumer
+from src.producers import ImpactAnalyzedProducer
 
 logger = structlog.get_logger()
 
@@ -28,6 +29,7 @@ logger = structlog.get_logger()
 mongodb_client: MongoDBClient | None = None
 impact_analyzer: ImpactAnalyzer | None = None
 kafka_consumer: ExperimentCompletedConsumer | None = None
+kafka_producer: ImpactAnalyzedProducer | None = None
 consumer_task: asyncio.Task | None = None
 
 app: FastAPI | None = None
@@ -69,7 +71,7 @@ def create_app() -> FastAPI:
     @app.on_event("startup")
     async def startup():
         """Tarefas de inicialização."""
-        global mongodb_client, impact_analyzer, kafka_consumer, consumer_task
+        global mongodb_client, impact_analyzer, kafka_consumer, kafka_producer, consumer_task
 
         settings = get_settings()
 
@@ -100,11 +102,16 @@ def create_app() -> FastAPI:
             mongodb_client=mongodb_client,
         )
 
-        # Inicializar Kafka Consumer (se habilitado)
+        # Inicializar Kafka Consumer e Producer (se habilitado)
         kafka_enabled = getattr(settings, "kafka_enabled", True)
         if kafka_enabled:
             try:
-                kafka_consumer = ExperimentCompletedConsumer()
+                # Inicializar producer
+                kafka_producer = ImpactAnalyzedProducer()
+                await kafka_producer.start()
+
+                # Inicializar consumer com producer injetado
+                kafka_consumer = ExperimentCompletedConsumer(producer=kafka_producer)
                 kafka_consumer.set_impact_analyzer(impact_analyzer)
                 consumer_task = asyncio.create_task(kafka_consumer.start())
                 logger.info("kafka_consumer_initialized")
@@ -116,16 +123,22 @@ def create_app() -> FastAPI:
     @app.on_event("shutdown")
     async def shutdown():
         """Tarefas de desligamento."""
-        global mongodb_client, kafka_consumer, consumer_task
+        global mongodb_client, kafka_consumer, kafka_producer, consumer_task
 
         logger.info("experiment_impact_analyzer_shutting_down")
 
-        # Parar Kafka Consumer
+        # Parar Kafka Consumer e Producer
         if kafka_consumer:
             try:
                 await kafka_consumer.stop()
             except Exception as e:
                 logger.warning("kafka_consumer_failed_to_stop", error=str(e))
+
+        if kafka_producer:
+            try:
+                await kafka_producer.stop()
+            except Exception as e:
+                logger.warning("kafka_producer_failed_to_stop", error=str(e))
 
         # Cancelar task do consumidor
         if consumer_task and not consumer_task.done():

@@ -24,6 +24,7 @@ class ExperimentCompletedConsumer:
         topic: str = "experiments.completed",
         group_id: str = "experiment-impact-analyzer",
         impact_analyzer: ImpactAnalyzer | None = None,
+        producer=None,
     ):
         """Inicializa o consumidor.
 
@@ -32,6 +33,7 @@ class ExperimentCompletedConsumer:
             topic: Tópico para consumir
             group_id: ID do grupo consumidor
             impact_analyzer: Instância do ImpactAnalyzer
+            producer: ImpactAnalyzedProducer opcional para publicar eventos
         """
         settings = get_settings()
         self._bootstrap_servers = bootstrap_servers or getattr(settings, "kafka_bootstrap_servers", "localhost:9092")
@@ -39,6 +41,7 @@ class ExperimentCompletedConsumer:
         self._group_id = group_id
         self._consumer: AIOKafkaConsumer | None = None
         self._impact_analyzer = impact_analyzer
+        self._producer = producer
         self._running = False
         self._logger = logger
 
@@ -152,8 +155,16 @@ class ExperimentCompletedConsumer:
                 long_term_available = impact.long_term is not None,
             )
 
-            # TODO: Publicar evento impact.analyzed
-            # await self._publish_impact_analyzed(impact)
+            # Publicar evento impact.analyzed
+            if self._producer:
+                await self._producer.publish_impact_analyzed(
+                    experiment_id=experiment_id,
+                    variant=variant,
+                    short_term_impacts=len(impact.short_term.metric_impacts) if impact.short_term else 0,
+                    long_term_available=impact.long_term is not None,
+                    overall_impact_score=impact.short_term.overall_impact if impact.short_term else 0.0,
+                    key_metrics=[],
+                )
 
             # TODO: Persistir análise no MongoDB
             # await self._impact_analyzer.mongodb.save_impact(impact)
