@@ -54,7 +54,7 @@ async def get_parser_for_format(format_type: str):
     return parser
 
 
-@router.post("/documents/{document_id}/parse", status_code=status.HTTP_202_ACCEPTED)
+@router.post("/{document_id}/parse", status_code=status.HTTP_202_ACCEPTED)
 async def parse_document(
     document_id: str,
     repository: DocumentRepository = Depends(get_repository),
@@ -168,7 +168,7 @@ async def parse_document(
         )
 
 
-@router.post("/documents/{document_id}/extract", status_code=status.HTTP_202_ACCEPTED)
+@router.post("/{document_id}/extract", status_code=status.HTTP_202_ACCEPTED)
 async def extract_entities(
     document_id: str,
     min_confidence: float = Query(0.7, ge=0.0, le=1.0, description="Confiança mínima"),
@@ -315,7 +315,7 @@ async def get_parsing_job(job_id: str):
     }
 
 
-@router.get("/documents/{document_id}/entities")
+@router.get("/{document_id}/entities")
 async def list_document_entities(
     document_id: str,
     entity_type: Optional[str] = Query(None, description="Filtrar por tipo de entidade"),
@@ -368,7 +368,7 @@ async def list_document_entities(
         )
 
 
-@router.post("/documents/{document_id}/approve")
+@router.post("/{document_id}/approve")
 async def approve_document(
     document_id: str,
     approved_by: str = Query(..., description="Usuário que está aprovando"),
@@ -422,13 +422,16 @@ async def approve_document(
             approved_by=approved_by,
         )
 
+        # Buscar documento atualizado para retornar o updated_at
+        updated_doc = await repository.get_by_id(document_id)
+
         return {
             "document_id": document_id,
             "status": DocumentStatus.APPROVED.value,
             "approved_by": approved_by,
-            "approved_at": repository._mongodb.database["documents"].find_one(
-                {"id": document_id}
-            ).get("updated_at") if repository._mongodb else None,
+            "approved_at": updated_doc.updated_at.isoformat()
+            if updated_doc and updated_doc.updated_at
+            else None,
             "message": "Document approved successfully",
         }
 

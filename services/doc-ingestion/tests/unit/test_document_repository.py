@@ -1,9 +1,8 @@
 """Testes unitários para DocumentRepository."""
 
-from unittest.mock import AsyncMock, Mock, MagicMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from pymongo import MongoClient
 
 from src.models.document import (
     DocumentCreate,
@@ -153,15 +152,18 @@ class TestDocumentRepository:
             "src.repositories.document_repository.get_mongodb_client",
             return_value=mock_mongodb_client,
         ):
-            # Mock para find().skip().limit().sort()
-            mock_cursor = AsyncMock()
-            mock_cursor.to_list = AsyncMock(return_value=[])
-            mock_sort = Mock(return_value=mock_cursor)
-            mock_limit = Mock(return_value=mock_sort)
-            mock_skip = Mock(return_value=mock_limit)
-            mock_find = Mock(return_value=mock_skip)
+            # Criar mock para cursor que suporta chaining
+            class AsyncCursor:
+                def skip(self, n):
+                    return self
+                def limit(self, n):
+                    return self
+                def sort(self, *args):
+                    return self
+                async def to_list(self, length=None):
+                    return []
 
-            mock_mongodb_client.documents_collection.find = mock_find
+            mock_mongodb_client.documents_collection.find = Mock(return_value=AsyncCursor())
             mock_mongodb_client.documents_collection.count_documents = AsyncMock(return_value=0)
 
             repository = DocumentRepository()
@@ -205,15 +207,18 @@ class TestDocumentRepository:
             "src.repositories.document_repository.get_mongodb_client",
             return_value=mock_mongodb_client,
         ):
-            # Mock para find().skip().limit().sort()
-            mock_cursor = AsyncMock()
-            mock_cursor.to_list = AsyncMock(return_value=[doc_data])
-            mock_sort = Mock(return_value=mock_cursor)
-            mock_limit = Mock(return_value=mock_sort)
-            mock_skip = Mock(return_value=mock_limit)
-            mock_find = Mock(return_value=mock_skip)
+            # Criar mock para cursor que suporta chaining
+            class AsyncCursor:
+                def skip(self, n):
+                    return self
+                def limit(self, n):
+                    return self
+                def sort(self, *args):
+                    return self
+                async def to_list(self, length=None):
+                    return [doc_data]
 
-            mock_mongodb_client.documents_collection.find = mock_find
+            mock_mongodb_client.documents_collection.find = Mock(return_value=AsyncCursor())
             mock_mongodb_client.documents_collection.count_documents = AsyncMock(return_value=1)
 
             repository = DocumentRepository()
@@ -232,7 +237,7 @@ class TestDocumentRepository:
     async def test_update_document(self, mock_mongodb_client):
         """Testa atualização de documento."""
         # Arrange
-        original_doc = {
+        updated_doc = {
             "_id": "507f1f77bcf86cd799439011",
             "id": "DOC-001",
             "filename": "test.pdf",
@@ -241,7 +246,7 @@ class TestDocumentRepository:
             "file_size_bytes": 1024,
             "s3_key": "test/test.pdf",
             "uploaded_by": "user@example.com",
-            "title": "Old Title",
+            "title": "New Title",
             "description": None,
             "project_id": None,
             "tags": [],
@@ -251,24 +256,18 @@ class TestDocumentRepository:
             "extracted_entity_types": [],
             "parsing_error": None,
             "created_at": "2024-01-01T00:00:00",
-            "updated_at": None,
+            "updated_at": "2024-01-02T00:00:00",
             "parsed_at": None,
             "extracted_at": None,
             "version": 1,
         }
 
-        updated_doc = original_doc.copy()
-        updated_doc["title"] = "New Title"
-        updated_doc["updated_at"] = "2024-01-02T00:00:00"
-
         with patch(
             "src.repositories.document_repository.get_mongodb_client",
             return_value=mock_mongodb_client,
         ):
-            # find_one retorna sequencialmente: original depois updated
-            mock_mongodb_client.documents_collection.find_one = AsyncMock(
-                side_effect=[original_doc, updated_doc]
-            )
+            # find_one retorna o documento atualizado (após update)
+            mock_mongodb_client.documents_collection.find_one = AsyncMock(return_value=updated_doc)
             mock_mongodb_client.documents_collection.update_one = AsyncMock(
                 return_value=create_update_result(1)
             )
