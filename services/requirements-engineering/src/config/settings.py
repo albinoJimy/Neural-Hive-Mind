@@ -57,8 +57,10 @@ class Settings(BaseSettings):
         default="localhost:9092",
         validation_alias="KAFKA_BOOTSTRAP_SERVERS"
     )
-    kafka_topic_requirements: str = "requirements-events"
-    kafka_consumer_group: str = "requirements-engineering-group"
+    kafka_consumer_group: str = "requirements-engineering-consumers"
+    kafka_input_topic: str = "cognitive.plans.created"
+    kafka_output_topic: str = "requirements.generated"
+    kafka_dlq_topic: str = "requirements.dlq"
 
     # Neural Hive-Mend Integration
     gateway_url: str = Field(

@@ -54,7 +54,10 @@ class Settings(BaseSettings):
         default="localhost:9092",
         validation_alias="KAFKA_BOOTSTRAP_SERVERS"
     )
-    kafka_topic_docs: str = "documentation-events"
+    kafka_consumer_group: str = "documentation-generation-consumers"
+    kafka_input_topic: str = "architecture.plans.generated"
+    kafka_output_topic: str = "documentation.generated"
+    kafka_dlq_topic: str = "documentation.dlq"
 
     # Neural Hive-Mind Integration
     requirements_engineering_url: str = Field(
