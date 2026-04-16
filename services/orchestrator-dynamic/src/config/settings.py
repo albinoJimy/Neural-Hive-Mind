@@ -1155,6 +1155,34 @@ class OrchestratorSettings(BaseSettings):
         default=0.001, description="Threshold de error rate (0.1%) para rollback em checkpoint"
     )
 
+    # Fluxo G Service URLs
+    fluxo_g_requirements_url: str = Field(
+        default="http://requirements-engineering:8010",
+        description="URL do serviço Requirements Engineering"
+    )
+    fluxo_g_documentation_url: str = Field(
+        default="http://documentation-generation:8014",
+        description="URL do serviço Documentation Generation"
+    )
+    fluxo_g_knowledge_graph_url: str = Field(
+        default="http://knowledge-graph-rag:8016",
+        description="URL do serviço Knowledge Graph RAG"
+    )
+    fluxo_g_approval_url: str = Field(
+        default="http://approval-gateway:8017",
+        description="URL do serviço Approval Gateway"
+    )
+    fluxo_g_enabled: bool = Field(
+        default=True,
+        description="Habilitar Fluxo G workflows (Idea → Software)"
+    )
+    fluxo_g_auto_approve_threshold: float = Field(
+        default=0.85,
+        ge=0.0,
+        le=1.0,
+        description="Threshold para auto-aprovação no Fluxo G (acima disso requer humano)"
+    )
+
     # Pydantic v2: model_config substitui class Config
     model_config = SettingsConfigDict(
         env_file=".env",
