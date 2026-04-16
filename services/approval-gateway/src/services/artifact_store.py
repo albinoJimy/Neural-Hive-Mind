@@ -409,6 +409,6 @@ class ArtifactStore:
 
 
 # Factory function
-async def get_artifact_store() -> ArtifactStore:
+def get_artifact_store() -> ArtifactStore:
     """Retorna instância do ArtifactStore."""
     return ArtifactStore()

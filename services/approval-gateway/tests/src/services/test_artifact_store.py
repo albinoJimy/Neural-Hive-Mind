@@ -2,7 +2,8 @@
 
 import pytest
 from datetime import datetime
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, patch
+from bson import Binary
 
 from src.services.artifact_store import (
     ArtifactStore,
@@ -12,13 +13,6 @@ from src.services.artifact_store import (
 
 class TestArtifactStore:
     """Testes para ArtifactStore."""
-
-    @pytest.fixture
-    def mock_mongo_client(self):
-        """Mock para MongoDB client."""
-        client = Mock()
-        db = client.__getitem__.return_value
-        return client
 
     @pytest.fixture
     def mock_gridfs(self):
@@ -45,12 +39,15 @@ class TestArtifactStore:
         return collection
 
     @pytest.fixture
-    def artifact_store(self, mock_mongo_client, mock_gridfs, mock_collection):
+    def artifact_store(self, mock_gridfs, mock_collection):
         """Fixture para ArtifactStore com mocks."""
-        store = ArtifactStore(mongo_client=mock_mongo_client)
-        store._gridfs = mock_gridfs
-        store._collection = mock_collection
-        return store
+        # Criar store sem MongoDB client real
+        with patch('src.services.artifact_store.GridFS', return_value=mock_gridfs):
+            with patch('src.services.artifact_store.MongoClient'):
+                store = ArtifactStore()
+                store._gridfs = mock_gridfs
+                store._collection = mock_collection
+                return store
 
     def test_get_artifact_store_singleton(self):
         """Testa se get_artifact_store retorna instância."""
@@ -82,10 +79,10 @@ class TestArtifactStore:
         assert result is not None
         assert isinstance(result, str)
         mock_gridfs.put.assert_called_once()
-        mock_collection.insert_one.assert_called()
+        assert mock_collection.insert_one.call_count >= 1
 
     def test_store_artifact_with_bytes_content(
-        self, artifact_store, mock_gridfs, mock_collection
+        self, artifact_store, mock_gridfs
     ):
         """Testa armazenamento de artefato com conteúdo bytes."""
         result = artifact_store.store_artifact(
@@ -111,8 +108,8 @@ class TestArtifactStore:
         )
 
         assert result is not None
-        # Verificar que fallback foi usado
-        mock_collection.insert_one.assert_called()
+        # Verificar que insert_one foi chamado (fallback)
+        assert mock_collection.insert_one.call_count >= 1
 
     def test_get_artifact_found(self, artifact_store, mock_collection):
         """Testa recuperação de artefato existente."""
@@ -121,7 +118,7 @@ class TestArtifactStore:
             "approval_id": "approval-123",
             "artifact_type": "code",
             "storage": "bson_binary",
-            "content_bson": b"test content",
+            "content_bson": Binary(b"test content"),
             "filename": "test.py",
             "size_bytes": 12,
             "version": "1.0.0",
@@ -133,6 +130,7 @@ class TestArtifactStore:
 
         assert result is not None
         assert result["artifact_id"] == "artifact-123"
+        assert result["content"] == "test content"
         mock_collection.find_one.assert_called_once_with({"artifact_id": "artifact-123"})
 
     def test_get_artifact_not_found(self, artifact_store, mock_collection):
@@ -172,7 +170,9 @@ class TestArtifactStore:
         """Testa listagem de artefatos por aprovação."""
         mock_cursor = Mock()
         mock_cursor.sort = Mock(return_value=mock_cursor)
-        mock_cursor.__aiter__ = Mock(return_value=iter([
+
+        # Criar lista assíncrona mock
+        artifacts = [
             {
                 "artifact_id": "artifact-1",
                 "artifact_type": "code",
@@ -193,8 +193,13 @@ class TestArtifactStore:
                 "created_at": datetime.utcnow(),
                 "metadata": {}
             }
-        ]))
+        ]
 
+        async def async_iteration():
+            for item in artifacts:
+                yield item
+
+        mock_cursor.__aiter__ = Mock(return_value=async_iteration())
         mock_collection.find = Mock(return_value=mock_cursor)
 
         # Run async
@@ -280,34 +285,21 @@ class TestArtifactStore:
         mock_cursor.skip = Mock(return_value=mock_cursor)
         mock_cursor.limit = Mock(return_value=mock_cursor)
 
-        mock_result = Mock()
-        mock_result.to_list = Mock(return_value=asyncio.coroutine(
-            lambda length: [
-                {
-                    "artifact_id": "artifact-1",
-                    "artifact_type": "code",
-                    "filename": "test.py",
-                    "size_bytes": 100,
-                    "version": "1.0.0",
-                    "created_at": datetime.utcnow()
-                }
-            ]
-        )())
+        artifacts = [
+            {
+                "artifact_id": "artifact-1",
+                "artifact_type": "code",
+                "filename": "test.py",
+                "size_bytes": 100,
+                "version": "1.0.0",
+                "created_at": datetime.utcnow()
+            }
+        ]
 
-        # Simular cursor assíncrono
-        async def list_async(length):
-            return [
-                {
-                    "artifact_id": "artifact-1",
-                    "artifact_type": "code",
-                    "filename": "test.py",
-                    "size_bytes": 100,
-                    "version": "1.0.0",
-                    "created_at": datetime.utcnow()
-                }
-            ]
+        async def async_list(length):
+            return artifacts
 
-        mock_cursor.to_list = list_async
+        mock_cursor.to_list = async_list
         mock_collection.find = Mock(return_value=mock_cursor)
 
         import asyncio
