@@ -15,11 +15,16 @@ logger = structlog.get_logger(__name__)
 class CognitivePlanConsumer(BaseKafkaConsumer):
     """Consome CognitivePlans e gera arquiteturas."""
 
-    def __init__(self) -> None:
-        """Inicializa consumidor de CognitivePlans."""
+    def __init__(self, producer=None) -> None:
+        """Inicializa consumidor de CognitivePlans.
+
+        Args:
+            producer: ArchitecturePlanProducer opcional para publicar eventos
+        """
         super().__init__()
         self.planner = DesignPlanner()
         self.repository = ArchitectureRepository()
+        self._producer = producer
 
     def get_topic(self) -> str:
         """Retorna o tópico de CognitivePlans."""
@@ -62,6 +67,16 @@ class CognitivePlanConsumer(BaseKafkaConsumer):
 
             # Persistir no MongoDB
             await self.repository.create(architecture_plan)
+
+            # Publicar evento Kafka se producer disponível
+            if self._producer:
+                await self._producer.publish_plan_created(
+                    plan_id=architecture_plan.plan_id,
+                    cognitive_plan_id=architecture_plan.cognitive_plan_id,
+                    architecture_type=architecture_plan.architecture_type.value,
+                    components=[c.model_dump() for c in architecture_plan.components],
+                    rationale=architecture_plan.rationale,
+                )
 
             logger.info(
                 "architecture_plan_created",

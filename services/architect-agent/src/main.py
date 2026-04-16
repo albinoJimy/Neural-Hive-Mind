@@ -10,6 +10,7 @@ from src.api.app import create_app
 from src.config.settings import get_settings
 from src.consumers import CognitivePlanConsumer, ConsumerManager
 from src.observability.metrics import init_metrics
+from src.producers import ArchitecturePlanProducer
 
 logger = structlog.get_logger(__name__)
 
@@ -44,12 +45,20 @@ async def main():
     # Initialize metrics
     init_metrics(app)
 
-    # Setup Kafka consumers
+    # Setup Kafka consumers and producer
     consumer_manager = ConsumerManager()
+    architecture_plan_producer = None
 
     # Verificar se Kafka está habilitado
     if getattr(settings, "kafka_enabled", True):
-        cognitive_plan_consumer = CognitivePlanConsumer()
+        # Inicializar producer
+        architecture_plan_producer = ArchitecturePlanProducer()
+        await architecture_plan_producer.start()
+
+        # Inicializar consumer com producer injetado
+        cognitive_plan_consumer = CognitivePlanConsumer(
+            producer=architecture_plan_producer
+        )
         consumer_manager.register(cognitive_plan_consumer)
         logger.info("kafka_consumer_enabled")
     else:
@@ -90,11 +99,14 @@ async def main():
     except KeyboardInterrupt:
         logger.info("keyboard_interrupt_received")
     finally:
-        # Stop consumers
+        # Stop consumers and producer
         if consumer_task:
             await consumer_manager.stop_all()
             if not consumer_task.done():
                 consumer_task.cancel()
+
+        if architecture_plan_producer:
+            await architecture_plan_producer.stop()
 
         logger.info("architect_agent_shutdown_complete")
 
