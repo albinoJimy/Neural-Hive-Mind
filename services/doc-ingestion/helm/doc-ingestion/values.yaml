@@ -1,0 +1,173 @@
+# Valores padrão para doc-ingestion
+replicaCount: 2
+
+image:
+  repository: ghcr.io/albinojimy/neural-hive-mind/doc-ingestion
+  pullPolicy: IfNotPresent
+  tag: "1.0.0"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+service:
+  type: ClusterIP
+  port: 8018
+  annotations: {}
+
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+  hosts:
+    - host: doc-ingestion.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Configurações do Doc Ingestion Service
+config:
+  environment: production
+  logLevel: INFO
+  httpPort: 8018
+
+  # MongoDB configuration
+  mongodb:
+    url: "mongodb://mongodb:27017"
+    database: "doc_ingestion"
+    collectionDocuments: "documents"
+    collectionEntities: "entities"
+    collectionParsingJobs: "parsing_jobs"
+
+  # Redis configuration
+  redis:
+    url: "redis://redis:6379/0"
+
+  # Kafka configuration
+  kafka:
+    enabled: true
+    bootstrapServers: "kafka:9092"
+    consumerGroup: "doc-ingestion-consumers"
+    inputTopic: "documents.uploaded"
+    outputTopic: "entities.extracted"
+    dlqTopic: "doc-ingestion.dlq"
+    autoOffsetReset: "earliest"
+
+  # S3/MinIO configuration
+  s3:
+    endpoint: "http://minio:9000"
+    bucket: "doc-ingestion"
+    secure: false
+
+  # LLM configuration
+  llm:
+    enabled: true
+    provider: "openai"  # openai or anthropic
+    model: "gpt-4-turbo-preview"
+    temperature: 0.7
+    maxTokens: 4000
+
+  # Service Registry configuration
+  serviceRegistry:
+    grpcHost: "service-registry"
+    grpcPort: 50051
+
+  # Processing Settings
+  processing:
+    maxFileSizeMb: 50
+    allowedExtensions: ".pdf,.docx,.xlsx,.vsdx,.json"
+    chunkSizeTokens: 2000
+    chunkOverlapTokens: 200
+
+  # Entity Extraction Settings
+  entityExtraction:
+    entityTypes: "services,apis,data_models,workflows,components"
+    confidenceThreshold: 0.7
+
+  # Neural Hive-Mind Integration
+  neuralHive:
+    gatewayUrl: "http://gateway-intencoes:8000"
+    orchestratorUrl: "http://orchestrator-dynamic:8003"
+
+# Configurações de Observabilidade
+observability:
+  enabled: true
+  prometheus:
+    port: 9098
+    path: /metrics
+    serviceMonitor:
+      enabled: false
+      interval: 30s
+      scrapeTimeout: 10s
+  tracing:
+    enabled: true
+    endpoint: "http://jaeger-collector:4317"
+    sampleRate: 0.1
+  logging:
+    format: json
+    level: INFO
+
+# Configurações adicionais
+extraEnv: []
+# extraEnv:
+#   - name: CUSTOM_VAR
+#     value: "custom-value"
+
+# Secrets para dados sensíveis
+# Devem ser fornecidos via helm upgrade --set ou secrets externos
+secrets:
+  openaiApiKey: ""
+  anthropicApiKey: ""
+  s3AccessKey: ""
+  s3SecretKey: ""
+
+# Volume mounts para tmp (necessário para readOnlyRootFilesystem)
+volumeMounts:
+  - name: tmp
+    mountPath: /tmp
+
+volumes:
+  - name: tmp
+    emptyDir: {}
