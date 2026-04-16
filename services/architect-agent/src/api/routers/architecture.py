@@ -28,6 +28,14 @@ class BoundedContextsResponse(BaseModel):
     total_contexts: int
 
 
+class DiagramsResponse(BaseModel):
+    """Resposta com diagramas."""
+
+    architecture_id: str
+    diagrams: List[dict]
+    total_diagrams: int
+
+
 class ContextIdentificationRequest(BaseModel):
     """Request para identificação de bounded contexts."""
 
@@ -336,3 +344,102 @@ async def generate_diagram(request: DiagramGenerationRequest):
     except Exception as e:
         logger.error("generate_diagram_error", error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{architecture_id}/bounded-contexts", response_model=BoundedContextsResponse)
+async def get_architecture_bounded_contexts(architecture_id: str) -> BoundedContextsResponse:
+    """Obtém bounded contexts de uma arquitetura existente."""
+    try:
+        repository = get_repository()
+        plan = await repository.get_by_plan_id(architecture_id)
+
+        if not plan:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Architecture with id '{architecture_id}' not found"
+            )
+
+        # Extrair bounded contexts da arquitetura
+        bounded_contexts_data = []
+        if plan.bounded_contexts:
+            for ctx in plan.bounded_contexts:
+                bounded_contexts_data.append({
+                    "name": ctx.name,
+                    "description": ctx.description,
+                    "responsibilities": ctx.responsibilities,
+                    "domain_models": ctx.domain_models,
+                    "ubiquitous_language": [
+                        {"term": t.term, "definition": t.definition}
+                        for t in ctx.ubiquitous_language
+                    ],
+                    "relationships": [
+                        {"type": r.relationship_type, "target": r.to_context}
+                        for r in ctx.relationships
+                    ]
+                })
+
+        total_contexts = len(bounded_contexts_data)
+
+        logger.info(
+            "architecture_bounded_contexts_retrieved",
+            architecture_id=architecture_id,
+            total_contexts=total_contexts
+        )
+
+        return BoundedContextsResponse(
+            architecture_id=architecture_id,
+            bounded_contexts=bounded_contexts_data,
+            total_contexts=total_contexts
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("get_bounded_contexts_error", architecture_id=architecture_id, error=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
+
+
+@router.get("/{architecture_id}/diagrams", response_model=DiagramsResponse)
+async def get_architecture_diagrams(architecture_id: str) -> DiagramsResponse:
+    """Obtém diagramas de uma arquitetura existente."""
+    try:
+        repository = get_repository()
+        plan = await repository.get_by_plan_id(architecture_id)
+
+        if not plan:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Architecture with id '{architecture_id}' not found"
+            )
+
+        # Extrair diagramas da arquitetura
+        diagrams_data = []
+        if plan.diagrams:
+            for diag in plan.diagrams:
+                diagrams_data.append({
+                    "diagram_id": diag.diagram_id,
+                    "type": diag.type.value,
+                    "title": diag.title,
+                    "mermaid_code": diag.mermaid_code,
+                    "svg_url": diag.svg_url
+                })
+
+        total_diagrams = len(diagrams_data)
+
+        logger.info(
+            "architecture_diagrams_retrieved",
+            architecture_id=architecture_id,
+            total_diagrams=total_diagrams
+        )
+
+        return DiagramsResponse(
+            architecture_id=architecture_id,
+            diagrams=diagrams_data,
+            total_diagrams=total_diagrams
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("get_diagrams_error", architecture_id=architecture_id, error=str(e))
+        raise HTTPException(status_code=500, detail="Internal error")
