@@ -143,3 +143,22 @@ class RequirementList(BaseModel):
     total: int
     items: List[Requirement]
     filters: Dict[str, Any] = Field(default_factory=dict)
+
+
+class RequirementsSet(BaseModel):
+    """Conjunto de requisitos gerados a partir de um plano."""
+
+    id: str = Field(..., description="ID único do conjunto")
+    cognitive_plan_id: str = Field(..., description="ID do CognitivePlan de origem")
+    requirements: List[Requirement] = Field(default_factory=list)
+    functional_count: int = Field(default=0, description="Contagem de requisitos funcionais")
+    non_functional_count: int = Field(default=0, description="Contagem de requisitos não-funcionais")
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+    def add_requirement(self, requirement: Requirement) -> None:
+        """Adiciona um requisito ao conjunto."""
+        self.requirements.append(requirement)
+        if requirement.requirement_type == RequirementType.FUNCTIONAL:
+            self.functional_count += 1
+        else:
+            self.non_functional_count += 1
