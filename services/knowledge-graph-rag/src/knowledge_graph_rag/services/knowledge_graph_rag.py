@@ -1,6 +1,6 @@
 """Serviço RAG (Retrieval Augmented Generation) para Knowledge Graph."""
 
-from typing import List, Optional
+from typing import Any, List, Optional
 from openai import AsyncOpenAI
 import structlog
 import numpy as np

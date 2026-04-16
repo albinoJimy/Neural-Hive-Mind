@@ -1,12 +1,13 @@
-"""Aplicação principal Knowledge Graph RAG."""
+"""Aplicação FastAPI para Knowledge Graph RAG."""
 
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import structlog
 
-from knowledge_graph_rag.config.settings import get_settings
+from knowledge_graph_rag.api.routers.rag import router as rag_router
 from knowledge_graph_rag.api.routers.knowledge_graph import router as knowledge_router
+from knowledge_graph_rag.config.settings import get_settings
 
 settings = get_settings()
 
@@ -33,14 +34,15 @@ logger = structlog.get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Gerencia ciclo de vida da aplicação."""
+    """Lifecycle manager."""
     logger.info(
         "starting_service",
         service=settings.service_name,
-        version=settings.service_version
+        version=settings.service_version,
+        port=settings.port
     )
     yield
-    logger.info("shutting_down_service")
+    logger.info("shutting_down_service", service=settings.service_name)
 
 
 app = FastAPI(
@@ -49,16 +51,16 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configurar adequadamente em produção
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Router
+# Incluir routers
+app.include_router(rag_router, prefix=settings.api_prefix)
 app.include_router(knowledge_router, prefix=settings.api_prefix)
 
 
@@ -73,9 +75,13 @@ async def root():
 
 
 @app.get("/health")
-async def health():
-    """Health check simplificado."""
-    return {"status": "healthy"}
+async def health_check():
+    """Health check endpoint."""
+    return {
+        "service": "knowledge-graph-rag",
+        "status": "healthy",
+        "version": settings.api_version
+    }
 
 
 if __name__ == "__main__":
@@ -84,5 +90,5 @@ if __name__ == "__main__":
         "main:app",
         host=settings.host,
         port=settings.port,
-        reload=True
+        reload=False
     )
