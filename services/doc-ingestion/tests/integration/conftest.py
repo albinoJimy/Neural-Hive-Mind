@@ -155,7 +155,7 @@ def test_client(mock_mongodb, mock_s3) -> TestClient:
             mock_s3_class._instance = mock_s3_instance
 
             # Mock do producer
-            with patch("src.main.get_doc_producer", return_value=None):
+            with patch("src.dependencies.get_doc_producer", return_value=None):
                 yield TestClient(app)
 
 

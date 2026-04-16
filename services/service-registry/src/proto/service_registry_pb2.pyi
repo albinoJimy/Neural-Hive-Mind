@@ -13,6 +13,12 @@ class AgentType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SCOUT: _ClassVar[AgentType]
     GUARD: _ClassVar[AgentType]
     ANALYST: _ClassVar[AgentType]
+    REQUIREMENTS_ENGINEERING: _ClassVar[AgentType]
+    DOCUMENTATION_GENERATION: _ClassVar[AgentType]
+    KNOWLEDGE_GRAPH_RAG: _ClassVar[AgentType]
+    APPROVAL_GATEWAY: _ClassVar[AgentType]
+    ARCHITECT_AGENT: _ClassVar[AgentType]
+    DOC_INGESTION: _ClassVar[AgentType]
 
 class AgentStatus(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -25,6 +31,12 @@ WORKER: AgentType
 SCOUT: AgentType
 GUARD: AgentType
 ANALYST: AgentType
+REQUIREMENTS_ENGINEERING: AgentType
+DOCUMENTATION_GENERATION: AgentType
+KNOWLEDGE_GRAPH_RAG: AgentType
+APPROVAL_GATEWAY: AgentType
+ARCHITECT_AGENT: AgentType
+DOC_INGESTION: AgentType
 AGENT_STATUS_UNSPECIFIED: AgentStatus
 HEALTHY: AgentStatus
 UNHEALTHY: AgentStatus

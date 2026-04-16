@@ -15,9 +15,8 @@ from src.config.settings import get_settings
 from src.db.mongodb import get_mongodb_client
 from src.producers.doc_producer import DocProducer
 
-# Service Registry client - placeholder for future implementation
-# from src.clients.service_registry_client import DocIngestionServiceRegistryClient
-# from neural_hive_integration.proto_stubs import service_registry_pb2
+# Service Registry client
+from src.clients.service_registry_client import DocIngestionServiceRegistryClient
 
 logger = structlog.get_logger(__name__)
 
@@ -25,7 +24,6 @@ settings = get_settings()
 
 # Global instances
 _mongodb_client = None
-_kafka_producer = None
 _registry_client = None
 _shutdown_event = asyncio.Event()
 
@@ -33,7 +31,7 @@ _shutdown_event = asyncio.Event()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager para iniciar/parar componentes."""
-    global _mongodb_client, _kafka_producer, _registry_client
+    global _mongodb_client, _registry_client
 
     # Startup
     logger.info("starting_doc_ingestion_service")
@@ -51,38 +49,51 @@ async def lifespan(app: FastAPI):
 
     # Inicializar Kafka Producer
     try:
-        _kafka_producer = DocProducer()
-        await _kafka_producer.start()
+        from src.dependencies import set_doc_producer
+
+        kafka_producer = DocProducer()
+        await kafka_producer.start()
+        set_doc_producer(kafka_producer)
         logger.info("kafka_producer_started")
     except Exception as e:
         logger.error("kafka_producer_init_error", error=str(e))
         # Continue sem Kafka para desenvolvimento
 
-    # TODO: Registrar no Service Registry
-    # _registry_client = DocIngestionServiceRegistryClient(settings)
-    # if await _registry_client.initialize():
-    #     agent_id = await _registry_client.register(
-    #         capabilities=[
-    #             "pdf_parsing",
-    #             "word_parsing",
-    #             "visio_parsing",
-    #             "postman_parsing",
-    #             "entity_extraction",
-    #         ],
-    #         metadata={
-    #             "kafka_producer": "doc_producer",
-    #             "version": "1.0.0",
-    #         },
-    #     )
-    #     if agent_id:
-    #         logger.info(
-    #             "service_registered_successfully",
-    #             service="doc-ingestion",
-    #             agent_id=agent_id,
-    #             port=8018,
-    #         )
-    #         await _registry_client.start_heartbeat(interval_seconds=30)
-    #         app.state.registry_client = _registry_client
+    # Registrar no Service Registry
+    try:
+        _registry_client = DocIngestionServiceRegistryClient()
+        if await _registry_client.initialize():
+            agent_id = await _registry_client.register(
+                capabilities=[
+                    "pdf_parsing",
+                    "word_parsing",
+                    "visio_parsing",
+                    "postman_parsing",
+                    "entity_extraction",
+                    "document_upload",
+                    "document_storage",
+                ],
+                metadata={
+                    "kafka_producer": "doc_producer",
+                    "api_version": settings.api_version,
+                    "max_file_size_mb": str(settings.max_file_size_mb),
+                },
+            )
+            if agent_id:
+                logger.info(
+                    "service_registered_successfully",
+                    service="doc-ingestion",
+                    agent_id=agent_id,
+                    port=settings.port,
+                )
+                await _registry_client.start_heartbeat(interval_seconds=30)
+                app.state.registry_client = _registry_client
+    except Exception as e:
+        logger.warning(
+            "service_registry_registration_failed",
+            error=str(e),
+            message="Service continuing without Service Registry",
+        )
 
     # Setup signal handlers
     def signal_handler(sig: int, frame):
@@ -97,16 +108,24 @@ async def lifespan(app: FastAPI):
     # Shutdown
     logger.info("shutting_down_doc_ingestion_service")
 
-    # TODO: Fechar Service Registry
-    # if _registry_client:
-    #     await _registry_client.close()
+    # Fechar Service Registry
+    if _registry_client:
+        try:
+            await _registry_client.close()
+        except Exception as e:
+            logger.error("service_registry_shutdown_error", error=str(e))
 
     # Fechar Kafka Producer
-    if _kafka_producer:
+    from src.dependencies import get_doc_producer, clear_doc_producer
+
+    kafka_producer = get_doc_producer()
+    if kafka_producer:
         try:
-            await _kafka_producer.stop()
+            await kafka_producer.stop()
         except Exception as e:
             logger.error("kafka_producer_shutdown_error", error=str(e))
+        finally:
+            clear_doc_producer()
 
     # Fechar MongoDB Client
     if _mongodb_client:
@@ -146,11 +165,6 @@ async def log_requests(request, call_next):
 
 
 # Helper functions for dependency injection
-def get_doc_producer() -> DocProducer | None:
-    """Retorna instância do Kafka producer."""
-    return _kafka_producer
-
-
 def get_mongodb_client():
     """Retorna instância do cliente MongoDB."""
     return _mongodb_client
@@ -160,6 +174,8 @@ def get_mongodb_client():
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
+    from src.dependencies import get_doc_producer
+
     mongodb_connected = False
     if _mongodb_client:
         try:
@@ -167,11 +183,13 @@ async def health_check():
         except Exception:
             pass
 
+    kafka_producer = get_doc_producer()
+
     return {
         "service": settings.service_name,
         "status": "healthy",
         "version": settings.service_version,
-        "kafka_connected": _kafka_producer is not None,
+        "kafka_connected": kafka_producer is not None,
         "mongodb_connected": mongodb_connected,
     }
 

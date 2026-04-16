@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse
 
 from src.clients.s3_client import get_s3_client
-from src.main import get_doc_producer
+from src.dependencies import get_doc_producer
 from src.models.document import DocumentStatus
 from src.repositories.document_repository import DocumentRepository
 from src.services.entity_extractor import EntityExtractor

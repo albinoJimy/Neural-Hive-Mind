@@ -3,7 +3,7 @@
 import grpc
 import warnings
 
-from src.proto import service_registry_pb2 as src_dot_proto_dot_service__registry__pb2
+from . import service_registry_pb2 as service__registry__pb2
 
 GRPC_GENERATED_VERSION = '1.71.2'
 GRPC_VERSION = grpc.__version__
@@ -18,7 +18,7 @@ except ImportError:
 if _version_not_supported:
     raise RuntimeError(
         f'The grpc package installed is at version {GRPC_VERSION},'
-        + f' but the generated code in src/proto/service_registry_pb2_grpc.py depends on'
+        + f' but the generated code in service_registry_pb2_grpc.py depends on'
         + f' grpcio>={GRPC_GENERATED_VERSION}.'
         + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
         + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
@@ -37,43 +37,43 @@ class ServiceRegistryStub(object):
         """
         self.Register = channel.unary_unary(
                 '/neural_hive.service_registry.ServiceRegistry/Register',
-                request_serializer=src_dot_proto_dot_service__registry__pb2.RegisterRequest.SerializeToString,
-                response_deserializer=src_dot_proto_dot_service__registry__pb2.RegisterResponse.FromString,
+                request_serializer=service__registry__pb2.RegisterRequest.SerializeToString,
+                response_deserializer=service__registry__pb2.RegisterResponse.FromString,
                 _registered_method=True)
         self.Heartbeat = channel.unary_unary(
                 '/neural_hive.service_registry.ServiceRegistry/Heartbeat',
-                request_serializer=src_dot_proto_dot_service__registry__pb2.HeartbeatRequest.SerializeToString,
-                response_deserializer=src_dot_proto_dot_service__registry__pb2.HeartbeatResponse.FromString,
+                request_serializer=service__registry__pb2.HeartbeatRequest.SerializeToString,
+                response_deserializer=service__registry__pb2.HeartbeatResponse.FromString,
                 _registered_method=True)
         self.Deregister = channel.unary_unary(
                 '/neural_hive.service_registry.ServiceRegistry/Deregister',
-                request_serializer=src_dot_proto_dot_service__registry__pb2.DeregisterRequest.SerializeToString,
-                response_deserializer=src_dot_proto_dot_service__registry__pb2.DeregisterResponse.FromString,
+                request_serializer=service__registry__pb2.DeregisterRequest.SerializeToString,
+                response_deserializer=service__registry__pb2.DeregisterResponse.FromString,
                 _registered_method=True)
         self.DiscoverAgents = channel.unary_unary(
                 '/neural_hive.service_registry.ServiceRegistry/DiscoverAgents',
-                request_serializer=src_dot_proto_dot_service__registry__pb2.DiscoverRequest.SerializeToString,
-                response_deserializer=src_dot_proto_dot_service__registry__pb2.DiscoverResponse.FromString,
+                request_serializer=service__registry__pb2.DiscoverRequest.SerializeToString,
+                response_deserializer=service__registry__pb2.DiscoverResponse.FromString,
                 _registered_method=True)
         self.GetAgent = channel.unary_unary(
                 '/neural_hive.service_registry.ServiceRegistry/GetAgent',
-                request_serializer=src_dot_proto_dot_service__registry__pb2.GetAgentRequest.SerializeToString,
-                response_deserializer=src_dot_proto_dot_service__registry__pb2.GetAgentResponse.FromString,
+                request_serializer=service__registry__pb2.GetAgentRequest.SerializeToString,
+                response_deserializer=service__registry__pb2.GetAgentResponse.FromString,
                 _registered_method=True)
         self.ListAgents = channel.unary_unary(
                 '/neural_hive.service_registry.ServiceRegistry/ListAgents',
-                request_serializer=src_dot_proto_dot_service__registry__pb2.ListAgentsRequest.SerializeToString,
-                response_deserializer=src_dot_proto_dot_service__registry__pb2.ListAgentsResponse.FromString,
+                request_serializer=service__registry__pb2.ListAgentsRequest.SerializeToString,
+                response_deserializer=service__registry__pb2.ListAgentsResponse.FromString,
                 _registered_method=True)
         self.WatchAgents = channel.unary_stream(
                 '/neural_hive.service_registry.ServiceRegistry/WatchAgents',
-                request_serializer=src_dot_proto_dot_service__registry__pb2.WatchAgentsRequest.SerializeToString,
-                response_deserializer=src_dot_proto_dot_service__registry__pb2.AgentChangeEvent.FromString,
+                request_serializer=service__registry__pb2.WatchAgentsRequest.SerializeToString,
+                response_deserializer=service__registry__pb2.AgentChangeEvent.FromString,
                 _registered_method=True)
         self.NotifyAgent = channel.unary_unary(
                 '/neural_hive.service_registry.ServiceRegistry/NotifyAgent',
-                request_serializer=src_dot_proto_dot_service__registry__pb2.NotifyAgentRequest.SerializeToString,
-                response_deserializer=src_dot_proto_dot_service__registry__pb2.NotifyAgentResponse.FromString,
+                request_serializer=service__registry__pb2.NotifyAgentRequest.SerializeToString,
+                response_deserializer=service__registry__pb2.NotifyAgentResponse.FromString,
                 _registered_method=True)
 
 
@@ -142,43 +142,43 @@ def add_ServiceRegistryServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'Register': grpc.unary_unary_rpc_method_handler(
                     servicer.Register,
-                    request_deserializer=src_dot_proto_dot_service__registry__pb2.RegisterRequest.FromString,
-                    response_serializer=src_dot_proto_dot_service__registry__pb2.RegisterResponse.SerializeToString,
+                    request_deserializer=service__registry__pb2.RegisterRequest.FromString,
+                    response_serializer=service__registry__pb2.RegisterResponse.SerializeToString,
             ),
             'Heartbeat': grpc.unary_unary_rpc_method_handler(
                     servicer.Heartbeat,
-                    request_deserializer=src_dot_proto_dot_service__registry__pb2.HeartbeatRequest.FromString,
-                    response_serializer=src_dot_proto_dot_service__registry__pb2.HeartbeatResponse.SerializeToString,
+                    request_deserializer=service__registry__pb2.HeartbeatRequest.FromString,
+                    response_serializer=service__registry__pb2.HeartbeatResponse.SerializeToString,
             ),
             'Deregister': grpc.unary_unary_rpc_method_handler(
                     servicer.Deregister,
-                    request_deserializer=src_dot_proto_dot_service__registry__pb2.DeregisterRequest.FromString,
-                    response_serializer=src_dot_proto_dot_service__registry__pb2.DeregisterResponse.SerializeToString,
+                    request_deserializer=service__registry__pb2.DeregisterRequest.FromString,
+                    response_serializer=service__registry__pb2.DeregisterResponse.SerializeToString,
             ),
             'DiscoverAgents': grpc.unary_unary_rpc_method_handler(
                     servicer.DiscoverAgents,
-                    request_deserializer=src_dot_proto_dot_service__registry__pb2.DiscoverRequest.FromString,
-                    response_serializer=src_dot_proto_dot_service__registry__pb2.DiscoverResponse.SerializeToString,
+                    request_deserializer=service__registry__pb2.DiscoverRequest.FromString,
+                    response_serializer=service__registry__pb2.DiscoverResponse.SerializeToString,
             ),
             'GetAgent': grpc.unary_unary_rpc_method_handler(
                     servicer.GetAgent,
-                    request_deserializer=src_dot_proto_dot_service__registry__pb2.GetAgentRequest.FromString,
-                    response_serializer=src_dot_proto_dot_service__registry__pb2.GetAgentResponse.SerializeToString,
+                    request_deserializer=service__registry__pb2.GetAgentRequest.FromString,
+                    response_serializer=service__registry__pb2.GetAgentResponse.SerializeToString,
             ),
             'ListAgents': grpc.unary_unary_rpc_method_handler(
                     servicer.ListAgents,
-                    request_deserializer=src_dot_proto_dot_service__registry__pb2.ListAgentsRequest.FromString,
-                    response_serializer=src_dot_proto_dot_service__registry__pb2.ListAgentsResponse.SerializeToString,
+                    request_deserializer=service__registry__pb2.ListAgentsRequest.FromString,
+                    response_serializer=service__registry__pb2.ListAgentsResponse.SerializeToString,
             ),
             'WatchAgents': grpc.unary_stream_rpc_method_handler(
                     servicer.WatchAgents,
-                    request_deserializer=src_dot_proto_dot_service__registry__pb2.WatchAgentsRequest.FromString,
-                    response_serializer=src_dot_proto_dot_service__registry__pb2.AgentChangeEvent.SerializeToString,
+                    request_deserializer=service__registry__pb2.WatchAgentsRequest.FromString,
+                    response_serializer=service__registry__pb2.AgentChangeEvent.SerializeToString,
             ),
             'NotifyAgent': grpc.unary_unary_rpc_method_handler(
                     servicer.NotifyAgent,
-                    request_deserializer=src_dot_proto_dot_service__registry__pb2.NotifyAgentRequest.FromString,
-                    response_serializer=src_dot_proto_dot_service__registry__pb2.NotifyAgentResponse.SerializeToString,
+                    request_deserializer=service__registry__pb2.NotifyAgentRequest.FromString,
+                    response_serializer=service__registry__pb2.NotifyAgentResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -207,8 +207,8 @@ class ServiceRegistry(object):
             request,
             target,
             '/neural_hive.service_registry.ServiceRegistry/Register',
-            src_dot_proto_dot_service__registry__pb2.RegisterRequest.SerializeToString,
-            src_dot_proto_dot_service__registry__pb2.RegisterResponse.FromString,
+            service__registry__pb2.RegisterRequest.SerializeToString,
+            service__registry__pb2.RegisterResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -234,8 +234,8 @@ class ServiceRegistry(object):
             request,
             target,
             '/neural_hive.service_registry.ServiceRegistry/Heartbeat',
-            src_dot_proto_dot_service__registry__pb2.HeartbeatRequest.SerializeToString,
-            src_dot_proto_dot_service__registry__pb2.HeartbeatResponse.FromString,
+            service__registry__pb2.HeartbeatRequest.SerializeToString,
+            service__registry__pb2.HeartbeatResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -261,8 +261,8 @@ class ServiceRegistry(object):
             request,
             target,
             '/neural_hive.service_registry.ServiceRegistry/Deregister',
-            src_dot_proto_dot_service__registry__pb2.DeregisterRequest.SerializeToString,
-            src_dot_proto_dot_service__registry__pb2.DeregisterResponse.FromString,
+            service__registry__pb2.DeregisterRequest.SerializeToString,
+            service__registry__pb2.DeregisterResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -288,8 +288,8 @@ class ServiceRegistry(object):
             request,
             target,
             '/neural_hive.service_registry.ServiceRegistry/DiscoverAgents',
-            src_dot_proto_dot_service__registry__pb2.DiscoverRequest.SerializeToString,
-            src_dot_proto_dot_service__registry__pb2.DiscoverResponse.FromString,
+            service__registry__pb2.DiscoverRequest.SerializeToString,
+            service__registry__pb2.DiscoverResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -315,8 +315,8 @@ class ServiceRegistry(object):
             request,
             target,
             '/neural_hive.service_registry.ServiceRegistry/GetAgent',
-            src_dot_proto_dot_service__registry__pb2.GetAgentRequest.SerializeToString,
-            src_dot_proto_dot_service__registry__pb2.GetAgentResponse.FromString,
+            service__registry__pb2.GetAgentRequest.SerializeToString,
+            service__registry__pb2.GetAgentResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -342,8 +342,8 @@ class ServiceRegistry(object):
             request,
             target,
             '/neural_hive.service_registry.ServiceRegistry/ListAgents',
-            src_dot_proto_dot_service__registry__pb2.ListAgentsRequest.SerializeToString,
-            src_dot_proto_dot_service__registry__pb2.ListAgentsResponse.FromString,
+            service__registry__pb2.ListAgentsRequest.SerializeToString,
+            service__registry__pb2.ListAgentsResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -369,8 +369,8 @@ class ServiceRegistry(object):
             request,
             target,
             '/neural_hive.service_registry.ServiceRegistry/WatchAgents',
-            src_dot_proto_dot_service__registry__pb2.WatchAgentsRequest.SerializeToString,
-            src_dot_proto_dot_service__registry__pb2.AgentChangeEvent.FromString,
+            service__registry__pb2.WatchAgentsRequest.SerializeToString,
+            service__registry__pb2.AgentChangeEvent.FromString,
             options,
             channel_credentials,
             insecure,
@@ -396,8 +396,8 @@ class ServiceRegistry(object):
             request,
             target,
             '/neural_hive.service_registry.ServiceRegistry/NotifyAgent',
-            src_dot_proto_dot_service__registry__pb2.NotifyAgentRequest.SerializeToString,
-            src_dot_proto_dot_service__registry__pb2.NotifyAgentResponse.FromString,
+            service__registry__pb2.NotifyAgentRequest.SerializeToString,
+            service__registry__pb2.NotifyAgentResponse.FromString,
             options,
             channel_credentials,
             insecure,
