@@ -1,0 +1,37 @@
+# Knowledge Graph RAG - Kubernetes Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: knowledge-graph-rag
+  namespace: neural-hive-mind
+  labels:
+    app: knowledge-graph-rag
+    component: knowledge-retrieval
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+  - name: http
+    port: 8016
+    targetPort: 8016
+    protocol: TCP
+  selector:
+    app: knowledge-graph-rag
+---
+# Knowledge Graph RAG - ServiceMonitor for Prometheus (optional)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: knowledge-graph-rag
+  namespace: neural-hive-mind
+  labels:
+    app: knowledge-graph-rag
+spec:
+  selector:
+    matchLabels:
+      app: knowledge-graph-rag
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
