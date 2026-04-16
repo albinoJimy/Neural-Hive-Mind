@@ -74,6 +74,11 @@ class MermaidRenderer:
             )
         )
 
+        # Validar que o arquivo foi criado
+        output_path = Path(output_path)
+        if not output_path.exists():
+            raise RuntimeError(f"Mermaid rendering failed: {output_path} not created")
+
         self._logger.info(
             "mermaid_rendered",
             output_path=str(output_path)

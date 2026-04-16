@@ -30,10 +30,13 @@ class C4DiagramGenerator:
             for ext in external_systems
         )
 
-        relationships = "\n".join([
-            "    Rel(user, system, \"Usa\")",
-            "    Rel(system, external1, \"Integra via API\")"
-        ])
+        # Gerar relationships dinamicamente
+        relationships_list = []
+        for actor in actors:
+            relationships_list.append(f'    Rel({actor.lower()}, system, "Usa")')
+        for ext in external_systems:
+            relationships_list.append(f'    Rel(system, {ext.lower()}, "Integra via API")')
+        relationships = "\n".join(relationships_list) if relationships_list else ""
 
         return f"""C4Context
     title {project_name} - Context Diagram

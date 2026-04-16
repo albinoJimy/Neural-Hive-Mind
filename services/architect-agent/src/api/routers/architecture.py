@@ -222,7 +222,7 @@ async def identify_bounded_contexts(request: ContextIdentificationRequest):
                         for t in ctx.ubiquitous_language
                     ],
                     "relationships": [
-                        {"type": r.type, "target": r.target_context}
+                        {"type": r.relationship_type, "target": r.to_context}
                         for r in ctx.relationships
                     ]
                 }

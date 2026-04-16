@@ -1,7 +1,7 @@
 """Unit tests for TechStackRecommender."""
 
 import pytest
-from architect.recommenders.tech_stack import TechStackRecommender
+from src.recommenders.tech_stack import TechStackRecommender
 
 
 @pytest.mark.asyncio

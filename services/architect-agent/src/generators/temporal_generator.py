@@ -375,7 +375,7 @@ class {self._to_pascal_case(wf.name)}Workflow:
                 await self._compensate(input_data)
 
             self._saga_state["status"] = "failed"
-            self._sage_state["error"] = str(e)
+            self._saga_state["error"] = str(e)
 
             raise ApplicationError(
                 f"Workflow falhou: {{e}}",
