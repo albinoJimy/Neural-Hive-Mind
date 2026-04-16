@@ -297,14 +297,26 @@ class ArchitectureDiagramGenerator:
 
         description_lower = description.lower()
 
-        # Heurísticas para determinar tipo de diagrama
-        if any(word in description_lower for word in ["sequence", "flow", "step", "then", "after"]):
-            # Diagrama de sequência
-            title = "Generated Sequence Diagram"
-            steps = self._parse_sequence_from_description(description)
-            return await self.generate_sequence(title, steps, render=render)
+        # Converter para lista de palavras para matching exato (evita substrings)
+        words = description_lower.split()
 
-        elif any(word in description_lower for word in ["context", "system", "user", "external"]):
+        # Heurísticas para determinar tipo de diagrama
+        # Prioridade: contexto (descrição de sistema) > sequência (fluxo)
+        context_keywords = {"context", "system", "architecture", "component"}
+        sequence_keywords = {"sequence", "flow", "step", "then", "after", "next"}
+
+        # Verificar se há palavras-chave de contexto (prioridade alta)
+        has_context = any(word in words or f"{word}s" in words for word in context_keywords)
+
+        # Verificar se há palavras-chave de sequência (mas apenas se não for contexto)
+        has_sequence = any(word in words or f"{word}s" in words for word in sequence_keywords)
+
+        # Detectar padrões de fluxo sequencial (frases como "then X happens")
+        has_explicit_sequence = any(pattern in description_lower for pattern in [
+            ", then ", ", after ", " next ", " followed by ", " subsequently "
+        ])
+
+        if has_context and not has_explicit_sequence:
             # Diagrama de contexto C4
             title = "Generated Context Diagram"
             project_name = "System"
@@ -323,6 +335,11 @@ class ArchitectureDiagramGenerator:
                 mermaid_code=mermaid_code,
                 svg_url=None
             )
+        elif has_sequence or has_explicit_sequence:
+            # Diagrama de sequência
+            title = "Generated Sequence Diagram"
+            steps = self._parse_sequence_from_description(description)
+            return await self.generate_sequence(title, steps, render=render)
         else:
             # Fallback: diagrama de contexto simples
             title = "Generated Diagram"

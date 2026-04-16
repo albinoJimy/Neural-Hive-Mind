@@ -34,28 +34,20 @@ class Settings(BaseSettings):
     llm_max_tokens: int = 4000
 
     # MongoDB
-    mongodb_url: str = Field(
-        default="mongodb://localhost:27017",
-        validation_alias="MONGODB_URL"
-    )
+    mongodb_url: str = Field(default="mongodb://localhost:27017", validation_alias="MONGODB_URL")
     mongodb_database: str = Field(
-        default="requirements_engineering",
-        validation_alias="MONGODB_DATABASE"
+        default="requirements_engineering", validation_alias="MONGODB_DATABASE"
     )
     collection_requirements: str = "requirements"
     collection_user_stories: str = "user_stories"
     collection_acceptance_criteria: str = "acceptance_criteria"
 
     # Redis
-    redis_url: str = Field(
-        default="redis://localhost:6379/0",
-        validation_alias="REDIS_URL"
-    )
+    redis_url: str = Field(default="redis://localhost:6379/0", validation_alias="REDIS_URL")
 
     # Kafka
     kafka_bootstrap_servers: str = Field(
-        default="localhost:9092",
-        validation_alias="KAFKA_BOOTSTRAP_SERVERS"
+        default="localhost:9092", validation_alias="KAFKA_BOOTSTRAP_SERVERS"
     )
     kafka_consumer_group: str = "requirements-engineering-consumers"
     kafka_input_topic: str = "cognitive.plans.created"
@@ -64,12 +56,10 @@ class Settings(BaseSettings):
 
     # Neural Hive-Mend Integration
     gateway_url: str = Field(
-        default="http://gateway-intencoes:8000",
-        validation_alias="GATEWAY_URL"
+        default="http://gateway-intencoes:8000", validation_alias="GATEWAY_URL"
     )
     orchestrator_url: str = Field(
-        default="http://orchestrator-dynamic:8003",
-        validation_alias="ORCHESTRATOR_URL"
+        default="http://orchestrator-dynamic:8003", validation_alias="ORCHESTRATOR_URL"
     )
 
     # Service Info

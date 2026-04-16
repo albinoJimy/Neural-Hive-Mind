@@ -17,7 +17,9 @@ def mock_llm_response():
     mock = Mock()
     mock.choices = [Mock()]
     mock.choices[0].message = Mock()
-    mock.choices[0].message.content = '''
+    mock.choices[
+        0
+    ].message.content = """
 [
   {
     "id": "REQ-001",
@@ -36,7 +38,7 @@ def mock_llm_response():
     "rationale": "Requisito de SLA"
   }
 ]
-'''
+"""
     return mock
 
 
@@ -56,8 +58,7 @@ async def test_generate_requirements_from_cognitive_plan(engineer):
 
     # Act
     requirements_set = await engineer.generate_from_cognitive_plan(
-        plan_id="CP-001",
-        plan_text=cognitive_plan_text
+        plan_id="CP-001", plan_text=cognitive_plan_text
     )
 
     # Assert
@@ -76,13 +77,18 @@ async def test_generate_requirements_includes_functional_and_non_functional(engi
 
     # Act
     requirements_set = await engineer.generate_from_cognitive_plan(
-        plan_id="CP-002",
-        plan_text=cognitive_plan_text
+        plan_id="CP-002", plan_text=cognitive_plan_text
     )
 
     # Assert
-    functional = [r for r in requirements_set.requirements if r.requirement_type == RequirementType.FUNCTIONAL]
-    non_functional = [r for r in requirements_set.requirements if r.requirement_type == RequirementType.NON_FUNCTIONAL]
+    functional = [
+        r for r in requirements_set.requirements if r.requirement_type == RequirementType.FUNCTIONAL
+    ]
+    non_functional = [
+        r
+        for r in requirements_set.requirements
+        if r.requirement_type == RequirementType.NON_FUNCTIONAL
+    ]
 
     assert len(functional) > 0, "Deve gerar requisitos funcionais"
     assert len(non_functional) > 0, "Deve gerar requisitos não-funcionais"
@@ -93,8 +99,18 @@ async def test_prioritize_requirements_correctly(engineer):
     """Testa priorização correta de requisitos."""
     # Arrange
     requirements = [
-        Requirement(id="REQ-001", title="Login", description="Login de usuário com pelo menos 10 caracteres", priority=RequirementPriority.HIGH),
-        Requirement(id="REQ-002", title="Logout", description="Logout de usuário do sistema", priority=RequirementPriority.MEDIUM),
+        Requirement(
+            id="REQ-001",
+            title="Login",
+            description="Login de usuário com pelo menos 10 caracteres",
+            priority=RequirementPriority.HIGH,
+        ),
+        Requirement(
+            id="REQ-002",
+            title="Logout",
+            description="Logout de usuário do sistema",
+            priority=RequirementPriority.MEDIUM,
+        ),
     ]
 
     # Act
@@ -110,17 +126,21 @@ async def test_identify_dependencies(engineer):
     # Arrange
     requirements = [
         Requirement(id="REQ-001", title="Criar usuário", description="Criar usuário no sistema"),
-        Requirement(id="REQ-002", title="Autenticar usuário", description="Autenticar usuário criado"),
+        Requirement(
+            id="REQ-002", title="Autenticar usuário", description="Autenticar usuário criado"
+        ),
     ]
 
     # Mock da resposta do LLM para análise de dependências
     mock_response = Mock()
     mock_response.choices = [Mock()]
     mock_response.choices[0].message = Mock()
-    mock_response.choices[0].message.content = '''[
+    mock_response.choices[
+        0
+    ].message.content = """[
   {"id": "REQ-001", "dependencies": [], "conflicts": []},
   {"id": "REQ-002", "dependencies": ["REQ-001"], "conflicts": []}
-]'''
+]"""
     engineer._llm_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
     # Act

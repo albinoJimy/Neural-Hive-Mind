@@ -11,9 +11,9 @@ class StorySize(str, Enum):
     """Tamanho estimado da user story (story points)."""
 
     EXTRA_SMALL = "xs"  # 1 ponto
-    SMALL = "s"         # 2 pontos
-    MEDIUM = "m"        # 3 pontos
-    LARGE = "l"         # 5 pontos
+    SMALL = "s"  # 2 pontos
+    MEDIUM = "m"  # 3 pontos
+    LARGE = "l"  # 5 pontos
     EXTRA_LARGE = "xl"  # 8+ pontos
 
 
@@ -37,31 +37,19 @@ class UserStory(BaseModel):
 
     # Formato padrão: Como [role], eu quero [feature], para que [benefit]
     role: str = Field(..., description="Papel do utilizador (ex: 'admin', 'utilizador final')")
-    action: str = Field(
-        ...,
-        description="Acção que o utilizador quer realizar (feature desejada)"
-    )
-    benefit: str = Field(
-        ...,
-        description="Benefício ou valor que o utilizador obtém"
-    )
+    action: str = Field(..., description="Acção que o utilizador quer realizar (feature desejada)")
+    benefit: str = Field(..., description="Benefício ou valor que o utilizador obtém")
 
     # Detalhes adicionais
-    description: str = Field(
-        default="",
-        description="Descrição detalhada da história"
-    )
+    description: str = Field(default="", description="Descrição detalhada da história")
     acceptance_criteria_ids: List[str] = Field(
-        default_factory=list,
-        description="IDs dos critérios de aceitação"
+        default_factory=list, description="IDs dos critérios de aceitação"
     )
     tasks: List[str] = Field(
-        default_factory=list,
-        description="Lista de tarefas técnicas para implementação"
+        default_factory=list, description="Lista de tarefas técnicas para implementação"
     )
     dependencies: List[str] = Field(
-        default_factory=list,
-        description="IDs das user stories das quais depende"
+        default_factory=list, description="IDs das user stories das quais depende"
     )
 
     # Metadados

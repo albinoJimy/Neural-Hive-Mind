@@ -45,10 +45,7 @@ class CodeDocGenerator:
         self._logger = logger
 
     async def generate_from_code(
-        self,
-        code: str,
-        file_path: str,
-        language: str = "python"
+        self, code: str, file_path: str, language: str = "python"
     ) -> Document:
         """
         Gera documentação a partir do código fonte.
@@ -66,7 +63,7 @@ class CodeDocGenerator:
         prompt = CODE_DOC_PROMPT.format(
             file_path=file_path,
             language=language,
-            code=code[:5000]  # Limitar para não exceder contexto
+            code=code[:5000],  # Limitar para não exceder contexto
         )
 
         try:
@@ -75,12 +72,12 @@ class CodeDocGenerator:
                 messages=[
                     {
                         "role": "system",
-                        "content": "Você é um technical writer especialista em documentação de código."
+                        "content": "Você é um technical writer especialista em documentação de código.",
                     },
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": prompt},
                 ],
                 temperature=0.5,
-                max_tokens=3000
+                max_tokens=3000,
             )
 
             content = response.choices[0].message.content
@@ -92,7 +89,7 @@ class CodeDocGenerator:
                 title=f"Documentation: {file_path}",
                 content=content,
                 file_path=file_path,
-                metadata={"language": language, "original_file": file_path}
+                metadata={"language": language, "original_file": file_path},
             )
 
         except Exception as e:
@@ -122,28 +119,30 @@ class CodeDocGenerator:
 
             for node in ast.walk(tree):
                 if isinstance(node, ast.FunctionDef):
-                    items.append({
-                        "type": "function",
-                        "name": node.name,
-                        "lineno": node.lineno,
-                        "docstring": ast.get_docstring(node)
-                    })
+                    items.append(
+                        {
+                            "type": "function",
+                            "name": node.name,
+                            "lineno": node.lineno,
+                            "docstring": ast.get_docstring(node),
+                        }
+                    )
                 elif isinstance(node, ast.ClassDef):
-                    items.append({
-                        "type": "class",
-                        "name": node.name,
-                        "lineno": node.lineno,
-                        "docstring": ast.get_docstring(node)
-                    })
+                    items.append(
+                        {
+                            "type": "class",
+                            "name": node.name,
+                            "lineno": node.lineno,
+                            "docstring": ast.get_docstring(node),
+                        }
+                    )
 
             return items
         except Exception:
             return []
 
     async def generate_for_project(
-        self,
-        files: List[Dict[str, str]],
-        project_name: str
+        self, files: List[Dict[str, str]], project_name: str
     ) -> Document:
         """
         Gera documentação completa para um projeto.
@@ -178,12 +177,12 @@ A documentação deve incluir:
                 messages=[
                     {
                         "role": "system",
-                        "content": "Você é um technical writer especialista em documentação de projetos de software."
+                        "content": "Você é um technical writer especialista em documentação de projetos de software.",
                     },
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": prompt},
                 ],
                 temperature=0.5,
-                max_tokens=4000
+                max_tokens=4000,
             )
 
             content = response.choices[0].message.content
@@ -195,7 +194,7 @@ A documentação deve incluir:
                 title=f"{project_name} Documentation",
                 content=content,
                 file_path=f"docs/{project_name}/README.md",
-                metadata={"project": project_name, "files_count": len(files)}
+                metadata={"project": project_name, "files_count": len(files)},
             )
 
         except Exception as e:

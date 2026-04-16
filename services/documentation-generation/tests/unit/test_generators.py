@@ -19,7 +19,9 @@ def mock_llm_response():
     mock = Mock()
     mock.choices = [Mock()]
     mock.choices[0].message = Mock()
-    mock.choices[0].message.content = '''# Test Project
+    mock.choices[
+        0
+    ].message.content = """# Test Project
 
 This is a test project.
 
@@ -38,7 +40,7 @@ Run `pip install test-project`
 import test_project
 test_project.run()
 ```
-'''
+"""
     return mock
 
 
@@ -58,7 +60,7 @@ async def test_generate_readme(readme_generator):
         project_description="A test project for documentation",
         features=["Feature 1", "Feature 2"],
         installation="pip install test-project",
-        usage="python -m test_project"
+        usage="python -m test_project",
     )
 
     document = await readme_generator.generate(request)
@@ -75,20 +77,21 @@ async def test_diagram_generator():
     mock_response = Mock()
     mock_response.choices = [Mock()]
     mock_response.choices[0].message = Mock()
-    mock_response.choices[0].message.content = '''sequenceDiagram
+    mock_response.choices[
+        0
+    ].message.content = """sequenceDiagram
     participant User
     participant System
     User->>System: Request
     System-->>User: Response
-'''
+"""
 
     mock_client = AsyncMock()
     mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
     generator = DiagramGenerator(llm_client=mock_client)
     document = await generator.generate(
-        description="User requests data from system",
-        diagram_type="sequence"
+        description="User requests data from system", diagram_type="sequence"
     )
 
     assert document.doc_type == DocType.DIAGRAM
@@ -102,7 +105,9 @@ async def test_code_doc_generator():
     mock_response = Mock()
     mock_response.choices = [Mock()]
     mock_response.choices[0].message = Mock()
-    mock_response.choices[0].message.content = '''# Code Documentation
+    mock_response.choices[
+        0
+    ].message.content = """# Code Documentation
 
 ## Purpose
 This function calculates the sum of two numbers.
@@ -118,16 +123,14 @@ The sum of a and b
 ```python
 result = calculate_sum(1, 2)  # Returns 3
 ```
-'''
+"""
 
     mock_client = AsyncMock()
     mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
 
     generator = CodeDocGenerator(llm_client=mock_client)
     document = await generator.generate_from_code(
-        code="def calculate_sum(a, b): return a + b",
-        file_path="utils/math.py",
-        language="python"
+        code="def calculate_sum(a, b): return a + b", file_path="utils/math.py", language="python"
     )
 
     assert document.doc_type == DocType.API_DOCS

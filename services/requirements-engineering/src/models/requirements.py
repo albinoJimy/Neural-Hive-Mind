@@ -39,67 +39,39 @@ class Requirement(BaseModel):
 
     id: str = Field(..., description="ID único do requisito")
     requirement_type: RequirementType = Field(
-        default=RequirementType.FUNCTIONAL,
-        description="Tipo do requisito"
+        default=RequirementType.FUNCTIONAL, description="Tipo do requisito"
     )
     priority: RequirementPriority = Field(
-        default=RequirementPriority.MEDIUM,
-        description="Prioridade do requisito"
+        default=RequirementPriority.MEDIUM, description="Prioridade do requisito"
     )
     status: RequirementStatus = Field(
-        default=RequirementStatus.DRAFT,
-        description="Status do requisito"
+        default=RequirementStatus.DRAFT, description="Status do requisito"
     )
     title: str = Field(..., min_length=5, max_length=200, description="Título do requisito")
-    description: str = Field(
-        ...,
-        min_length=20,
-        description="Descrição detalhada do requisito"
-    )
+    description: str = Field(..., min_length=20, description="Descrição detalhada do requisito")
     rationale: str = Field(
-        default="",
-        description="Justificativa do requisito (por que é necessário)"
+        default="", description="Justificativa do requisito (por que é necessário)"
     )
     acceptance_criteria_ids: List[str] = Field(
-        default_factory=list,
-        description="IDs dos critérios de aceitação"
+        default_factory=list, description="IDs dos critérios de aceitação"
     )
     user_story_ids: List[str] = Field(
-        default_factory=list,
-        description="IDs das user stories relacionadas"
+        default_factory=list, description="IDs das user stories relacionadas"
     )
     dependencies: List[str] = Field(
-        default_factory=list,
-        description="IDs dos requisitos dos quais depende"
+        default_factory=list, description="IDs dos requisitos dos quais depende"
     )
     conflicts: List[str] = Field(
-        default_factory=list,
-        description="IDs dos requisitos com os quais conflita"
+        default_factory=list, description="IDs dos requisitos com os quais conflita"
     )
-    tags: List[str] = Field(
-        default_factory=list,
-        description="Tags para categorização"
-    )
-    metadata: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Metadados adicionais"
-    )
-    cognitive_plan_id: Optional[str] = Field(
-        None,
-        description="ID do CognitivePlan de origem"
-    )
+    tags: List[str] = Field(default_factory=list, description="Tags para categorização")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais")
+    cognitive_plan_id: Optional[str] = Field(None, description="ID do CognitivePlan de origem")
     architecture_plan_id: Optional[str] = Field(
-        None,
-        description="ID do ArchitecturePlan relacionado"
+        None, description="ID do ArchitecturePlan relacionado"
     )
-    created_at: datetime = Field(
-        default_factory=datetime.utcnow,
-        description="Data de criação"
-    )
-    updated_at: Optional[datetime] = Field(
-        None,
-        description="Data da última atualização"
-    )
+    created_at: datetime = Field(default_factory=datetime.utcnow, description="Data de criação")
+    updated_at: Optional[datetime] = Field(None, description="Data da última atualização")
     version: int = Field(default=1, description="Versão do requisito")
 
     @field_validator("id")
@@ -152,7 +124,9 @@ class RequirementsSet(BaseModel):
     cognitive_plan_id: str = Field(..., description="ID do CognitivePlan de origem")
     requirements: List[Requirement] = Field(default_factory=list)
     functional_count: int = Field(default=0, description="Contagem de requisitos funcionais")
-    non_functional_count: int = Field(default=0, description="Contagem de requisitos não-funcionais")
+    non_functional_count: int = Field(
+        default=0, description="Contagem de requisitos não-funcionais"
+    )
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     def add_requirement(self, requirement: Requirement) -> None:

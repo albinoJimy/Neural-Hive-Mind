@@ -37,10 +37,7 @@ class DiagramGenerator:
         self._logger = logger
 
     async def generate(
-        self,
-        description: str,
-        diagram_type: str = "sequence",
-        metadata: Optional[dict] = None
+        self, description: str, diagram_type: str = "sequence", metadata: Optional[dict] = None
     ) -> Document:
         """
         Gera diagrama Mermaid.
@@ -56,19 +53,21 @@ class DiagramGenerator:
         self._logger.info("generating_diagram", type=diagram_type)
 
         prompt = DIAGRAM_GENERATION_PROMPT.format(
-            description=description,
-            diagram_type=diagram_type
+            description=description, diagram_type=diagram_type
         )
 
         try:
             response = await self._llm_client.chat.completions.create(
                 model=self._model,
                 messages=[
-                    {"role": "system", "content": "Você é um especialista em diagramas UML e Mermaid."},
-                    {"role": "user", "content": prompt}
+                    {
+                        "role": "system",
+                        "content": "Você é um especialista em diagramas UML e Mermaid.",
+                    },
+                    {"role": "user", "content": prompt},
                 ],
                 temperature=0.3,
-                max_tokens=2000
+                max_tokens=2000,
             )
 
             content = response.choices[0].message.content
@@ -76,6 +75,7 @@ class DiagramGenerator:
             # Limpar código markdown se presente
             if "```" in content:
                 import re
+
                 match = re.search(r"```(?:mermaid)?\s*\n(.*?)\n```", content, re.DOTALL)
                 if match:
                     content = match.group(1)
@@ -86,7 +86,7 @@ class DiagramGenerator:
                 format=DocFormat.MERMAID,
                 title=f"{diagram_type.title()} Diagram",
                 content=content,
-                metadata=metadata or {}
+                metadata=metadata or {},
             )
 
         except Exception as e:

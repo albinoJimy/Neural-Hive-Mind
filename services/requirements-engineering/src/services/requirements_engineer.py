@@ -88,10 +88,7 @@ class RequirementsEngineer:
         self._logger = logger
 
     async def generate_from_cognitive_plan(
-        self,
-        plan_id: str,
-        plan_text: str,
-        context: Optional[Dict[str, Any]] = None
+        self, plan_id: str, plan_text: str, context: Optional[Dict[str, Any]] = None
     ) -> RequirementsSet:
         """
         Gera requisitos a partir de um plano cognitivo.
@@ -112,11 +109,14 @@ class RequirementsEngineer:
             response = await self._llm_client.chat.completions.create(
                 model=self._model,
                 messages=[
-                    {"role": "system", "content": "Você é um engenheiro de requisitos especialista."},
-                    {"role": "user", "content": prompt}
+                    {
+                        "role": "system",
+                        "content": "Você é um engenheiro de requisitos especialista.",
+                    },
+                    {"role": "user", "content": prompt},
                 ],
                 temperature=0.7,
-                max_tokens=4000
+                max_tokens=4000,
             )
 
             content = response.choices[0].message.content
@@ -138,7 +138,7 @@ class RequirementsEngineer:
                         description=req_data.get("description", ""),
                         priority=RequirementPriority(req_data.get("priority", "medium")),
                         requirement_type=RequirementType(req_data.get("type", "functional")),
-                        rationale=req_data.get("rationale", "")
+                        rationale=req_data.get("rationale", ""),
                     )
                     requirements.append(req)
                 except ValidationError as e:
@@ -147,8 +147,7 @@ class RequirementsEngineer:
 
             # Criar RequirementsSet
             requirements_set = RequirementsSet(
-                id=f"RS-{uuid.uuid4().hex[:8]}",
-                cognitive_plan_id=plan_id
+                id=f"RS-{uuid.uuid4().hex[:8]}", cognitive_plan_id=plan_id
             )
 
             for req in requirements:
@@ -159,7 +158,7 @@ class RequirementsEngineer:
                 plan_id=plan_id,
                 total=len(requirements),
                 functional=requirements_set.functional_count,
-                non_functional=requirements_set.non_functional_count
+                non_functional=requirements_set.non_functional_count,
             )
 
             return requirements_set
@@ -168,10 +167,7 @@ class RequirementsEngineer:
             self._logger.error("failed_to_generate_requirements", error=str(e))
             raise
 
-    async def prioritize_requirements(
-        self,
-        requirements: List[Requirement]
-    ) -> List[Requirement]:
+    async def prioritize_requirements(self, requirements: List[Requirement]) -> List[Requirement]:
         """
         Prioriza requisitos baseado em impacto e urgência.
 
@@ -185,18 +181,12 @@ class RequirementsEngineer:
             RequirementPriority.CRITICAL: 0,
             RequirementPriority.HIGH: 1,
             RequirementPriority.MEDIUM: 2,
-            RequirementPriority.LOW: 3
+            RequirementPriority.LOW: 3,
         }
 
-        return sorted(
-            requirements,
-            key=lambda r: priority_order.get(r.priority, 99)
-        )
+        return sorted(requirements, key=lambda r: priority_order.get(r.priority, 99))
 
-    async def analyze_dependencies(
-        self,
-        requirements: List[Requirement]
-    ) -> List[Requirement]:
+    async def analyze_dependencies(self, requirements: List[Requirement]) -> List[Requirement]:
         """
         Analisa dependências entre requisitos usando LLM.
 
@@ -209,10 +199,9 @@ class RequirementsEngineer:
         self._logger.info("analyzing_dependencies", count=len(requirements))
 
         # Preparar texto dos requisitos
-        requirements_text = "\n".join([
-            f"{r.id}: {r.title} - {r.description[:100]}..."
-            for r in requirements
-        ])
+        requirements_text = "\n".join(
+            [f"{r.id}: {r.title} - {r.description[:100]}..." for r in requirements]
+        )
 
         prompt = DEPENDENCY_ANALYSIS_PROMPT.format(requirements_text=requirements_text)
 
@@ -221,10 +210,10 @@ class RequirementsEngineer:
                 model=self._model,
                 messages=[
                     {"role": "system", "content": "Você é um analista de requisitos especialista."},
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": prompt},
                 ],
                 temperature=0.3,
-                max_tokens=2000
+                max_tokens=2000,
             )
 
             content = response.choices[0].message.content

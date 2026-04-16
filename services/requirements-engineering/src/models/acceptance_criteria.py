@@ -33,35 +33,22 @@ class AcceptanceCriterion(BaseModel):
     user_story_id: Optional[str] = Field(None, description="ID da User Story relacionada")
     requirement_id: Optional[str] = Field(None, description="ID do Requisito relacionado")
     criterion_type: CriterionType = Field(
-        default=CriterionType.FUNCTIONAL,
-        description="Tipo do critério"
+        default=CriterionType.FUNCTIONAL, description="Tipo do critério"
     )
     status: CriterionStatus = Field(
-        default=CriterionStatus.PENDING,
-        description="Status do critério"
+        default=CriterionStatus.PENDING, description="Status do critério"
     )
 
     statement: str = Field(
-        ...,
-        min_length=10,
-        description="Declaração do critério no formato Given-When-Then"
+        ..., min_length=10, description="Declaração do critério no formato Given-When-Then"
     )
     given: Optional[str] = Field(None, description="Contexto inicial (Given)")
     when: Optional[str] = Field(None, description="Acção ou evento (When)")
     then: Optional[str] = Field(None, description="Resultado esperado (Then)")
 
-    test_scenario: Optional[str] = Field(
-        None,
-        description="Cenário de teste associado"
-    )
-    automated: bool = Field(
-        default=False,
-        description="Se possui teste automatizado"
-    )
-    test_file: Optional[str] = Field(
-        None,
-        description="Caminho para o teste automatizado"
-    )
+    test_scenario: Optional[str] = Field(None, description="Cenário de teste associado")
+    automated: bool = Field(default=False, description="Se possui teste automatizado")
+    test_file: Optional[str] = Field(None, description="Caminho para o teste automatizado")
 
     metadata: Dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=datetime.utcnow)

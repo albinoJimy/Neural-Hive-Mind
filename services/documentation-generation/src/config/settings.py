@@ -34,25 +34,17 @@ class Settings(BaseSettings):
     llm_max_tokens: int = 4000
 
     # MongoDB
-    mongodb_url: str = Field(
-        default="mongodb://localhost:27017",
-        validation_alias="MONGODB_URL"
-    )
+    mongodb_url: str = Field(default="mongodb://localhost:27017", validation_alias="MONGODB_URL")
     mongodb_database: str = Field(
-        default="documentation_generation",
-        validation_alias="MONGODB_DATABASE"
+        default="documentation_generation", validation_alias="MONGODB_DATABASE"
     )
 
     # Redis
-    redis_url: str = Field(
-        default="redis://localhost:6379/0",
-        validation_alias="REDIS_URL"
-    )
+    redis_url: str = Field(default="redis://localhost:6379/0", validation_alias="REDIS_URL")
 
     # Kafka
     kafka_bootstrap_servers: str = Field(
-        default="localhost:9092",
-        validation_alias="KAFKA_BOOTSTRAP_SERVERS"
+        default="localhost:9092", validation_alias="KAFKA_BOOTSTRAP_SERVERS"
     )
     kafka_consumer_group: str = "documentation-generation-consumers"
     kafka_input_topic: str = "architecture.plans.generated"
@@ -62,22 +54,17 @@ class Settings(BaseSettings):
     # Neural Hive-Mind Integration
     requirements_engineering_url: str = Field(
         default="http://requirements-engineering:8010",
-        validation_alias="REQUIREMENTS_ENGINEERING_URL"
+        validation_alias="REQUIREMENTS_ENGINEERING_URL",
     )
     architect_agent_url: str = Field(
-        default="http://architect-agent:8008",
-        validation_alias="ARCHITECT_AGENT_URL"
+        default="http://architect-agent:8008", validation_alias="ARCHITECT_AGENT_URL"
     )
     knowledge_graph_url: str = Field(
-        default="http://knowledge-graph-rag:8016",
-        validation_alias="KNOWLEDGE_GRAPH_URL"
+        default="http://knowledge-graph-rag:8016", validation_alias="KNOWLEDGE_GRAPH_URL"
     )
 
     # Documentation Storage
-    docs_storage_path: str = Field(
-        default="/docs",
-        validation_alias="DOCS_STORAGE_PATH"
-    )
+    docs_storage_path: str = Field(default="/docs", validation_alias="DOCS_STORAGE_PATH")
 
     # Service Info
     service_name: str = "documentation-generation"

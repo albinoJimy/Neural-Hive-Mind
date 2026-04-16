@@ -118,6 +118,126 @@ async def test_generate_all_diagrams():
 
 
 @pytest.mark.asyncio
+async def test_generate_sequence_diagram():
+    """Testa geração de diagrama de sequência."""
+
+    generator = ArchitectureDiagramGenerator(output_dir="/tmp/test_diagrams")
+
+    steps = [
+        "User->>Gateway: Send request",
+        "Gateway->>Service: Forward request",
+        "Service->>Database: Query data",
+        "Database-->>Service: Return results",
+        "Service-->>Gateway: Response",
+        "Gateway-->>User: Return response"
+    ]
+
+    artifacts = ["Request", "Response"]
+
+    result = await generator.generate_sequence(
+        title="API Request Flow",
+        steps=steps,
+        artifacts=artifacts,
+        render=False
+    )
+
+    assert result.diagram_id == "api-request-flow-sequence"
+    assert result.type == DiagramType.SEQUENCE
+    assert "sequenceDiagram" in result.mermaid_code
+    assert "User->>Gateway" in result.mermaid_code
+    assert "Note over" in result.mermaid_code
+    assert result.svg_url is None  # render=False
+
+
+@pytest.mark.asyncio
+async def test_generate_sequence_diagram_without_artifacts():
+    """Testa geração de diagrama de sequência sem artefatos."""
+
+    generator = ArchitectureDiagramGenerator(output_dir="/tmp/test_diagrams")
+
+    steps = [
+        "Client->>Server: Connect",
+        "Server-->>Client: Acknowledge"
+    ]
+
+    result = await generator.generate_sequence(
+        title="Simple Connection",
+        steps=steps,
+        artifacts=None,
+        render=False
+    )
+
+    assert result.type == DiagramType.SEQUENCE
+    assert "Client->>Server" in result.mermaid_code
+    assert "Note over" not in result.mermaid_code  # Sem artefatos
+
+
+@pytest.mark.asyncio
+async def test_generate_from_description_sequence():
+    """Testa geração de diagrama a partir de descrição (sequência)."""
+
+    generator = ArchitectureDiagramGenerator(output_dir="/tmp/test_diagrams")
+
+    description = "User sends request to system, then system processes and returns response"
+
+    result = await generator.generate_from_description(
+        description=description,
+        render=False
+    )
+
+    assert result.type == DiagramType.SEQUENCE
+    assert "sequenceDiagram" in result.mermaid_code
+
+
+@pytest.mark.asyncio
+async def test_generate_from_description_context():
+    """Testa geração de diagrama a partir de descrição (contexto)."""
+
+    generator = ArchitectureDiagramGenerator(output_dir="/tmp/test_diagrams")
+
+    description = "System with user authentication and external payment integration"
+
+    result = await generator.generate_from_description(
+        description=description,
+        render=False
+    )
+
+    assert result.type == DiagramType.C4_CONTEXT
+    assert "C4Context" in result.mermaid_code
+
+
+@pytest.mark.asyncio
+async def test_parse_sequence_from_description():
+    """Testa parsing de sequência de descrição textual."""
+
+    generator = ArchitectureDiagramGenerator(output_dir="/tmp/test_diagrams")
+
+    description = "User logs in. Then system validates credentials. Then returns token."
+
+    steps = generator._parse_sequence_from_description(description)
+
+    assert len(steps) > 0
+    assert any("User" in step for step in steps)
+
+
+@pytest.mark.asyncio
+async def test_generate_from_description_fallback():
+    """Testa fallback quando não há palavras-chave reconhecidas."""
+
+    generator = ArchitectureDiagramGenerator(output_dir="/tmp/test_diagrams")
+
+    description = "Generic component architecture"
+
+    result = await generator.generate_from_description(
+        description=description,
+        render=False
+    )
+
+    assert result.diagram_id == "generated-diagram"
+    assert "graph TD" in result.mermaid_code
+
+
+@pytest.mark.asyncio
 async def test_mermaid_renderer_render_to_svg(monkeypatch):
     """Testa MermaidRenderer.render_to_svg (mockado)."""
 

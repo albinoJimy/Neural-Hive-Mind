@@ -72,22 +72,18 @@ class DataModel(BaseModel):
     indexes: List[Index] = Field(default_factory=list, description="Índices do modelo")
     primary_key: List[str] = Field(default_factory=list, description="Chave primária")
     foreign_keys: Dict[str, str] = Field(
-        default_factory=dict,
-        description="Chaves estrangeiras (campo -> tabela)"
+        default_factory=dict, description="Chaves estrangeiras (campo -> tabela)"
     )
 
     # Relacionamentos
     many_to_one: List[str] = Field(
-        default_factory=list,
-        description="Relacionamentos N:1 (nomes dos modelos)"
+        default_factory=list, description="Relacionamentos N:1 (nomes dos modelos)"
     )
     one_to_many: List[str] = Field(
-        default_factory=list,
-        description="Relacionamentos 1:N (nomes dos modelos)"
+        default_factory=list, description="Relacionamentos 1:N (nomes dos modelos)"
     )
     many_to_many: List[str] = Field(
-        default_factory=list,
-        description="Relacionamentos N:M (nomes dos modelos)"
+        default_factory=list, description="Relacionamentos N:M (nomes dos modelos)"
     )
 
     metadata: Dict[str, Any] = Field(default_factory=dict)
@@ -114,10 +110,7 @@ class EntityRelationship(BaseModel):
 
     from_entity: str = Field(..., alias="from", description="Entidade de origem")
     to_entity: str = Field(..., alias="to", description="Entidade de destino")
-    relationship_type: str = Field(
-        ...,
-        description="Tipo: one_to_one, one_to_many, many_to_many"
-    )
+    relationship_type: str = Field(..., description="Tipo: one_to_one, one_to_many, many_to_many")
     cardinality: str = Field(..., description="Cardinalidade (ex: 1:N, N:M)")
     description: Optional[str] = Field(None, description="Descrição do relacionamento")
 

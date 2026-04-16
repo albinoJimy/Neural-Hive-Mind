@@ -34,10 +34,7 @@ class DocumentsRepository:
         existing = await db.documents_collection.find_one({"id": document.id})
 
         if existing:
-            await db.documents_collection.update_one(
-                {"id": document.id},
-                {"$set": doc}
-            )
+            await db.documents_collection.update_one({"id": document.id}, {"$set": doc})
         else:
             await db.documents_collection.insert_one(doc)
 
@@ -69,10 +66,7 @@ class DocumentsRepository:
             filters["doc_type"] = doc_type
 
         cursor = (
-            db.documents_collection.find(filters)
-            .skip(skip)
-            .limit(limit)
-            .sort("created_at", -1)
+            db.documents_collection.find(filters).skip(skip).limit(limit).sort("created_at", -1)
         )
 
         docs = await cursor.to_list(length=limit)
@@ -98,9 +92,7 @@ class DocumentsRepository:
     async def get_by_project(self, project_name: str) -> List[Document]:
         """Busca documentos por projeto."""
         db = await self._get_db()
-        cursor = db.documents_collection.find({
-            "metadata.project": project_name
-        })
+        cursor = db.documents_collection.find({"metadata.project": project_name})
 
         docs = await cursor.to_list(length=None)
         documents = []
@@ -115,12 +107,14 @@ class DocumentsRepository:
         db = await self._get_db()
 
         # Busca simples por título ou conteúdo
-        cursor = db.documents_collection.find({
-            "$or": [
-                {"title": {"$regex": query, "$options": "i"}},
-                {"content": {"$regex": query, "$options": "i"}}
-            ]
-        }).limit(limit)
+        cursor = db.documents_collection.find(
+            {
+                "$or": [
+                    {"title": {"$regex": query, "$options": "i"}},
+                    {"content": {"$regex": query, "$options": "i"}},
+                ]
+            }
+        ).limit(limit)
 
         docs = await cursor.to_list(length=limit)
         documents = []

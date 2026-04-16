@@ -36,9 +36,11 @@ class ArchitecturePlanConsumer:
         self._producer = producer
         self._consumer: AIOKafkaConsumer | None = None
         self._bootstrap_servers = settings.kafka_bootstrap_servers
-        self._group_id = getattr(settings, 'kafka_consumer_group', 'documentation-generation-consumers')
+        self._group_id = getattr(
+            settings, "kafka_consumer_group", "documentation-generation-consumers"
+        )
         self._input_topic = "architecture.plans.generated"
-        self._dlq_topic = getattr(settings, 'kafka_dlq_topic', 'documentation.dlq')
+        self._dlq_topic = getattr(settings, "kafka_dlq_topic", "documentation.dlq")
         self._logger = logger
         self._running = False
 

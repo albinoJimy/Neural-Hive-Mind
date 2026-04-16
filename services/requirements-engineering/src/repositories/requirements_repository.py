@@ -95,10 +95,7 @@ class RequirementsRepository:
             filters["status"] = status
 
         cursor = (
-            db.requirements_collection.find(filters)
-            .skip(skip)
-            .limit(limit)
-            .sort("created_at", -1)
+            db.requirements_collection.find(filters).skip(skip).limit(limit).sort("created_at", -1)
         )
 
         docs = await cursor.to_list(length=limit)
@@ -111,7 +108,9 @@ class RequirementsRepository:
 
         return requirements, total
 
-    async def update(self, requirement_id: str, update_data: RequirementUpdate) -> Optional[Requirement]:
+    async def update(
+        self, requirement_id: str, update_data: RequirementUpdate
+    ) -> Optional[Requirement]:
         """Atualiza um requisito."""
         db = await self._get_db()
 

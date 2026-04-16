@@ -78,7 +78,9 @@ class ReadmeGenerator:
         """
         self._logger.info("generating_readme", project=request.project_name)
 
-        features_text = "\n".join([f"- {f}" for f in request.features]) if request.features else "A definir"
+        features_text = (
+            "\n".join([f"- {f}" for f in request.features]) if request.features else "A definir"
+        )
 
         prompt = README_PROMPT.format(
             project_name=request.project_name,
@@ -86,7 +88,7 @@ class ReadmeGenerator:
             features=features_text,
             installation=request.installation or "A definir",
             usage=request.usage or "A definir",
-            tech_stack=request.tech_stack or "A definir"
+            tech_stack=request.tech_stack or "A definir",
         )
 
         try:
@@ -94,10 +96,10 @@ class ReadmeGenerator:
                 model=self._model,
                 messages=[
                     {"role": "system", "content": "Você é um technical writer especialista."},
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": prompt},
                 ],
                 temperature=0.7,
-                max_tokens=4000
+                max_tokens=4000,
             )
 
             content = response.choices[0].message.content
@@ -108,7 +110,7 @@ class ReadmeGenerator:
                 format=DocFormat.MARKDOWN,
                 title=f"{request.project_name} README",
                 content=content,
-                file_path="README.md"
+                file_path="README.md",
             )
 
         except Exception as e:
