@@ -20,6 +20,7 @@ from src.services.hypothesis_service import HypothesisService
 from src.services.versioning_service import VersioningService
 from src.observability.metrics import hypothesis_metrics
 from src.consumers import HypothesisCreatedConsumer
+from src.producers import HypothesisValidatedProducer
 
 logger = structlog.get_logger()
 
@@ -30,6 +31,7 @@ version_repository: HypothesisVersionRepository | None = None
 versioning_service: VersioningService | None = None
 hypothesis_service: HypothesisService | None = None
 kafka_consumer: HypothesisCreatedConsumer | None = None
+kafka_producer: HypothesisValidatedProducer | None = None
 consumer_task: asyncio.Task | None = None
 
 app: FastAPI | None = None
@@ -74,7 +76,7 @@ def create_app() -> FastAPI:
     async def startup():
         """Tarefas de inicialização."""
         global mongodb_client, hypothesis_repository, version_repository
-        global versioning_service, hypothesis_service, kafka_consumer, consumer_task
+        global versioning_service, hypothesis_service, kafka_consumer, kafka_producer, consumer_task
 
         settings = get_settings()
 
@@ -114,11 +116,16 @@ def create_app() -> FastAPI:
             hypothesis_repository, versioning_service
         )
 
-        # Inicializar Kafka Consumer (se habilitado)
+        # Inicializar Kafka Consumer e Producer (se habilitado)
         kafka_enabled = getattr(settings, "kafka_enabled", True)
         if kafka_enabled:
             try:
-                kafka_consumer = HypothesisCreatedConsumer()
+                # Inicializar producer
+                kafka_producer = HypothesisValidatedProducer()
+                await kafka_producer.start()
+
+                # Inicializar consumer com producer injetado
+                kafka_consumer = HypothesisCreatedConsumer(producer=kafka_producer)
                 kafka_consumer.set_hypothesis_service(hypothesis_service)
                 consumer_task = asyncio.create_task(kafka_consumer.start())
                 logger.info("kafka_consumer_initialized")
@@ -130,16 +137,22 @@ def create_app() -> FastAPI:
     @app.on_event("shutdown")
     async def shutdown():
         """Tarefas de desligamento."""
-        global mongodb_client, kafka_consumer, consumer_task
+        global mongodb_client, kafka_consumer, kafka_producer, consumer_task
 
         logger.info("hypothesis_library_shutting_down")
 
-        # Parar Kafka Consumer
+        # Parar Kafka Consumer e Producer
         if kafka_consumer:
             try:
                 await kafka_consumer.stop()
             except Exception as e:
                 logger.warning("kafka_consumer_failed_to_stop", error=str(e))
+
+        if kafka_producer:
+            try:
+                await kafka_producer.stop()
+            except Exception as e:
+                logger.warning("kafka_producer_failed_to_stop", error=str(e))
 
         # Cancelar task do consumidor
         if consumer_task and not consumer_task.done():

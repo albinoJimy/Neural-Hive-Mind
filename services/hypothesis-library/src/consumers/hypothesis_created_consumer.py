@@ -25,6 +25,7 @@ class HypothesisCreatedConsumer:
         topic: str = "hypotheses.created",
         group_id: str = "hypothesis-library",
         hypothesis_service: HypothesisService | None = None,
+        producer=None,
     ):
         """Inicializa o consumidor.
 
@@ -33,6 +34,7 @@ class HypothesisCreatedConsumer:
             topic: Tópico para consumir
             group_id: ID do grupo consumidor
             hypothesis_service: Instância do HypothesisService
+            producer: HypothesisValidatedProducer opcional para publicar eventos
         """
         settings = get_settings()
         self._bootstrap_servers = bootstrap_servers or getattr(settings, "kafka_bootstrap_servers", "localhost:9092")
@@ -40,6 +42,7 @@ class HypothesisCreatedConsumer:
         self._group_id = group_id
         self._consumer: AIOKafkaConsumer | None = None
         self._hypothesis_service = hypothesis_service
+        self._producer = producer
         self._running = False
         self._logger = logger
 
@@ -151,8 +154,17 @@ class HypothesisCreatedConsumer:
                 status=saved.status.value,
             )
 
-            # TODO: Validar hipótese automaticamente
-            # await self._validate_and_publish(hypothesis)
+            # Publicar evento hypotheses.validated
+            if self._producer:
+                await self._producer.publish_hypothesis_validated(
+                    hypothesis_id=saved.hypothesis_id,
+                    statement=saved.statement,
+                    status=saved.status.value,
+                    priority=saved.priority.value,
+                    source=saved.source,
+                    experiment_id=saved.experiment_id,
+                    validation_score=1.0,  # Padrão, pode ser calculado depois
+                )
 
         except Exception as e:
             self._logger.error(
