@@ -1,6 +1,7 @@
 """Serviço para design de modelos de dados."""
 
 import json
+import re
 import uuid
 from typing import Any
 
@@ -120,14 +121,12 @@ class DataModelDesigner:
 
             # Extrair JSON da resposta
             json_match = self._extract_json(content)
-            if json_match:
-                design_data = json.loads(json_match)
-            else:
-                design_data = json.loads(content)
+            design_data = json.loads(json_match) if json_match else json.loads(content)
 
             # Criar DataSchema
             schema = DataSchema(
                 id=f"DMS-{uuid.uuid4().hex[:8].upper()}",
+                name=f"Schema-{requirements_set.id}",
                 cognitive_plan_id=requirements_set.cognitive_plan_id,
                 requirements_set_id=requirements_set.id,
             )
@@ -140,11 +139,13 @@ class DataModelDesigner:
             # Processar relacionamentos
             for rel_data in design_data.get("relationships", []):
                 relationship = EntityRelationship(
-                    from_entity=rel_data.get("from", ""),
-                    to_entity=rel_data.get("to", ""),
-                    relationship_type=rel_data.get("type", ""),
-                    cardinality=rel_data.get("cardinality", ""),
-                    description=rel_data.get("description"),
+                    **{  # Usar alias "from" e "to" diretamente
+                        "from": rel_data.get("from", ""),
+                        "to": rel_data.get("to", ""),
+                        "relationship_type": rel_data.get("type", ""),
+                        "cardinality": rel_data.get("cardinality", ""),
+                        "description": rel_data.get("description"),
+                    }
                 )
                 schema.relationships.append(relationship)
 
@@ -157,8 +158,8 @@ class DataModelDesigner:
 
             return schema
 
-        except Exception as e:
-            self._logger.error("failed_to_design_data_models", error=str(e))
+        except Exception:
+            self._logger.exception("failed_to_design_data_models")
             raise
 
     def _create_data_model(self, model_data: dict[str, Any]) -> DataModel:
@@ -239,8 +240,6 @@ class DataModelDesigner:
 
     def _extract_json(self, text: str) -> str | None:
         """Extrai JSON de texto markdown."""
-        import re
-
         # Tentar encontrar JSON em blocos markdown
         json_match = re.search(r"```json\s*(.*?)\s*```", text, re.DOTALL)
         if json_match:
