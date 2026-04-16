@@ -3,8 +3,29 @@ name: Security Scan
 on:
   push:
     branches: [ main, staging ]
+    paths:
+      - 'services/doc-ingestion/**'
+      - 'services/data-migration/**'
+      - 'services/requirements-engineering/**'
+      - 'services/documentation-generation/**'
+      - 'services/knowledge-graph-rag/**'
+      - 'services/approval-gateway/**'
+      - 'services/service-registry/**'
+      - 'services/orchestrator-dynamic/**'
+      - '.github/workflows/security-scan.yml'
+      - 'scripts/security-scan.sh'
+      - 'scripts/security_scan.py'
   pull_request:
     branches: [ main, staging ]
+    paths:
+      - 'services/doc-ingestion/**'
+      - 'services/data-migration/**'
+      - 'services/requirements-engineering/**'
+      - 'services/documentation-generation/**'
+      - 'services/knowledge-graph-rag/**'
+      - 'services/approval-gateway/**'
+      - 'services/service-registry/**'
+      - 'services/orchestrator-dynamic/**'
   schedule:
     # Run daily at 2 AM UTC
     - cron: '0 2 * * *'
@@ -28,10 +49,10 @@ jobs:
         run: |
           pip install bandit[toml]
 
-      - name: Run Bandit on Fluxo G services
+      - name: Run Bandit on Fluxo G + Fluxo H services
         run: |
           # Scan each service directory
-          for service in requirements-engineering documentation-generation knowledge-graph-rag approval-gateway service-registry orchestrator-dynamic; do
+          for service in requirements-engineering documentation-generation knowledge-graph-rag approval-gateway service-registry orchestrator-dynamic doc-ingestion data-migration; do
             echo "Scanning $service..."
             if [ -d "services/$service/src" ]; then
               bandit -r "services/$service/src" \
@@ -49,7 +70,7 @@ jobs:
           echo "| Service | Issues | High | Medium | Low |" >> $GITHUB_STEP_SUMMARY
           echo "|---------|--------|------|--------|-----|" >> $GITHUB_STEP_SUMMARY
 
-          for service in requirements-engineering documentation-generation knowledge-graph-rag approval-gateway service-registry orchestrator-dynamic; do
+          for service in requirements-engineering documentation-generation knowledge-graph-rag approval-gateway service-registry orchestrator-dynamic doc-ingestion data-migration; do
             if [ -f "bandit_${service}_report.json" ]; then
               high=$(jq '[.results[] | select(.issue_severity == "HIGH")] | length' bandit_${service}_report.json || echo "0")
               medium=$(jq '[.results[] | select(.issue_severity == "MEDIUM")] | length' bandit_${service}_report.json || echo "0")

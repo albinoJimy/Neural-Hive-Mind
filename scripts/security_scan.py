@@ -10,22 +10,22 @@ import argparse
 import json
 import subprocess
 import sys
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 
 class SecurityScanner:
     """Security scanner for Python services."""
 
-    def __init__(self, project_root: Path, output_dir: Path = None):
+    def __init__(self, project_root: Path, output_dir: Path | None = None):
         """Initialize scanner."""
         self.project_root = project_root
         self.output_dir = output_dir or project_root / "security-scans"
         self.output_dir.mkdir(exist_ok=True)
 
-        self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
 
-        # Fluxo G services to scan
+        # Fluxo G + Fluxo H services to scan
         self.services = [
             "requirements-engineering",
             "documentation-generation",
@@ -33,6 +33,8 @@ class SecurityScanner:
             "approval-gateway",
             "service-registry",
             "orchestrator-dynamic",
+            "doc-ingestion",
+            "data-migration",
         ]
 
         self.results = {
@@ -60,7 +62,7 @@ class SecurityScanner:
 
         try:
             # Run bandit with JSON output
-            result = subprocess.run(
+            subprocess.run(
                 [
                     "bandit",
                     "-r", str(service_path),
@@ -71,6 +73,7 @@ class SecurityScanner:
                 ],
                 capture_output=True,
                 text=True,
+                check=False,
             )
 
             # Parse JSON output
@@ -94,8 +97,7 @@ class SecurityScanner:
                     "metrics": metrics,
                     "output_file": str(output_file),
                 }
-            else:
-                return {"issues_count": 0, "severity_counts": {"LOW": 0, "MEDIUM": 0, "HIGH": 0}}
+            return {"issues_count": 0, "severity_counts": {"LOW": 0, "MEDIUM": 0, "HIGH": 0}}
 
         except FileNotFoundError:
             return {"error": "Bandit not installed. Run: pip install bandit"}
@@ -106,7 +108,7 @@ class SecurityScanner:
         """Scan a single service."""
         print(f"\n{'='*60}")
         print(f"Scanning {service}...")
-        print('='*60)
+        print("="*60)
 
         result = self.run_bandit(service)
 
@@ -124,7 +126,7 @@ class SecurityScanner:
         print(f"    HIGH: {severity_counts['HIGH']}")
 
         if issues_count == 0:
-            print(f"  ✅ No security issues found")
+            print("  ✅ No security issues found")
         else:
             print(f"  ⚠️  {issues_count} issue(s) found - see {result['output_file']}")
 
@@ -138,10 +140,10 @@ class SecurityScanner:
     def scan_all(self):
         """Scan all services."""
         print(f"{'='*60}")
-        print(f"Neural Hive Mind - Python Security Scan")
+        print("Neural Hive Mind - Python Security Scan")
         print(f"Timestamp: {self.timestamp}")
         print(f"Output directory: {self.output_dir}")
-        print('='*60)
+        print("="*60)
 
         for service in self.services:
             self.scan_service(service)
@@ -152,7 +154,7 @@ class SecurityScanner:
         """Print scan summary."""
         print(f"\n{'='*60}")
         print("SCAN SUMMARY")
-        print('='*60)
+        print("="*60)
 
         summary = self.results["summary"]
         print(f"Services scanned: {summary['total_services']}")
@@ -172,7 +174,7 @@ class SecurityScanner:
         print(f"Full results: {results_file}")
 
         # Exit code based on HIGH severity issues
-        if summary['severity_counts']['HIGH'] > 0:
+        if summary["severity_counts"]["HIGH"] > 0:
             print("\n❌ HIGH severity issues found!")
             sys.exit(1)
         else:
@@ -182,7 +184,7 @@ class SecurityScanner:
         """Run safety check for dependency vulnerabilities."""
         print(f"\n{'='*60}")
         print("Running Safety Check (Dependency Vulnerabilities)")
-        print('='*60)
+        print("="*60)
 
         requirements_files = list(self.project_root.glob("**/requirements.txt"))
 
@@ -198,17 +200,18 @@ class SecurityScanner:
                     ["safety", "check", "--file", str(req_file), "--json"],
                     capture_output=True,
                     text=True,
+                    check=False,
                 )
 
                 if result.returncode == 0:
-                    print(f"  ✅ No vulnerabilities found")
+                    print("  ✅ No vulnerabilities found")
                 else:
                     # Parse and display vulnerabilities
                     try:
                         vulns = json.loads(result.stdout)
                         print(f"  ⚠️  {len(vulns)} vulnerabilities found")
-                    except:
-                        print(f"  ⚠️  Vulnerabilities found")
+                    except json.JSONDecodeError:
+                        print("  ⚠️  Vulnerabilities found")
             except FileNotFoundError:
                 print("  (Safety not installed - skip)")
 
