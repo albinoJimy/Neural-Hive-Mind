@@ -338,6 +338,17 @@ class TemporalWorkerManager:
             logger.warning("ML Predictions desabilitado - MongoDB não disponível")
 
         # Import workflows e activities
+        from src.activities.data_migration import (
+            analyze_legacy_schema,
+            approve_mapping,
+            cleanup_snapshot,
+            create_snapshot,
+            execute_rollback as migration_execute_rollback,
+            generate_schema_mapping,
+            run_batch_migration,
+            start_cdc,
+            validate_data,
+        )
         from src.activities.plan_validation import (
             audit_validation,
             optimize_dag,
@@ -358,6 +369,7 @@ class TemporalWorkerManager:
             publish_ticket_to_kafka,
             set_activity_dependencies as set_generation_deps,
         )
+        from src.workflows.data_migration_workflow import DataMigrationWorkflow
         from src.workflows.orchestration_workflow import OrchestrationWorkflow
 
         # Injetar PolicyValidator e MongoDB nas activities de validação (fail-open)
@@ -422,8 +434,9 @@ class TemporalWorkerManager:
         self.worker = Worker(
             self.temporal_client,
             task_queue=self.config.temporal_task_queue,
-            workflows=[OrchestrationWorkflow],
+            workflows=[OrchestrationWorkflow, DataMigrationWorkflow],
             activities=[
+                # Orchestration activities
                 validate_cognitive_plan,
                 audit_validation,
                 optimize_dag,
@@ -435,6 +448,16 @@ class TemporalWorkerManager:
                 publish_telemetry,
                 buffer_telemetry,
                 check_workflow_sla_proactive,
+                # Data Migration activities
+                analyze_legacy_schema,
+                generate_schema_mapping,
+                approve_mapping,
+                create_snapshot,
+                run_batch_migration,
+                start_cdc,
+                validate_data,
+                cleanup_snapshot,
+                migration_execute_rollback,
             ],
             max_concurrent_workflow_tasks=10,
             max_concurrent_activities=50,
@@ -446,6 +469,12 @@ class TemporalWorkerManager:
             "SLA monitoring activity registrada no Worker",
             activity="check_workflow_sla_proactive",
             sla_management_enabled=self.config.sla_management_enabled,
+        )
+
+        logger.info(
+            "Data Migration workflow e atividades registradas no Worker",
+            workflow="DataMigrationWorkflow",
+            activities_count=9,
         )
 
     async def start(self):

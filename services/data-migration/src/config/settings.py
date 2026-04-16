@@ -87,6 +87,15 @@ class Settings(BaseSettings):
         default="http://service-registry:8007", validation_alias="SERVICE_REGISTRY_URL"
     )
 
+    # Temporal (Orchestrator Dynamic Integration)
+    temporal_enabled: bool = Field(default=True, validation_alias="TEMPORAL_ENABLED")
+    temporal_host: str = Field(default="temporal-frontend", validation_alias="TEMPORAL_HOST")
+    temporal_port: int = Field(default=7233, validation_alias="TEMPORAL_PORT")
+    temporal_namespace: str = Field(default="default", validation_alias="TEMPORAL_NAMESPACE")
+    temporal_task_queue: str = Field(
+        default="orchestrator-task-queue", validation_alias="TEMPORAL_TASK_QUEUE"
+    )
+
     # Migration Settings
     batch_size: int = 1000
     max_parallel_migrations: int = 5
