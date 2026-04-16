@@ -1,89 +1,36 @@
-# Bounded Contexts Identifier
+# Bounded Contexts - Documentação de Uso
 
 ## Visão Geral
 
-O módulo `BoundedContextsIdentifier` identifica Bounded Contexts baseado em Domain-Driven Design (DDD) a partir de requisitos em linguagem natural.
+O módulo **BoundedContextsIdentifier** identifica bounded contexts baseados em Domain-Driven Design (DDD) a partir de requisitos de sistema em linguagem natural.
 
-## Propósito
+## API REST
 
-Bounded Contexts são fronteiras conceituais dentro de um domínio onde termos e modelos têm significado específico. Este módulo ajuda a:
-
-1. Identificar contextos limitrófes em um sistema
-2. Definir responsabilidades de cada contexto
-3. Identificar modelos de domínio principais
-4. Documentar linguagem ubíqua (termos específicos do domínio)
-
-## Uso
-
-```python
-from src.identifiers.bounded_contexts import BoundedContextsIdentifier
-
-# Inicializar (requer cliente OpenAI configurado)
-identifier = BoundedContextsIdentifier()
-
-# Identificar contexts a partir de requisitos
-analysis = await identifier.identify(
-    requirements="""
-    Sistema de e-commerce com:
-    - Catálogo de produtos e categorias
-    - Carrinho de compras e checkout
-    - Processamento de pagamentos
-    - Gestão de encomendas e envio
-    """,
-    domain_hints=["Catalog", "Checkout", "Payments"]  # opcional
-)
-
-# Acessar resultados
-for context in analysis.contexts:
-    print(f"Context: {context.name}")
-    print(f"Description: {context.description}")
-    print(f"Responsibilities: {context.responsibilities}")
-```
-
-## API
-
-### `BoundedContextsIdentifier`
-
-#### Métodos
-
-- `async identify(requirements: str, domain_hints: Optional[List[str]] = None) -> BoundedContextsAnalysis`
-
-  Identifica bounded contexts a partir de requisitos.
-
-  Args:
-  - `requirements`: Descrição dos requisitos do sistema
-  - `domain_hints`: Sugestões de nomes de contextos (opcional)
-
-  Returns: `BoundedContextsAnalysis` com contexts encontrados
-
-### Modelos
-
-#### `BoundedContext`
-- `name`: Nome do contexto
-- `description`: Propósito do contexto
-- `responsibilities`: Lista de responsabilidades
-- `domain_models`: Modelos de domínio principais
-- `ubiquitous_language`: Termos específicos do domínio
-- `relationships`: Relacionamentos com outros contextos
-
-#### `BoundedContextsAnalysis`
-- `contexts`: Lista de bounded contexts identificados
-- `total_contexts`: Número total de contexts
-- `confidence_score`: Score de confiança da análise (0-1)
-
-## REST API
+### Identificar Bounded Contexts
 
 ```bash
 POST /api/v1/architecture/bounded-contexts/identify
 Content-Type: application/json
 
 {
-  "requirements": "Sistema de gestão de tarefas colaborativa",
-  "domain_hints": ["Tasks", "Users", "Notifications"]
+  "requirements": "Sistema de e-commerce com gestão de utilizadores...",
+  "domain_hints": ["identity", "catalog", "billing"]
 }
 ```
 
-## Requisitos
+## Relacionamentos entre Contextos
 
-- Cliente OpenAI configurado com API key
-- Modelos suportados: gpt-4, gpt-3.5-turbo
+| Tipo | Descrição |
+|------|-----------|
+| partnership | Colaboração necessária |
+| shared_kernel | Modelos partilhados |
+| customer_supplier | Dependência direta |
+| conformist | Convenções upstream |
+| acl | Restrições de acesso |
+
+## Contextos Típicos
+
+- **Identity:** Autenticação, autorização, perfis
+- **Catalog:** Produtos, categorias, busca
+- **Order:** Carrinho, checkout, pagamentos
+- **Billing:** Faturação, assinaturas

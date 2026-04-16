@@ -1,103 +1,54 @@
-# Tech Stack Recommender
+# Tech Stack Recommendation - Documentação de Uso
 
 ## Visão Geral
 
-O módulo `TechStackRecommender` recomenda stacks tecnológicos baseados em requisitos do sistema, utilizando LLM e uma base de conhecimento de tecnologias.
+O módulo **TechStackRecommender** recomenda stacks tecnológicas baseado em requisitos e restrições.
 
-## Propósito
+## API REST
 
-Auxiliar na escolha de tecnologias para um novo projeto ou sistema, considerando:
-
-1. Requisitos funcionais e não-funcionais
-2. Restrições técnicas (linguagens, bancos de dados preferidos)
-3. Padrões da indústria e melhores práticas
-4. Trade-offs entre diferentes opções
-
-## Uso
-
-```python
-from src.recommenders.tech_stack import TechStackRecommender
-
-# Inicializar (requer cliente OpenAI configurado)
-recommender = TechStackRecommender()
-
-# Recomendar stack
-recommendation = await recommender.recommend(
-    requirements="API REST para gestão de tarefas com alta concorrência",
-    constraints=[
-        {"type": "language", "value": "Python"},
-        {"type": "database", "value": "PostgreSQL"}
-    ]
-)
-
-# Acessar recomendações
-for choice in recommendation.choices:
-    print(f"{choice.category}: {choice.name}")
-    print(f"  Rationale: {choice.rationale}")
-```
-
-## API
-
-### `TechStackRecommender`
-
-#### Métodos
-
-- `async recommend(requirements: str, constraints: Optional[List[dict]] = None) -> TechStackRecommendation`
-
-  Recomenda stack tecnológico.
-
-  Args:
-  - `requirements`: Descrição dos requisitos do sistema
-  - `constraints`: Lista de restrições técnicas (opcional)
-
-  Returns: `TechStackRecommendation` com escolhas recomendadas
-
-### Modelos
-
-#### `TechChoice`
-- `category`: Categoria (backend, database, cache, messaging)
-- `name`: Nome da tecnologia
-- `version`: Versão recomendada
-- `rationale`: Justificativa da escolha
-
-#### `TechStackRecommendation`
-- `choices`: Lista de tecnologias recomendadas
-- `constraints_satisfied`: Restrições atendidas
-- `constraints_violated`: Restrições não atendidas
-- `confidence_score`: Score de confiança (0-1)
-- `estimated_complexity`: Complexidade estimada (baixa, media, alta)
-- `estimated_cost`: Custo estimado ($, $$, $$$)
-
-## REST API
+### Recomendar Stack Tecnológico
 
 ```bash
 POST /api/v1/architecture/tech-stack/recommend
 Content-Type: application/json
 
 {
-  "requirements": "Sistema transacional com dados relacionais",
-  "constraints": [
-    {"type": "language", "value": "Python"},
-    {"type": "database", "value": "PostgreSQL"}
-  ]
+  "requirements": "API REST de alta performance...",
+  "constraints": {
+    "budget": "low",
+    "team_expertise": ["python"],
+    "scalability": "high"
+  }
 }
 ```
 
-## Base de Conhecimento
+## Categorias Disponíveis
 
-O módulo inclui uma base de conhecimento (`TECH_KNOWLEDGE_BASE`) com:
+- **Languages:** Python, Node.js, Go, Java, Ruby
+- **Web Frameworks:** FastAPI, Express, Gin, Spring Boot
+- **Databases:** PostgreSQL, MongoDB, Redis
+- **Messaging:** Kafka, RabbitMQ, Redis Streams
+- **Frontend:** React, Vue, Svelte
 
-- **Backend Frameworks**: FastAPI, Django, Express, Nest
-- **Databases**: PostgreSQL, MySQL, MongoDB, Redis
-- **Messaging**: Kafka, RabbitMQ
+## Restrições Suportadas
 
-Cada tecnologia inclui:
-- Prós e contras
-- Casos de uso recomendados
-- Complexidade de implementação
-- Custo operacional
+- `budget`: low, medium, high
+- `scalability`: low, medium, high
+- `team_expertise`: lista de tecnologias
+- `compliance`: gdpr, hipaa, pci-dss
 
-## Requisitos
+## Exemplo de Resposta
 
-- Cliente OpenAI configurado com API key
-- Modelos suportados: gpt-4, gpt-3.5-turbo
+```json
+{
+  "recommendations": [
+    {
+      "category": "framework",
+      "name": "FastAPI",
+      "version": "0.104.0",
+      "justification": "Alta performance, suporte async nativo",
+      "fit_score": 0.95
+    }
+  ]
+}
+```
