@@ -4,10 +4,11 @@ import asyncio
 import signal
 
 import structlog
-import uvicorn
+from uvicorn import Config, Server
 
 from src.api.app import create_app
 from src.config.settings import get_settings
+from src.consumers import CognitivePlanConsumer, ConsumerManager
 from src.observability.metrics import init_metrics
 
 logger = structlog.get_logger(__name__)
@@ -43,6 +44,17 @@ async def main():
     # Initialize metrics
     init_metrics(app)
 
+    # Setup Kafka consumers
+    consumer_manager = ConsumerManager()
+
+    # Verificar se Kafka está habilitado
+    if getattr(settings, "kafka_enabled", True):
+        cognitive_plan_consumer = CognitivePlanConsumer()
+        consumer_manager.register(cognitive_plan_consumer)
+        logger.info("kafka_consumer_enabled")
+    else:
+        logger.info("kafka_consumer_disabled")
+
     # Set up signal handlers
     shutdown_event = asyncio.Event()
 
@@ -61,18 +73,29 @@ async def main():
     )
 
     # Start HTTP server
-    config = uvicorn.Config(
+    config = Config(
         app, host="0.0.0.0", port=settings.service.http_port, log_config=None, access_log=False
     )
 
-    server = uvicorn.Server(config)
+    server = Server(config)
 
-    # Run server with shutdown handling
+    # Start consumers and server concurrently
+    consumer_task = None
+    if consumer_manager.consumers:
+        consumer_task = asyncio.create_task(consumer_manager.start_all())
+
     try:
+        # Run server (blocking)
         await server.serve()
     except KeyboardInterrupt:
         logger.info("keyboard_interrupt_received")
     finally:
+        # Stop consumers
+        if consumer_task:
+            await consumer_manager.stop_all()
+            if not consumer_task.done():
+                consumer_task.cancel()
+
         logger.info("architect_agent_shutdown_complete")
 
 
