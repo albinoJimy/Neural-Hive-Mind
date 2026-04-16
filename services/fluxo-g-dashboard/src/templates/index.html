@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .stage-pending { @apply bg-gray-200; }
+        .stage-in_progress { @apply bg-blue-500 animate-pulse; }
+        .stage-completed { @apply bg-green-500; }
+        .stage-failed { @apply bg-red-500; }
+        .stage-skipped { @apply bg-gray-400; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <!-- Header -->
+    <header class="bg-gray-800 border-b border-gray-700 px-6 py-4">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <h1 class="text-2xl font-bold text-white">🧠 Fluxo G Dashboard</h1>
+                <span class="px-3 py-1 bg-purple-600 rounded-full text-sm">Neural Hive-Mind</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <div id="connection-status" class="flex items-center gap-2">
+                    <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+                    <span class="text-sm text-gray-400">Conectado</span>
+                </div>
+                <button onclick="refreshData()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-sm">
+                    🔄 Atualizar
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="p-6">
+        <!-- Metrics Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                <div class="text-gray-400 text-sm">Workflows Totais</div>
+                <div id="metric-total" class="text-3xl font-bold text-white">-</div>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                <div class="text-gray-400 text-sm">Em Execução</div>
+                <div id="metric-running" class="text-3xl font-bold text-blue-400">-</div>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                <div class="text-gray-400 text-sm">Completados</div>
+                <div id="metric-completed" class="text-3xl font-bold text-green-400">-</div>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                <div class="text-gray-400 text-sm">Taxa de Sucesso</div>
+                <div id="metric-success" class="text-3xl font-bold text-purple-400">-</div>
+            </div>
+        </div>
+
+        <!-- Services Health -->
+        <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 mb-6">
+            <h2 class="text-lg font-semibold mb-4">🏥 Saúde dos Serviços</h2>
+            <div id="services-health" class="flex flex-wrap gap-4">
+                <!-- Services will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Two Column Layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Recent Workflows -->
+            <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                <h2 class="text-lg font-semibold mb-4">📋 Workflows Recentes</h2>
+                <div id="workflows-list" class="space-y-2 max-h-96 overflow-y-auto">
+                    <div class="text-gray-500 text-center py-8">Carregando...</div>
+                </div>
+            </div>
+
+            <!-- Pending Approvals -->
+            <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                <h2 class="text-lg font-semibold mb-4">✅ Aprovações Pendentes</h2>
+                <div id="approvals-list" class="space-y-2 max-h-96 overflow-y-auto">
+                    <div class="text-gray-500 text-center py-8">Carregando...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Workflow Stages Visualization -->
+        <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 mt-6">
+            <h2 class="text-lg font-semibold mb-4">🔄 Estágios do Fluxo G</h2>
+            <div class="flex items-center justify-between gap-2" id="stages-visualization">
+                <div class="flex-1 text-center">
+                    <div class="text-xs text-gray-400 mb-2">G1: Requisitos</div>
+                    <div id="stage-g1" class="h-3 rounded-full stage-pending"></div>
+                </div>
+                <div class="text-gray-600">→</div>
+                <div class="flex-1 text-center">
+                    <div class="text-xs text-gray-400 mb-2">G2: Documentação</div>
+                    <div id="stage-g2" class="h-3 rounded-full stage-pending"></div>
+                </div>
+                <div class="text-gray-600">→</div>
+                <div class="flex-1 text-center">
+                    <div class="text-xs text-gray-400 mb-2">G3: Grafo</div>
+                    <div id="stage-g3" class="h-3 rounded-full stage-pending"></div>
+                </div>
+                <div class="text-gray-600">→</div>
+                <div class="flex-1 text-center">
+                    <div class="text-xs text-gray-400 mb-2">G4: Aprovações</div>
+                    <div id="stage-g4" class="h-3 rounded-full stage-pending"></div>
+                </div>
+                <div class="text-gray-600">→</div>
+                <div class="flex-1 text-center">
+                    <div class="text-xs text-gray-400 mb-2">G5: RAG</div>
+                    <div id="stage-g5" class="h-3 rounded-full stage-pending"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Knowledge Graph Stats -->
+        <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 mt-6">
+            <h2 class="text-lg font-semibold mb-4">🕸️ Grafo de Conhecimento</h2>
+            <div class="grid grid-cols-4 gap-4" id="graph-stats">
+                <div class="text-center">
+                    <div id="graph-nodes" class="text-2xl font-bold text-purple-400">-</div>
+                    <div class="text-xs text-gray-400">Nós</div>
+                </div>
+                <div class="text-center">
+                    <div id="graph-relations" class="text-2xl font-bold text-blue-400">-</div>
+                    <div class="text-xs text-gray-400">Relações</div>
+                </div>
+                <div class="text-center">
+                    <div id="graph-requirements" class="text-2xl font-bold text-green-400">-</div>
+                    <div class="text-xs text-gray-400">Requisitos</div>
+                </div>
+                <div class="text-center">
+                    <div id="graph-stories" class="text-2xl font-bold text-yellow-400">-</div>
+                    <div class="text-xs text-gray-400">User Stories</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_BASE = '/api';
+        let refreshInterval;
+
+        async function fetchMetrics() {
+            const response = await fetch(`${API_BASE}/metrics`);
+            return await response.json();
+        }
+
+        async function fetchWorkflows() {
+            const response = await fetch(`${API_BASE}/workflows?limit=10`);
+            return await response.json();
+        }
+
+        async function fetchApprovals() {
+            const response = await fetch(`${API_BASE}/approvals/pending?limit=10`);
+            return await response.json();
+        }
+
+        async function fetchGraphStats() {
+            const response = await fetch(`${API_BASE}/graph/stats`);
+            return await response.json();
+        }
+
+        function updateMetrics(metrics) {
+            document.getElementById('metric-total').textContent = metrics.total_workflows || '-';
+            document.getElementById('metric-running').textContent = metrics.running_workflows || '-';
+            document.getElementById('metric-completed').textContent = metrics.completed_workflows || '-';
+            document.getElementById('metric-success').textContent =
+                (metrics.success_rate * 100).toFixed(1) + '%';
+
+            // Update services health
+            const servicesDiv = document.getElementById('services-health');
+            servicesDiv.innerHTML = '';
+
+            for (const [service, healthy] of Object.entries(metrics.services_health || {})) {
+                const badge = document.createElement('span');
+                badge.className = `px-3 py-1 rounded-full text-sm ${
+                    healthy ? 'bg-green-600' : 'bg-red-600'
+                }`;
+                badge.textContent = `${service}: ${healthy ? 'OK' : 'FAIL'}`;
+                servicesDiv.appendChild(badge);
+            }
+        }
+
+        function updateWorkflows(data) {
+            const listDiv = document.getElementById('workflows-list');
+            listDiv.innerHTML = '';
+
+            if (!data.workflows || data.workflows.length === 0) {
+                listDiv.innerHTML = '<div class="text-gray-500 text-center py-4">Nenhum workflow encontrado</div>';
+                return;
+            }
+
+            for (const wf of data.workflows) {
+                const item = document.createElement('div');
+                item.className = 'bg-gray-700 rounded p-3 flex justify-between items-center';
+
+                const statusColor = {
+                    'completed': 'text-green-400',
+                    'running': 'text-blue-400',
+                    'failed': 'text-red-400',
+                    'canceled': 'text-gray-400'
+                }[wf.status] || 'text-gray-400';
+
+                item.innerHTML = `
+                    <div>
+                        <div class="font-mono text-sm">${wf.workflow_id}</div>
+                        <div class="text-xs text-gray-400">${wf.plan_id || 'N/A'}</div>
+                    </div>
+                    <div class="text-right">
+                        <div class="${statusColor} text-sm capitalize">${wf.status}</div>
+                        <div class="text-xs text-gray-500">${wf.duration_seconds ? wf.duration_seconds + 's' : 'Em andamento'}</div>
+                    </div>
+                `;
+                listDiv.appendChild(item);
+            }
+        }
+
+        function updateApprovals(data) {
+            const listDiv = document.getElementById('approvals-list');
+            listDiv.innerHTML = '';
+
+            if (!data.approvals || data.approvals.length === 0) {
+                listDiv.innerHTML = '<div class="text-gray-500 text-center py-4">Nenhuma aprovação pendente</div>';
+                return;
+            }
+
+            for (const appr of data.approvals) {
+                const item = document.createElement('div');
+                item.className = 'bg-gray-700 rounded p-3';
+
+                const confidenceColor = appr.confidence_score >= 0.8 ? 'text-green-400' :
+                    appr.confidence_score >= 0.5 ? 'text-yellow-400' : 'text-red-400';
+
+                item.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="font-medium">${appr.title}</div>
+                        <span class="px-2 py-1 bg-yellow-600 rounded text-xs">${appr.type}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="${confidenceColor}">Confiança: ${(appr.confidence_score * 100).toFixed(0)}%</span>
+                        ${appr.requires_human_review ? '<span class="text-orange-400">👤 Requer Humano</span>' : ''}
+                    </div>
+                `;
+                listDiv.appendChild(item);
+            }
+        }
+
+        function updateGraphStats(stats) {
+            document.getElementById('graph-nodes').textContent = stats.nodes || 0;
+            document.getElementById('graph-relations').textContent = stats.relations || 0;
+            document.getElementById('graph-requirements').textContent = stats.requirements || 0;
+            document.getElementById('graph-stories').textContent = stats.user_stories || 0;
+        }
+
+        function updateStages(stages = {}) {
+            // Default: all completed for demo
+            const stageStatus = {
+                'g1': stages.g1_requirements || 'completed',
+                'g2': stages.g2_documentation || 'completed',
+                'g3': stages.g3_knowledge_graph || 'completed',
+                'g4': stages.g4_approvals || 'completed',
+                'g5': stages.g5_rag_enrichment || 'completed',
+            };
+
+            for (const [id, status] of Object.entries(stageStatus)) {
+                const el = document.getElementById(`stage-${id}`);
+                if (el) {
+                    el.className = `h-3 rounded-full stage-${status}`;
+                }
+            }
+        }
+
+        async function refreshData() {
+            try {
+                const [metrics, workflows, approvals, graphStats] = await Promise.all([
+                    fetchMetrics(),
+                    fetchWorkflows(),
+                    fetchApprovals(),
+                    fetchGraphStats()
+                ]);
+
+                updateMetrics(metrics);
+                updateWorkflows(workflows);
+                updateApprovals(approvals);
+                updateGraphStats(graphStats);
+                updateStages();
+            } catch (error) {
+                console.error('Failed to refresh data:', error);
+                document.getElementById('connection-status').innerHTML =
+                    '<span class="w-2 h-2 bg-red-500 rounded-full"></span><span class="text-sm text-red-400">Desconectado</span>';
+            }
+        }
+
+        // Initial load
+        refreshData();
+
+        // Auto refresh
+        refreshInterval = setInterval(refreshData, {{ refresh_interval }} * 1000);
+    </script>
+</body>
+</html>
