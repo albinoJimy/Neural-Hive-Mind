@@ -48,7 +48,34 @@ async def lifespan(app: FastAPI):
     """Context manager for startup and shutdown events."""
     logger = structlog.get_logger()
     logger.info("software_engineering_pipeline_starting", port=settings.api_port)
-    yield
+
+    # Iniciar Kafka consumers se habilitado
+    consumer_task = None
+    if getattr(settings, "kafka_enabled", True):
+        try:
+            from src.consumers import CognitivePlanConsumer
+
+            consumer = CognitivePlanConsumer()
+            consumer_task = asyncio.create_task(consumer.start())
+            logger.info("kafka_consumer_started")
+        except Exception as e:
+            logger.warning("kafka_consumer_failed_to_start", error=str(e))
+
+    try:
+        yield
+    finally:
+        # Parar consumers
+        if consumer_task:
+            try:
+                from src.consumers import CognitivePlanConsumer
+
+                consumer = CognitivePlanConsumer()
+                await consumer.stop()
+                if not consumer_task.done():
+                    consumer_task.cancel()
+            except Exception as e:
+                logger.warning("kafka_consumer_failed_to_stop", error=str(e))
+
     logger.info("software_engineering_pipeline_shutting_down")
 
 
