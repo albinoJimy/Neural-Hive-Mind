@@ -123,7 +123,9 @@ class VisioParser:
         try:
             with zipfile.ZipFile(io.BytesIO(file_content)) as zip_file:
                 # Contar páginas
-                page_files = [f for f in zip_file.namelist() if "visio/pages" in f and f.endswith(".xml")]
+                page_files = [
+                    f for f in zip_file.namelist() if "visio/pages" in f and f.endswith(".xml")
+                ]
                 metadata["page_count"] = len(page_files)
 
                 # Contar shapes
@@ -188,9 +190,7 @@ class VisioParser:
         try:
             with zipfile.ZipFile(io.BytesIO(file_content)) as zip_file:
                 # Procura por indicadores de VSDX
-                has_visio_content = any(
-                    "visio" in name.lower() for name in zip_file.namelist()
-                )
+                has_visio_content = any("visio" in name.lower() for name in zip_file.namelist())
                 return has_visio_content
         except Exception:
             return False
@@ -261,7 +261,9 @@ class VisioParser:
                         shape_info["text"] = "".join(text_parts)
 
                 # Tipo do shape
-                type_elem = shape_elem.xpath("./v:Cell[@N='ShapeType']/v:Value", namespaces=VISIO_NS)
+                type_elem = shape_elem.xpath(
+                    "./v:Cell[@N='ShapeType']/v:Value", namespaces=VISIO_NS
+                )
                 if type_elem is not None and len(type_elem) > 0:
                     shape_info["type"] = type_elem[0].get("V", "")
 
@@ -287,9 +289,6 @@ class VisioParser:
 
         try:
             root = etree.fromstring(xml_content)
-
-            # Namespace para propriedades do app
-            ns = {"vt": "http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"}
 
             # Application
             app_elem = root.find("{*}Application")

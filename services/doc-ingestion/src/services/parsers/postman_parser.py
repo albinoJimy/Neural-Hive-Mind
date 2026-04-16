@@ -265,13 +265,9 @@ class PostmanParser:
                     if body["mode"] == "raw" and "raw" in body:
                         api_info["body"] = body["raw"]
                     elif body["mode"] == "urlencoded" and "urlencoded" in body:
-                        api_info["body"] = [
-                            {p["key"]: p["value"]} for p in body["urlencoded"]
-                        ]
+                        api_info["body"] = [{p["key"]: p["value"]} for p in body["urlencoded"]]
                     elif body["mode"] == "formdata" and "formdata" in body:
-                        api_info["body"] = [
-                            {p["key"]: p["value"]} for p in body["formdata"]
-                        ]
+                        api_info["body"] = [{p["key"]: p["value"]} for p in body["formdata"]]
 
         # Auth
         if "auth" in request:
