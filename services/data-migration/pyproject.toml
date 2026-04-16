@@ -27,6 +27,7 @@ opentelemetry-sdk = "^1.21.0"
 opentelemetry-instrumentation-fastapi = "^0.42b0"
 opentelemetry-instrumentation-httpx = "^0.42b0"
 opentelemetry-exporter-otlp = "^1.21.0"
+httpx = "^0.25.2"
 
 # Data validation
 great-expectations = "^0.18.0"
@@ -44,7 +45,6 @@ pytest-cov = "^4.1.0"
 ruff = "^0.1.8"
 black = "^23.12.1"
 mypy = "^1.7.1"
-httpx = "^0.25.2"
 
 [build-system]
 requires = ["poetry-core"]
