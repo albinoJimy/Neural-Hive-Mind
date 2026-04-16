@@ -9,8 +9,12 @@ import structlog
 from fastapi import FastAPI, status
 from fastapi.responses import JSONResponse
 from src.api.routers.documentation import router as docs_router
+from src.clients.engineering_service_registry_client import (
+    EngineeringServiceRegistryClient,
+)
 from src.config.settings import get_settings
 from src.consumers.architecture_plan_consumer import ArchitecturePlanConsumer
+from src.proto import service_registry_pb2
 from src.producers.docs_producer import DocumentationProducer
 from src.services.code_doc_generator import CodeDocGenerator
 from src.services.readme_generator import ReadmeGenerator
@@ -25,6 +29,7 @@ _code_doc_generator: CodeDocGenerator | None = None
 _kafka_consumer: ArchitecturePlanConsumer | None = None
 _kafka_producer: DocumentationProducer | None = None
 _consumer_task: asyncio.Task | None = None
+_registry_client: EngineeringServiceRegistryClient | None = None
 
 shutdown_event = asyncio.Event()
 
@@ -32,7 +37,7 @@ shutdown_event = asyncio.Event()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager para iniciar/parar componentes."""
-    global _readme_generator, _code_doc_generator, _kafka_consumer, _kafka_producer, _consumer_task
+    global _readme_generator, _code_doc_generator, _kafka_consumer, _kafka_producer, _consumer_task, _registry_client
 
     # Startup
     logger.info("starting_documentation_generation_service")
@@ -56,6 +61,44 @@ async def lifespan(app: FastAPI):
     # Iniciar consumer em background
     _consumer_task = asyncio.create_task(_kafka_consumer.consume())
 
+    # Registrar no Service Registry
+    try:
+        _registry_client = EngineeringServiceRegistryClient(
+            service_name="documentation-generation",
+            agent_type=service_registry_pb2.DOCUMENTATION_GENERATION,
+        )
+
+        if await _registry_client.initialize():
+            agent_id = await _registry_client.register(
+                capabilities=[
+                    "readme_generation",
+                    "api_docs",
+                    "markdown_generation",
+                    "mermaid_rendering",
+                    "architecture_docs",
+                ],
+                metadata={
+                    "kafka_consumer": "architecture_plan_consumer",
+                    "version": "1.0.0",
+                },
+            )
+
+            if agent_id:
+                logger.info(
+                    "service_registered_successfully",
+                    service="documentation-generation",
+                    agent_id=agent_id,
+                    port=8014,
+                )
+                await _registry_client.start_heartbeat(interval_seconds=30)
+                app.state.registry_client = _registry_client
+            else:
+                logger.error("service_registration_failed", service="documentation-generation")
+        else:
+            logger.error("service_registry_init_failed", service="documentation-generation")
+    except Exception as e:
+        logger.error("service_registry_exception", error=str(e))
+
     # Setup signal handlers
     def signal_handler(sig: int, frame):
         logger.info("shutdown_signal_received", signal=sig)
@@ -68,6 +111,12 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     logger.info("shutting_down_documentation_generation_service")
+    if _registry_client:
+        try:
+            await _registry_client.close()
+            logger.info("service_deregistered", service="documentation-generation")
+        except Exception as e:
+            logger.error("service_deregister_failed", error=str(e))
     if _kafka_consumer:
         await _kafka_consumer.stop()
     if _kafka_producer:
