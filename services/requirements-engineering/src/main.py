@@ -5,15 +5,14 @@ import signal
 import uuid
 from contextlib import asynccontextmanager
 
+import structlog
 from fastapi import FastAPI, status
 from fastapi.responses import JSONResponse
-import structlog
-
-from src.config.settings import get_settings
-from src.services.requirements_engineer import RequirementsEngineer
 from src.api.routers.requirements import router as requirements_router
+from src.config.settings import get_settings
 from src.consumers.cognitive_plan_consumer import CognitivePlanConsumer
 from src.producers.requirements_producer import RequirementsProducer
+from src.services.requirements_engineer import RequirementsEngineer
 
 logger = structlog.get_logger(__name__)
 

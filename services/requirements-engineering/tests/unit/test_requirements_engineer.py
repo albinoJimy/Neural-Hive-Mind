@@ -1,14 +1,14 @@
 """Testes unitários para RequirementsEngineer."""
 
-import pytest
 from unittest.mock import AsyncMock, Mock
 
-from src.services.requirements_engineer import RequirementsEngineer
+import pytest
 from src.models.requirements import (
     Requirement,
     RequirementPriority,
     RequirementType,
 )
+from src.services.requirements_engineer import RequirementsEngineer
 
 
 @pytest.fixture

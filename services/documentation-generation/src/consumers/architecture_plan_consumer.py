@@ -1,15 +1,14 @@
 """Kafka consumer para ArchitecturePlan events."""
 
 import json
-from typing import Any, Dict
+from typing import Any
 
 import structlog
 from aiokafka import AIOKafkaConsumer
 from aiokafka.errors import KafkaError
-
 from src.config.settings import get_settings
-from src.services.readme_generator import ReadmeGenerator
 from src.services.code_doc_generator import CodeDocGenerator
+from src.services.readme_generator import ReadmeGenerator
 
 logger = structlog.get_logger(__name__)
 
@@ -108,7 +107,7 @@ class ArchitecturePlanConsumer:
         except Exception as e:
             self._logger.error("message_processing_error", error=str(e))
 
-    async def _handle_architecture_plan(self, data: Dict[str, Any]) -> None:
+    async def _handle_architecture_plan(self, data: dict[str, Any]) -> None:
         """Processa um evento ArchitecturePlan.
 
         Args:

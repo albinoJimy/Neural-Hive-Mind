@@ -1,11 +1,9 @@
 """Gerador de diagramas Mermaid."""
 
-from typing import List, Optional
-from openai import AsyncOpenAI
 import structlog
-
-from src.models import DocType, DocFormat, Document
+from openai import AsyncOpenAI
 from src.config.settings import get_settings
+from src.models import DocFormat, DocType, Document
 
 logger = structlog.get_logger(__name__)
 
@@ -29,7 +27,7 @@ Gere apenas o código Mermaid, sem formatação adicional.
 class DiagramGenerator:
     """Gerador de diagramas Mermaid."""
 
-    def __init__(self, llm_client: Optional[AsyncOpenAI] = None):
+    def __init__(self, llm_client: AsyncOpenAI | None = None):
         """Inicializa o gerador."""
         settings = get_settings()
         self._llm_client = llm_client or AsyncOpenAI(api_key=settings.openai_api_key)
@@ -37,7 +35,7 @@ class DiagramGenerator:
         self._logger = logger
 
     async def generate(
-        self, description: str, diagram_type: str = "sequence", metadata: Optional[dict] = None
+        self, description: str, diagram_type: str = "sequence", metadata: dict | None = None
     ) -> Document:
         """
         Gera diagrama Mermaid.

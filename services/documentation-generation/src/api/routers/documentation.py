@@ -1,14 +1,12 @@
 """Router para endpoints de documentação."""
 
 import structlog
-from typing import List, Optional, Dict
-from fastapi import APIRouter, HTTPException, status, Depends, Query, UploadFile, File
-
-from src.models import ReadmeRequest, APIDocsRequest, DocType, DocFormat, Document
-from src.services.readme_generator import ReadmeGenerator
-from src.services.diagram_generator import DiagramGenerator
-from src.services.code_doc_generator import CodeDocGenerator
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from src.models import APIDocsRequest, DocFormat, DocType, Document, ReadmeRequest
 from src.repositories.documents_repository import DocumentsRepository
+from src.services.code_doc_generator import CodeDocGenerator
+from src.services.diagram_generator import DiagramGenerator
+from src.services.readme_generator import ReadmeGenerator
 
 router = APIRouter(prefix="/docs", tags=["documentation"])
 logger = structlog.get_logger(__name__)
@@ -201,7 +199,7 @@ async def generate_code_docs(
 
 @router.post("/project", status_code=status.HTTP_200_OK)
 async def generate_project_docs(
-    files: List[Dict[str, str]],
+    files: list[dict[str, str]],
     project_name: str = Query(..., description="Nome do projeto"),
     repository: DocumentsRepository = Depends(get_repository),
 ):
@@ -229,7 +227,7 @@ async def generate_project_docs(
 
 @router.get("", status_code=status.HTTP_200_OK)
 async def list_documents(
-    doc_type: Optional[str] = Query(None, description="Filtro por tipo de documento"),
+    doc_type: str | None = Query(None, description="Filtro por tipo de documento"),
     limit: int = Query(50, ge=1, le=100),
     skip: int = Query(0, ge=0),
     repository: DocumentsRepository = Depends(get_repository),

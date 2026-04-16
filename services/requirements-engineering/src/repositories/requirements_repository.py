@@ -1,19 +1,17 @@
 """Repositório para persistência de requisitos."""
 
-from typing import List, Optional, Dict, Any
+import builtins
 from datetime import datetime
-from bson import ObjectId
-from structlog import get_logger
 
 from src.db.mongodb import get_mongodb
 from src.models.requirements import (
     Requirement,
     RequirementCreate,
-    RequirementUpdate,
-    RequirementStatus,
-    RequirementType,
     RequirementsSet,
+    RequirementStatus,
+    RequirementUpdate,
 )
+from structlog import get_logger
 
 logger = get_logger(__name__)
 
@@ -65,7 +63,7 @@ class RequirementsRepository:
 
         return Requirement(**doc)
 
-    async def get_by_id(self, requirement_id: str) -> Optional[Requirement]:
+    async def get_by_id(self, requirement_id: str) -> Requirement | None:
         """Busca requisito por ID."""
         db = await self._get_db()
         doc = await db.requirements_collection.find_one({"id": requirement_id})
@@ -77,12 +75,12 @@ class RequirementsRepository:
 
     async def list(
         self,
-        priority: Optional[str] = None,
-        req_type: Optional[str] = None,
-        status: Optional[str] = None,
+        priority: str | None = None,
+        req_type: str | None = None,
+        status: str | None = None,
         limit: int = 50,
         skip: int = 0,
-    ) -> tuple[List[Requirement], int]:
+    ) -> tuple[list[Requirement], int]:
         """Lista requisitos com filtros."""
         db = await self._get_db()
 
@@ -110,7 +108,7 @@ class RequirementsRepository:
 
     async def update(
         self, requirement_id: str, update_data: RequirementUpdate
-    ) -> Optional[Requirement]:
+    ) -> Requirement | None:
         """Atualiza um requisito."""
         db = await self._get_db()
 
@@ -157,7 +155,7 @@ class RequirementsRepository:
 
         return requirements_set
 
-    async def get_set_by_id(self, set_id: str) -> Optional[RequirementsSet]:
+    async def get_set_by_id(self, set_id: str) -> RequirementsSet | None:
         """Busca conjunto de requisitos por ID."""
         db = await self._get_db()
         doc = await db.requirements_sets_collection.find_one({"id": set_id})
@@ -167,7 +165,7 @@ class RequirementsRepository:
             return RequirementsSet(**doc)
         return None
 
-    async def get_by_cognitive_plan(self, plan_id: str) -> List[Requirement]:
+    async def get_by_cognitive_plan(self, plan_id: str) -> builtins.list[Requirement]:
         """Busca requisitos por CognitivePlan ID."""
         db = await self._get_db()
         cursor = db.requirements_collection.find({"cognitive_plan_id": plan_id})

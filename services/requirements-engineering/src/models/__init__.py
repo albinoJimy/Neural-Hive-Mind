@@ -1,37 +1,38 @@
 """Models package for Requirements Engineering service."""
 
-from src.models.requirements import (
-    Requirement,
-    RequirementCreate,
-    RequirementUpdate,
-    RequirementList,
-    RequirementPriority,
-    RequirementType,
-    RequirementStatus,
-)
-from src.models.user_story import (
-    UserStory,
-    UserStoryCreate,
-    UserStoryUpdate,
-    UserStoryList,
-    StorySize,
-    StoryStatus,
-)
 from src.models.acceptance_criteria import (
-    AcceptanceCriterion,
     AcceptanceCriteriaSet,
+    AcceptanceCriterion,
     AcceptanceCriterionCreate,
-    CriterionType,
     CriterionStatus,
+    CriterionType,
 )
 from src.models.data_model import (
+    ConstraintType,
     DataField,
     DataFieldType,
     DataModel,
     DataSchema,
     EntityRelationship,
     Index,
-    ConstraintType,
+)
+from src.models.requirements import (
+    Requirement,
+    RequirementCreate,
+    RequirementList,
+    RequirementPriority,
+    RequirementStatus,
+    RequirementType,
+    RequirementUpdate,
+)
+from src.models.user_story import (
+    StorySize,
+    StoryStatus,
+    UserStory,
+    UserStoryCreate,
+    UserStoryList,
+    UserStorySet,
+    UserStoryUpdate,
 )
 
 __all__ = [
@@ -48,6 +49,7 @@ __all__ = [
     "UserStoryCreate",
     "UserStoryUpdate",
     "UserStoryList",
+    "UserStorySet",
     "StorySize",
     "StoryStatus",
     # Acceptance Criteria

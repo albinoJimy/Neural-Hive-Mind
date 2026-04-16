@@ -34,10 +34,10 @@ class Document(BaseModel):
     format: DocFormat = Field(default=DocFormat.MARKDOWN)
     title: str = Field(..., description="Título do documento")
     content: str = Field(..., description="Conteúdo do documento")
-    file_path: Optional[str] = Field(None, description="Caminho do arquivo gerado")
-    requirements_id: Optional[str] = Field(None)
-    user_story_id: Optional[str] = Field(None)
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    file_path: str | None = Field(None, description="Caminho do arquivo gerado")
+    requirements_id: str | None = Field(None)
+    user_story_id: str | None = Field(None)
+    metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -46,16 +46,16 @@ class ReadmeRequest(BaseModel):
 
     project_name: str = Field(..., description="Nome do projeto")
     project_description: str = Field(..., description="Descrição do projeto")
-    features: List[str] = Field(default_factory=list, description="Funcionalidades principais")
-    installation: Optional[str] = Field(None, description="Instruções de instalação")
-    usage: Optional[str] = Field(None, description="Instruções de uso")
-    tech_stack: Optional[str] = Field(None, description="Stack tecnológico")
+    features: list[str] = Field(default_factory=list, description="Funcionalidades principais")
+    installation: str | None = Field(None, description="Instruções de instalação")
+    usage: str | None = Field(None, description="Instruções de uso")
+    tech_stack: str | None = Field(None, description="Stack tecnológico")
 
 
 class APIDocsRequest(BaseModel):
     """Request para geração de documentação de API."""
 
-    endpoints: List[dict] = Field(..., description="Lista de endpoints da API")
+    endpoints: list[dict] = Field(..., description="Lista de endpoints da API")
     service_name: str = Field(..., description="Nome do serviço")
     base_url: str = Field(..., description="URL base da API")
-    description: Optional[str] = Field(None, description="Descrição do serviço")
+    description: str | None = Field(None, description="Descrição do serviço")

@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -30,8 +30,8 @@ class AcceptanceCriterion(BaseModel):
     """Critério de aceitação individual."""
 
     id: str = Field(..., description="ID único do critério")
-    user_story_id: Optional[str] = Field(None, description="ID da User Story relacionada")
-    requirement_id: Optional[str] = Field(None, description="ID do Requisito relacionado")
+    user_story_id: str | None = Field(None, description="ID da User Story relacionada")
+    requirement_id: str | None = Field(None, description="ID do Requisito relacionado")
     criterion_type: CriterionType = Field(
         default=CriterionType.FUNCTIONAL, description="Tipo do critério"
     )
@@ -42,17 +42,17 @@ class AcceptanceCriterion(BaseModel):
     statement: str = Field(
         ..., min_length=10, description="Declaração do critério no formato Given-When-Then"
     )
-    given: Optional[str] = Field(None, description="Contexto inicial (Given)")
-    when: Optional[str] = Field(None, description="Acção ou evento (When)")
-    then: Optional[str] = Field(None, description="Resultado esperado (Then)")
+    given: str | None = Field(None, description="Contexto inicial (Given)")
+    when: str | None = Field(None, description="Acção ou evento (When)")
+    then: str | None = Field(None, description="Resultado esperado (Then)")
 
-    test_scenario: Optional[str] = Field(None, description="Cenário de teste associado")
+    test_scenario: str | None = Field(None, description="Cenário de teste associado")
     automated: bool = Field(default=False, description="Se possui teste automatizado")
-    test_file: Optional[str] = Field(None, description="Caminho para o teste automatizado")
+    test_file: str | None = Field(None, description="Caminho para o teste automatizado")
 
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: Optional[datetime] = Field(None)
+    updated_at: datetime | None = Field(None)
 
     def get_gwt_format(self) -> str:
         """Retorna o critério no formato Given-When-Then."""
@@ -72,11 +72,11 @@ class AcceptanceCriteriaSet(BaseModel):
     id: str = Field(..., description="ID único do conjunto")
     parent_id: str = Field(..., description="ID da User Story ou Requisito")
     parent_type: str = Field(..., description="Tipo do pai (user_story ou requirement)")
-    criteria: List[AcceptanceCriterion] = Field(default_factory=list)
+    criteria: list[AcceptanceCriterion] = Field(default_factory=list)
     pass_rate: float = Field(default=0.0, description="Taxa de aprovação (0-1)")
     automated_count: int = Field(default=0, description="Critérios automatizados")
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: Optional[datetime] = Field(None)
+    updated_at: datetime | None = Field(None)
 
     def calculate_pass_rate(self) -> None:
         """Calcula taxa de aprovação."""
@@ -101,11 +101,11 @@ class AcceptanceCriteriaSet(BaseModel):
 class AcceptanceCriterionCreate(BaseModel):
     """DTO para criação de critério de aceitação."""
 
-    user_story_id: Optional[str] = None
-    requirement_id: Optional[str] = None
+    user_story_id: str | None = None
+    requirement_id: str | None = None
     criterion_type: CriterionType = CriterionType.FUNCTIONAL
     statement: str = Field(..., min_length=10)
-    given: Optional[str] = None
-    when: Optional[str] = None
-    then: Optional[str] = None
+    given: str | None = None
+    when: str | None = None
+    then: str | None = None
     automated: bool = False

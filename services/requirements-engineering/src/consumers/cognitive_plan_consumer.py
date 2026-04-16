@@ -1,15 +1,12 @@
 """Kafka consumer para CognitivePlan events."""
 
 import json
-import uuid
-from typing import Any, Dict
+from typing import Any
 
 import structlog
 from aiokafka import AIOKafkaConsumer
 from aiokafka.errors import KafkaError
-
 from src.config.settings import get_settings
-from src.models.requirements import RequirementsSet
 from src.services.requirements_engineer import RequirementsEngineer
 
 logger = structlog.get_logger(__name__)
@@ -106,7 +103,7 @@ class CognitivePlanConsumer:
             self._logger.error("message_processing_error", error=str(e))
             await self._send_to_dlq(msg.value, reason=str(e))
 
-    async def _handle_cognitive_plan(self, data: Dict[str, Any]) -> None:
+    async def _handle_cognitive_plan(self, data: dict[str, Any]) -> None:
         """Processa um evento CognitivePlan.
 
         Args:
@@ -143,7 +140,7 @@ class CognitivePlanConsumer:
                     cognitive_plan_id=plan_id,
                     requirements_count=len(requirements),
                     functional_count=requirements_set.functional_count,
-                    non_functional_count=requirements_set.non_functional,
+                    non_functional_count=requirements_set.non_functional_count,
                 )
 
             self._logger.info(
@@ -151,6 +148,8 @@ class CognitivePlanConsumer:
                 plan_id=plan_id,
                 requirements_set_id=requirements_set.id,
                 total=len(requirements),
+                functional=requirements_set.functional_count,
+                non_functional=requirements_set.non_functional_count,
             )
 
         except Exception as e:

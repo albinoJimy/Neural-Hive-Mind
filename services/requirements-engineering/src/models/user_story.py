@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -42,27 +42,27 @@ class UserStory(BaseModel):
 
     # Detalhes adicionais
     description: str = Field(default="", description="Descrição detalhada da história")
-    acceptance_criteria_ids: List[str] = Field(
+    acceptance_criteria_ids: list[str] = Field(
         default_factory=list, description="IDs dos critérios de aceitação"
     )
-    tasks: List[str] = Field(
+    tasks: list[str] = Field(
         default_factory=list, description="Lista de tarefas técnicas para implementação"
     )
-    dependencies: List[str] = Field(
+    dependencies: list[str] = Field(
         default_factory=list, description="IDs das user stories das quais depende"
     )
 
     # Metadados
-    tags: List[str] = Field(default_factory=list, description="Tags para categorização")
-    epic: Optional[str] = Field(None, description="Epic relacionado (se aplicável)")
-    sprint: Optional[str] = Field(None, description="Sprint planejado")
-    assignee: Optional[str] = Field(None, description="Responsável pela implementação")
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    tags: list[str] = Field(default_factory=list, description="Tags para categorização")
+    epic: str | None = Field(None, description="Epic relacionado (se aplicável)")
+    sprint: str | None = Field(None, description="Sprint planejado")
+    assignee: str | None = Field(None, description="Responsável pela implementação")
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
     # Timestamps
-    cognitive_plan_id: Optional[str] = Field(None, description="ID do CognitivePlan de origem")
+    cognitive_plan_id: str | None = Field(None, description="ID do CognitivePlan de origem")
     created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: Optional[datetime] = Field(None)
+    updated_at: datetime | None = Field(None)
     version: int = Field(default=1)
 
     @field_validator("id")
@@ -78,6 +78,43 @@ class UserStory(BaseModel):
         """Retorna a user story no formato padrão."""
         return f"Como {self.role}, eu quero {self.action}, para que {self.benefit}"
 
+    def get_user_story_format(self) -> str:
+        """Retorna a user story no formato padrão."""
+        return f"Como {self.role}, eu quero {self.action}, para que {self.benefit}."
+
+
+class UserStorySet(BaseModel):
+    """Conjunto de user stories para um RequirementsSet."""
+
+    id: str = Field(..., description="ID único do conjunto")
+    requirements_set_id: str = Field(..., description="ID do RequirementsSet")
+    stories: list[UserStory] = Field(default_factory=list)
+    total_story_points: int = Field(default=0, description="Total de story points")
+    breakdown: dict[StorySize, int] = Field(
+        default_factory=dict, description="Distribuição por tamanho"
+    )
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime | None = Field(None)
+
+    def add_story(self, story: UserStory) -> None:
+        """Adiciona uma user story ao conjunto."""
+        self.stories.append(story)
+        self.total_story_points += self._size_to_points(story.size)
+        self.breakdown[story.size] = self.breakdown.get(story.size, 0) + 1
+        self.updated_at = datetime.utcnow()
+
+    @staticmethod
+    def _size_to_points(size: StorySize) -> int:
+        """Converte tamanho para pontos."""
+        mapping = {
+            StorySize.EXTRA_SMALL: 1,
+            StorySize.SMALL: 2,
+            StorySize.MEDIUM: 3,
+            StorySize.LARGE: 5,
+            StorySize.EXTRA_LARGE: 8,
+        }
+        return mapping.get(size, 3)
+
 
 class UserStoryCreate(BaseModel):
     """DTO para criação de user story."""
@@ -88,25 +125,25 @@ class UserStoryCreate(BaseModel):
     benefit: str = Field(..., min_length=10)
     size: StorySize = StorySize.MEDIUM
     description: str = ""
-    tags: List[str] = Field(default_factory=list)
-    epic: Optional[str] = None
+    tags: list[str] = Field(default_factory=list)
+    epic: str | None = None
 
 
 class UserStoryUpdate(BaseModel):
     """DTO para atualização de user story."""
 
-    status: Optional[StoryStatus] = None
-    size: Optional[StorySize] = None
-    description: Optional[str] = None
-    acceptance_criteria_ids: Optional[List[str]] = None
-    tasks: Optional[List[str]] = None
-    assignee: Optional[str] = None
-    sprint: Optional[str] = None
+    status: StoryStatus | None = None
+    size: StorySize | None = None
+    description: str | None = None
+    acceptance_criteria_ids: list[str] | None = None
+    tasks: list[str] | None = None
+    assignee: str | None = None
+    sprint: str | None = None
 
 
 class UserStoryList(BaseModel):
     """Lista de user stories com metadados."""
 
     total: int
-    items: List[UserStory]
-    requirement_id: Optional[str] = None
+    items: list[UserStory]
+    requirement_id: str | None = None

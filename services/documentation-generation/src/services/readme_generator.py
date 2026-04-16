@@ -1,11 +1,9 @@
 """Gerador de documentação README usando LLM."""
 
-from typing import Optional
-from openai import AsyncOpenAI
 import structlog
-
-from src.models import DocType, DocFormat, Document, ReadmeRequest
+from openai import AsyncOpenAI
 from src.config.settings import get_settings
+from src.models import DocFormat, DocType, Document, ReadmeRequest
 
 logger = structlog.get_logger(__name__)
 
@@ -59,7 +57,7 @@ MIT License
 class ReadmeGenerator:
     """Gerador de documentação README."""
 
-    def __init__(self, llm_client: Optional[AsyncOpenAI] = None):
+    def __init__(self, llm_client: AsyncOpenAI | None = None):
         """Inicializa o gerador."""
         settings = get_settings()
         self._llm_client = llm_client or AsyncOpenAI(api_key=settings.openai_api_key)

@@ -1,13 +1,12 @@
 """Gerador de documentação de código."""
 
 import ast
-import re
-from typing import Optional, List, Dict, Any
-from openai import AsyncOpenAI
-import structlog
+from typing import Any
 
-from src.models import DocType, DocFormat, Document
+import structlog
+from openai import AsyncOpenAI
 from src.config.settings import get_settings
+from src.models import DocFormat, DocType, Document
 
 logger = structlog.get_logger(__name__)
 
@@ -37,7 +36,7 @@ Use formatação Markdown clara.
 class CodeDocGenerator:
     """Gerador de documentação de código."""
 
-    def __init__(self, llm_client: Optional[AsyncOpenAI] = None):
+    def __init__(self, llm_client: AsyncOpenAI | None = None):
         """Inicializa o gerador."""
         settings = get_settings()
         self._llm_client = llm_client or AsyncOpenAI(api_key=settings.openai_api_key)
@@ -96,7 +95,7 @@ class CodeDocGenerator:
             self._logger.error("failed_to_generate_code_docs", error=str(e))
             raise
 
-    def extract_functions(self, code: str, language: str = "python") -> List[Dict[str, Any]]:
+    def extract_functions(self, code: str, language: str = "python") -> list[dict[str, Any]]:
         """
         Extrai funções/classes do código para análise.
 
@@ -111,7 +110,7 @@ class CodeDocGenerator:
             return self._extract_python(code)
         return []
 
-    def _extract_python(self, code: str) -> List[Dict[str, Any]]:
+    def _extract_python(self, code: str) -> list[dict[str, Any]]:
         """Extrai funções/classes de código Python."""
         try:
             tree = ast.parse(code)
@@ -142,7 +141,7 @@ class CodeDocGenerator:
             return []
 
     async def generate_for_project(
-        self, files: List[Dict[str, str]], project_name: str
+        self, files: list[dict[str, str]], project_name: str
     ) -> Document:
         """
         Gera documentação completa para um projeto.
@@ -201,7 +200,7 @@ A documentação deve incluir:
             self._logger.error("failed_to_generate_project_docs", error=str(e))
             raise
 
-    def _summarize_files(self, files: List[Dict[str, str]]) -> str:
+    def _summarize_files(self, files: list[dict[str, str]]) -> str:
         """Cria resumo dos arquivos para o prompt."""
         summary = []
         for file_info in files[:20]:  # Limitar a 20 arquivos

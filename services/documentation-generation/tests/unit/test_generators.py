@@ -1,16 +1,16 @@
 """Testes unitários para Documentation Generation."""
 
-import pytest
 from unittest.mock import AsyncMock, Mock
 
+import pytest
 from src.models import (
-    ReadmeRequest,
-    DocType,
     DocFormat,
+    DocType,
+    ReadmeRequest,
 )
-from src.services.readme_generator import ReadmeGenerator
-from src.services.diagram_generator import DiagramGenerator
 from src.services.code_doc_generator import CodeDocGenerator
+from src.services.diagram_generator import DiagramGenerator
+from src.services.readme_generator import ReadmeGenerator
 
 
 @pytest.fixture

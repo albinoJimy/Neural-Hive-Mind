@@ -1,21 +1,19 @@
 """Router para endpoints de requisitos."""
 
 import structlog
-from typing import List, Optional
-from fastapi import APIRouter, HTTPException, status, Depends, Query
-
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from src.main import get_engineering_service
 from src.models.requirements import (
     Requirement,
     RequirementCreate,
-    RequirementUpdate,
     RequirementList,
     RequirementPriority,
-    RequirementType,
     RequirementStatus,
+    RequirementType,
+    RequirementUpdate,
 )
-from src.services.requirements_engineer import RequirementsEngineer
 from src.repositories.requirements_repository import RequirementsRepository
-from src.main import get_engineering_service
+from src.services.requirements_engineer import RequirementsEngineer
 
 router = APIRouter(prefix="/requirements", tags=["requirements"])
 logger = structlog.get_logger(__name__)
@@ -87,7 +85,7 @@ async def generate_requirements(
 
 @router.post("/analyze-dependencies")
 async def analyze_dependencies(
-    requirements_data: List[dict], engineer: RequirementsEngineer = Depends(get_engineering_service)
+    requirements_data: list[dict], engineer: RequirementsEngineer = Depends(get_engineering_service)
 ):
     """Analisa dependências entre requisitos."""
     try:
@@ -104,9 +102,9 @@ async def analyze_dependencies(
 
 @router.get("", response_model=RequirementList)
 async def list_requirements(
-    priority: Optional[RequirementPriority] = None,
-    req_type: Optional[RequirementType] = None,
-    status_filter: Optional[RequirementStatus] = Query(None, alias="status"),
+    priority: RequirementPriority | None = None,
+    req_type: RequirementType | None = None,
+    status_filter: RequirementStatus | None = Query(None, alias="status"),
     limit: int = Query(50, ge=1, le=100),
     skip: int = Query(0, ge=0),
     repository: RequirementsRepository = Depends(get_repository),

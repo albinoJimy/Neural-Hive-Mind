@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -52,26 +52,24 @@ class Requirement(BaseModel):
     rationale: str = Field(
         default="", description="Justificativa do requisito (por que é necessário)"
     )
-    acceptance_criteria_ids: List[str] = Field(
+    acceptance_criteria_ids: list[str] = Field(
         default_factory=list, description="IDs dos critérios de aceitação"
     )
-    user_story_ids: List[str] = Field(
+    user_story_ids: list[str] = Field(
         default_factory=list, description="IDs das user stories relacionadas"
     )
-    dependencies: List[str] = Field(
+    dependencies: list[str] = Field(
         default_factory=list, description="IDs dos requisitos dos quais depende"
     )
-    conflicts: List[str] = Field(
+    conflicts: list[str] = Field(
         default_factory=list, description="IDs dos requisitos com os quais conflita"
     )
-    tags: List[str] = Field(default_factory=list, description="Tags para categorização")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais")
-    cognitive_plan_id: Optional[str] = Field(None, description="ID do CognitivePlan de origem")
-    architecture_plan_id: Optional[str] = Field(
-        None, description="ID do ArchitecturePlan relacionado"
-    )
+    tags: list[str] = Field(default_factory=list, description="Tags para categorização")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Metadados adicionais")
+    cognitive_plan_id: str | None = Field(None, description="ID do CognitivePlan de origem")
+    architecture_plan_id: str | None = Field(None, description="ID do ArchitecturePlan relacionado")
     created_at: datetime = Field(default_factory=datetime.utcnow, description="Data de criação")
-    updated_at: Optional[datetime] = Field(None, description="Data da última atualização")
+    updated_at: datetime | None = Field(None, description="Data da última atualização")
     version: int = Field(default=1, description="Versão do requisito")
 
     @field_validator("id")
@@ -91,30 +89,30 @@ class RequirementCreate(BaseModel):
     requirement_type: RequirementType = RequirementType.FUNCTIONAL
     priority: RequirementPriority = RequirementPriority.MEDIUM
     rationale: str = ""
-    tags: List[str] = Field(default_factory=list)
-    cognitive_plan_id: Optional[str] = None
-    architecture_plan_id: Optional[str] = None
+    tags: list[str] = Field(default_factory=list)
+    cognitive_plan_id: str | None = None
+    architecture_plan_id: str | None = None
 
 
 class RequirementUpdate(BaseModel):
     """DTO para atualização de requisito."""
 
-    title: Optional[str] = Field(None, min_length=5, max_length=200)
-    description: Optional[str] = Field(None, min_length=20)
-    priority: Optional[RequirementPriority] = None
-    status: Optional[RequirementStatus] = None
-    rationale: Optional[str] = None
-    tags: Optional[List[str]] = None
-    acceptance_criteria_ids: Optional[List[str]] = None
-    user_story_ids: Optional[List[str]] = None
+    title: str | None = Field(None, min_length=5, max_length=200)
+    description: str | None = Field(None, min_length=20)
+    priority: RequirementPriority | None = None
+    status: RequirementStatus | None = None
+    rationale: str | None = None
+    tags: list[str] | None = None
+    acceptance_criteria_ids: list[str] | None = None
+    user_story_ids: list[str] | None = None
 
 
 class RequirementList(BaseModel):
     """Lista de requisitos com metadados."""
 
     total: int
-    items: List[Requirement]
-    filters: Dict[str, Any] = Field(default_factory=dict)
+    items: list[Requirement]
+    filters: dict[str, Any] = Field(default_factory=dict)
 
 
 class RequirementsSet(BaseModel):
@@ -122,7 +120,7 @@ class RequirementsSet(BaseModel):
 
     id: str = Field(..., description="ID único do conjunto")
     cognitive_plan_id: str = Field(..., description="ID do CognitivePlan de origem")
-    requirements: List[Requirement] = Field(default_factory=list)
+    requirements: list[Requirement] = Field(default_factory=list)
     functional_count: int = Field(default=0, description="Contagem de requisitos funcionais")
     non_functional_count: int = Field(
         default=0, description="Contagem de requisitos não-funcionais"

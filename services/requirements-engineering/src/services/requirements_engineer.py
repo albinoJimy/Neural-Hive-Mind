@@ -2,19 +2,18 @@
 
 import json
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import structlog
 from openai import AsyncOpenAI
 from pydantic import ValidationError
-
+from src.config.settings import get_settings
 from src.models.requirements import (
     Requirement,
-    RequirementsSet,
     RequirementPriority,
+    RequirementsSet,
     RequirementType,
 )
-from src.config.settings import get_settings
 
 logger = structlog.get_logger(__name__)
 
@@ -75,7 +74,7 @@ Responda em JSON:
 class RequirementsEngineer:
     """Serviço para engenharia de requisitos usando LLM."""
 
-    def __init__(self, llm_client: Optional[AsyncOpenAI] = None):
+    def __init__(self, llm_client: AsyncOpenAI | None = None):
         """
         Inicializa o RequirementsEngineer.
 
@@ -88,7 +87,7 @@ class RequirementsEngineer:
         self._logger = logger
 
     async def generate_from_cognitive_plan(
-        self, plan_id: str, plan_text: str, context: Optional[Dict[str, Any]] = None
+        self, plan_id: str, plan_text: str, context: dict[str, Any] | None = None
     ) -> RequirementsSet:
         """
         Gera requisitos a partir de um plano cognitivo.
@@ -167,7 +166,7 @@ class RequirementsEngineer:
             self._logger.error("failed_to_generate_requirements", error=str(e))
             raise
 
-    async def prioritize_requirements(self, requirements: List[Requirement]) -> List[Requirement]:
+    async def prioritize_requirements(self, requirements: list[Requirement]) -> list[Requirement]:
         """
         Prioriza requisitos baseado em impacto e urgência.
 
@@ -186,7 +185,7 @@ class RequirementsEngineer:
 
         return sorted(requirements, key=lambda r: priority_order.get(r.priority, 99))
 
-    async def analyze_dependencies(self, requirements: List[Requirement]) -> List[Requirement]:
+    async def analyze_dependencies(self, requirements: list[Requirement]) -> list[Requirement]:
         """
         Analisa dependências entre requisitos usando LLM.
 
@@ -242,7 +241,7 @@ class RequirementsEngineer:
             # Retornar requisitos sem análise de dependências
             return requirements
 
-    def _extract_json(self, text: str) -> Optional[str]:
+    def _extract_json(self, text: str) -> str | None:
         """Extrai JSON de texto markdown."""
         import re
 

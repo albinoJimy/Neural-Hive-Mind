@@ -1,12 +1,11 @@
 """Repositório para persistência de documentos."""
 
-from typing import List, Optional, Dict, Any
+import builtins
 from datetime import datetime
-from bson import ObjectId
-from structlog import get_logger
 
 from src.db.mongodb import get_mongodb
-from src.models import Document, DocType, DocFormat
+from src.models import Document
+from structlog import get_logger
 
 logger = get_logger(__name__)
 
@@ -42,7 +41,7 @@ class DocumentsRepository:
 
         return document
 
-    async def get_by_id(self, document_id: str) -> Optional[Document]:
+    async def get_by_id(self, document_id: str) -> Document | None:
         """Busca documento por ID."""
         db = await self._get_db()
         doc = await db.documents_collection.find_one({"id": document_id})
@@ -54,10 +53,10 @@ class DocumentsRepository:
 
     async def list(
         self,
-        doc_type: Optional[str] = None,
+        doc_type: str | None = None,
         limit: int = 50,
         skip: int = 0,
-    ) -> tuple[List[Document], int]:
+    ) -> tuple[list[Document], int]:
         """Lista documentos com filtros."""
         db = await self._get_db()
 
@@ -89,7 +88,7 @@ class DocumentsRepository:
             return True
         return False
 
-    async def get_by_project(self, project_name: str) -> List[Document]:
+    async def get_by_project(self, project_name: str) -> builtins.list[Document]:
         """Busca documentos por projeto."""
         db = await self._get_db()
         cursor = db.documents_collection.find({"metadata.project": project_name})
@@ -102,7 +101,7 @@ class DocumentsRepository:
 
         return documents
 
-    async def search(self, query: str, limit: int = 20) -> List[Document]:
+    async def search(self, query: str, limit: int = 20) -> builtins.list[Document]:
         """Busca documentos por texto."""
         db = await self._get_db()
 

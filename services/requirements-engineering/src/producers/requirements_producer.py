@@ -2,12 +2,10 @@
 
 import json
 from datetime import datetime, timezone
-from typing import Any
 
 import structlog
 from aiokafka import AIOKafkaProducer
 from aiokafka.errors import KafkaError
-
 from src.config.settings import get_settings
 
 logger = structlog.get_logger(__name__)

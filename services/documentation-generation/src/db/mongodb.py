@@ -1,10 +1,10 @@
 """Cliente MongoDB para Documentation Generation."""
 
-from typing import Optional, List
-from motor.motor_asyncio import AsyncIOMotorClient
-from structlog import get_logger
+from typing import Optional
 
+from motor.motor_asyncio import AsyncIOMotorClient
 from src.config.settings import get_settings
+from structlog import get_logger
 
 logger = get_logger(__name__)
 
@@ -23,7 +23,7 @@ class MongoDBClient:
         if hasattr(self, "_initialized"):
             return
         settings = get_settings()
-        self._client: Optional[AsyncIOMotorClient] = None
+        self._client: AsyncIOMotorClient | None = None
         self._database_name = settings.mongodb_database
         self._initialized = True
 
