@@ -54,6 +54,15 @@ class Settings(BaseSettings):
     llm_model: str = "gpt-4-turbo-preview"
     llm_temperature: float = 0.7
 
+    # Redis Cache
+    redis_url: str = Field(default="redis://localhost:6379/0", validation_alias="REDIS_URL")
+    redis_host: str = Field(default="localhost", validation_alias="REDIS_HOST")
+    redis_port: int = Field(default=6379, validation_alias="REDIS_PORT")
+    redis_db: int = Field(default=0, validation_alias="REDIS_DB")
+    redis_password: Optional[str] = Field(default=None, validation_alias="REDIS_PASSWORD")
+    embedding_cache_ttl: int = Field(default=86400, validation_alias="EMBEDDING_CACHE_TTL")  # 24h
+    embedding_cache_prefix: str = Field(default="embed:", validation_alias="EMBEDDING_CACHE_PREFIX")
+
     # Service Info
     service_name: str = "knowledge-graph-rag"
     service_version: str = "0.1.0"

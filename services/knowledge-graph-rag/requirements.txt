@@ -11,6 +11,8 @@ openai==1.7.2
 anthropic==0.18.0
 numpy==1.26.0
 sentence-transformers==2.2.2
+redis==5.0.1
+hiredis==2.3.2
 
 # Observabilidade
 opentelemetry-api==1.21.0
