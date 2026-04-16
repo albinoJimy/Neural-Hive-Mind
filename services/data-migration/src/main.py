@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 from src.api.routers.migrations import router as migrations_router
 from src.clients.service_registry_client import DataMigrationServiceRegistryClient
 from src.config.settings import get_settings
+from src.producers.migration_producer import get_migration_producer
 
 logger = structlog.get_logger(__name__)
 
@@ -29,6 +30,15 @@ async def lifespan(app: FastAPI):
 
     # Startup
     logger.info("starting_data_migration_service")
+
+    # Inicializar Kafka producer
+    try:
+        migration_producer = get_migration_producer()
+        await migration_producer.start()
+        app.state.migration_producer = migration_producer
+        logger.info("migration_producer_initialized")
+    except Exception as e:
+        logger.error("migration_producer_init_failed", error=str(e))
 
     # Registrar no Service Registry
     try:
@@ -80,6 +90,15 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     logger.info("shutting_down_data_migration_service")
+
+    # Parar Kafka producer
+    if hasattr(app.state, "migration_producer") and app.state.migration_producer:
+        try:
+            await app.state.migration_producer.stop()
+            logger.info("migration_producer_stopped")
+        except Exception as e:
+            logger.error("migration_producer_stop_failed", error=str(e))
+
     if _registry_client:
         try:
             await _registry_client.close()
