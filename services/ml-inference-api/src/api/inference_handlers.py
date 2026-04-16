@@ -191,7 +191,7 @@ async def cache_stats_handler(request: Request) -> dict[str, Any]:
     if not inference_service:
         raise HTTPException(status_code=503, detail="inference_service_not_available")
 
-    return inference_service.get_cache_stats()
+    return await inference_service.get_cache_stats()
 
 
 async def cache_clear_handler(request: Request) -> dict[str, str]:
@@ -208,5 +208,5 @@ async def cache_clear_handler(request: Request) -> dict[str, str]:
     if not inference_service:
         raise HTTPException(status_code=503, detail="inference_service_not_available")
 
-    inference_service.clear_cache()
+    await inference_service.clear_cache()
     return {"status": "cache_cleared"}

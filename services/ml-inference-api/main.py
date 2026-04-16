@@ -90,6 +90,13 @@ async def main():
     # Inicializar serviço de inferência
     inference_service = InferenceService(cache_ttl_seconds=3600)
 
+    # Conectar ao Redis se disponível
+    redis_url = "redis://localhost:6379/0"
+    try:
+        await inference_service.connect_redis(redis_url)
+    except Exception as e:
+        logger.warning("redis_connection_failed", error=str(e), message="Using memory cache only")
+
     # Criar app com injeção de dependência
     app = create_app(inference_service)
 
@@ -132,6 +139,8 @@ async def main():
             await kafka_producer.stop()
         if consumer_task and not consumer_task.done():
             consumer_task.cancel()
+        # Desconectar Redis
+        await inference_service.disconnect_redis()
         logger.info("ml_inference_api_stopped")
 
 
