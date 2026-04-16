@@ -19,6 +19,7 @@ from src.repositories.version_repository import HypothesisVersionRepository
 from src.services.hypothesis_service import HypothesisService
 from src.services.versioning_service import VersioningService
 from src.observability.metrics import hypothesis_metrics
+from src.consumers import HypothesisCreatedConsumer
 
 logger = structlog.get_logger()
 
@@ -28,6 +29,8 @@ hypothesis_repository: HypothesisRepository | None = None
 version_repository: HypothesisVersionRepository | None = None
 versioning_service: VersioningService | None = None
 hypothesis_service: HypothesisService | None = None
+kafka_consumer: HypothesisCreatedConsumer | None = None
+consumer_task: asyncio.Task | None = None
 
 app: FastAPI | None = None
 
@@ -71,7 +74,7 @@ def create_app() -> FastAPI:
     async def startup():
         """Tarefas de inicialização."""
         global mongodb_client, hypothesis_repository, version_repository
-        global versioning_service, hypothesis_service
+        global versioning_service, hypothesis_service, kafka_consumer, consumer_task
 
         settings = get_settings()
 
@@ -111,15 +114,38 @@ def create_app() -> FastAPI:
             hypothesis_repository, versioning_service
         )
 
+        # Inicializar Kafka Consumer (se habilitado)
+        kafka_enabled = getattr(settings, "kafka_enabled", True)
+        if kafka_enabled:
+            try:
+                kafka_consumer = HypothesisCreatedConsumer()
+                kafka_consumer.set_hypothesis_service(hypothesis_service)
+                consumer_task = asyncio.create_task(kafka_consumer.start())
+                logger.info("kafka_consumer_initialized")
+            except Exception as e:
+                logger.warning("kafka_consumer_failed_to_initialize", error=str(e))
+
         logger.info("hypothesis_library_started")
 
     @app.on_event("shutdown")
     async def shutdown():
         """Tarefas de desligamento."""
-        global mongodb_client
+        global mongodb_client, kafka_consumer, consumer_task
 
         logger.info("hypothesis_library_shutting_down")
 
+        # Parar Kafka Consumer
+        if kafka_consumer:
+            try:
+                await kafka_consumer.stop()
+            except Exception as e:
+                logger.warning("kafka_consumer_failed_to_stop", error=str(e))
+
+        # Cancelar task do consumidor
+        if consumer_task and not consumer_task.done():
+            consumer_task.cancel()
+
+        # Desconectar MongoDB
         if mongodb_client:
             await mongodb_client.disconnect()
 
