@@ -20,12 +20,15 @@ from src.api.health_handlers import (
 from src.clients.mongodb_client import MongoDBClient
 from src.config.settings import get_settings
 from src.services.impact_analyzer import ImpactAnalyzer
+from src.consumers import ExperimentCompletedConsumer
 
 logger = structlog.get_logger()
 
 # Global instances
 mongodb_client: MongoDBClient | None = None
 impact_analyzer: ImpactAnalyzer | None = None
+kafka_consumer: ExperimentCompletedConsumer | None = None
+consumer_task: asyncio.Task | None = None
 
 app: FastAPI | None = None
 
@@ -66,7 +69,7 @@ def create_app() -> FastAPI:
     @app.on_event("startup")
     async def startup():
         """Tarefas de inicialização."""
-        global mongodb_client, impact_analyzer
+        global mongodb_client, impact_analyzer, kafka_consumer, consumer_task
 
         settings = get_settings()
 
@@ -97,15 +100,38 @@ def create_app() -> FastAPI:
             mongodb_client=mongodb_client,
         )
 
+        # Inicializar Kafka Consumer (se habilitado)
+        kafka_enabled = getattr(settings, "kafka_enabled", True)
+        if kafka_enabled:
+            try:
+                kafka_consumer = ExperimentCompletedConsumer()
+                kafka_consumer.set_impact_analyzer(impact_analyzer)
+                consumer_task = asyncio.create_task(kafka_consumer.start())
+                logger.info("kafka_consumer_initialized")
+            except Exception as e:
+                logger.warning("kafka_consumer_failed_to_initialize", error=str(e))
+
         logger.info("experiment_impact_analyzer_started")
 
     @app.on_event("shutdown")
     async def shutdown():
         """Tarefas de desligamento."""
-        global mongodb_client
+        global mongodb_client, kafka_consumer, consumer_task
 
         logger.info("experiment_impact_analyzer_shutting_down")
 
+        # Parar Kafka Consumer
+        if kafka_consumer:
+            try:
+                await kafka_consumer.stop()
+            except Exception as e:
+                logger.warning("kafka_consumer_failed_to_stop", error=str(e))
+
+        # Cancelar task do consumidor
+        if consumer_task and not consumer_task.done():
+            consumer_task.cancel()
+
+        # Desconectar MongoDB
         if mongodb_client:
             await mongodb_client.disconnect()
 
