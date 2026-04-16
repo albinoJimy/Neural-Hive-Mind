@@ -1,14 +1,34 @@
 """Aplicação principal Approval Gateway."""
 
+import asyncio
 from contextlib import asynccontextmanager
+from typing import Optional
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import structlog
 
+from src.clients.engineering_service_registry_client import (
+    EngineeringServiceRegistryClient,
+)
 from src.config.settings import get_settings
 from src.api.routers.approvals import router as approvals_router
 
+# Import proto para AgentType
+import sys
+from pathlib import Path
+
+# Adicionar caminho para o service-registry
+sr_path = Path(__file__).parent.parent.parent.parent.parent / "service-registry" / "src"
+if str(sr_path) not in sys.path:
+    sys.path.insert(0, str(sr_path))
+
+from proto import service_registry_pb2
+
 settings = get_settings()
+
+# Global instance
+_registry_client: Optional[EngineeringServiceRegistryClient] = None
 
 # Configurar structlog
 structlog.configure(
@@ -34,13 +54,63 @@ logger = structlog.get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Gerencia ciclo de vida da aplicação."""
+    global _registry_client
+
     logger.info(
         "starting_service",
         service=settings.service_name,
         version=settings.service_version
     )
+
+    # Registrar no Service Registry
+    try:
+        _registry_client = EngineeringServiceRegistryClient(
+            service_name="approval-gateway",
+            agent_type=service_registry_pb2.APPROVAL_GATEWAY,
+        )
+
+        if await _registry_client.initialize():
+            agent_id = await _registry_client.register(
+                capabilities=[
+                    "approval_management",
+                    "artifact_storage",
+                    "jwt_tokens",
+                    "notifications",
+                ],
+                metadata={
+                    "mongodb": "enabled",
+                    "jwt": "enabled",
+                    "version": "1.0.0",
+                },
+            )
+
+            if agent_id:
+                logger.info(
+                    "service_registered_successfully",
+                    service="approval-gateway",
+                    agent_id=agent_id,
+                    port=8017,
+                )
+                await _registry_client.start_heartbeat(interval_seconds=30)
+                app.state.registry_client = _registry_client
+            else:
+                logger.error("service_registration_failed", service="approval-gateway")
+        else:
+            logger.error("service_registry_init_failed", service="approval-gateway")
+    except Exception as e:
+        logger.error("service_registry_exception", error=str(e))
+
     yield
+
     logger.info("shutting_down_service")
+
+    # Deregister do Service Registry
+    if _registry_client:
+        try:
+            await _registry_client.close()
+            logger.info("service_deregistered", service="approval-gateway")
+        except Exception as e:
+            logger.error("service_deregister_failed", error=str(e))
 
 
 app = FastAPI(
