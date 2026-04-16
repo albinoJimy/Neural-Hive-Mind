@@ -137,9 +137,10 @@ result = calculate_sum(1, 2)  # Returns 3
     assert "calculate_sum" in document.content
 
 
-def test_extract_python_functions():
+def test_extract_python_functions(mock_llm_response):
     """Testa extração de funções Python."""
-    generator = CodeDocGenerator()
+    mock_client = AsyncMock()
+    generator = CodeDocGenerator(llm_client=mock_client)
 
     code = """
 def hello_world():
@@ -161,15 +162,17 @@ class Calculator:
     assert items[1]["type"] == "class"
 
 
-def test_extract_functions_empty_code():
+def test_extract_functions_empty_code(mock_llm_response):
     """Testa extração de código vazio."""
-    generator = CodeDocGenerator()
+    mock_client = AsyncMock()
+    generator = CodeDocGenerator(llm_client=mock_client)
     items = generator.extract_functions("", "python")
     assert items == []
 
 
-def test_extract_functions_invalid_code():
+def test_extract_functions_invalid_code(mock_llm_response):
     """Testa extração de código inválido."""
-    generator = CodeDocGenerator()
+    mock_client = AsyncMock()
+    generator = CodeDocGenerator(llm_client=mock_client)
     items = generator.extract_functions("this is not valid python code", "python")
     assert items == []

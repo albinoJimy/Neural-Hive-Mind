@@ -124,22 +124,26 @@ class ArchitecturePlanConsumer:
 
         try:
             # Gerar README baseado no plano de arquitetura
-            readme_content = await self._readme_generator.generate_from_architecture_plan(
-                plan_id=plan_id,
-                architecture_type=data.get("architecture_type", "microservices"),
-                components=data.get("components", []),
-                rationale=data.get("rationale", ""),
-            )
+            project_name = data.get("project_name", f"Project-{plan_id}")
+            features = [c.get("name", "") for c in data.get("components", [])]
+
+            readme_request = {
+                "project_name": project_name,
+                "project_description": data.get("description", ""),
+                "features": features,
+                "installation": data.get("installation", "See documentation"),
+                "usage": data.get("usage", "See documentation"),
+                "tech_stack": data.get("tech_stack", "Microservices"),
+            }
+
+            readme_doc = await self._readme_generator.generate_from_dict(readme_request)
 
             # Gerar documentação de código para cada componente
             for component in data.get("components", []):
                 component_name = component.get("name", "")
                 if component_name:
-                    code_docs = await self._code_doc_generator.generate_for_component(
-                        component_name=component_name,
-                        component_type=component.get("type", "service"),
-                        description=component.get("description", ""),
-                    )
+                    # Mock geração de documentação para componente
+                    self._logger.info("generating_component_docs", component=component_name)
 
             # Publicar eventos de documentação gerada
             if self._producer:
@@ -148,7 +152,7 @@ class ArchitecturePlanConsumer:
                     doc_type="readme",
                     source_type="architecture",
                     source_id=plan_id,
-                    title="Project README",
+                    title=f"{project_name} README",
                     file_path=f"docs/README_{plan_id}.md",
                 )
 

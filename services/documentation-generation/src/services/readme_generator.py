@@ -114,3 +114,17 @@ class ReadmeGenerator:
         except Exception as e:
             self._logger.error("failed_to_generate_readme", error=str(e))
             raise
+
+    async def generate_from_dict(self, data: dict) -> Document:
+        """
+        Gera README a partir de um dicionário.
+
+        Args:
+            data: Dicionário com dados do projeto {project_name, project_description,
+                  features, installation, usage, tech_stack}
+
+        Returns:
+            Document com o README gerado
+        """
+        request = ReadmeRequest(**data)
+        return await self.generate(request)
