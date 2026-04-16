@@ -1,0 +1,98 @@
+# Prometheus configuration for Neural Hive Mind monitoring
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'neural-hive'
+    environment: 'development'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+# Rule files
+rule_files:
+  - 'alerts/*.yml'
+
+# Scrape configurations
+scrape_configs:
+  # Fluxo G Engineering Services
+  - job_name: 'requirements-engineering'
+    static_configs:
+      - targets: ['host.docker.internal:8010']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  - job_name: 'documentation-generation'
+    static_configs:
+      - targets: ['host.docker.internal:8014']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  - job_name: 'knowledge-graph-rag'
+    static_configs:
+      - targets: ['host.docker.internal:8016']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  - job_name: 'approval-gateway'
+    static_configs:
+      - targets: ['host.docker.internal:8017']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # Core Services
+  - job_name: 'service-registry'
+    static_configs:
+      - targets: ['host.docker.internal:8007']
+    metrics_path: '/metrics'
+
+  - job_name: 'orchestrator-dynamic'
+    static_configs:
+      - targets: ['host.docker.internal:8003']
+    metrics_path: '/metrics'
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Grafana monitoring
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['grafana:3000']
+    metrics_path: '/metrics'
+
+  # Node Exporter
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+  # Kubernetes components (if running in K8s)
+  - job_name: 'kubernetes-nodes'
+    kubernetes_sd_configs:
+      - role: node
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: '(.*):10250'
+        target_label: __param_target
+      - source_labels: [__param_target]
+        regex: '(.*)(:10250)?'
+        target_label: __address__
+        replacement: '${1}:9100'
+      - source_labels: [__address__]
+        target_label: __param_target
+      - action: labelmap
+        regex: __meta_kubernetes_node_label_(.+)
+        replacement: $1
+      - action: labeldrop
+        regex: (__meta_kubernetes_node_label).+
+
+  # Kafka Exporter (if available)
+  - job_name: 'kafka-exporter'
+    static_configs:
+      - targets: ['kafka-exporter:9308']

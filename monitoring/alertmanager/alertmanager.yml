@@ -1,0 +1,121 @@
+# Alertmanager configuration
+
+global:
+  resolve_timeout: 5m
+  # SMTP configuration for email alerts (configure as needed)
+  # smtp_smarthost: 'smtp.gmail.com:587'
+  # smtp_from: 'alertmanager@neural-hive.local'
+  # smtp_auth_username: 'your-email@gmail.com'
+  # smtp_auth_password: 'your-app-password'
+
+# Templates
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Route configuration
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+  receiver: 'default'
+
+  # Routes for different severity levels
+  routes:
+    # Critical alerts go to critical receiver
+    - match:
+        severity: critical
+      receiver: 'critical'
+      continue: true
+
+    # Warning alerts go to warning receiver
+    - match:
+        severity: warning
+      receiver: 'warning'
+      continue: true
+
+    # Fluxo G service specific routing
+    - match:
+        service: fluxo-g
+      receiver: 'fluxo-g-team'
+      group_by: ['alertname', 'job']
+
+    # LLM specific alerts
+    - match:
+        service: llm
+      receiver: 'llm-team'
+
+    # System alerts
+    - match:
+        service: system
+      receiver: 'ops-team'
+
+# Inhibition rules
+inhibit_rules:
+  # Inhibit warning if critical is firing for same alert
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'job', 'service']
+
+# Receivers
+receivers:
+  - name: 'default'
+    # webhook_configs:
+    #   - url: 'http://localhost:5001/webhook'
+
+  - name: 'critical'
+    # Email for critical alerts
+    # email_configs:
+    #   - to: 'oncall@neural-hive.local'
+    #     headers:
+    #       Subject: '[CRITICAL] {{ .GroupLabels.alertname }}'
+    # Slack webhook (configure)
+    webhook_configs:
+      - url: 'http://localhost:5001/critical'
+        send_resolved: true
+
+  - name: 'warning'
+    webhook_configs:
+      - url: 'http://localhost:5001/warning'
+        send_resolved: true
+
+  - name: 'fluxo-g-team'
+    webhook_configs:
+      - url: 'http://localhost:5001/fluxo-g'
+        send_resolved: true
+
+  - name: 'llm-team'
+    webhook_configs:
+      - url: 'http://localhost:5001/llm'
+        send_resolved: true
+
+  - name: 'ops-team'
+    webhook_configs:
+      - url: 'http://localhost:5001/ops'
+        send_resolved: true
+
+# Time intervals
+time_intervals:
+  - name: business_hours
+    time_intervals:
+      - times:
+          - start_time: '09:00'
+            end_time: '17:00'
+        weekdays: ['monday:friday']
+
+  - name: off_hours
+    time_intervals:
+      - times:
+          - start_time: '17:00'
+            end_time: '09:00'
+        weekdays: ['monday:friday']
+      - weekdays: ['saturday', 'sunday']
+
+# Mute timing for non-urgent alerts during off hours
+mute_time_intervals:
+  - name: 'off-hours-muted'
+    time_intervals:
+      - off_hours
+    show_in_muted_tab: true

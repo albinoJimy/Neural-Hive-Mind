@@ -1,0 +1,136 @@
+# Prometheus Alert Rules for Fluxo G Services
+
+groups:
+  - name: fluxo_g_alerts
+    interval: 30s
+    rules:
+      # Service Down Alerts
+      - alert: FluxoGServiceDown
+        expr: |
+          up{job=~"requirements-engineering|documentation-generation|knowledge-graph-rag|approval-gateway"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: fluxo-g
+        annotations:
+          summary: "Fluxo G service {{ $labels.job }} is down"
+          description: "Service {{ $labels.job }} on {{ $labels.instance }} has been down for more than 1 minute"
+
+      # High Error Rate Alert
+      - alert: FluxoGHighErrorRate
+        expr: |
+          sum by (job) (rate(http_requests_total{status=~"5..", job=~"requirements-engineering|documentation-generation|knowledge-graph-rag|approval-gateway"}[5m]))
+          /
+          sum by (job) (rate(http_requests_total{job=~"requirements-engineering|documentation-generation|knowledge-graph-rag|approval-gateway"}[5m]))
+          > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          service: fluxo-g
+        annotations:
+          summary: "High error rate on {{ $labels.job }}"
+          description: "Error rate on {{ $labels.job }} is above 5% for the last 5 minutes"
+
+      # High Latency Alert
+      - alert: FluxoGHighLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket{job=~"requirements-engineering|documentation-generation|knowledge-graph-rag|approval-gateway"}[5m])) by (le)
+          ) > 5
+        for: 5m
+        labels:
+          severity: warning
+          service: fluxo-g
+        annotations:
+          summary: "P95 latency over 5s on {{ $labels.job }}"
+          description: "95th percentile latency on {{ $labels.job }} is above 5 seconds"
+
+      # Service Registry Disconnection Alert
+      - alert: ServiceRegistryDisconnected
+        expr: |
+          sum(service_registry_connections_total{namespace="neural-hive"}) < 4
+        for: 2m
+        labels:
+          severity: warning
+          service: service-registry
+        annotations:
+          summary: "Less than 4 Fluxo G services connected to Service Registry"
+          description: "Expected 4 Fluxo G services, but only {{ $value }} are connected"
+
+      # Kafka Consumer Lag Alert
+      - alert: FluxoGKafkaConsumerLag
+        expr: |
+          kafka_consumergroup_lag{job="requirements-engineering", topic="cognitive-plan"} > 1000
+        for: 10m
+        labels:
+          severity: warning
+          service: kafka
+        annotations:
+          summary: "Kafka consumer lag over 1000 messages"
+          description: "Consumer lag for cognitive-plan topic is {{ $value }} messages"
+
+      # Memory Usage Alert
+      - alert: FluxoGHighMemoryUsage
+        expr: |
+          process_resident_memory_bytes{job=~"requirements-engineering|documentation-generation|knowledge-graph-rag|approval-gateway"}
+          / 1024 / 1024 > 1024
+        for: 5m
+        labels:
+          severity: warning
+          service: fluxo-g
+        annotations:
+          summary: "{{ $labels.job }} memory usage over 1GB"
+          description: "Memory usage is {{ $value }}MB"
+
+      # CPU Usage Alert
+      - alert: FluxoGHighCPUUsage
+        expr: |
+          rate(process_cpu_seconds_total{job=~"requirements-engineering|documentation-generation|knowledge-graph-rag|approval-gateway"}[5m]) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: fluxo-g
+        annotations:
+          summary: "{{ $labels.job }} CPU usage over 80%"
+          description: "CPU usage is {{ $value }}%"
+
+  - name: llm_usage_alerts
+    interval: 60s
+    rules:
+      # High LLM Token Usage
+      - alert: FluxoGHighTokenUsage
+        expr: |
+          rate(llm_tokens_used_total{job="requirements-engineering"}[1h]) > 1000
+        for: 10m
+        labels:
+          severity: info
+          service: llm
+        annotations:
+          summary: "High LLM token usage rate"
+          description: "Using more than 1000 tokens/second on {{ $labels.model }}"
+
+  - name: system_alerts
+    interval: 30s
+    rules:
+      # Disk Space Alert
+      - alert: NodeDiskSpaceLow
+        expr: |
+          (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 10
+        for: 5m
+        labels:
+          severity: critical
+          service: system
+        annotations:
+          summary: "Less than 10% disk space remaining"
+          description: "Disk usage on {{ $labels.instance }} is {{ $value }}%"
+
+      # Node Exporter Down
+      - alert: NodeExporterDown
+        expr: up{job="node-exporter"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          service: monitoring
+        annotations:
+          summary: "Node exporter is down"
+          description: "Node exporter on {{ $labels.instance }} is unreachable"

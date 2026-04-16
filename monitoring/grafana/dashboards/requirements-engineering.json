@@ -1,0 +1,225 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Fluxo G - Requirements Engineering Service",
+    "tags": ["fluxo-g", "requirements-engineering", "engineering"],
+    "timezone": "browser",
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Service Health",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 4, "x": 0, "y": 0},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "up{job=\"requirements-engineering\"}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "green", "value": 1}
+              ]
+            },
+            "mappings": [
+              {
+                "type": "value",
+                "options": {
+                  "0": {"text": "DOWN"},
+                  "1": {"text": "UP"}
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Requirements Generated (Total)",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 4, "x": 4, "y": 0},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "requirements_generated_total{job=\"requirements-engineering\"}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"}
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "Generation Rate",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 4, "x": 8, "y": 0},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "rate(requirements_generated_total{job=\"requirements-engineering\"}[5m])"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps"
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "Avg Generation Duration",
+        "type": "gauge",
+        "gridPos": {"h": 4, "w": 4, "x": 12, "y": 0},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "rate(requirement_generation_duration_seconds_sum{job=\"requirements-engineering\"}[5m]) / rate(requirement_generation_duration_seconds_count{job=\"requirements-engineering\"}[5m])"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "min": 0,
+            "max": 60
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Request Rate by Endpoint",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "sum by (endpoint) (rate(http_requests_total{job=\"requirements-engineering\"}[5m]))",
+            "legendFormat": "{{endpoint}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "color": {"mode": "palette-classic"}
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "P95/P99 Latency",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"requirements-engineering\"}[5m])) by (le))",
+            "legendFormat": "P95"
+          },
+          {
+            "datasource": "prometheus",
+            "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job=\"requirements-engineering\"}[5m])) by (le))",
+            "legendFormat": "P99"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "color": {"mode": "palette-classic"}
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "Kafka Consumer Lag",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "kafka_consumergroup_lag{job=\"requirements-engineering\", topic=\"cognitive-plan\"}",
+            "legendFormat": "{{consumer_group}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {"mode": "palette-classic"}
+          }
+        }
+      },
+      {
+        "id": 8,
+        "title": "User Stories Generated",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "rate(user_stories_generated_total{job=\"requirements-engineering\"}[5m])",
+            "legendFormat": "User Stories"
+          },
+          {
+            "datasource": "prometheus",
+            "expr": "rate(acceptance_criteria_generated_total{job=\"requirements-engineering\"}[5m])",
+            "legendFormat": "Acceptance Criteria"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "color": {"mode": "palette-classic"}
+          }
+        }
+      },
+      {
+        "id": 9,
+        "title": "LLM Token Usage",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 20},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "rate(llm_tokens_used_total{job=\"requirements-engineering\", model=\"claude\"}[5m])",
+            "legendFormat": "Claude Tokens"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "tokenps",
+            "color": {"mode": "palette-classic"}
+          }
+        }
+      },
+      {
+        "id": 10,
+        "title": "Resource Usage",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 20},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "process_resident_memory_bytes{job=\"requirements-engineering\"} / 1024 / 1024",
+            "legendFormat": "Memory (MB)"
+          },
+          {
+            "datasource": "prometheus",
+            "expr": "rate(process_cpu_seconds_total{job=\"requirements-engineering\"}[5m]) * 100",
+            "legendFormat": "CPU %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"}
+          }
+        }
+      }
+    ]
+  }
+}
