@@ -1,0 +1,363 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Fluxo H - Legacy Migration Overview",
+    "tags": ["fluxo-h", "migration", "overview", "doc-ingestion", "data-migration", "cutover"],
+    "timezone": "browser",
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Services Health Status",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 8, "x": 0, "y": 0},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "up{job=~\"doc-ingestion|data-migration|cutover-orchestrator\"}",
+            "legendFormat": "{{job}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "green", "value": 1}
+              ]
+            },
+            "mappings": [
+              {
+                "type": "value",
+                "options": {
+                  "0": {"text": "DOWN", "color": "red"},
+                  "1": {"text": "UP", "color": "green"}
+                }
+              }
+            ]
+          }
+        },
+        "options": {
+          "colorMode": "background",
+          "graphMode": "area"
+        }
+      },
+      {
+        "id": 2,
+        "title": "Overall Migration Progress",
+        "type": "gauge",
+        "gridPos": {"h": 4, "w": 8, "x": 8, "y": 0},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "(data_migration_jobs_completed_total / data_migration_jobs_total) * 100",
+            "legendFormat": "Migration Progress"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 50},
+                {"color": "green", "value": 90}
+              ]
+            }
+          }
+        },
+        "options": {
+          "orientation": "auto",
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        }
+      },
+      {
+        "id": 3,
+        "title": "Traffic Distribution",
+        "type": "piechart",
+        "gridPos": {"h": 4, "w": 8, "x": 16, "y": 0},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "cutover_traffic_percentage",
+            "legendFormat": "Target",
+            "instant": true
+          },
+          {
+            "datasource": "prometheus",
+            "expr": "100 - cutover_traffic_percentage",
+            "legendFormat": "Legacy",
+            "instant": true
+          }
+        ],
+        "options": {
+          "pieType": "pie",
+          "tooltip": { "mode": "single", "sort": "none" },
+          "legend": { "displayMode": "table", "placement": "right" }
+        }
+      },
+      {
+        "id": 4,
+        "title": "Documents Processed (Last Hour)",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "rate(doc_ingestion_documents_processed_total[1h])",
+            "legendFormat": "Documents/sec"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops",
+            "color": {"mode": "palette-classic"}
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Data Migration Throughput",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "rate(data_migration_rows_migrated_total[5m])",
+            "legendFormat": "Rows/sec"
+          },
+          {
+            "datasource": "prometheus",
+            "expr": "rate(data_migration_cdc_events_total[5m])",
+            "legendFormat": "CDC Events/sec"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops",
+            "color": {"mode": "palette-classic"}
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "Error Rate by Service",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "sum by (job) (rate(http_requests_total{job=~\"doc-ingestion|data-migration\",status=~\"5..\"}[5m]))",
+            "legendFormat": "{{job}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "color": {"mode": "palette-classic"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 0.01},
+                {"color": "red", "value": 0.05}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "Rollback Events",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "rate(data_migration_rollback_total[5m])",
+            "legendFormat": "Migration Rollbacks"
+          },
+          {
+            "datasource": "prometheus",
+            "expr": "rate(cutover_emergency_rollback_total[5m])",
+            "legendFormat": "Emergency Rollbacks"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops",
+            "color": {"mode": "palette-classic"}
+          }
+        }
+      },
+      {
+        "id": 8,
+        "title": "Storage Usage",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 20},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "doc_ingestion_s3_storage_bytes / 1024 / 1024 / 1024",
+            "legendFormat": "S3 Storage (GB)"
+          },
+          {
+            "datasource": "prometheus",
+            "expr": "doc_ingestion_mongodb_storage_bytes / 1024 / 1024 / 1024",
+            "legendFormat": "MongoDB Storage (GB)"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "bytes",
+            "color": {"mode": "palette-classic"}
+          }
+        }
+      },
+      {
+        "id": 9,
+        "title": "Cutover Traffic Percentage",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 20},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "cutover_traffic_percentage",
+            "legendFormat": "Target Traffic %"
+          },
+          {
+            "datasource": "prometheus",
+            "expr": "100 - cutover_traffic_percentage",
+            "legendFormat": "Legacy Traffic %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100,
+            "color": {"mode": "palette-classic"}
+          }
+        }
+      },
+      {
+        "id": 10,
+        "title": "Service Registry Connections",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 28},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "sum(service_registry_connections_total{namespace=\"fluxo-h\"})",
+            "legendFormat": "Connected"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "green", "value": 3}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 11,
+        "title": "Active Jobs",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 28},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "data_migration_jobs_active",
+            "legendFormat": "Active"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 5},
+                {"color": "red", "value": 10}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 12,
+        "title": "Shadow Mode Status",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 28},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "cutover_shadow_mode_enabled",
+            "legendFormat": "Shadow Mode"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "gray", "value": 0},
+                {"color": "blue", "value": 1}
+              ]
+            },
+            "mappings": [
+              {
+                "type": "value",
+                "options": {
+                  "0": {"text": "DISABLED"},
+                  "1": {"text": "ENABLED"}
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": 13,
+        "title": "Validation Failures (24h)",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 28},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "increase(data_migration_validation_failures_total[24h])",
+            "legendFormat": "Failures"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 1},
+                {"color": "red", "value": 10}
+              ]
+            }
+          }
+        }
+      }
+    ]
+  }
+}
