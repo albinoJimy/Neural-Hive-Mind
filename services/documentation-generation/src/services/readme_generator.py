@@ -10,7 +10,7 @@ from src.config.settings import get_settings
 logger = structlog.get_logger(__name__)
 
 README_PROMPT = """
-Gere um README.md completo para o seguinte projeto:
+Gere um README.md completo e profissional para o seguinte projeto:
 
 **Nome do Projeto:** {project_name}
 
@@ -36,19 +36,19 @@ O README deve seguir este formato:
 
 ## Funcionalidades
 
-{features_list}
+{features}
 
 ## Instalação
 
-{installation_content}
+{installation}
 
 ## Uso
 
-{usage_content}
+{usage}
 
 ## Stack Tecnológico
 
-{tech_stack_content}
+{tech_stack}
 
 ## Licença
 
