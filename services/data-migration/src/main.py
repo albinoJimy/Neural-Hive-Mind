@@ -9,6 +9,7 @@ import structlog
 from fastapi import FastAPI, status
 from fastapi.responses import JSONResponse
 
+from src.api.routers.migrations import router as migrations_router
 from src.clients.service_registry_client import DataMigrationServiceRegistryClient
 from src.config.settings import get_settings
 
@@ -120,6 +121,10 @@ async def health_check():
         "version": settings.service_version,
         "registry_connected": _registry_client is not None,
     }
+
+
+# Include routers
+app.include_router(migrations_router, prefix=settings.api_prefix)
 
 
 # Exception handlers
