@@ -2,6 +2,12 @@
 Services do Data Migration System.
 """
 
+from src.services.batch_migrator import (
+    BatchMigrator,
+    BatchMigratorError,
+    MigrationProgress,
+    get_batch_migrator,
+)
 from src.services.cdc_pipeline import (
     CDCConsumerError,
     CDCConnectorError,
@@ -14,6 +20,11 @@ from src.services.cdc_pipeline import (
 from src.services.schema_mapper import SchemaMapper, get_schema_mapper
 
 __all__ = [
+    # Batch Migrator
+    "BatchMigrator",
+    "BatchMigratorError",
+    "MigrationProgress",
+    "get_batch_migrator",
     # CDC Pipeline
     "CDCPipeline",
     "CDCStatus",
