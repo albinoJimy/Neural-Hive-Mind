@@ -23,6 +23,7 @@ class CognitivePlanConsumer:
         bootstrap_servers: str | None = None,
         topic: str = "cognitive.plans.created",
         group_id: str = "software-engineering-pipeline",
+        producer=None,
     ):
         """Inicializa o consumidor.
 
@@ -30,6 +31,7 @@ class CognitivePlanConsumer:
             bootstrap_servers: Endereço do Kafka
             topic: Tópico para consumir
             group_id: ID do grupo consumidor
+            producer: PipelineGeneratedProducer opcional para publicar eventos
         """
         self._bootstrap_servers = bootstrap_servers or settings.kafka_bootstrap_servers
         self._topic = topic
@@ -38,6 +40,7 @@ class CognitivePlanConsumer:
         self._generator = GitHubActionsGenerator()
         self._running = False
         self._logger = logger
+        self._producer = producer
 
     async def start(self) -> None:
         """Inicia o consumidor Kafka."""
@@ -157,8 +160,17 @@ class CognitivePlanConsumer:
                 content_length=len(generated.content),
             )
 
+            # Publicar evento pipelines.generated
+            if self._producer:
+                await self._producer.publish_pipeline_generated(
+                    plan_id=plan_id,
+                    manifest_filename=generated.filename,
+                    manifest_content=generated.content,
+                    repo_name=config["repo_name"],
+                    stack=config["stack"],
+                )
+
             # TODO: Persistir manifesto no repositório
-            # TODO: Publicar evento pipelines.generated
 
         except Exception as e:
             self._logger.error(

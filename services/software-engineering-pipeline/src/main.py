@@ -1,3 +1,4 @@
+import asyncio
 import contextlib
 
 import structlog
@@ -49,13 +50,20 @@ async def lifespan(app: FastAPI):
     logger = structlog.get_logger()
     logger.info("software_engineering_pipeline_starting", port=settings.api_port)
 
-    # Iniciar Kafka consumers se habilitado
+    # Iniciar Kafka consumers e producer se habilitado
     consumer_task = None
+    pipeline_producer = None
     if getattr(settings, "kafka_enabled", True):
         try:
             from src.consumers import CognitivePlanConsumer
+            from src.producers import PipelineGeneratedProducer
 
-            consumer = CognitivePlanConsumer()
+            # Inicializar producer
+            pipeline_producer = PipelineGeneratedProducer()
+            await pipeline_producer.start()
+
+            # Inicializar consumer com producer injetado
+            consumer = CognitivePlanConsumer(producer=pipeline_producer)
             consumer_task = asyncio.create_task(consumer.start())
             logger.info("kafka_consumer_started")
         except Exception as e:
@@ -64,7 +72,7 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
-        # Parar consumers
+        # Parar consumers e producer
         if consumer_task:
             try:
                 from src.consumers import CognitivePlanConsumer
@@ -75,6 +83,12 @@ async def lifespan(app: FastAPI):
                     consumer_task.cancel()
             except Exception as e:
                 logger.warning("kafka_consumer_failed_to_stop", error=str(e))
+
+        if pipeline_producer:
+            try:
+                await pipeline_producer.stop()
+            except Exception as e:
+                logger.warning("kafka_producer_failed_to_stop", error=str(e))
 
     logger.info("software_engineering_pipeline_shutting_down")
 
