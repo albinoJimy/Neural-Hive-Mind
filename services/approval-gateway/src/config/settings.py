@@ -50,6 +50,15 @@ class Settings(BaseSettings):
     auto_rejection_threshold: float = 0.3
     require_human_threshold: float = 0.5
 
+    # JWT Settings
+    jwt_secret_key: str = Field(
+        default="change-me-in-production",
+        validation_alias="JWT_SECRET_KEY"
+    )
+    jwt_algorithm: str = "HS256"
+    jwt_access_token_expire_minutes: int = 30
+    jwt_refresh_token_expire_days: int = 7
+
     # Service Info
     service_name: str = "approval-gateway"
     service_version: str = "0.1.0"

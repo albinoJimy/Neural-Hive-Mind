@@ -13,6 +13,7 @@ from src.clients.engineering_service_registry_client import (
 )
 from src.config.settings import get_settings
 from src.api.routers.approvals import router as approvals_router
+from src.api.routers.auth import router as auth_router
 
 # Import proto para AgentType
 import sys
@@ -75,6 +76,7 @@ async def lifespan(app: FastAPI):
                     "approval_management",
                     "artifact_storage",
                     "jwt_tokens",
+                    "authentication",
                     "notifications",
                 ],
                 metadata={
@@ -130,6 +132,7 @@ app.add_middleware(
 
 # Router
 app.include_router(approvals_router, prefix=settings.api_prefix)
+app.include_router(auth_router, prefix=settings.api_prefix)
 
 
 @app.get("/")
