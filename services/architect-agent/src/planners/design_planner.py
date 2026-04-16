@@ -93,7 +93,76 @@ class DesignPlanner(BasePlanner):
         response = await self.llm_client.generate(user_prompt, SYSTEM_PROMPT)
         plan_data = self._parse_llm_response(response)
 
-        # Criar ArchitecturePlan
+        # Extrair texto dos requisitos para módulos estendidos
+        requirements_text = self._extract_requirements_text(requirements)
+
+        # Variáveis para campos estendidos (inicialmente None)
+        bounded_contexts = None
+        tech_stack = None
+        diagrams = None
+
+        # Executar módulos estendidos se disponíveis
+        if self._use_extended_features:
+            # 1. Identificar Bounded Contexts (DDD)
+            if self._bounded_contexts_identifier:
+                try:
+                    domain_hints = context.get("domain_hints") if context else None
+                    contexts_analysis = await self._bounded_contexts_identifier.identify(
+                        requirements=requirements_text,
+                        domain_hints=domain_hints
+                    )
+                    bounded_contexts = contexts_analysis.contexts
+                except Exception as e:
+                    # Log error mas continuar sem bounded contexts
+                    import structlog
+                    logger = structlog.get_logger(__name__)
+                    logger.warning("bounded_contexts_failed", error=str(e))
+
+            # 2. Recomendar Tech Stack
+            if self._tech_stack_recommender:
+                try:
+                    constraints = context.get("constraints") if context else None
+                    tech_recommendation = await self._tech_stack_recommender.recommend(
+                        requirements=requirements_text,
+                        constraints=constraints
+                    )
+                    tech_stack = tech_recommendation.choices
+                except Exception as e:
+                    import structlog
+                    logger = structlog.get_logger(__name__)
+                    logger.warning("tech_stack_recommendation_failed", error=str(e))
+
+            # 3. Gerar diagramas C4
+            if self._diagram_generator and bounded_contexts:
+                try:
+                    project_name = requirements.get("project_name", "Unknown System")
+                    system_description = requirements_text[:500]  # Primeiros 500 chars
+
+                    # Extrair atores dos bounded contexts se disponíveis
+                    actors = []
+                    external_systems = []
+                    if bounded_contexts:
+                        for ctx in bounded_contexts:
+                            if ctx.is_external:
+                                external_systems.append(ctx.name)
+                            else:
+                                actors.extend([r.name for r in ctx.relationships if r.direction == "incoming"])
+
+                    # Gerar diagrama de contexto
+                    context_diagram = await self._diagram_generator.generate_context_diagram(
+                        project_name=project_name,
+                        system_description=system_description,
+                        actors=list(set(actors)) if actors else ["User"],
+                        external_systems=list(set(external_systems)) if external_systems else [],
+                        render=True
+                    )
+                    diagrams = [context_diagram]
+                except Exception as e:
+                    import structlog
+                    logger = structlog.get_logger(__name__)
+                    logger.warning("diagram_generation_failed", error=str(e))
+
+        # Criar ArchitecturePlan com todos os campos
         return ArchitecturePlan(
             plan_id=f"arch-{uuid.uuid4().hex[:8]}",
             cognitive_plan_id=requirements.get("cognitive_plan_id"),
@@ -102,6 +171,9 @@ class DesignPlanner(BasePlanner):
             patterns=plan_data["patterns"],
             rationale=plan_data["rationale"],
             requirements=plan_data["requirements"],
+            bounded_contexts=bounded_contexts,
+            tech_stack=tech_stack,
+            diagrams=diagrams,
         )
 
     async def refine(self, plan_id: str, feedback: Dict[str, Any]) -> ArchitecturePlan:

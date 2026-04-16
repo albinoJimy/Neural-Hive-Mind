@@ -6,6 +6,11 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
+# Importar modelos relacionados para forward references
+from src.models.bounded_context import BoundedContext
+from src.models.tech_stack import TechChoice
+from src.models.diagrams import Diagram
+
 
 class ArchitectureType(str, Enum):
     """Tipo de arquitetura de software."""
@@ -82,3 +87,14 @@ class ArchitecturePlan(BaseModel):
     )
     created_at: datetime = Field(default_factory=datetime.utcnow, description="Data de criação")
     updated_at: Optional[datetime] = Field(None, description="Data da última atualização")
+
+    # Campos estendidos do Fluxo G (opcionais para compatibilidade)
+    bounded_contexts: Optional[List[BoundedContext]] = Field(
+        None, description="Bounded contexts identificados (DDD)"
+    )
+    tech_stack: Optional[List[TechChoice]] = Field(
+        None, description="Stack tecnológico recomendado"
+    )
+    diagrams: Optional[List[Diagram]] = Field(
+        None, description="Diagramas de arquitetura gerados"
+    )
