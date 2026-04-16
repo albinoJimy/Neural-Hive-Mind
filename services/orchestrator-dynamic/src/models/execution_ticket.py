@@ -41,7 +41,7 @@ def _get_enum_value(val) -> str:
     return val.value if hasattr(val, "value") else str(val)
 
 
-class TaskType(_StrEnum):
+class TaskType(__StrEnum):
     """Tipos de tarefa.
 
     Inclui tipos legados (lowercase) para compatibilidade com mensagens antigas.
@@ -67,7 +67,7 @@ class TaskType(_StrEnum):
     review = "review"
 
 
-class TicketStatus(_StrEnum):
+class TicketStatus(__StrEnum):
     """Status do ticket de execução."""
 
     PENDING = "PENDING"
@@ -78,7 +78,7 @@ class TicketStatus(_StrEnum):
     COMPENSATED = "COMPENSATED"
 
 
-class Priority(_StrEnum):
+class Priority(__StrEnum):
     """Prioridade de execução."""
 
     LOW = "LOW"
@@ -87,7 +87,7 @@ class Priority(_StrEnum):
     CRITICAL = "CRITICAL"
 
 
-class RiskBand(_StrEnum):
+class RiskBand(__StrEnum):
     """Banda de risco."""
 
     low = "low"
@@ -96,7 +96,7 @@ class RiskBand(_StrEnum):
     critical = "critical"
 
 
-class SecurityLevel(_StrEnum):
+class SecurityLevel(__StrEnum):
     """Nível de segurança."""
 
     PUBLIC = "PUBLIC"
@@ -105,7 +105,7 @@ class SecurityLevel(_StrEnum):
     RESTRICTED = "RESTRICTED"
 
 
-class DeliveryMode(_StrEnum):
+class DeliveryMode(__StrEnum):
     """Modo de entrega."""
 
     AT_MOST_ONCE = "AT_MOST_ONCE"
@@ -113,14 +113,14 @@ class DeliveryMode(_StrEnum):
     EXACTLY_ONCE = "EXACTLY_ONCE"
 
 
-class Consistency(_StrEnum):
+class Consistency(__StrEnum):
     """Nível de consistência."""
 
     EVENTUAL = "EVENTUAL"
     STRONG = "STRONG"
 
 
-class Durability(_StrEnum):
+class Durability(__StrEnum):
     """Modo de durabilidade."""
 
     TRANSIENT = "TRANSIENT"

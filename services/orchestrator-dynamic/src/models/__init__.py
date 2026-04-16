@@ -13,6 +13,14 @@ from .execution_ticket import (
     TaskType,
     TicketStatus,
 )
+from .workflow import (
+    CutoverConfig,
+    CutoverEvent,
+    CutoverMetrics,
+    CutoverPhase,
+    CutoverStatus,
+    RollbackReason,
+)
 
 __all__ = [
     "SLA",
@@ -26,4 +34,11 @@ __all__ = [
     "SecurityLevel",
     "TaskType",
     "TicketStatus",
+    # Cutover models
+    "CutoverConfig",
+    "CutoverEvent",
+    "CutoverMetrics",
+    "CutoverPhase",
+    "CutoverStatus",
+    "RollbackReason",
 ]
