@@ -27,6 +27,21 @@ from src.models.workflow import (
 logger = structlog.get_logger(__name__)
 
 
+def _get_phase_value(phase: CutoverPhase | str) -> str:
+    """
+    Retorna o valor string da fase, lidando com enum ou string.
+
+    Args:
+        phase: Fase como enum ou string
+
+    Returns:
+        Valor string da fase
+    """
+    if isinstance(phase, str):
+        return phase
+    return phase.value
+
+
 class CutoverManager:
     """
     Gerencia o processo de cutover gradual.
@@ -95,7 +110,7 @@ class CutoverManager:
 
         self.logger.info(
             "cutover_started",
-            phase=self.status.phase.value,
+            phase=_get_phase_value(self.status.phase),
             config=self.config.model_dump(),
         )
 
@@ -106,7 +121,7 @@ class CutoverManager:
         await self._emit_event(
             event_type="cutover.started",
             phase=self.status.phase,
-            message=f"Cutover iniciado na fase {self.status.phase.value}",
+            message=f"Cutover iniciado na fase {_get_phase_value(self.status.phase)}",
         )
 
         # Iniciar monitoramento em background
@@ -130,14 +145,14 @@ class CutoverManager:
 
         self.logger.info(
             "cutover_paused",
-            current_phase=self.status.phase.value,
+            current_phase=_get_phase_value(self.status.phase),
             traffic_percentage=self.status.traffic_percentage,
         )
 
         await self._emit_event(
             event_type="cutover.paused",
             phase=self.status.phase,
-            message=f"Cutover pausado na fase {self.status.phase.value}",
+            message=f"Cutover pausado na fase {_get_phase_value(self.status.phase)}",
         )
 
         return self.status
@@ -162,13 +177,13 @@ class CutoverManager:
 
         self.logger.info(
             "cutover_resumed",
-            current_phase=self.status.phase.value,
+            current_phase=_get_phase_value(self.status.phase),
         )
 
         await self._emit_event(
             event_type="cutover.resumed",
             phase=self.status.phase,
-            message=f"Cutover retomado na fase {self.status.phase.value}",
+            message=f"Cutover retomado na fase {_get_phase_value(self.status.phase)}",
         )
 
         return self.status
@@ -217,16 +232,16 @@ class CutoverManager:
         self.status.traffic_percentage = 0
         self.status.rollback_count += 1
         self.status.rollback_reason = reason
-        self.status.rollback_message = message or reason.value
+        self.status.rollback_message = message or _get_phase_value(reason)
 
         # Parar monitoramento
         self._running = False
 
         self.logger.error(
             "rollback_executed",
-            reason=reason.value,
+            reason=_get_phase_value(reason),
             message=message,
-            previous_phase=previous_phase.value,
+            previous_phase=_get_phase_value(previous_phase),
         )
 
         # Persistir estado
@@ -238,7 +253,7 @@ class CutoverManager:
             phase=CutoverPhase.ROLLED_BACK,
             previous_phase=previous_phase,
             success=True,
-            message=message or f"Rollback executado: {reason.value}",
+            message=message or f"Rollback executado: {_get_phase_value(reason)}",
         )
 
         # Registrar métricas
@@ -283,9 +298,9 @@ class CutoverManager:
 
                 # Determinar motivo do rollback
                 rollback_trigger = RollbackReason.ERROR_RATE_EXCEEDED
-                if "latency" in rollback_reason.lower():
+                if "lat" in rollback_reason.lower():  # Captura "latência" ou "latency"
                     rollback_trigger = RollbackReason.LATENCY_HIGH
-                elif "anomalia" in rollback_reason.lower():
+                elif "anomalia" in rollback_reason.lower() or "anomaly" in rollback_reason.lower():
                     rollback_trigger = RollbackReason.DATA_CORRUPTION
 
                 await self.rollback(rollback_trigger, rollback_reason)
@@ -352,7 +367,12 @@ class CutoverManager:
             CutoverPhase.COMPLETED: 100,
         }
 
-        new_traffic = traffic_map.get(next_phase, previous_traffic)
+        # Lidar com string ou enum
+        next_phase_key = next_phase if isinstance(next_phase, str) else next_phase
+        new_traffic = traffic_map.get(
+            CutoverPhase(next_phase_key) if isinstance(next_phase, str) else next_phase,
+            previous_traffic,
+        )
 
         # Atualizar status
         self.status.phase = next_phase
@@ -360,12 +380,12 @@ class CutoverManager:
         self.status.current_phase_start = datetime.now()
         self.status.phase_transitions += 1
 
-        message = f"Transição de {previous_phase.value} para {next_phase.value} ({trigger})"
+        message = f"Transição de {_get_phase_value(previous_phase)} para {_get_phase_value(next_phase)} ({trigger})"
 
         self.logger.info(
             "phase_transition",
-            previous=previous_phase.value,
-            next=next_phase.value,
+            previous=_get_phase_value(previous_phase),
+            next=_get_phase_value(next_phase),
             traffic_percentage=new_traffic,
             trigger=trigger,
         )
@@ -525,7 +545,7 @@ class CutoverManager:
             metric_name = f"cutover_{name}"
             metric_tags = {
                 "cutover_id": self.cutover_id,
-                "phase": self.status.phase.value,
+                "phase": _get_phase_value(self.status.phase),
                 **(tags or {}),
             }
 
@@ -572,5 +592,5 @@ class CutoverManager:
         self.logger.info(
             "cutover_manager_closed",
             cutover_id=self.cutover_id,
-            final_phase=self.status.phase.value,
+            final_phase=_get_phase_value(self.status.phase),
         )

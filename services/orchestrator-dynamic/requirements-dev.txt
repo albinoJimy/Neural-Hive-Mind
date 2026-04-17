@@ -19,4 +19,5 @@ types-aiofiles>=23.2.0
 
 # Test utilities
 faker>=22.0.0
-testcontainers>=3.7.1  # Para testes de integração com Temporal/PostgreSQL
+testcontainers>=4.7.0  # Para testes de integração E2E com containers reais
+httpx>=0.25.0  # Para chamadas HTTP assíncronas em testes
