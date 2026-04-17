@@ -146,7 +146,11 @@ class DesignPlanner(BasePlanner):
                             if ctx.is_external:
                                 external_systems.append(ctx.name)
                             else:
-                                actors.extend([r.name for r in ctx.relationships if r.direction == "incoming"])
+                                # Para relacionamentos incoming, o ator é o contexto externo (from_context)
+                                actors.extend([
+                                    r.from_context for r in ctx.relationships
+                                    if r.direction == "incoming"
+                                ])
 
                     # Gerar diagrama de contexto
                     context_diagram = await self._diagram_generator.generate_context_diagram(

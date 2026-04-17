@@ -22,6 +22,10 @@ class BoundedContextRelationship(BaseModel):
         ...,
         description="Tipo de relacionamento: partnership, shared_kernel, etc."
     )
+    direction: Optional[str] = Field(
+        None,
+        description="Direção do relacionamento: incoming, outgoing, bidirectional"
+    )
     description: Optional[str] = Field(None, description="Descrição da integração")
 
 
@@ -45,6 +49,10 @@ class BoundedContext(BaseModel):
     ubiquitous_language: List[UbiquitousLanguageTerm] = Field(
         default_factory=list,
         description="Termos específicos do domínio"
+    )
+    is_external: bool = Field(
+        default=False,
+        description="Indica se este contexto é externo ao sistema (e.g., terceiros)"
     )
 
     class Config:

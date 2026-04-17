@@ -2,7 +2,12 @@
 
 import pytest
 from src.identifiers.bounded_contexts import BoundedContextsIdentifier
-from src.models.bounded_context import BoundedContext, BoundedContextsAnalysis
+from src.models.bounded_context import (
+    BoundedContext,
+    BoundedContextsAnalysis,
+    BoundedContextRelationship,
+    UbiquitousLanguageTerm
+)
 
 
 @pytest.mark.asyncio
@@ -66,3 +71,77 @@ async def test_identify_bounded_contexts_with_domain_hints():
     # Pelo menos um contexto sugerido deve aparecer
     hinted_contexts = [ctx.name for ctx in result.contexts if ctx.name in domain_hints]
     assert len(hinted_contexts) > 0
+
+
+def test_bounded_context_has_is_external_field():
+    """Testa que BoundedContext tem o campo is_external."""
+    context = BoundedContext(
+        name="ExternalPayment",
+        description="Sistema de pagamentos externo",
+        responsibilities=["Processar pagamentos"],
+        domain_models=["Payment", "Transaction"],
+        is_external=True
+    )
+    assert context.is_external is True
+    assert context.name == "ExternalPayment"
+
+
+def test_bounded_context_defaults_is_external_to_false():
+    """Testa que is_external default é False."""
+    context = BoundedContext(
+        name="Identity",
+        description="Gestão de identidade",
+        responsibilities=["Autenticação", "Autorização"],
+        domain_models=["User", "Role"]
+    )
+    assert context.is_external is False
+
+
+def test_bounded_context_relationship_has_direction_field():
+    """Testa que BoundedContextRelationship tem o campo direction."""
+    relationship = BoundedContextRelationship(
+        **{"from": "Identity", "to": "Billing"},  # Usar alias com dict unpacking
+        relationship_type="partnership",
+        direction="outgoing",
+        description="Identity usa Billing para faturação"
+    )
+    assert relationship.direction == "outgoing"
+    assert relationship.from_context == "Identity"
+
+
+def test_bounded_context_relationship_direction_is_optional():
+    """Testa que direction é opcional."""
+    relationship = BoundedContextRelationship(
+        **{"from": "Catalog", "to": "Inventory"},  # Usar alias com dict unpacking
+        relationship_type="shared_kernel"
+    )
+    assert relationship.direction is None
+
+
+def test_bounded_context_with_relationships_and_direction():
+    """Testa contexto com relacionamentos direcionados."""
+    relationships = [
+        BoundedContextRelationship(
+            **{"from": "Identity", "to": "Orders"},
+            relationship_type="partnership",
+            direction="outgoing"
+        ),
+        BoundedContextRelationship(
+            **{"from": "Payments", "to": "Orders"},
+            relationship_type="partnership",
+            direction="incoming"
+        )
+    ]
+
+    context = BoundedContext(
+        name="Orders",
+        description="Gestão de encomendas",
+        responsibilities=["Criar encomendas", "Gerir estado"],
+        domain_models=["Order", "OrderItem"],
+        relationships=relationships,
+        is_external=False
+    )
+
+    assert len(context.relationships) == 2
+    assert context.relationships[0].direction == "outgoing"
+    assert context.relationships[1].direction == "incoming"
