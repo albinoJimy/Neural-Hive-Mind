@@ -4,8 +4,11 @@ from datetime import datetime, timezone
 from typing import Optional, List
 
 import structlog
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Request
 from pydantic import BaseModel
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from src.api.schemas import (
     ArchitectureRequest,
@@ -15,6 +18,16 @@ from src.api.schemas import (
 from src.models.architecture import ArchitectureType
 from src.planners.design_planner import DesignPlanner
 from src.repositories.architecture_repository import ArchitectureRepository
+
+# Rate limiting setup
+# LLM endpoints: 10 requests/min (custo controlado)
+# Read endpoints: 60 requests/min (uso normal)
+limiter = Limiter(key_func=get_remote_address)
+logger = structlog.get_logger(__name__)
+
+router = APIRouter(prefix="/api/v1/architecture", tags=["architecture"])
+router.state.limiter = limiter
+router.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
 # Novos schemas para os endpoints extendidos
@@ -82,18 +95,25 @@ def get_repository() -> ArchitectureRepository:
 
 
 @router.post("", response_model=ArchitectureResponse, status_code=status.HTTP_201_CREATED)
-async def create_architecture(request: ArchitectureRequest) -> ArchitectureResponse:
-    """Cria novo plano de arquitetura."""
+@limiter.limit("10/minute")  # Limitar devido a custo LLM
+async def create_architecture(
+    request_obj: ArchitectureRequest,
+    request: Request
+) -> ArchitectureResponse:
+    """Cria novo plano de arquitetura.
+
+    Rate limit: 10 requests/min (controla custos de LLM API)
+    """
     try:
         planner = get_planner()
         repository = get_repository()
 
         requirements = {
-            "intent": request.intent,
-            "context": request.context,
+            "intent": request_obj.intent,
+            "context": request_obj.context,
         }
-        if request.cognitive_plan_id:
-            requirements["cognitive_plan_id"] = request.cognitive_plan_id
+        if request_obj.cognitive_plan_id:
+            requirements["cognitive_plan_id"] = request_obj.cognitive_plan_id
 
         # Gerar plano
         plan = await planner.plan(requirements)
@@ -198,10 +218,16 @@ async def list_architectures(
 
 
 @router.post("/bounded-contexts/identify")
-async def identify_bounded_contexts(request: ContextIdentificationRequest):
+@limiter.limit("10/minute")  # Limitar devido a custo LLM
+async def identify_bounded_contexts(
+    request_obj: ContextIdentificationRequest,
+    request: Request
+):
     """Identifica bounded contexts a partir de requisitos.
 
     Endpoint independente que identifica bounded contexts sem criar arquitetura.
+
+    Rate limit: 10 requests/min (controla custos de LLM API)
     """
     try:
         planner = get_planner()
@@ -213,8 +239,8 @@ async def identify_bounded_contexts(request: ContextIdentificationRequest):
             )
 
         result = await planner._bounded_contexts_identifier.identify(
-            requirements=request.requirements,
-            domain_hints=request.domain_hints
+            requirements=request_obj.requirements,
+            domain_hints=request_obj.domain_hints
         )
 
         return {
@@ -247,10 +273,16 @@ async def identify_bounded_contexts(request: ContextIdentificationRequest):
 
 
 @router.post("/tech-stack/recommend")
-async def recommend_tech_stack(request: TechStackRecommendationRequest):
+@limiter.limit("10/minute")  # Limitar devido a custo LLM
+async def recommend_tech_stack(
+    request_obj: TechStackRecommendationRequest,
+    request: Request
+):
     """Recomenda stack tecnológico baseado em requisitos.
 
     Endpoint independente que recomenda tecnologias sem criar arquitetura.
+
+    Rate limit: 10 requests/min (controla custos de LLM API)
     """
     try:
         planner = get_planner()
@@ -262,8 +294,8 @@ async def recommend_tech_stack(request: TechStackRecommendationRequest):
             )
 
         result = await planner._tech_stack_recommender.recommend(
-            requirements=request.requirements,
-            constraints=request.constraints
+            requirements=request_obj.requirements,
+            constraints=request_obj.constraints
         )
 
         return {
@@ -291,10 +323,16 @@ async def recommend_tech_stack(request: TechStackRecommendationRequest):
 
 
 @router.post("/diagrams/generate")
-async def generate_diagram(request: DiagramGenerationRequest):
+@limiter.limit("20/minute")  # Mais liberal porque não usa LLM diretamente
+async def generate_diagram(
+    request_obj: DiagramGenerationRequest,
+    request: Request
+):
     """Gera diagrama C4 a partir de descrição.
 
     Endpoint independente para geração de diagramas.
+
+    Rate limit: 20 requests/min (geração local, mas controla uso)
     """
     try:
         planner = get_planner()
@@ -347,8 +385,15 @@ async def generate_diagram(request: DiagramGenerationRequest):
 
 
 @router.get("/{architecture_id}/bounded-contexts", response_model=BoundedContextsResponse)
-async def get_architecture_bounded_contexts(architecture_id: str) -> BoundedContextsResponse:
-    """Obtém bounded contexts de uma arquitetura existente."""
+@limiter.limit("60/minute")  # Read endpoint, limit mais liberal
+async def get_architecture_bounded_contexts(
+    architecture_id: str,
+    request: Request
+) -> BoundedContextsResponse:
+    """Obtém bounded contexts de uma arquitetura existente.
+
+    Rate limit: 60 requests/min (read operation)
+    """
     try:
         repository = get_repository()
         plan = await repository.get_by_plan_id(architecture_id)

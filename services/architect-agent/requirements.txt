@@ -11,3 +11,5 @@ requests>=2.31             # para chamar APIs externas
 click>=8.1                 # para CLI commands
 graphviz>=0.20             # para geração de diagramas
 tenacity>=8.2.0            # para retry logic com backoff
+slowapi>=0.1.9            # para rate limiting
+
