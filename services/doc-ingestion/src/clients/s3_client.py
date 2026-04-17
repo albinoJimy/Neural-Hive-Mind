@@ -197,6 +197,39 @@ class S3Client:
             )
             raise
 
+    async def download_file_with_metadata(
+        self, s3_key: str, return_metadata: bool = False
+    ) -> bytes | tuple[bytes, str, str]:
+        """Download file from S3/MinIO with metadata.
+
+        Args:
+            s3_key: Key do arquivo no S3
+            return_metadata: Se True, retorna (content, filename, content_type)
+
+        Returns:
+            Conteúdo do arquivo ou tupla (content, filename, content_type)
+        """
+        if self._client is None:
+            raise RuntimeError("S3 client not initialized. Call initialize() first.")
+
+        try:
+            response = self._client.get_object(bucket_name=self._bucket_name, object_name=s3_key)
+
+            content = response.read()
+            response.close()
+            response.release_conn()
+
+            if return_metadata:
+                filename = s3_key.split("/")[-1]
+                content_type = response.getheader("Content-Type", "application/octet-stream")
+                return content, filename, content_type
+
+            return content
+
+        except S3Error as e:
+            logger.error("s3_download_failed", s3_key=s3_key, error=str(e), code=e.code)
+            raise
+
     async def delete_file(self, s3_key: str) -> None:
         """Deleta um arquivo do S3/MinIO.
 

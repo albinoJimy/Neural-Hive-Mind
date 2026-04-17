@@ -7,7 +7,7 @@ from typing import Optional
 
 import structlog
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from src.clients.s3_client import get_s3_client
 from src.dependencies import get_doc_producer
@@ -120,6 +120,7 @@ async def upload_document(
 
         # Validar tamanho do arquivo
         from src.config.settings import get_settings
+
         settings = get_settings()
         max_size = settings.max_file_size_mb * 1024 * 1024
         if file_size > max_size:
@@ -159,6 +160,7 @@ async def upload_document(
 
         # Criar registro no banco
         from src.models.document import DocumentCreate
+
         document_create = DocumentCreate(
             filename=file.filename,
             format=doc_format,
@@ -391,6 +393,51 @@ async def get_document_status(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e),
+        )
+
+
+@router.get("/{document_id}/download")
+async def download_document(
+    document_id: str,
+    repository: DocumentRepository = Depends(get_repository),
+):
+    """Download do arquivo original do S3/MinIO.
+
+    Args:
+        document_id: ID do documento
+        repository: Instância do repositório (injetado)
+
+    Returns:
+        Arquivo para download
+    """
+    try:
+        document = await repository.get_by_id(document_id)
+
+        if not document:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Document {document_id} not found",
+            )
+
+        # Download do S3
+        s3_client = await get_s3_client()
+        file_content, filename, content_type = await s3_client.download_file_with_metadata(
+            document.s3_key, return_metadata=True
+        )
+
+        return Response(
+            content=file_content,
+            media_type=content_type,
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("download_document_error", id=document_id, error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to download document: {str(e)}",
         )
 
 
