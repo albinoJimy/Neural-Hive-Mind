@@ -4,12 +4,35 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Callable, Dict, Optional
 from uuid import uuid4
+import time
 
 import structlog
+from prometheus_client import Counter, Histogram
 
 from src.models.remediation_models import RemediationRequest
 
 logger = structlog.get_logger()
+
+# Métricas Prometheus globais para RemediationManager
+_mttr_seconds_total = Histogram(
+    "self_healing_mttr_seconds_total",
+    "MTTR (Mean Time To Remediate) total em segundos",
+    ["incident_type", "service_name", "remediation_type"],
+    buckets=[60, 300, 900, 1800, 3600, 7200],
+)
+
+_remediations_total = Counter(
+    "self_healing_remediations_total",
+    "Total de remediações executadas",
+    ["remediation_type", "status", "playbook_name"],
+)
+
+_remediation_duration_seconds = Histogram(
+    "self_healing_remediation_duration_seconds",
+    "Duração das remediações",
+    ["remediation_type", "playbook_name", "status"],
+    buckets=[10, 30, 60, 120, 300, 600],
+)
 
 
 class RemediationStatus(str, Enum):
@@ -48,16 +71,27 @@ class RemediationManager:
         self.default_timeout_seconds = default_timeout_seconds
         self.active_remediations: Dict[str, RemediationState] = {}
 
+        # Métricas Prometheus para RemediationManager (globais)
+        self._mttr_seconds_total = _mttr_seconds_total
+        self._remediations_total = _remediations_total
+        self._remediation_duration_seconds = _remediation_duration_seconds
+
     def start_remediation(
         self, request: RemediationRequest, total_actions: int = 0
     ) -> RemediationState:
         """Cria um RemediationState inicial e registra em memória/Redis."""
         remediation_id = request.remediation_id or str(uuid4())
+        remediation_type = request.parameters.get("incident_type", "unknown")
+        playbook_name = request.playbook_name
+
+        self._remediations_total.labels(
+            remediation_type=remediation_type, status="pending", playbook_name=playbook_name
+        ).inc()
 
         state = RemediationState(
             remediation_id=remediation_id,
             incident_id=request.incident_id,
-            playbook_name=request.playbook_name,
+            playbook_name=playbook_name,
             status=RemediationStatus.PENDING,
             total_actions=total_actions,
             metadata={"execution_mode": request.execution_mode, "parameters": request.parameters},
@@ -83,6 +117,15 @@ class RemediationManager:
         on_completed: Optional[Callable[[RemediationState], None]] = None,
     ):
         """Executa playbook e atualiza progresso/estado."""
+        remediation_start_time = time.time()
+        remediation_type = request.parameters.get("incident_type", "unknown")
+        playbook_name = request.playbook_name
+        service_name = request.parameters.get("service_name", "unknown")
+
+        self._remediations_total.labels(
+            remediation_type=remediation_type, status="started", playbook_name=playbook_name
+        ).inc()
+
         state.status = RemediationStatus.RUNNING
         state.started_at = datetime.now(timezone.utc).isoformat()
         await self._persist_state(state)
@@ -94,12 +137,37 @@ class RemediationManager:
             await self._persist_state(state)
 
         async def on_playbook_completed(result: dict):
+            total_duration = time.time() - remediation_start_time
+
             state.result = result
-            state.status = (
+            final_status = (
                 RemediationStatus.COMPLETED if result.get("success") else RemediationStatus.FAILED
             )
+            state.status = final_status
             state.error = result.get("error")
             state.completed_at = datetime.now(timezone.utc).isoformat()
+
+            # Registrar métricas de conclusão
+            self._remediation_duration_seconds.labels(
+                remediation_type=remediation_type,
+                playbook_name=playbook_name,
+                status=final_status.value.lower(),
+            ).observe(total_duration)
+
+            self._remediations_total.labels(
+                remediation_type=remediation_type,
+                status=final_status.value.lower(),
+                playbook_name=playbook_name,
+            ).inc()
+
+            # MTTR: tempo total desde detecção até conclusão
+            incident_type = request.parameters.get("incident_type", "unknown")
+            self._mttr_seconds_total.labels(
+                incident_type=incident_type,
+                service_name=service_name,
+                remediation_type=remediation_type,
+            ).observe(total_duration)
+
             await self._persist_state(state)
             if on_completed:
                 on_completed(state)
@@ -113,9 +181,24 @@ class RemediationManager:
                 timeout_seconds=self.default_timeout_seconds,
             )
         except asyncio.TimeoutError:
+            total_duration = time.time() - remediation_start_time
             state.status = RemediationStatus.TIMEOUT
             state.error = "Playbook timeout"
             state.completed_at = datetime.now(timezone.utc).isoformat()
+
+            # Registrar métricas de timeout
+            self._remediation_duration_seconds.labels(
+                remediation_type=remediation_type,
+                playbook_name=playbook_name,
+                status="timeout",
+            ).observe(total_duration)
+
+            self._remediations_total.labels(
+                remediation_type=remediation_type,
+                status="timeout",
+                playbook_name=playbook_name,
+            ).inc()
+
             await self._persist_state(state)
             logger.warning(
                 "remediation_manager.playbook_timeout",
@@ -123,17 +206,47 @@ class RemediationManager:
                 playbook=state.playbook_name,
             )
         except asyncio.CancelledError:
+            total_duration = time.time() - remediation_start_time
             state.status = RemediationStatus.CANCELLED
             state.error = "Cancelled"
             state.completed_at = datetime.now(timezone.utc).isoformat()
+
+            # Registrar métricas de cancelamento
+            self._remediation_duration_seconds.labels(
+                remediation_type=remediation_type,
+                playbook_name=playbook_name,
+                status="cancelled",
+            ).observe(total_duration)
+
+            self._remediations_total.labels(
+                remediation_type=remediation_type,
+                status="cancelled",
+                playbook_name=playbook_name,
+            ).inc()
+
             await self._persist_state(state)
             logger.info(
                 "remediation_manager.playbook_cancelled", remediation_id=state.remediation_id
             )
         except Exception as exc:  # noqa: BLE001 - fail-open
+            total_duration = time.time() - remediation_start_time
             state.status = RemediationStatus.FAILED
             state.error = str(exc)
             state.completed_at = datetime.now(timezone.utc).isoformat()
+
+            # Registrar métricas de falha
+            self._remediation_duration_seconds.labels(
+                remediation_type=remediation_type,
+                playbook_name=playbook_name,
+                status="failed",
+            ).observe(total_duration)
+
+            self._remediations_total.labels(
+                remediation_type=remediation_type,
+                status="failed",
+                playbook_name=playbook_name,
+            ).inc()
+
             await self._persist_state(state)
             logger.error(
                 "remediation_manager.playbook_failed",

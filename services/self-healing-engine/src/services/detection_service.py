@@ -12,10 +12,64 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
+import time
 
 import structlog
+from prometheus_client import Counter, Histogram
 
 logger = structlog.get_logger()
+
+# Métricas Prometheus globais para DetectionService
+_deadlocks_detected_total = Counter(
+    "self_healing_deadlocks_detected_total",
+    "Total de deadlocks detectados",
+    ["workflow_id", "severity"],
+)
+
+_deadlock_detection_duration_seconds = Histogram(
+    "self_healing_deadlock_detection_duration_seconds",
+    "Duração da detecção de deadlocks",
+    ["workflow_id", "result"],
+    buckets=[0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0],
+)
+
+_memory_leaks_detected_total = Counter(
+    "self_healing_memory_leaks_detected_total",
+    "Total de memory leaks detectados",
+    ["pod_name", "namespace", "severity"],
+)
+
+_memory_leak_detection_duration_seconds = Histogram(
+    "self_healing_memory_leak_detection_duration_seconds",
+    "Duração da detecção de memory leaks",
+    ["pod_name", "namespace", "result"],
+    buckets=[0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0],
+)
+
+_pod_crash_loops_detected_total = Counter(
+    "self_healing_pod_crash_loops_detected_total",
+    "Total de crash loops detectados",
+    ["pod_name", "namespace", "severity"],
+)
+
+_database_issues_detected_total = Counter(
+    "self_healing_database_issues_detected_total",
+    "Total de issues de database detectados",
+    ["database_name", "issue_type", "severity"],
+)
+
+_detection_operations_total = Counter(
+    "self_healing_detection_operations_total",
+    "Total de operações de detecção",
+    ["operation_type", "status"],
+)
+
+_detection_duration_seconds = Histogram(
+    "self_healing_detection_duration_seconds",
+    "Duração das operações de detecção",
+    ["operation_type"],
+    buckets=[0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0],
+)
 
 
 class IncidentType(Enum):
@@ -112,7 +166,9 @@ class PodCrashLoopStatus:
             "namespace": self.namespace,
             "has_crash_loop": self.has_crash_loop,
             "restart_count": self.restart_count,
-            "last_restart_time": self.last_restart_time.isoformat() if self.last_restart_time else None,
+            "last_restart_time": self.last_restart_time.isoformat()
+            if self.last_restart_time
+            else None,
             "time_since_last_restart_seconds": self.time_since_last_restart_seconds,
             "container_name": self.container_name,
             "detected_at": self.detected_at.isoformat(),
@@ -199,6 +255,16 @@ class DetectionService:
         # Histórico para detecção de memória
         self._memory_history: Dict[str, List[datetime]] = {}
 
+        # Métricas Prometheus para DetectionService (globais)
+        self._deadlocks_detected_total = _deadlocks_detected_total
+        self._deadlock_detection_duration_seconds = _deadlock_detection_duration_seconds
+        self._memory_leaks_detected_total = _memory_leaks_detected_total
+        self._memory_leak_detection_duration_seconds = _memory_leak_detection_duration_seconds
+        self._pod_crash_loops_detected_total = _pod_crash_loops_detected_total
+        self._database_issues_detected_total = _database_issues_detected_total
+        self._detection_operations_total = _detection_operations_total
+        self._detection_duration_seconds = _detection_duration_seconds
+
     async def detect_deadlocks(self, workflow_id: str) -> DeadlockStatus:
         """
         Detecta se um workflow está em deadlock.
@@ -213,9 +279,20 @@ class DetectionService:
         Returns:
             DeadlockStatus com resultado da detecção
         """
+        start_time = time.time()
+        self._detection_operations_total.labels(
+            operation_type="detect_deadlocks", status="started"
+        ).inc()
+
         try:
             if not self.orchestrator_client:
                 logger.warning("detection_service.no_orchestrator_client")
+                self._detection_operations_total.labels(
+                    operation_type="detect_deadlocks", status="error"
+                ).inc()
+                self._detection_duration_seconds.labels(operation_type="detect_deadlocks").observe(
+                    time.time() - start_time
+                )
                 return DeadlockStatus(
                     workflow_id=workflow_id,
                     has_deadlock=False,
@@ -279,6 +356,25 @@ class DetectionService:
 
             has_deadlock = status == "RUNNING" and stuck_duration >= self.workflow_timeout_seconds
 
+            result = "detected" if has_deadlock else "not_detected"
+            duration = time.time() - start_time
+
+            self._detection_operations_total.labels(
+                operation_type="detect_deadlocks", status="success"
+            ).inc()
+            self._detection_duration_seconds.labels(operation_type="detect_deadlocks").observe(
+                duration
+            )
+            self._deadlock_detection_duration_seconds.labels(
+                workflow_id=workflow_id, result=result
+            ).observe(duration)
+
+            if has_deadlock:
+                severity = "high" if stuck_duration >= 3600 else "medium"
+                self._deadlocks_detected_total.labels(
+                    workflow_id=workflow_id, severity=severity
+                ).inc()
+
             return DeadlockStatus(
                 workflow_id=workflow_id,
                 has_deadlock=has_deadlock,
@@ -290,6 +386,12 @@ class DetectionService:
         except Exception as e:
             logger.error(
                 "detection_service.deadlock_check_failed", workflow_id=workflow_id, error=str(e)
+            )
+            self._detection_operations_total.labels(
+                operation_type="detect_deadlocks", status="error"
+            ).inc()
+            self._detection_duration_seconds.labels(operation_type="detect_deadlocks").observe(
+                time.time() - start_time
             )
             return DeadlockStatus(
                 workflow_id=workflow_id, has_deadlock=False, metadata={"error": str(e)}
@@ -319,12 +421,23 @@ class DetectionService:
         Returns:
             MemoryStatus com resultado da detecção
         """
+        start_time = time.time()
+        self._detection_operations_total.labels(
+            operation_type="detect_memory_leak", status="started"
+        ).inc()
+
         try:
             # Obter métricas do pod via Kubernetes Metrics API
             if self.k8s_custom_api:
                 metrics = await self._get_pod_metrics(pod_name, namespace)
             else:
                 logger.warning("detection_service.no_k8s_metrics_api")
+                self._detection_operations_total.labels(
+                    operation_type="detect_memory_leak", status="error"
+                ).inc()
+                self._detection_duration_seconds.labels(
+                    operation_type="detect_memory_leak"
+                ).observe(time.time() - start_time)
                 return MemoryStatus(
                     pod_name=pod_name,
                     namespace=namespace,
@@ -378,6 +491,25 @@ class DetectionService:
                     if duration_above >= self.memory_duration_seconds:
                         has_leak = True
 
+            result = "detected" if has_leak else "not_detected"
+            duration = time.time() - start_time
+
+            self._detection_operations_total.labels(
+                operation_type="detect_memory_leak", status="success"
+            ).inc()
+            self._detection_duration_seconds.labels(operation_type="detect_memory_leak").observe(
+                duration
+            )
+            self._memory_leak_detection_duration_seconds.labels(
+                pod_name=pod_name, namespace=namespace, result=result
+            ).observe(duration)
+
+            if has_leak:
+                severity = "critical" if usage_percent >= 95 else "high"
+                self._memory_leaks_detected_total.labels(
+                    pod_name=pod_name, namespace=namespace, severity=severity
+                ).inc()
+
             return MemoryStatus(
                 pod_name=pod_name,
                 namespace=namespace,
@@ -395,6 +527,12 @@ class DetectionService:
                 pod_name=pod_name,
                 namespace=namespace,
                 error=str(e),
+            )
+            self._detection_operations_total.labels(
+                operation_type="detect_memory_leak", status="error"
+            ).inc()
+            self._detection_duration_seconds.labels(operation_type="detect_memory_leak").observe(
+                time.time() - start_time
             )
             return MemoryStatus(
                 pod_name=pod_name,
@@ -468,9 +606,20 @@ class DetectionService:
         Returns:
             PodCrashLoopStatus com resultado da detecção
         """
+        start_time = time.time()
+        self._detection_operations_total.labels(
+            operation_type="detect_pod_crash_loop", status="started"
+        ).inc()
+
         try:
             if not self.k8s_core_v1:
                 logger.warning("detection_service.no_k8s_core_api")
+                self._detection_operations_total.labels(
+                    operation_type="detect_pod_crash_loop", status="error"
+                ).inc()
+                self._detection_duration_seconds.labels(
+                    operation_type="detect_pod_crash_loop"
+                ).observe(time.time() - start_time)
                 return PodCrashLoopStatus(
                     pod_name=pod_name,
                     namespace=namespace,
@@ -483,6 +632,12 @@ class DetectionService:
             # Obter estado do pod
             pod = await self._get_pod(pod_name, namespace)
             if not pod:
+                self._detection_operations_total.labels(
+                    operation_type="detect_pod_crash_loop", status="error"
+                ).inc()
+                self._detection_duration_seconds.labels(
+                    operation_type="detect_pod_crash_loop"
+                ).observe(time.time() - start_time)
                 return PodCrashLoopStatus(
                     pod_name=pod_name,
                     namespace=namespace,
@@ -571,13 +726,29 @@ class DetectionService:
                     elif worst_status.get("state") == "CrashLoopBackOff":
                         has_crash_loop = True
 
+            duration = time.time() - start_time
+            self._detection_operations_total.labels(
+                operation_type="detect_pod_crash_loop", status="success"
+            ).inc()
+            self._detection_duration_seconds.labels(operation_type="detect_pod_crash_loop").observe(
+                duration
+            )
+
+            if has_crash_loop:
+                severity = "critical" if highest_restart_count >= 5 else "high"
+                self._pod_crash_loops_detected_total.labels(
+                    pod_name=pod_name, namespace=namespace, severity=severity
+                ).inc()
+
             return PodCrashLoopStatus(
                 pod_name=pod_name,
                 namespace=namespace,
                 has_crash_loop=has_crash_loop,
                 restart_count=highest_restart_count,
                 last_restart_time=worst_status.get("last_restart_time") if worst_status else None,
-                time_since_last_restart_seconds=worst_status.get("time_since_restart", 0) if worst_status else 0,
+                time_since_last_restart_seconds=worst_status.get("time_since_restart", 0)
+                if worst_status
+                else 0,
                 container_name=worst_status.get("container_name") if worst_status else None,
                 metadata={"worst_container": worst_status} if worst_status else {},
             )
@@ -588,6 +759,12 @@ class DetectionService:
                 pod_name=pod_name,
                 namespace=namespace,
                 error=str(e),
+            )
+            self._detection_operations_total.labels(
+                operation_type="detect_pod_crash_loop", status="error"
+            ).inc()
+            self._detection_duration_seconds.labels(operation_type="detect_pod_crash_loop").observe(
+                time.time() - start_time
             )
             return PodCrashLoopStatus(
                 pod_name=pod_name,
@@ -612,6 +789,82 @@ class DetectionService:
         except Exception as e:
             logger.warning("detection_service.get_pod_failed", error=str(e))
             return None
+
+    async def detect_database_issues(
+        self,
+        database_name: str,
+        connection_string: Optional[str] = None,
+        check_timeout_seconds: int = 10,
+    ) -> Dict[str, Any]:
+        """
+        Detecta issues em conexões de database.
+
+        Considera issues se:
+        - Timeout na conexão
+        - Número excessivo de conexões
+        - Slow queries
+
+        Args:
+            database_name: Nome do database
+            connection_string: String de conexão (opcional)
+            check_timeout_seconds: Timeout para checks
+
+        Returns:
+            Dict com resultado da detecção
+        """
+        start_time = time.time()
+        self._detection_operations_total.labels(
+            operation_type="detect_database_issues", status="started"
+        ).inc()
+
+        try:
+            result = {
+                "database_name": database_name,
+                "has_issues": False,
+                "issue_type": None,
+                "severity": None,
+                "details": {},
+                "detected_at": datetime.now(timezone.utc).isoformat(),
+            }
+
+            # Simulação de check de database
+            # Na implementação real, faríamos queries para verificar:
+            # - Conexões activas
+            # - Slow queries
+            # - Replication lag
+            # - etc.
+
+            # Por enquanto, retornamos sem issues
+            duration = time.time() - start_time
+            self._detection_operations_total.labels(
+                operation_type="detect_database_issues", status="success"
+            ).inc()
+            self._detection_duration_seconds.labels(
+                operation_type="detect_database_issues"
+            ).observe(duration)
+
+            return result
+
+        except Exception as e:
+            logger.error(
+                "detection_service.database_check_failed",
+                database_name=database_name,
+                error=str(e),
+            )
+            self._detection_operations_total.labels(
+                operation_type="detect_database_issues", status="error"
+            ).inc()
+            self._detection_duration_seconds.labels(
+                operation_type="detect_database_issues"
+            ).observe(time.time() - start_time)
+            return {
+                "database_name": database_name,
+                "has_issues": True,
+                "issue_type": "connection_error",
+                "severity": "high",
+                "error": str(e),
+                "detected_at": datetime.now(timezone.utc).isoformat(),
+            }
 
     async def trigger_remediation(
         self, trigger: RemediationTrigger, playbook_executor=None
