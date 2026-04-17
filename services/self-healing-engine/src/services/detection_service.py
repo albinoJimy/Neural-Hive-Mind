@@ -16,8 +16,11 @@ import time
 
 import structlog
 from prometheus_client import Counter, Histogram
+from neural_hive_observability import get_tracer
+from opentelemetry.trace import Status, StatusCode
 
 logger = structlog.get_logger()
+tracer = get_tracer()
 
 # Métricas Prometheus globais para DetectionService
 _deadlocks_detected_total = Counter(
@@ -265,6 +268,11 @@ class DetectionService:
         self._detection_operations_total = _detection_operations_total
         self._detection_duration_seconds = _detection_duration_seconds
 
+    from neural_hive_observability import trace_plan
+
+    trace_detect_deadlocks = trace_plan(operation_name="detection_service.detect_deadlocks")
+
+    @trace_detect_deadlocks
     async def detect_deadlocks(self, workflow_id: str) -> DeadlockStatus:
         """
         Detecta se um workflow está em deadlock.
@@ -284,7 +292,9 @@ class DetectionService:
             operation_type="detect_deadlocks", status="started"
         ).inc()
 
-        try:
+        with tracer.start_as_current_span("detection_service.detect_deadlocks") as span:
+            span.set_attribute("workflow_id", workflow_id)
+
             if not self.orchestrator_client:
                 logger.warning("detection_service.no_orchestrator_client")
                 self._detection_operations_total.labels(
@@ -293,6 +303,7 @@ class DetectionService:
                 self._detection_duration_seconds.labels(operation_type="detect_deadlocks").observe(
                     time.time() - start_time
                 )
+                span.set_status(Status(StatusCode.ERROR))
                 return DeadlockStatus(
                     workflow_id=workflow_id,
                     has_deadlock=False,
@@ -426,7 +437,13 @@ class DetectionService:
             operation_type="detect_memory_leak", status="started"
         ).inc()
 
-        try:
+        with tracer.start_as_current_span("detection_service.detect_memory_leak") as span:
+            span.set_attribute("pod_name", pod_name)
+            span.set_attribute("namespace", namespace)
+            span.set_attribute("container_name", container_name or "unknown")
+            span.set_attribute("memory_limit_bytes", str(memory_limit_bytes))
+
+            try:
             # Obter métricas do pod via Kubernetes Metrics API
             if self.k8s_custom_api:
                 metrics = await self._get_pod_metrics(pod_name, namespace)
@@ -615,7 +632,13 @@ class DetectionService:
             operation_type="detect_pod_crash_loop", status="started"
         ).inc()
 
-        try:
+        with tracer.start_as_current_span("detection_service.detect_pod_crash_loop") as span:
+            span.set_attribute("pod_name", pod_name)
+            span.set_attribute("namespace", namespace)
+            span.set_attribute("restart_threshold", str(restart_threshold))
+            span.set_attribute("time_window_minutes", str(time_window_minutes))
+
+            try:
             if not self.k8s_core_v1:
                 logger.warning("detection_service.no_k8s_core_api")
                 self._detection_operations_total.labels(

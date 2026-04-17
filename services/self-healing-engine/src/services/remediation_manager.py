@@ -8,10 +8,13 @@ import time
 
 import structlog
 from prometheus_client import Counter, Histogram
+from neural_hive_observability import get_tracer
+from opentelemetry.trace import Status, StatusCode
 
 from src.models.remediation_models import RemediationRequest
 
 logger = structlog.get_logger()
+tracer = get_tracer()
 
 # Métricas Prometheus globais para RemediationManager
 _mttr_seconds_total = Histogram(
@@ -122,57 +125,67 @@ class RemediationManager:
         playbook_name = request.playbook_name
         service_name = request.parameters.get("service_name", "unknown")
 
-        self._remediations_total.labels(
-            remediation_type=remediation_type, status="started", playbook_name=playbook_name
-        ).inc()
-
-        state.status = RemediationStatus.RUNNING
-        state.started_at = datetime.now(timezone.utc).isoformat()
-        await self._persist_state(state)
-
-        async def on_action_completed(action_result: dict):
-            state.actions_completed += 1
-            if state.total_actions > 0:
-                state.progress = min(1.0, state.actions_completed / state.total_actions)
-            await self._persist_state(state)
-
-        async def on_playbook_completed(result: dict):
-            total_duration = time.time() - remediation_start_time
-
-            state.result = result
-            final_status = (
-                RemediationStatus.COMPLETED if result.get("success") else RemediationStatus.FAILED
-            )
-            state.status = final_status
-            state.error = result.get("error")
-            state.completed_at = datetime.now(timezone.utc).isoformat()
-
-            # Registrar métricas de conclusão
-            self._remediation_duration_seconds.labels(
-                remediation_type=remediation_type,
-                playbook_name=playbook_name,
-                status=final_status.value.lower(),
-            ).observe(total_duration)
+        with tracer.start_as_current_span("remediation_manager.execute_remediation") as span:
+            span.set_attribute("remediation_id", state.remediation_id)
+            span.set_attribute("remediation_type", remediation_type)
+            span.set_attribute("playbook_name", playbook_name)
+            span.set_attribute("service_name", service_name)
 
             self._remediations_total.labels(
-                remediation_type=remediation_type,
-                status=final_status.value.lower(),
-                playbook_name=playbook_name,
+                remediation_type=remediation_type, status="started", playbook_name=playbook_name
             ).inc()
 
-            # MTTR: tempo total desde detecção até conclusão
-            incident_type = request.parameters.get("incident_type", "unknown")
-            self._mttr_seconds_total.labels(
-                incident_type=incident_type,
-                service_name=service_name,
-                remediation_type=remediation_type,
-            ).observe(total_duration)
-
+            state.status = RemediationStatus.RUNNING
+            state.started_at = datetime.now(timezone.utc).isoformat()
             await self._persist_state(state)
-            if on_completed:
-                on_completed(state)
 
-        try:
+            async def on_action_completed(action_result: dict):
+                state.actions_completed += 1
+                if state.total_actions > 0:
+                    state.progress = min(1.0, state.actions_completed / state.total_actions)
+                await self._persist_state(state)
+
+            async def on_playbook_completed(result: dict):
+                total_duration = time.time() - remediation_start_time
+
+                state.result = result
+                final_status = (
+                    RemediationStatus.COMPLETED if result.get("success") else RemediationStatus.FAILED
+                )
+                state.status = final_status
+                state.error = result.get("error")
+                state.completed_at = datetime.now(timezone.utc).isoformat()
+
+                # Registrar métricas de conclusão
+                self._remediation_duration_seconds.labels(
+                    remediation_type=remediation_type,
+                    playbook_name=playbook_name,
+                    status=final_status.value.lower(),
+                ).observe(total_duration)
+
+                self._remediations_total.labels(
+                    remediation_type=remediation_type,
+                    status=final_status.value.lower(),
+                    playbook_name=playbook_name,
+                ).inc()
+
+                # MTTR: tempo total desde detecção até conclusão
+                incident_type = request.parameters.get("incident_type", "unknown")
+                self._mttr_seconds_total.labels(
+                    incident_type=incident_type,
+                    service_name=service_name,
+                    remediation_type=remediation_type,
+                ).observe(total_duration)
+
+                span.set_status(Status(StatusCode.OK) if final_status == RemediationStatus.COMPLETED else Status(StatusCode.ERROR))
+                span.set_attribute("final_status", final_status.value)
+                span.set_attribute("duration_seconds", str(total_duration))
+
+                await self._persist_state(state)
+                if on_completed:
+                    on_completed(state)
+
+            try:
             await executor.execute_playbook(
                 request.playbook_name,
                 request.parameters,

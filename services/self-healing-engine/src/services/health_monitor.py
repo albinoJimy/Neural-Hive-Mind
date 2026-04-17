@@ -12,8 +12,10 @@ from typing import Any, Dict, Optional
 import aiohttp
 import structlog
 from prometheus_client import Counter
+from neural_hive_observability import get_tracer
 
 logger = structlog.get_logger()
+tracer = get_tracer()
 
 # Métricas Prometheus globais para HealthMonitor
 _health_checks_total = Counter(
@@ -166,7 +168,12 @@ class HealthMonitor:
         """
         start_time = asyncio.get_event_loop().time()
 
-        try:
+        with tracer.start_as_current_span("health_monitor.check_service_health") as span:
+            span.set_attribute("service_name", service_name)
+            span.set_attribute("namespace", namespace)
+            span.set_attribute("health_endpoint", health_endpoint)
+
+            try:
             # Obter endereço do serviço via Service Registry
             if self.service_registry_client:
                 address = await self.service_registry_client.get_service_address(service_name)
