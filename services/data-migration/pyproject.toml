@@ -32,9 +32,6 @@ httpx = "^0.25.2"
 # Data validation
 great-expectations = "^0.18.0"
 
-# CDC connectors
-debezium-connector = {path = "../../libraries/debezium-connector", develop = true}
-
 # Neural Hive-Mind integration
 neural-hive-integration = {path = "../../libraries/neural_hive_integration", develop = true}
 
