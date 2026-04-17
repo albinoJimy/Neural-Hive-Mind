@@ -166,9 +166,9 @@ class PodCrashLoopStatus:
             "namespace": self.namespace,
             "has_crash_loop": self.has_crash_loop,
             "restart_count": self.restart_count,
-            "last_restart_time": self.last_restart_time.isoformat()
-            if self.last_restart_time
-            else None,
+            "last_restart_time": (
+                self.last_restart_time.isoformat() if self.last_restart_time else None
+            ),
             "time_since_last_restart_seconds": self.time_since_last_restart_seconds,
             "container_name": self.container_name,
             "detected_at": self.detected_at.isoformat(),
@@ -523,17 +523,19 @@ class DetectionService:
 
         except Exception as e:
             logger.error(
-                "detection_service.memory_leak_check_failed",
+                "detection_service.detect_memory_leak_check_failed",
                 pod_name=pod_name,
                 namespace=namespace,
                 error=str(e),
             )
+
             self._detection_operations_total.labels(
                 operation_type="detect_memory_leak", status="error"
             ).inc()
             self._detection_duration_seconds.labels(operation_type="detect_memory_leak").observe(
                 time.time() - start_time
             )
+
             return MemoryStatus(
                 pod_name=pod_name,
                 namespace=namespace,
@@ -541,6 +543,8 @@ class DetectionService:
                 usage_bytes=0,
                 usage_percent=0.0,
                 limit_bytes=memory_limit_bytes,
+                duration_above_threshold_seconds=0,
+                container_name=container_name,
                 metadata={"error": str(e)},
             )
 
@@ -746,32 +750,36 @@ class DetectionService:
                 has_crash_loop=has_crash_loop,
                 restart_count=highest_restart_count,
                 last_restart_time=worst_status.get("last_restart_time") if worst_status else None,
-                time_since_last_restart_seconds=worst_status.get("time_since_restart", 0)
-                if worst_status
-                else 0,
+                time_since_last_restart_seconds=(
+                    worst_status.get("time_since_restart", 0) if worst_status else 0
+                ),
                 container_name=worst_status.get("container_name") if worst_status else None,
                 metadata={"worst_container": worst_status} if worst_status else {},
             )
 
         except Exception as e:
             logger.error(
-                "detection_service.crash_loop_check_failed",
+                "detection_service.pod_crash_loop_check_failed",
                 pod_name=pod_name,
                 namespace=namespace,
                 error=str(e),
             )
+
             self._detection_operations_total.labels(
                 operation_type="detect_pod_crash_loop", status="error"
             ).inc()
             self._detection_duration_seconds.labels(operation_type="detect_pod_crash_loop").observe(
                 time.time() - start_time
             )
+
             return PodCrashLoopStatus(
                 pod_name=pod_name,
                 namespace=namespace,
                 has_crash_loop=False,
                 restart_count=0,
                 last_restart_time=None,
+                time_since_last_restart_seconds=0,
+                container_name=container_name,
                 metadata={"error": str(e)},
             )
 

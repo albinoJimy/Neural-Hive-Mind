@@ -6,13 +6,33 @@ Detecta problemas de saúde nos serviços e componentes do Neural Hive-Mind.
 
 import asyncio
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 import aiohttp
 import structlog
+from prometheus_client import Counter
 
 logger = structlog.get_logger()
+
+# Métricas Prometheus globais para HealthMonitor
+_health_checks_total = Counter(
+    "self_healing_health_checks_total",
+    "Total de health checks",
+    ["service", "check_type", "status"],
+)
+
+_kafka_lag_checks_total = Counter(
+    "self_healing_kafka_lag_checks_total",
+    "Total de verificações de lag Kafka",
+    ["consumer_group", "topic", "status"],
+)
+
+_database_connection_checks_total = Counter(
+    "self_healing_database_connection_checks_total",
+    "Total de verificações de conexão com database",
+    ["database_type", "status"],
+)
 
 
 @dataclass
@@ -21,7 +41,7 @@ class HealthStatus:
 
     service_name: str
     healthy: bool
-    checked_at: datetime = field(default_factory=datetime.utcnow)
+    checked_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     response_time_ms: Optional[float] = None
     error_message: Optional[str] = None
     metadata: Dict[str, Any] = field(default_factory=dict)
@@ -47,7 +67,7 @@ class LagStatus:
     lag: int
     threshold: int
     within_threshold: bool
-    checked_at: datetime = field(default_factory=datetime.utcnow)
+    checked_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     partitions: Dict[int, int] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -70,7 +90,7 @@ class ConnectionStatus:
     connection_string: str
     connected: bool
     database_type: str
-    checked_at: datetime = field(default_factory=datetime.utcnow)
+    checked_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     response_time_ms: Optional[float] = None
     error: Optional[str] = None
     database_info: Optional[Dict[str, Any]] = None
@@ -110,6 +130,11 @@ class HealthMonitor:
         self.http_timeout_seconds = http_timeout_seconds
         self._http_session: Optional[aiohttp.ClientSession] = None
 
+        # Métricas Prometheus para HealthMonitor (globais)
+        self._health_checks_total = _health_checks_total
+        self._kafka_lag_checks_total = _kafka_lag_checks_total
+        self._database_connection_checks_total = _database_connection_checks_total
+
     async def _get_http_session(self) -> aiohttp.ClientSession:
         """Obtém ou cria sessão HTTP."""
         if self._http_session is None or self._http_session.closed:
@@ -146,6 +171,9 @@ class HealthMonitor:
             if self.service_registry_client:
                 address = await self.service_registry_client.get_service_address(service_name)
                 if not address:
+                    self._health_checks_total.labels(
+                        service=service_name, check_type="http", status="failed"
+                    ).inc()
                     return HealthStatus(
                         service_name=service_name,
                         healthy=False,
@@ -161,6 +189,9 @@ class HealthMonitor:
                 elapsed_ms = (asyncio.get_event_loop().time() - start_time) * 1000
 
                 if response.status == 200:
+                    self._health_checks_total.labels(
+                        service=service_name, check_type="http", status="success"
+                    ).inc()
                     return HealthStatus(
                         service_name=service_name,
                         healthy=True,
@@ -168,6 +199,9 @@ class HealthMonitor:
                         metadata={"url": url},
                     )
                 else:
+                    self._health_checks_total.labels(
+                        service=service_name, check_type="http", status="failed"
+                    ).inc()
                     return HealthStatus(
                         service_name=service_name,
                         healthy=False,
@@ -176,8 +210,14 @@ class HealthMonitor:
                     )
 
         except asyncio.TimeoutError:
+            self._health_checks_total.labels(
+                service=service_name, check_type="http", status="timeout"
+            ).inc()
             return HealthStatus(service_name=service_name, healthy=False, error_message="Timeout")
         except Exception as e:
+            self._health_checks_total.labels(
+                service=service_name, check_type="http", status="error"
+            ).inc()
             return HealthStatus(service_name=service_name, healthy=False, error_message=str(e))
 
     async def check_kafka_consumer_lag(
@@ -208,6 +248,9 @@ class HealthMonitor:
             # Obter partições do tópico
             partitions = consumer.partitions_for_topic(topic)
             if not partitions:
+                self._kafka_lag_checks_total.labels(
+                    consumer_group=consumer_group, topic=topic, status="success"
+                ).inc()
                 return LagStatus(
                     consumer_group=consumer_group,
                     topic=topic,
@@ -239,6 +282,9 @@ class HealthMonitor:
 
             await consumer.stop()
 
+            self._kafka_lag_checks_total.labels(
+                consumer_group=consumer_group, topic=topic, status="success"
+            ).inc()
             return LagStatus(
                 consumer_group=consumer_group,
                 topic=topic,
@@ -255,6 +301,9 @@ class HealthMonitor:
                 topic=topic,
                 error=str(e),
             )
+            self._kafka_lag_checks_total.labels(
+                consumer_group=consumer_group, topic=topic, status="error"
+            ).inc()
             # Em caso de erro, retornar lag zero para evitar falsos positivos
             return LagStatus(
                 consumer_group=consumer_group,
@@ -293,6 +342,9 @@ class HealthMonitor:
                 elapsed_ms = (asyncio.get_event_loop().time() - start_time) * 1000
 
                 if result.get("ok") == 1.0:
+                    self._database_connection_checks_total.labels(
+                        database_type=database_type, status="success"
+                    ).inc()
                     return ConnectionStatus(
                         connection_string=connection_string,
                         connected=True,
@@ -301,6 +353,9 @@ class HealthMonitor:
                         database_info={"version": result.get("version")},
                     )
                 else:
+                    self._database_connection_checks_total.labels(
+                        database_type=database_type, status="failed"
+                    ).inc()
                     return ConnectionStatus(
                         connection_string=connection_string,
                         connected=False,
@@ -315,6 +370,9 @@ class HealthMonitor:
                 elapsed_ms = (asyncio.get_event_loop().time() - start_time) * 1000
                 await conn.close()
 
+                self._database_connection_checks_total.labels(
+                    database_type=database_type, status="success"
+                ).inc()
                 return ConnectionStatus(
                     connection_string=connection_string,
                     connected=True,
@@ -323,6 +381,9 @@ class HealthMonitor:
                 )
 
             else:
+                self._database_connection_checks_total.labels(
+                    database_type=database_type, status="unsupported"
+                ).inc()
                 return ConnectionStatus(
                     connection_string=connection_string,
                     connected=False,
@@ -331,6 +392,9 @@ class HealthMonitor:
                 )
 
         except Exception as e:
+            self._database_connection_checks_total.labels(
+                database_type=database_type, status="error"
+            ).inc()
             return ConnectionStatus(
                 connection_string=connection_string,
                 connected=False,
