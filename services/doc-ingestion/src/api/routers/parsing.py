@@ -14,7 +14,6 @@ from src.dependencies import get_doc_producer
 from src.models.document import DocumentStatus
 from src.models.entities import EntitySet
 from src.repositories.document_repository import DocumentRepository
-from src.repositories.entity_repository import EntityRepository
 from src.services.entity_extractor import EntityExtractor
 from src.services.gateway_client import GatewayClient, GatewayClientError
 from src.services.parsers.pdf_parser import PDFParser

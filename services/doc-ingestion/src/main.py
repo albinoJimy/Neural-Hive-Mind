@@ -11,12 +11,12 @@ from fastapi.responses import JSONResponse
 
 from src.api.routers.documents import router as documents_router
 from src.api.routers.parsing import router as parsing_router
-from src.config.settings import get_settings
-from src.db.mongodb import get_mongodb_client
-from src.producers.doc_producer import DocProducer
 
 # Service Registry client
 from src.clients.service_registry_client import DocIngestionServiceRegistryClient
+from src.config.settings import get_settings
+from src.db.mongodb import get_mongodb_client
+from src.producers.doc_producer import DocProducer
 
 logger = structlog.get_logger(__name__)
 
@@ -116,7 +116,7 @@ async def lifespan(app: FastAPI):
             logger.error("service_registry_shutdown_error", error=str(e))
 
     # Fechar Kafka Producer
-    from src.dependencies import get_doc_producer, clear_doc_producer
+    from src.dependencies import clear_doc_producer, get_doc_producer
 
     kafka_producer = get_doc_producer()
     if kafka_producer:

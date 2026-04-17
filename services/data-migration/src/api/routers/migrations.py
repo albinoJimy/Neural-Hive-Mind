@@ -48,17 +48,11 @@ router = APIRouter(tags=["migrations"])
 class MigrationCreateRequest(BaseModel):
     """Request para criar nova migração."""
 
-    legacy_db_url: str = Field(
-        ..., description="URL de conexão com banco legado (PostgreSQL)"
-    )
-    modern_db_url: str = Field(
-        ..., description="URL de conexão com banco moderno (PostgreSQL)"
-    )
+    legacy_db_url: str = Field(..., description="URL de conexão com banco legado (PostgreSQL)")
+    modern_db_url: str = Field(..., description="URL de conexão com banco moderno (PostgreSQL)")
     tables: List[str] = Field(..., description="Lista de tabelas a migrar", min_length=1)
     batch_size: int = Field(default=1000, ge=1, le=10000, description="Tamanho do lote")
-    auto_approve: bool = Field(
-        default=False, description="Aprovar fases automaticamente"
-    )
+    auto_approve: bool = Field(default=False, description="Aprovar fases automaticamente")
 
     @field_validator("legacy_db_url", "modern_db_url")
     @classmethod
@@ -210,9 +204,7 @@ async def create_migration(
                 job_id=job_id,
                 schema_mapping_id=f"mapping-{job_id}",
                 batch_size=request.batch_size,
-                total_rows=sum(
-                    t.get("row_count", 0) for t in analyzed_schema.get("tables", [])
-                ),
+                total_rows=sum(t.get("row_count", 0) for t in analyzed_schema.get("tables", [])),
                 status=MigrationStatus.PENDING,
             )
 
@@ -552,9 +544,7 @@ async def rollback_migration(
         orchestrator = get_migration_orchestrator(job_id)
         migration_job = MigrationJob(**job_dict)
 
-        rollback_stats = await orchestrator.rollback_migration(
-            migration_job=migration_job
-        )
+        rollback_stats = await orchestrator.rollback_migration(migration_job=migration_job)
 
         # Atualizar status no MongoDB
         await mongodb_client.update_migration_job_status(

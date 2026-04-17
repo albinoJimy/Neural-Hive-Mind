@@ -791,9 +791,7 @@ class CDCPipeline:
                 )
 
                 if response.status_code not in (200, 202, 204):
-                    raise CDCConnectorError(
-                        f"Falha ao pausar connector: {response.status_code}"
-                    )
+                    raise CDCConnectorError(f"Falha ao pausar connector: {response.status_code}")
 
                 logger.info(
                     "debezium_connector_paused",
@@ -822,9 +820,7 @@ class CDCPipeline:
                 )
 
                 if response.status_code not in (200, 202, 204):
-                    raise CDCConnectorError(
-                        f"Falha ao retomar connector: {response.status_code}"
-                    )
+                    raise CDCConnectorError(f"Falha ao retomar connector: {response.status_code}")
 
                 logger.info(
                     "debezium_connector_resumed",

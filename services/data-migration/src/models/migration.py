@@ -90,7 +90,9 @@ class FieldMapping(BaseModel):
     is_primary_key: bool = Field(default=False, description="Se é chave primária")
     is_foreign_key: bool = Field(default=False, description="Se é chave estrangeira")
     foreign_key_reference: Optional[str] = Field(None, description="Referência da FK se aplicável")
-    transform: Optional[str] = Field(None, description="Transformação a aplicar (ex: CAST_TIMESTAMP_UTC)")
+    transform: Optional[str] = Field(
+        None, description="Transformação a aplicar (ex: CAST_TIMESTAMP_UTC)"
+    )
     default_value: Optional[str] = Field(None, description="Valor default se aplicável")
     description: Optional[str] = Field(None, description="Descrição do campo")
     constraints: Optional[Dict[str, Any]] = Field(None, description="Restrições adicionais")
@@ -106,7 +108,9 @@ class TableMapping(BaseModel):
     target_table: str = Field(..., description="Nome da tabela no novo sistema")
     target_schema: str = Field(default="public", description="Schema da tabela no novo sistema")
     fields: List[FieldMapping] = Field(..., description="Mapeamento dos campos")
-    source_filter: Optional[str] = Field(None, description="Filtro WHERE para extração (ex: deleted_at IS NULL)")
+    source_filter: Optional[str] = Field(
+        None, description="Filtro WHERE para extração (ex: deleted_at IS NULL)"
+    )
     target_pre_actions: Optional[List[str]] = Field(
         None, description="Ações SQL antes da migração (ex: DROP INDEX)"
     )
@@ -169,9 +173,7 @@ class MigrationJob(BaseModel):
     rollback_reason: Optional[str] = Field(None, description="Motivo do rollback se aplicável")
 
     # Metadata
-    metadata: Dict[str, Any] = Field(
-        default_factory=dict, description="Metadata adicional do job"
-    )
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Metadata adicional do job")
 
     model_config = ConfigDict(use_enum_values=True)
 
@@ -215,9 +217,7 @@ class MigrationJob(BaseModel):
         """
         # Converter self.status (pode ser string ou enum) para MigrationStatus
         current_status = (
-            MigrationStatus(self.status)
-            if isinstance(self.status, str)
-            else self.status
+            MigrationStatus(self.status) if isinstance(self.status, str) else self.status
         )
 
         if not current_status.is_valid_transition(new_status):

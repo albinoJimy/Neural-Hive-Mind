@@ -4,6 +4,8 @@ import uuid
 from datetime import datetime
 from typing import List, Optional
 
+from structlog import get_logger
+
 from src.db.mongodb import get_mongodb_client
 from src.models.document import (
     Document,
@@ -11,7 +13,6 @@ from src.models.document import (
     DocumentStatus,
     DocumentUpdate,
 )
-from structlog import get_logger
 
 logger = get_logger(__name__)
 
@@ -133,10 +134,7 @@ class DocumentRepository:
             filters["tags"] = {"$in": tags}
 
         cursor = (
-            db.documents_collection.find(filters)
-            .skip(skip)
-            .limit(limit)
-            .sort("created_at", -1)
+            db.documents_collection.find(filters).skip(skip).limit(limit).sort("created_at", -1)
         )
 
         docs = await cursor.to_list(length=limit)
@@ -149,9 +147,7 @@ class DocumentRepository:
 
         return documents, total
 
-    async def update(
-        self, document_id: str, update_data: DocumentUpdate
-    ) -> Optional[Document]:
+    async def update(self, document_id: str, update_data: DocumentUpdate) -> Optional[Document]:
         """Atualiza um documento.
 
         Args:

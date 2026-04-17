@@ -3,8 +3,8 @@
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from src.models.entities import ExtractedEntity
 from src.db.mongodb import AsyncMongoDBClient
+from src.models.entities import ExtractedEntity
 
 
 class EntityRepository:

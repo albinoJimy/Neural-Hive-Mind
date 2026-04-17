@@ -140,9 +140,7 @@ class DocIngestionServiceRegistryClient:
         """
         try:
             if not self.stub:
-                logger.warning(
-                    "register_called_without_connection", service=self.service_name
-                )
+                logger.warning("register_called_without_connection", service=self.service_name)
                 return None
 
             # Capabilities padrão do doc-ingestion

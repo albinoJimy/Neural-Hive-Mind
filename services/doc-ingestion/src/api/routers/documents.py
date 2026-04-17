@@ -2,7 +2,6 @@
 
 import hashlib
 import uuid
-from datetime import datetime
 from typing import Optional
 
 import structlog
@@ -12,7 +11,6 @@ from fastapi.responses import JSONResponse, Response
 from src.clients.s3_client import get_s3_client
 from src.dependencies import get_doc_producer
 from src.models.document import (
-    Document,
     DocumentFormat,
     DocumentList,
     DocumentStatus,

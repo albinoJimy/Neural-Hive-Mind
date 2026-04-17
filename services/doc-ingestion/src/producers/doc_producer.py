@@ -89,15 +89,17 @@ class DocProducer:
             raise RuntimeError("Producer not started. Call start() first.")
 
         event = self._create_event_base("doc.uploaded")
-        event.update({
-            "document_id": document_id,
-            "filename": filename,
-            "format": format_type,
-            "file_size_bytes": file_size_bytes,
-            "uploaded_by": uploaded_by,
-            "s3_key": s3_key,
-            "project_id": project_id,
-        })
+        event.update(
+            {
+                "document_id": document_id,
+                "filename": filename,
+                "format": format_type,
+                "file_size_bytes": file_size_bytes,
+                "uploaded_by": uploaded_by,
+                "s3_key": s3_key,
+                "project_id": project_id,
+            }
+        )
 
         try:
             await self._producer.send_and_wait(
@@ -135,13 +137,15 @@ class DocProducer:
             raise RuntimeError("Producer not started. Call start() first.")
 
         event = self._create_event_base("doc.parsed")
-        event.update({
-            "document_id": document_id,
-            "parsed_text_length": parsed_text_length,
-            "parsing_duration_ms": parsing_duration_ms,
-            "has_error": has_error,
-            "error_message": error_message,
-        })
+        event.update(
+            {
+                "document_id": document_id,
+                "parsed_text_length": parsed_text_length,
+                "parsing_duration_ms": parsing_duration_ms,
+                "has_error": has_error,
+                "error_message": error_message,
+            }
+        )
 
         try:
             await self._producer.send_and_wait(
@@ -177,12 +181,14 @@ class DocProducer:
             raise RuntimeError("Producer not started. Call start() first.")
 
         event = self._create_event_base("doc.entities_extracted")
-        event.update({
-            "document_id": document_id,
-            "entity_count": entity_count,
-            "entity_types": entity_types,
-            "extraction_duration_ms": extraction_duration_ms,
-        })
+        event.update(
+            {
+                "document_id": document_id,
+                "entity_count": entity_count,
+                "entity_types": entity_types,
+                "extraction_duration_ms": extraction_duration_ms,
+            }
+        )
 
         try:
             await self._producer.send_and_wait(
@@ -216,11 +222,13 @@ class DocProducer:
             raise RuntimeError("Producer not started. Call start() first.")
 
         event = self._create_event_base("doc.approved")
-        event.update({
-            "document_id": document_id,
-            "approved_by": approved_by,
-            "approval_notes": approval_notes,
-        })
+        event.update(
+            {
+                "document_id": document_id,
+                "approved_by": approved_by,
+                "approval_notes": approval_notes,
+            }
+        )
 
         try:
             await self._producer.send_and_wait(
@@ -264,3 +272,46 @@ class DocProducer:
 
         except KafkaError as e:
             self._logger.error("failed_to_send_to_dlq", error=str(e))
+
+    async def publish_doc_sent_to_gateway(
+        self,
+        document_id: str,
+        intent_id: str,
+        ingestion_id: str,
+        duration_ms: int,
+    ) -> None:
+        """Publica evento de documento enviado para Gateway.
+
+        Args:
+            document_id: ID do documento.
+            intent_id: ID da intenção criada no Gateway.
+            ingestion_id: ID do processo de ingestão.
+            duration_ms: Duração do envio em ms.
+        """
+        if not self._producer:
+            raise RuntimeError("Producer not started. Call start() first.")
+
+        event = self._create_event_base("doc.sent_to_gateway")
+        event.update(
+            {
+                "document_id": document_id,
+                "intent_id": intent_id,
+                "ingestion_id": ingestion_id,
+                "duration_ms": duration_ms,
+            }
+        )
+
+        try:
+            await self._producer.send_and_wait(
+                self._docs_topic,
+                value=event,
+            )
+            self._logger.info(
+                "doc_sent_to_gateway_published",
+                document_id=document_id,
+                intent_id=intent_id,
+            )
+
+        except KafkaError as e:
+            self._logger.error("failed_to_publish_sent_to_gateway", error=str(e))
+            raise

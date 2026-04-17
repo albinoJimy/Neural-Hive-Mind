@@ -545,6 +545,7 @@ class BatchMigrator:
 
         elif transform == "PARSE_JSON":
             import json
+
             if isinstance(value, str):
                 return json.loads(value)
             return value
@@ -771,8 +772,7 @@ class BatchMigrator:
             "running": self._running,
             "paused": self._paused,
             "tables_progress": {
-                table: progress.to_dict()
-                for table, progress in self._progress.items()
+                table: progress.to_dict() for table, progress in self._progress.items()
             },
             "status": self._get_status(),
         }
