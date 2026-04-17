@@ -18,7 +18,7 @@ class Settings(BaseSettings):
 
     # API
     api_title: str = "Doc Ingestion API"
-    api_version: str = "0.1.0"
+    api_version: str = "1.0.0"
     api_prefix: str = "/api/v1"
     host: str = "0.0.0.0"
     port: int = 8018
@@ -29,8 +29,8 @@ class Settings(BaseSettings):
     anthropic_api_key: str = Field(default="", validation_alias="ANTHROPIC_API_KEY")
     llm_provider: str = "openai"  # openai or anthropic
     llm_model: str = "gpt-4-turbo-preview"
-    llm_temperature: float = 0.7
-    llm_max_tokens: int = 4000
+    llm_temperature: float = 0.3
+    llm_max_tokens: int = 8000
 
     # MongoDB
     mongodb_url: str = Field(default="mongodb://localhost:27017", validation_alias="MONGODB_URL")
@@ -88,7 +88,7 @@ class Settings(BaseSettings):
 
     # Service Info
     service_name: str = "doc-ingestion"
-    service_version: str = "0.1.0"
+    service_version: str = "1.0.0"
     environment: str = Field(default="development", validation_alias="ENVIRONMENT")
 
 
