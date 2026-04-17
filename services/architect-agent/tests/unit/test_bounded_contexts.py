@@ -145,3 +145,59 @@ def test_bounded_context_with_relationships_and_direction():
     assert len(context.relationships) == 2
     assert context.relationships[0].direction == "outgoing"
     assert context.relationships[1].direction == "incoming"
+
+
+def test_bounded_contexts_validates_empty_requirements():
+    """Testa que requirements vazio lança ValueError."""
+    from src.identifiers.bounded_contexts import BoundedContextsIdentifier
+
+    identifier = BoundedContextsIdentifier()
+
+    with pytest.raises(ValueError, match="Requirements cannot be empty"):
+        # Usar sync wrapper para async
+        import asyncio
+        asyncio.run(identifier.identify("   "))
+
+
+def test_bounded_contexts_validates_too_short_requirements():
+    """Testa que requirements muito curto lança ValueError."""
+    from src.identifiers.bounded_contexts import BoundedContextsIdentifier
+
+    identifier = BoundedContextsIdentifier()
+
+    with pytest.raises(ValueError, match="Requirements too short"):
+        import asyncio
+        asyncio.run(identifier.identify("abc"))
+
+
+def test_bounded_contexts_validates_too_long_requirements():
+    """Testa que requirements muito longo lança ValueError."""
+    from src.identifiers.bounded_contexts import BoundedContextsIdentifier
+
+    identifier = BoundedContextsIdentifier()
+
+    # Criar requirements com mais de 15000 caracteres
+    long_requirements = "x" * 15001
+
+    with pytest.raises(ValueError, match="Requirements too long"):
+        import asyncio
+        asyncio.run(identifier.identify(long_requirements))
+
+
+def test_bounded_contexts_validates_too_many_hints():
+    """Testa que demasiadas hints lança ValueError."""
+    from src.identifiers.bounded_contexts import BoundedContextsIdentifier
+
+    identifier = BoundedContextsIdentifier()
+
+    # Criar 11 domain hints (limite é 10)
+    too_many_hints = [f"Context{i}" for i in range(11)]
+
+    with pytest.raises(ValueError, match="Too many domain hints"):
+        import asyncio
+        asyncio.run(
+            identifier.identify(
+                "Sistema de e-commerce com várias funcionalidades.",
+                domain_hints=too_many_hints
+            )
+        )
