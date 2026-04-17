@@ -1,0 +1,278 @@
+version: '3.8'
+
+# Docker Compose para desenvolvimento local do Fluxo H
+# Neural Hive-Mind - Legacy Migration System
+#
+# Serviços:
+# - Doc Ingestion Service (8018)
+# - Data Migration System (8019)
+# - PostgreSQL Legacy (source database)
+# - Kafka Connect com Debezium (CDC)
+# - Infraestrutura de suporte
+#
+# Uso:
+#   docker-compose -f docker-compose-fluxo-h.yml up -d
+#   docker-compose -f docker-compose-fluxo-h.yml logs -f
+#   docker-compose -f docker-compose-fluxo-h.yml down
+
+services:
+  # ========================================
+  # FLUXO H SERVICES
+  # ========================================
+
+  # Doc Ingestion Service (8018)
+  doc-ingestion:
+    build:
+      context: ./services/doc-ingestion
+      dockerfile: Dockerfile
+    ports:
+      - "8018:8018"
+    environment:
+      # API
+      - DOC_INGEST_HOST=0.0.0.0
+      - DOC_INGEST_PORT=8018
+      - DOC_INGEST_DEBUG=true
+
+      # MongoDB
+      - DOC_INGEST_MONGODB_URL=mongodb://mongodb:27017
+      - DOC_INGEST_MONGODB_DATABASE=doc_ingestion
+
+      # Kafka
+      - DOC_INGEST_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - DOC_INGEST_KAFKA_CONSUMER_GROUP=doc-ingestion-consumers
+
+      # S3/MinIO
+      - DOC_INGEST_S3_ENDPOINT=http://minio:9000
+      - DOC_INGEST_S3_ACCESS_KEY=minioadmin
+      - DOC_INGEST_S3_SECRET_KEY=minioadmin
+      - DOC_INGEST_S3_BUCKET=doc-ingestion
+      - DOC_INGEST_S3_SECURE=false
+
+      # LLM
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+
+      # Service Registry
+      - DOC_INGEST_SERVICE_REGISTRY_GRPC_HOST=service-registry
+      - DOC_INGEST_SERVICE_REGISTRY_GRPC_PORT=50051
+
+      # Neural Hive-Mind Integration
+      - DOC_INGEST_GATEWAY_URL=http://gateway-intencoes:8000
+      - DOC_INGEST_ORCHESTRATOR_URL=http://orchestrator-dynamic:8003
+
+    depends_on:
+      - mongodb
+      - kafka
+      - minio
+    volumes:
+      - ./services/doc-ingestion/src:/app/src
+    networks:
+      - fluxo-h-net
+
+  # Data Migration System (8019)
+  data-migration:
+    build:
+      context: ./services/data-migration
+      dockerfile: Dockerfile
+    ports:
+      - "8019:8019"
+    environment:
+      # API
+      - DATA_MIGRATION_HOST=0.0.0.0
+      - DATA_MIGRATION_PORT=8019
+      - DATA_MIGRATION_DEBUG=true
+
+      # MongoDB (Metadata)
+      - DATA_MIGRATION_MONGODB_URL=mongodb://mongodb:27017
+      - DATA_MIGRATION_MONGODB_DATABASE=data_migration
+
+      # PostgreSQL Legacy (Source Database)
+      - DATA_MIGRATION_POSTGRES_URL=postgresql://legacy_user:legacy_pass@postgres-legacy:5432/legacy
+      - DATA_MIGRATION_POSTGRES_DATABASE=legacy
+
+      # Kafka
+      - DATA_MIGRATION_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+
+      # Debezium CDC
+      - DATA_MIGRATION_DEBEZIUM_URL=http://kafka-connect:8083
+
+      # S3/MinIO (Data dumps)
+      - DATA_MIGRATION_S3_ENDPOINT=http://minio:9000
+      - DATA_MIGRATION_S3_ACCESS_KEY=minioadmin
+      - DATA_MIGRATION_S3_SECRET_KEY=minioadmin
+      - DATA_MIGRATION_S3_BUCKET=nhm-migration-dumps
+
+      # LLM
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+
+      # Service Registry
+      - DATA_MIGRATION_SERVICE_REGISTRY_GRPC_HOST=service-registry
+      - DATA_MIGRATION_SERVICE_REGISTRY_GRPC_PORT=50051
+
+      # Neural Hive-Mind Integration
+      - DATA_MIGRATION_GATEWAY_URL=http://gateway-intencoes:8000
+      - DATA_MIGRATION_ORCHESTRATOR_URL=http://orchestrator-dynamic:8003
+
+    depends_on:
+      - mongodb
+      - postgres-legacy
+      - kafka
+      - kafka-connect
+    volumes:
+      - ./services/data-migration/src:/app/src
+    networks:
+      - fluxo-h-net
+
+  # ========================================
+  # LEGACY DATABASE (Source)
+  # ========================================
+
+  postgres-legacy:
+    image: postgres:17-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=legacy_user
+      - POSTGRES_PASSWORD=legacy_pass
+      - POSTGRES_DB=legacy_db
+    volumes:
+      - postgres-legacy-data:/var/lib/postgresql/data
+      # Scripts de inicialização
+      - ./scripts/init-legacy-db.sql:/docker-entrypoint-initdb.d/01-init.sql
+    networks:
+      - fluxo-h-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U legacy_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ========================================
+  # CDC DEBEZIUM
+  # ========================================
+
+  kafka-connect:
+    image: debezium/connect:2.5.0.Final
+    ports:
+      - "8083:8083"
+    environment:
+      - BOOTSTRAP_SERVERS=kafka:9092
+      - GROUP_ID=1
+      - OFFSET_STORAGE_TOPIC=connect-offsets
+      - CONFIG_STORAGE_TOPIC=connect-configs
+      - STATUS_STORAGE_TOPIC=connect-statuss
+      - KEY_CONVERTER=org.apache.kafka.connect.json.JsonConverter
+      - VALUE_CONVERTER=org.apache.kafka.connect.json.JsonConverter
+
+    depends_on:
+      - kafka
+    networks:
+      - fluxo-h-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/connectors"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ========================================
+  # INFRAESTRUTURA EXISTENTE
+  # ========================================
+
+  # MongoDB (Document Storage)
+  mongodb:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=neural_hive_mind
+    volumes:
+      - mongodb-data:/data/db
+    networks:
+      - fluxo-h-net
+
+  # Kafka & Zookeeper
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    ports:
+      - "9092:9092"
+    environment:
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
+    depends_on:
+      - zookeeper
+    networks:
+      - fluxo-h-net
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    ports:
+      - "2181:2181"
+    environment:
+      - ZOOKEEPER_CLIENT_PORT=2181
+      - ZOOKEEPER_TICK_TIME=2000
+    networks:
+      - fluxo-h-net
+
+  # MinIO (S3-compatible storage)
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"  # Console UI
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+    networks:
+      - fluxo-h-net
+
+  # ========================================
+  # SERVIÇOS NHM EXISTENTES (Opcional)
+  # ========================================
+
+  # Gateway Intenções (se não estiver rodando)
+  # gateway-intencoes:
+  #   build: ./services/gateway-intencoes
+  #   ports:
+  #     - "8000:8000"
+  #   networks:
+  #     - fluxo-h-net
+
+  # Orchestrator Dynamic (se não estiver rodando)
+  # orchestrator-dynamic:
+  #   build: ./services/orchestrator-dynamic
+  #   ports:
+  #     - "8003:8003"
+  #   networks:
+  #     - fluxo-h-net
+
+  # Service Registry (se não estiver rodando)
+  # service-registry:
+  #   build: ./services/service-registry
+  #   ports:
+  #     - "50051:50051"
+  #     - "8007:8007"
+  #   networks:
+  #     - fluxo-h-net
+
+# ========================================
+# VOLUMES
+# ========================================
+
+volumes:
+  postgres-legacy-data:
+  mongodb-data:
+  minio-data:
+
+# ========================================
+# NETWORKS
+# ========================================
+
+networks:
+  fluxo-h-net:
+    driver: bridge
