@@ -2,8 +2,9 @@
 
 import pytest
 from httpx import AsyncClient
-from src.main import app
+
 from src.db.mongodb import get_mongodb_client
+from src.main import app
 
 
 @pytest.mark.asyncio
@@ -14,7 +15,7 @@ async def test_extract_entities_persists_to_mongodb():
     await mongodb_client.connect()
 
     # Limpar coleção entities
-    entities_collection = mongodb_client.db.get("entities")
+    entities_collection = mongodb_client.entities_collection
     await entities_collection.delete_many({})
 
     # Criar documento de teste
@@ -44,11 +45,13 @@ async def test_extract_entities_persists_to_mongodb():
         assert response.status_code == 202
 
     # Verificar que entidades foram persistidas
-    entities = await entities_collection.find({"document_id": document.id}).to_list(None)
+    entities = await mongodb_client.entities_collection.find({"document_id": document.id}).to_list(
+        None
+    )
     assert len(entities) > 0, "Entities should be persisted"
     assert entities[0].get("document_id") == document.id
 
     # Cleanup
-    await entities_collection.delete_many({"document_id": document.id})
+    await mongodb_client.entities_collection.delete_many({"document_id": document.id})
     await repository.delete(document.id)
     await mongodb_client.disconnect()

@@ -23,7 +23,7 @@ class EntityRepository:
     def collection(self):
         """Retorna coleção de entidades (lazy initialization)."""
         if self._collection is None:
-            self._collection = self.mongodb_client.db.get("entities")
+            self._collection = self.mongodb_client.entities_collection
         return self._collection
 
     async def create_many(self, entities: List[ExtractedEntity], document_id: str) -> List[str]:
