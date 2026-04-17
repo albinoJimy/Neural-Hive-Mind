@@ -47,3 +47,7 @@ aioresponses==0.7.6
 
 # Docker client para testes
 aiodocker==0.21.0
+
+# Load testing
+locust>=2.15.0
+httpx>=0.25.0

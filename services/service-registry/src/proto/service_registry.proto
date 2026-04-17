@@ -16,6 +16,8 @@ enum AgentType {
   KNOWLEDGE_GRAPH_RAG = 7;
   APPROVAL_GATEWAY = 8;
   ARCHITECT_AGENT = 9;
+  // Serviços de Engenharia - Fluxo H (novos)
+  DOC_INGESTION = 10;
 }
 
 // Enumeração de status de saúde

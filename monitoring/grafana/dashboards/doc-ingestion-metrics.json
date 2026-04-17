@@ -1,0 +1,323 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Fluxo H - Doc Ingestion Metrics",
+    "tags": ["fluxo-h", "doc-ingestion", "8018", "parsing", "documents"],
+    "timezone": "browser",
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Documents Processed (Last Hour)",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "increase(doc_ingestion_documents_processed_total[1h])",
+            "legendFormat": "Documents"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Parse Throughput",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "rate(doc_ingestion_documents_processed_total[5m]) * 3600",
+            "legendFormat": "Docs/hour"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "unit": "ops",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 100},
+                {"color": "green", "value": 500}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "Entity Extraction Rate",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "rate(doc_ingestion_entities_extracted_total[5m])",
+            "legendFormat": "Entities/sec"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "palette-classic"},
+            "unit": "ops"
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "Service Health",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "up{job=\"doc-ingestion\"}",
+            "legendFormat": "{{job}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "green", "value": 1}
+              ]
+            },
+            "mappings": [
+              {
+                "type": "value",
+                "options": {
+                  "0": {"text": "DOWN", "color": "red"},
+                  "1": {"text": "UP", "color": "green"}
+                }
+              }
+            ]
+          }
+        },
+        "options": {
+          "colorMode": "background"
+        }
+      },
+      {
+        "id": 5,
+        "title": "Documents Processed Over Time",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "rate(doc_ingestion_documents_processed_total[5m])",
+            "legendFormat": "Documents/sec"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops",
+            "color": {"mode": "palette-classic"}
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "Parsing Latency (Percentiles)",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "histogram_quantile(0.50, sum(rate(doc_ingestion_parse_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P50"
+          },
+          {
+            "datasource": "prometheus",
+            "expr": "histogram_quantile(0.95, sum(rate(doc_ingestion_parse_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P95"
+          },
+          {
+            "datasource": "prometheus",
+            "expr": "histogram_quantile(0.99, sum(rate(doc_ingestion_parse_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P99"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "color": {"mode": "palette-classic"}
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "Parsing by Document Type",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "sum by (doc_type) (rate(doc_ingestion_documents_processed_total{doc_type!=\"\"}[5m]))",
+            "legendFormat": "{{doc_type}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops",
+            "color": {"mode": "palette-classic"}
+          }
+        }
+      },
+      {
+        "id": 8,
+        "title": "Parse Errors by Type",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "sum by (error_type) (rate(doc_ingestion_parse_errors_total[5m]))",
+            "legendFormat": "{{error_type}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops",
+            "color": {"mode": "palette-classic"}
+          }
+        }
+      },
+      {
+        "id": 9,
+        "title": "LLM Response Time",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 20},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "histogram_quantile(0.95, sum(rate(doc_ingestion_llm_response_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P95 LLM Response"
+          },
+          {
+            "datasource": "prometheus",
+            "expr": "histogram_quantile(0.99, sum(rate(doc_ingestion_llm_response_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P99 LLM Response"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "color": {"mode": "palette-classic"}
+          }
+        }
+      },
+      {
+        "id": 10,
+        "title": "Entity Extraction Counts",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 20},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "sum by (entity_type) (rate(doc_ingestion_entities_extracted_total[5m]))",
+            "legendFormat": "{{entity_type}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops",
+            "color": {"mode": "palette-classic"}
+          }
+        }
+      },
+      {
+        "id": 11,
+        "title": "Storage Metrics",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 28},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "doc_ingestion_s3_storage_bytes / 1024 / 1024 / 1024",
+            "legendFormat": "S3 Storage (GB)"
+          },
+          {
+            "datasource": "prometheus",
+            "expr": "doc_ingestion_mongodb_storage_bytes / 1024 / 1024 / 1024",
+            "legendFormat": "MongoDB Storage (GB)"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "bytes",
+            "color": {"mode": "palette-classic"}
+          }
+        }
+      },
+      {
+        "id": 12,
+        "title": "API Request Rate",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 28},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "sum by (endpoint) (rate(http_requests_total{job=\"doc-ingestion\"}[5m]))",
+            "legendFormat": "{{endpoint}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "color": {"mode": "palette-classic"}
+          }
+        }
+      },
+      {
+        "id": 13,
+        "title": "Kafka Messages Published",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 36},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "rate(doc_ingestion_kafka_messages_published_total[5m])",
+            "legendFormat": "Messages/sec"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops",
+            "color": {"mode": "palette-classic"}
+          }
+        }
+      },
+      {
+        "id": 14,
+        "title": "Parser Status",
+        "type": "table",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 36},
+        "targets": [
+          {
+            "datasource": "prometheus",
+            "expr": "doc_ingestion_parser_available",
+            "legendFormat": "{{parser_type}}",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "options": {
+          "showHeader": true,
+          "frameIndex": 0
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,195 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "data-migration.fullname" . }}
+  labels:
+    {{- include "data-migration.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "data-migration.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "data-migration.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "data-migration.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.config.httpPort }}
+              protocol: TCP
+            {{- if .Values.observability.enabled }}
+            - name: metrics
+              containerPort: {{ .Values.observability.prometheus.port }}
+              protocol: TCP
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            - name: DATA_MIGRATION_SERVICE_NAME
+              value: {{ include "data-migration.name" . }}
+            - name: DATA_MIGRATION_SERVICE_VERSION
+              value: {{ .Chart.AppVersion | quote }}
+            - name: DATA_MIGRATION_ENVIRONMENT
+              value: {{ .Values.config.environment | quote }}
+            - name: DATA_MIGRATION_HOST
+              value: "0.0.0.0"
+            - name: DATA_MIGRATION_PORT
+              value: {{ .Values.config.httpPort | quote }}
+            - name: DATA_MIGRATION_DEBUG
+              value: "false"
+            # PostgreSQL
+            - name: POSTGRES_URL
+              value: {{ .Values.config.postgres.url | quote }}
+            - name: POSTGRES_DATABASE
+              value: {{ .Values.config.postgres.database | quote }}
+            # MongoDB
+            - name: MONGODB_URL
+              value: {{ .Values.config.mongodb.url | quote }}
+            - name: MONGODB_DATABASE
+              value: {{ .Values.config.mongodb.database | quote }}
+            # Redis
+            - name: REDIS_URL
+              value: {{ .Values.config.redis.url | quote }}
+            # Kafka
+            {{- if .Values.config.kafka.enabled }}
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: {{ .Values.config.kafka.bootstrapServers | quote }}
+            - name: KAFKA_CONSUMER_GROUP
+              value: {{ .Values.config.kafka.consumerGroup | quote }}
+            - name: KAFKA_OUTPUT_TOPIC
+              value: {{ .Values.config.kafka.outputTopic | quote }}
+            - name: KAFKA_DLQ_TOPIC
+              value: {{ .Values.config.kafka.dlqTopic | quote }}
+            {{- end }}
+            # S3/MinIO
+            - name: S3_ENDPOINT
+              value: {{ .Values.config.s3.endpoint | quote }}
+            - name: S3_BUCKET
+              value: {{ .Values.config.s3.bucket | quote }}
+            - name: S3_SECURE
+              value: {{ .Values.config.s3.secure | quote }}
+            # S3 Credentials
+            - name: S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "data-migration.fullname" . }}-secrets
+                  key: s3-access-key
+                  optional: true
+            - name: S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "data-migration.fullname" . }}-secrets
+                  key: s3-secret-key
+                  optional: true
+            # Debezium
+            - name: DEBEZIUM_URL
+              value: {{ .Values.config.debezium.url | quote }}
+            # Service Registry
+            - name: SERVICE_REGISTRY_GRPC_HOST
+              value: {{ .Values.config.serviceRegistry.grpcHost | quote }}
+            - name: SERVICE_REGISTRY_GRPC_PORT
+              value: {{ .Values.config.serviceRegistry.grpcPort | quote }}
+            - name: SERVICE_REGISTRY_NAMESPACE
+              value: {{ .Values.config.serviceRegistry.namespace | quote }}
+            - name: SERVICE_REGISTRY_CLUSTER
+              value: {{ .Values.config.serviceRegistry.cluster | quote }}
+            # Neural Hive-Mind Integration
+            - name: GATEWAY_URL
+              value: {{ .Values.config.neuralHive.gatewayUrl | quote }}
+            - name: ORCHESTRATOR_URL
+              value: {{ .Values.config.neuralHive.orchestratorUrl | quote }}
+            - name: SERVICE_REGISTRY_URL
+              value: {{ .Values.config.neuralHive.serviceRegistryUrl | quote }}
+            # Migration Settings
+            - name: DATA_MIGRATION_BATCH_SIZE
+              value: {{ .Values.config.migration.batchSize | quote }}
+            - name: DATA_MIGRATION_MAX_PARALLEL_MIGRATIONS
+              value: {{ .Values.config.migration.maxParallelMigrations | quote }}
+            - name: DATA_MIGRATION_ROLLBACK_TIMEOUT_SECONDS
+              value: {{ .Values.config.migration.rollbackTimeoutSeconds | quote }}
+            # LLM
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "data-migration.fullname" . }}-secrets
+                  key: openai-api-key
+                  optional: true
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "data-migration.fullname" . }}-secrets
+                  key: anthropic-api-key
+                  optional: true
+            # Observability
+            {{- if .Values.observability.tracing.enabled }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ .Values.observability.tracing.endpoint | quote }}
+            - name: OTEL_TRACES_SAMPLER
+              value: "traceidratio"
+            - name: OTEL_TRACES_SAMPLER_ARG
+              value: {{ .Values.observability.tracing.sampleRate | quote }}
+            {{- end }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "data-migration.fullname" . }}
+          volumeMounts:
+            {{- with .Values.volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      volumes:
+        {{- with .Values.volumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

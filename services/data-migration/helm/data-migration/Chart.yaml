@@ -1,0 +1,17 @@
+apiVersion: v2
+name: data-migration
+description: Neural Hive-Mind Data Migration Service - Legacy data migration, CDC pipeline, and schema mapping
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - neural-hive-mind
+  - data-migration
+  - cdc
+  - schema-mapping
+  - legacy-migration
+maintainers:
+  - name: Neural Hive-Mind Team
+home: https://github.com/albinoJimy/Neural-Hive-Mind
+sources:
+  - https://github.com/albinoJimy/Neural-Hive-Mind

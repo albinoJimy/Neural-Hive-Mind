@@ -31,7 +31,13 @@ def mock_pg_client():
 def client(app, mock_pg_client):
     """Fixture com TestClient e dependency override."""
     app.dependency_overrides[get_postgresql_client] = lambda: mock_pg_client
-    yield TestClient(app)
+
+    # Criar transporte customizado para usar app ASGI
+    transport = httpx.AsyncClient(app=app, base_url="http://test")
+
+    with TestClient(app, transport=transport) as test_client:
+        yield test_client
+
     app.dependency_overrides.clear()
 
 

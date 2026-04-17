@@ -5,29 +5,29 @@ import warnings
 
 from . import service_registry_pb2 as service__registry__pb2
 
-GRPC_GENERATED_VERSION = "1.68.1"
+GRPC_GENERATED_VERSION = '1.71.2'
 GRPC_VERSION = grpc.__version__
 _version_not_supported = False
 
 try:
     from grpc._utilities import first_version_is_lower
-
     _version_not_supported = first_version_is_lower(GRPC_VERSION, GRPC_GENERATED_VERSION)
 except ImportError:
     _version_not_supported = True
 
 if _version_not_supported:
     raise RuntimeError(
-        f"The grpc package installed is at version {GRPC_VERSION},"
-        + f" but the generated code in service_registry_pb2_grpc.py depends on"
-        + f" grpcio>={GRPC_GENERATED_VERSION}."
-        + f" Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}"
-        + f" or downgrade your generated code using grpcio-tools<={GRPC_VERSION}."
+        f'The grpc package installed is at version {GRPC_VERSION},'
+        + f' but the generated code in service_registry_pb2_grpc.py depends on'
+        + f' grpcio>={GRPC_GENERATED_VERSION}.'
+        + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
+        + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
     )
 
 
 class ServiceRegistryStub(object):
-    """Serviço de registro"""
+    """Serviço de registro
+    """
 
     def __init__(self, channel):
         """Constructor.
@@ -36,180 +36,177 @@ class ServiceRegistryStub(object):
             channel: A grpc.Channel.
         """
         self.Register = channel.unary_unary(
-            "/neural_hive.service_registry.ServiceRegistry/Register",
-            request_serializer=service__registry__pb2.RegisterRequest.SerializeToString,
-            response_deserializer=service__registry__pb2.RegisterResponse.FromString,
-            _registered_method=True,
-        )
+                '/neural_hive.service_registry.ServiceRegistry/Register',
+                request_serializer=service__registry__pb2.RegisterRequest.SerializeToString,
+                response_deserializer=service__registry__pb2.RegisterResponse.FromString,
+                _registered_method=True)
         self.Heartbeat = channel.unary_unary(
-            "/neural_hive.service_registry.ServiceRegistry/Heartbeat",
-            request_serializer=service__registry__pb2.HeartbeatRequest.SerializeToString,
-            response_deserializer=service__registry__pb2.HeartbeatResponse.FromString,
-            _registered_method=True,
-        )
+                '/neural_hive.service_registry.ServiceRegistry/Heartbeat',
+                request_serializer=service__registry__pb2.HeartbeatRequest.SerializeToString,
+                response_deserializer=service__registry__pb2.HeartbeatResponse.FromString,
+                _registered_method=True)
         self.Deregister = channel.unary_unary(
-            "/neural_hive.service_registry.ServiceRegistry/Deregister",
-            request_serializer=service__registry__pb2.DeregisterRequest.SerializeToString,
-            response_deserializer=service__registry__pb2.DeregisterResponse.FromString,
-            _registered_method=True,
-        )
+                '/neural_hive.service_registry.ServiceRegistry/Deregister',
+                request_serializer=service__registry__pb2.DeregisterRequest.SerializeToString,
+                response_deserializer=service__registry__pb2.DeregisterResponse.FromString,
+                _registered_method=True)
         self.DiscoverAgents = channel.unary_unary(
-            "/neural_hive.service_registry.ServiceRegistry/DiscoverAgents",
-            request_serializer=service__registry__pb2.DiscoverRequest.SerializeToString,
-            response_deserializer=service__registry__pb2.DiscoverResponse.FromString,
-            _registered_method=True,
-        )
+                '/neural_hive.service_registry.ServiceRegistry/DiscoverAgents',
+                request_serializer=service__registry__pb2.DiscoverRequest.SerializeToString,
+                response_deserializer=service__registry__pb2.DiscoverResponse.FromString,
+                _registered_method=True)
         self.GetAgent = channel.unary_unary(
-            "/neural_hive.service_registry.ServiceRegistry/GetAgent",
-            request_serializer=service__registry__pb2.GetAgentRequest.SerializeToString,
-            response_deserializer=service__registry__pb2.GetAgentResponse.FromString,
-            _registered_method=True,
-        )
+                '/neural_hive.service_registry.ServiceRegistry/GetAgent',
+                request_serializer=service__registry__pb2.GetAgentRequest.SerializeToString,
+                response_deserializer=service__registry__pb2.GetAgentResponse.FromString,
+                _registered_method=True)
         self.ListAgents = channel.unary_unary(
-            "/neural_hive.service_registry.ServiceRegistry/ListAgents",
-            request_serializer=service__registry__pb2.ListAgentsRequest.SerializeToString,
-            response_deserializer=service__registry__pb2.ListAgentsResponse.FromString,
-            _registered_method=True,
-        )
+                '/neural_hive.service_registry.ServiceRegistry/ListAgents',
+                request_serializer=service__registry__pb2.ListAgentsRequest.SerializeToString,
+                response_deserializer=service__registry__pb2.ListAgentsResponse.FromString,
+                _registered_method=True)
         self.WatchAgents = channel.unary_stream(
-            "/neural_hive.service_registry.ServiceRegistry/WatchAgents",
-            request_serializer=service__registry__pb2.WatchAgentsRequest.SerializeToString,
-            response_deserializer=service__registry__pb2.AgentChangeEvent.FromString,
-            _registered_method=True,
-        )
+                '/neural_hive.service_registry.ServiceRegistry/WatchAgents',
+                request_serializer=service__registry__pb2.WatchAgentsRequest.SerializeToString,
+                response_deserializer=service__registry__pb2.AgentChangeEvent.FromString,
+                _registered_method=True)
         self.NotifyAgent = channel.unary_unary(
-            "/neural_hive.service_registry.ServiceRegistry/NotifyAgent",
-            request_serializer=service__registry__pb2.NotifyAgentRequest.SerializeToString,
-            response_deserializer=service__registry__pb2.NotifyAgentResponse.FromString,
-            _registered_method=True,
-        )
+                '/neural_hive.service_registry.ServiceRegistry/NotifyAgent',
+                request_serializer=service__registry__pb2.NotifyAgentRequest.SerializeToString,
+                response_deserializer=service__registry__pb2.NotifyAgentResponse.FromString,
+                _registered_method=True)
 
 
 class ServiceRegistryServicer(object):
-    """Serviço de registro"""
+    """Serviço de registro
+    """
 
     def Register(self, request, context):
-        """Registrar um novo agente"""
+        """Registrar um novo agente
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details("Method not implemented!")
-        raise NotImplementedError("Method not implemented!")
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
 
     def Heartbeat(self, request, context):
-        """Enviar heartbeat"""
+        """Enviar heartbeat
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details("Method not implemented!")
-        raise NotImplementedError("Method not implemented!")
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
 
     def Deregister(self, request, context):
-        """Deregistrar agente"""
+        """Deregistrar agente
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details("Method not implemented!")
-        raise NotImplementedError("Method not implemented!")
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
 
     def DiscoverAgents(self, request, context):
-        """Descobrir agentes baseado em capabilities"""
+        """Descobrir agentes baseado em capabilities
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details("Method not implemented!")
-        raise NotImplementedError("Method not implemented!")
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
 
     def GetAgent(self, request, context):
-        """Obter informações de um agente específico"""
+        """Obter informações de um agente específico
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details("Method not implemented!")
-        raise NotImplementedError("Method not implemented!")
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
 
     def ListAgents(self, request, context):
-        """Listar todos os agentes"""
+        """Listar todos os agentes
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details("Method not implemented!")
-        raise NotImplementedError("Method not implemented!")
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
 
     def WatchAgents(self, request, context):
-        """Observar mudanças em agentes (server streaming)"""
+        """Observar mudanças em agentes (server streaming)
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details("Method not implemented!")
-        raise NotImplementedError("Method not implemented!")
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
 
     def NotifyAgent(self, request, context):
-        """Notificar agente via streaming/evento"""
+        """Notificar agente via streaming/evento
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details("Method not implemented!")
-        raise NotImplementedError("Method not implemented!")
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
 
 
 def add_ServiceRegistryServicer_to_server(servicer, server):
     rpc_method_handlers = {
-        "Register": grpc.unary_unary_rpc_method_handler(
-            servicer.Register,
-            request_deserializer=service__registry__pb2.RegisterRequest.FromString,
-            response_serializer=service__registry__pb2.RegisterResponse.SerializeToString,
-        ),
-        "Heartbeat": grpc.unary_unary_rpc_method_handler(
-            servicer.Heartbeat,
-            request_deserializer=service__registry__pb2.HeartbeatRequest.FromString,
-            response_serializer=service__registry__pb2.HeartbeatResponse.SerializeToString,
-        ),
-        "Deregister": grpc.unary_unary_rpc_method_handler(
-            servicer.Deregister,
-            request_deserializer=service__registry__pb2.DeregisterRequest.FromString,
-            response_serializer=service__registry__pb2.DeregisterResponse.SerializeToString,
-        ),
-        "DiscoverAgents": grpc.unary_unary_rpc_method_handler(
-            servicer.DiscoverAgents,
-            request_deserializer=service__registry__pb2.DiscoverRequest.FromString,
-            response_serializer=service__registry__pb2.DiscoverResponse.SerializeToString,
-        ),
-        "GetAgent": grpc.unary_unary_rpc_method_handler(
-            servicer.GetAgent,
-            request_deserializer=service__registry__pb2.GetAgentRequest.FromString,
-            response_serializer=service__registry__pb2.GetAgentResponse.SerializeToString,
-        ),
-        "ListAgents": grpc.unary_unary_rpc_method_handler(
-            servicer.ListAgents,
-            request_deserializer=service__registry__pb2.ListAgentsRequest.FromString,
-            response_serializer=service__registry__pb2.ListAgentsResponse.SerializeToString,
-        ),
-        "WatchAgents": grpc.unary_stream_rpc_method_handler(
-            servicer.WatchAgents,
-            request_deserializer=service__registry__pb2.WatchAgentsRequest.FromString,
-            response_serializer=service__registry__pb2.AgentChangeEvent.SerializeToString,
-        ),
-        "NotifyAgent": grpc.unary_unary_rpc_method_handler(
-            servicer.NotifyAgent,
-            request_deserializer=service__registry__pb2.NotifyAgentRequest.FromString,
-            response_serializer=service__registry__pb2.NotifyAgentResponse.SerializeToString,
-        ),
+            'Register': grpc.unary_unary_rpc_method_handler(
+                    servicer.Register,
+                    request_deserializer=service__registry__pb2.RegisterRequest.FromString,
+                    response_serializer=service__registry__pb2.RegisterResponse.SerializeToString,
+            ),
+            'Heartbeat': grpc.unary_unary_rpc_method_handler(
+                    servicer.Heartbeat,
+                    request_deserializer=service__registry__pb2.HeartbeatRequest.FromString,
+                    response_serializer=service__registry__pb2.HeartbeatResponse.SerializeToString,
+            ),
+            'Deregister': grpc.unary_unary_rpc_method_handler(
+                    servicer.Deregister,
+                    request_deserializer=service__registry__pb2.DeregisterRequest.FromString,
+                    response_serializer=service__registry__pb2.DeregisterResponse.SerializeToString,
+            ),
+            'DiscoverAgents': grpc.unary_unary_rpc_method_handler(
+                    servicer.DiscoverAgents,
+                    request_deserializer=service__registry__pb2.DiscoverRequest.FromString,
+                    response_serializer=service__registry__pb2.DiscoverResponse.SerializeToString,
+            ),
+            'GetAgent': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetAgent,
+                    request_deserializer=service__registry__pb2.GetAgentRequest.FromString,
+                    response_serializer=service__registry__pb2.GetAgentResponse.SerializeToString,
+            ),
+            'ListAgents': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListAgents,
+                    request_deserializer=service__registry__pb2.ListAgentsRequest.FromString,
+                    response_serializer=service__registry__pb2.ListAgentsResponse.SerializeToString,
+            ),
+            'WatchAgents': grpc.unary_stream_rpc_method_handler(
+                    servicer.WatchAgents,
+                    request_deserializer=service__registry__pb2.WatchAgentsRequest.FromString,
+                    response_serializer=service__registry__pb2.AgentChangeEvent.SerializeToString,
+            ),
+            'NotifyAgent': grpc.unary_unary_rpc_method_handler(
+                    servicer.NotifyAgent,
+                    request_deserializer=service__registry__pb2.NotifyAgentRequest.FromString,
+                    response_serializer=service__registry__pb2.NotifyAgentResponse.SerializeToString,
+            ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-        "neural_hive.service_registry.ServiceRegistry", rpc_method_handlers
-    )
+            'neural_hive.service_registry.ServiceRegistry', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
-    server.add_registered_method_handlers(
-        "neural_hive.service_registry.ServiceRegistry", rpc_method_handlers
-    )
+    server.add_registered_method_handlers('neural_hive.service_registry.ServiceRegistry', rpc_method_handlers)
 
 
-# This class is part of an EXPERIMENTAL API.
+ # This class is part of an EXPERIMENTAL API.
 class ServiceRegistry(object):
-    """Serviço de registro"""
+    """Serviço de registro
+    """
 
     @staticmethod
-    def Register(
-        request,
-        target,
-        options=(),
-        channel_credentials=None,
-        call_credentials=None,
-        insecure=False,
-        compression=None,
-        wait_for_ready=None,
-        timeout=None,
-        metadata=None,
-    ):
+    def Register(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
         return grpc.experimental.unary_unary(
             request,
             target,
-            "/neural_hive.service_registry.ServiceRegistry/Register",
+            '/neural_hive.service_registry.ServiceRegistry/Register',
             service__registry__pb2.RegisterRequest.SerializeToString,
             service__registry__pb2.RegisterResponse.FromString,
             options,
@@ -220,26 +217,23 @@ class ServiceRegistry(object):
             wait_for_ready,
             timeout,
             metadata,
-            _registered_method=True,
-        )
+            _registered_method=True)
 
     @staticmethod
-    def Heartbeat(
-        request,
-        target,
-        options=(),
-        channel_credentials=None,
-        call_credentials=None,
-        insecure=False,
-        compression=None,
-        wait_for_ready=None,
-        timeout=None,
-        metadata=None,
-    ):
+    def Heartbeat(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
         return grpc.experimental.unary_unary(
             request,
             target,
-            "/neural_hive.service_registry.ServiceRegistry/Heartbeat",
+            '/neural_hive.service_registry.ServiceRegistry/Heartbeat',
             service__registry__pb2.HeartbeatRequest.SerializeToString,
             service__registry__pb2.HeartbeatResponse.FromString,
             options,
@@ -250,26 +244,23 @@ class ServiceRegistry(object):
             wait_for_ready,
             timeout,
             metadata,
-            _registered_method=True,
-        )
+            _registered_method=True)
 
     @staticmethod
-    def Deregister(
-        request,
-        target,
-        options=(),
-        channel_credentials=None,
-        call_credentials=None,
-        insecure=False,
-        compression=None,
-        wait_for_ready=None,
-        timeout=None,
-        metadata=None,
-    ):
+    def Deregister(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
         return grpc.experimental.unary_unary(
             request,
             target,
-            "/neural_hive.service_registry.ServiceRegistry/Deregister",
+            '/neural_hive.service_registry.ServiceRegistry/Deregister',
             service__registry__pb2.DeregisterRequest.SerializeToString,
             service__registry__pb2.DeregisterResponse.FromString,
             options,
@@ -280,26 +271,23 @@ class ServiceRegistry(object):
             wait_for_ready,
             timeout,
             metadata,
-            _registered_method=True,
-        )
+            _registered_method=True)
 
     @staticmethod
-    def DiscoverAgents(
-        request,
-        target,
-        options=(),
-        channel_credentials=None,
-        call_credentials=None,
-        insecure=False,
-        compression=None,
-        wait_for_ready=None,
-        timeout=None,
-        metadata=None,
-    ):
+    def DiscoverAgents(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
         return grpc.experimental.unary_unary(
             request,
             target,
-            "/neural_hive.service_registry.ServiceRegistry/DiscoverAgents",
+            '/neural_hive.service_registry.ServiceRegistry/DiscoverAgents',
             service__registry__pb2.DiscoverRequest.SerializeToString,
             service__registry__pb2.DiscoverResponse.FromString,
             options,
@@ -310,26 +298,23 @@ class ServiceRegistry(object):
             wait_for_ready,
             timeout,
             metadata,
-            _registered_method=True,
-        )
+            _registered_method=True)
 
     @staticmethod
-    def GetAgent(
-        request,
-        target,
-        options=(),
-        channel_credentials=None,
-        call_credentials=None,
-        insecure=False,
-        compression=None,
-        wait_for_ready=None,
-        timeout=None,
-        metadata=None,
-    ):
+    def GetAgent(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
         return grpc.experimental.unary_unary(
             request,
             target,
-            "/neural_hive.service_registry.ServiceRegistry/GetAgent",
+            '/neural_hive.service_registry.ServiceRegistry/GetAgent',
             service__registry__pb2.GetAgentRequest.SerializeToString,
             service__registry__pb2.GetAgentResponse.FromString,
             options,
@@ -340,26 +325,23 @@ class ServiceRegistry(object):
             wait_for_ready,
             timeout,
             metadata,
-            _registered_method=True,
-        )
+            _registered_method=True)
 
     @staticmethod
-    def ListAgents(
-        request,
-        target,
-        options=(),
-        channel_credentials=None,
-        call_credentials=None,
-        insecure=False,
-        compression=None,
-        wait_for_ready=None,
-        timeout=None,
-        metadata=None,
-    ):
+    def ListAgents(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
         return grpc.experimental.unary_unary(
             request,
             target,
-            "/neural_hive.service_registry.ServiceRegistry/ListAgents",
+            '/neural_hive.service_registry.ServiceRegistry/ListAgents',
             service__registry__pb2.ListAgentsRequest.SerializeToString,
             service__registry__pb2.ListAgentsResponse.FromString,
             options,
@@ -370,26 +352,23 @@ class ServiceRegistry(object):
             wait_for_ready,
             timeout,
             metadata,
-            _registered_method=True,
-        )
+            _registered_method=True)
 
     @staticmethod
-    def WatchAgents(
-        request,
-        target,
-        options=(),
-        channel_credentials=None,
-        call_credentials=None,
-        insecure=False,
-        compression=None,
-        wait_for_ready=None,
-        timeout=None,
-        metadata=None,
-    ):
+    def WatchAgents(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
         return grpc.experimental.unary_stream(
             request,
             target,
-            "/neural_hive.service_registry.ServiceRegistry/WatchAgents",
+            '/neural_hive.service_registry.ServiceRegistry/WatchAgents',
             service__registry__pb2.WatchAgentsRequest.SerializeToString,
             service__registry__pb2.AgentChangeEvent.FromString,
             options,
@@ -400,26 +379,23 @@ class ServiceRegistry(object):
             wait_for_ready,
             timeout,
             metadata,
-            _registered_method=True,
-        )
+            _registered_method=True)
 
     @staticmethod
-    def NotifyAgent(
-        request,
-        target,
-        options=(),
-        channel_credentials=None,
-        call_credentials=None,
-        insecure=False,
-        compression=None,
-        wait_for_ready=None,
-        timeout=None,
-        metadata=None,
-    ):
+    def NotifyAgent(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
         return grpc.experimental.unary_unary(
             request,
             target,
-            "/neural_hive.service_registry.ServiceRegistry/NotifyAgent",
+            '/neural_hive.service_registry.ServiceRegistry/NotifyAgent',
             service__registry__pb2.NotifyAgentRequest.SerializeToString,
             service__registry__pb2.NotifyAgentResponse.FromString,
             options,
@@ -430,5 +406,4 @@ class ServiceRegistry(object):
             wait_for_ready,
             timeout,
             metadata,
-            _registered_method=True,
-        )
+            _registered_method=True)

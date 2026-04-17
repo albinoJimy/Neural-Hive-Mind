@@ -33,7 +33,7 @@ echo ""
 
 echo -e "${YELLOW}--- Running Trivy Container Scans ---${NC}"
 
-# Services to scan (Fluxo G engineering services)
+# Services to scan (Fluxo G engineering + Fluxo H legacy migration)
 SERVICES=(
     "requirements-engineering"
     "documentation-generation"
@@ -41,6 +41,8 @@ SERVICES=(
     "approval-gateway"
     "service-registry"
     "orchestrator-dynamic"
+    "doc-ingestion"
+    "data-migration"
 )
 
 for service in "${SERVICES[@]}"; do

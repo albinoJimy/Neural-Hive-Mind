@@ -1,0 +1,202 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "doc-ingestion.fullname" . }}
+  labels:
+    {{- include "doc-ingestion.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "doc-ingestion.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "doc-ingestion.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "doc-ingestion.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.config.httpPort }}
+              protocol: TCP
+            {{- if .Values.observability.enabled }}
+            - name: metrics
+              containerPort: {{ .Values.observability.prometheus.port }}
+              protocol: TCP
+            {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          env:
+            - name: DOC_INGEST_SERVICE_NAME
+              value: {{ include "doc-ingestion.name" . }}
+            - name: DOC_INGEST_SERVICE_VERSION
+              value: {{ .Chart.AppVersion | quote }}
+            - name: DOC_INGEST_ENVIRONMENT
+              value: {{ .Values.config.environment | quote }}
+            - name: DOC_INGEST_HOST
+              value: "0.0.0.0"
+            - name: DOC_INGEST_PORT
+              value: {{ .Values.config.httpPort | quote }}
+            - name: DOC_INGEST_DEBUG
+              value: "false"
+            # MongoDB
+            - name: MONGODB_URL
+              value: {{ .Values.config.mongodb.url | quote }}
+            - name: MONGODB_DATABASE
+              value: {{ .Values.config.mongodb.database | quote }}
+            # Redis
+            - name: REDIS_URL
+              value: {{ .Values.config.redis.url | quote }}
+            # Kafka
+            {{- if .Values.config.kafka.enabled }}
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: {{ .Values.config.kafka.bootstrapServers | quote }}
+            - name: KAFKA_CONSUMER_GROUP
+              value: {{ .Values.config.kafka.consumerGroup | quote }}
+            - name: KAFKA_INPUT_TOPIC
+              value: {{ .Values.config.kafka.inputTopic | quote }}
+            - name: KAFKA_OUTPUT_TOPIC
+              value: {{ .Values.config.kafka.outputTopic | quote }}
+            - name: KAFKA_DLQ_TOPIC
+              value: {{ .Values.config.kafka.dlqTopic | quote }}
+            {{- end }}
+            # S3/MinIO
+            - name: S3_ENDPOINT
+              value: {{ .Values.config.s3.endpoint | quote }}
+            - name: S3_BUCKET
+              value: {{ .Values.config.s3.bucket | quote }}
+            - name: S3_SECURE
+              value: {{ .Values.config.s3.secure | quote }}
+            # S3 Credentials
+            - name: S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "doc-ingestion.fullname" . }}-llm
+                  key: s3-access-key
+                  optional: true
+            - name: S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "doc-ingestion.fullname" . }}-llm
+                  key: s3-secret-key
+                  optional: true
+            # LLM
+            {{- if .Values.config.llm.enabled }}
+            - name: DOC_INGEST_LLM_PROVIDER
+              value: {{ .Values.config.llm.provider | quote }}
+            - name: DOC_INGEST_LLM_MODEL
+              value: {{ .Values.config.llm.model | quote }}
+            - name: DOC_INGEST_LLM_TEMPERATURE
+              value: {{ .Values.config.llm.temperature | quote }}
+            - name: DOC_INGEST_LLM_MAX_TOKENS
+              value: {{ .Values.config.llm.maxTokens | quote }}
+            # OpenAI API Key
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "doc-ingestion.fullname" . }}-llm
+                  key: openai-api-key
+                  optional: true
+            # Anthropic API Key
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "doc-ingestion.fullname" . }}-llm
+                  key: anthropic-api-key
+                  optional: true
+            {{- end }}
+            # Service Registry
+            - name: SERVICE_REGISTRY_GRPC_HOST
+              value: {{ .Values.config.serviceRegistry.grpcHost | quote }}
+            - name: SERVICE_REGISTRY_GRPC_PORT
+              value: {{ .Values.config.serviceRegistry.grpcPort | quote }}
+            # Processing
+            - name: DOC_INGEST_MAX_FILE_SIZE_MB
+              value: {{ .Values.config.processing.maxFileSizeMb | quote }}
+            - name: DOC_INGEST_ALLOWED_EXTENSIONS
+              value: {{ .Values.config.processing.allowedExtensions | quote }}
+            - name: DOC_INGEST_CHUNK_SIZE_TOKENS
+              value: {{ .Values.config.processing.chunkSizeTokens | quote }}
+            - name: DOC_INGEST_CHUNK_OVERLAP_TOKENS
+              value: {{ .Values.config.processing.chunkOverlapTokens | quote }}
+            # Entity Extraction
+            - name: DOC_INGEST_ENTITY_TYPES
+              value: {{ .Values.config.entityExtraction.entityTypes | quote }}
+            - name: DOC_INGEST_EXTRACTION_CONFIDENCE_THRESHOLD
+              value: {{ .Values.config.entityExtraction.confidenceThreshold | quote }}
+            # Neural Hive-Mind Integration
+            - name: GATEWAY_URL
+              value: {{ .Values.config.neuralHive.gatewayUrl | quote }}
+            - name: ORCHESTRATOR_URL
+              value: {{ .Values.config.neuralHive.orchestratorUrl | quote }}
+            # Observability
+            {{- if .Values.observability.tracing.enabled }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ .Values.observability.tracing.endpoint | quote }}
+            - name: OTEL_TRACES_SAMPLER
+              value: "traceidratio"
+            - name: OTEL_TRACES_SAMPLER_ARG
+              value: {{ .Values.observability.tracing.sampleRate | quote }}
+            {{- end }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "doc-ingestion.fullname" . }}
+          volumeMounts:
+            {{- with .Values.volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      volumes:
+        {{- with .Values.volumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

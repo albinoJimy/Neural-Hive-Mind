@@ -14,7 +14,16 @@ import grpc
 
 from opentelemetry.sdk.trace import ReadableSpan
 from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+
+# Import resiliente de OTLPSpanExporter
+try:
+    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+
+    _OTLP_EXPORTER_AVAILABLE = True
+except ImportError as e:
+    logger.warning(f"OTLPSpanExporter not available: {e}")
+    _OTLP_EXPORTER_AVAILABLE = False
+    OTLPSpanExporter = None
 
 if TYPE_CHECKING:
     from .metrics import NeuralHiveMetrics
@@ -201,6 +210,13 @@ class ResilientOTLPSpanExporter(SpanExporter):
 
             exporter_kwargs.update(kwargs)
 
+            # Verificar se OTLPSpanExporter está disponível
+            if not _OTLP_EXPORTER_AVAILABLE:
+                logger.warning(f"OTLPSpanExporter não disponível. Usando fallback sem exportação.")
+                self._inner_exporter = None
+                self._tls_enabled = False
+                return
+
             self._inner_exporter = OTLPSpanExporter(**exporter_kwargs)
 
             tls_status = "TLS habilitado" if self._tls_enabled else "insecure"
@@ -257,9 +273,7 @@ class ResilientOTLPSpanExporter(SpanExporter):
                         certificate_chain = f.read()
                     with open(key_path, "rb") as f:
                         private_key = f.read()
-                    logger.debug(
-                        f"Client certificate carregado de {cert_path}, " f"key de {key_path}"
-                    )
+                    logger.debug(f"Client certificate carregado de {cert_path}, key de {key_path}")
                 else:
                     if not os.path.exists(cert_path):
                         logger.warning(f"Client certificate não encontrado: {cert_path}")

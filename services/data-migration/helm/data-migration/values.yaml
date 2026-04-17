@@ -1,0 +1,169 @@
+# Valores padrão para data-migration
+replicaCount: 2
+
+image:
+  repository: ghcr.io/albinojimy/neural-hive-mind/data-migration
+  pullPolicy: IfNotPresent
+  tag: "1.0.0"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+service:
+  type: ClusterIP
+  port: 8019
+  annotations: {}
+
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+  hosts:
+    - host: data-migration.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Configurações do Data Migration Service
+config:
+  environment: production
+  logLevel: INFO
+  httpPort: 8019
+
+  # PostgreSQL (Legacy Database) configuration
+  postgres:
+    url: "postgresql://postgres:password@postgres:5432/legacy"
+    database: "legacy"
+
+  # MongoDB (Metadata) configuration
+  mongodb:
+    url: "mongodb://mongodb:27017"
+    database: "data_migration"
+    collectionMigrations: "migrations"
+    collectionJobs: "migration_jobs"
+
+  # Redis configuration
+  redis:
+    url: "redis://redis:6379/1"
+
+  # Kafka configuration
+  kafka:
+    enabled: true
+    bootstrapServers: "kafka:9092"
+    consumerGroup: "data-migration-consumers"
+    outputTopic: "migration.progress"
+    dlqTopic: "data-migration.dlq"
+
+  # S3/MinIO (Data dumps) configuration
+  s3:
+    endpoint: "http://minio:9000"
+    bucket: "nhm-migration-dumps"
+    secure: false
+
+  # Debezium CDC configuration
+  debezium:
+    url: "http://debezium:8083"
+
+  # Service Registry configuration
+  serviceRegistry:
+    grpcHost: "service-registry"
+    grpcPort: 50051
+    namespace: "default"
+    cluster: "neural-hive"
+
+  # Neural Hive-Mind Integration
+  neuralHive:
+    gatewayUrl: "http://gateway-intencoes:8000"
+    orchestratorUrl: "http://orchestrator-dynamic:8003"
+    serviceRegistryUrl: "http://service-registry:8007"
+
+  # Migration Settings
+  migration:
+    batchSize: 1000
+    maxParallelMigrations: 5
+    rollbackTimeoutSeconds: 30
+
+# Configurações de Observabilidade
+observability:
+  enabled: true
+  prometheus:
+    port: 9099
+    path: /metrics
+    serviceMonitor:
+      enabled: false
+      interval: 30s
+      scrapeTimeout: 10s
+  tracing:
+    enabled: true
+    endpoint: "http://jaeger-collector:4317"
+    sampleRate: 0.1
+  logging:
+    format: json
+    level: INFO
+
+# Configurações adicionais
+extraEnv: []
+# extraEnv:
+#   - name: CUSTOM_VAR
+#     value: "custom-value"
+
+# Secrets para dados sensíveis
+# Devem ser fornecidos via helm upgrade --set ou secrets externos
+secrets:
+  openaiApiKey: ""
+  anthropicApiKey: ""
+  s3AccessKey: ""
+  s3SecretKey: ""
+  postgresPassword: ""
+
+# Volume mounts para tmp (necessário para readOnlyRootFilesystem)
+volumeMounts:
+  - name: tmp
+    mountPath: /tmp
+
+volumes:
+  - name: tmp
+    emptyDir: {}

@@ -11,7 +11,7 @@ from prometheus_client import Counter, Histogram
 
 from ..clients.postgresql_client import PostgreSQLClient
 from ..clients.prometheus_client import PrometheusClient
-from ..models.slo_definition import SLODefinition
+from ..models.slo_definition import SLODefinition, SLIQuery
 
 if TYPE_CHECKING:
     from ..clients.kubernetes_client import KubernetesClient
