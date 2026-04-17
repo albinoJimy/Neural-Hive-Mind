@@ -164,12 +164,6 @@ async def log_requests(request, call_next):
     return response
 
 
-# Helper functions for dependency injection
-def get_mongodb_client():
-    """Retorna instância do cliente MongoDB."""
-    return _mongodb_client
-
-
 # Health check
 @app.get("/health")
 async def health_check():
