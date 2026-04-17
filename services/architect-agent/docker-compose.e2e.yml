@@ -1,0 +1,117 @@
+# Docker Compose para testes E2E do Fluxo G Fase 1
+# Este compose levanta todos os serviços necessários para testar os novos módulos
+
+version: '3.8'
+
+services:
+  # MongoDB para persistência
+  mongodb:
+    image: mongo:7.0
+    container_name: architect-mongodb-e2e
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: architect
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+
+  # Redis para cache
+  redis:
+    image: redis:7-alpine
+    container_name: architect-redis-e2e
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Neo4j para grafos de conhecimento
+  neo4j:
+    image: neo4j:5.15-community
+    container_name: architect-neo4j-e2e
+    ports:
+      - "7474:7474"  # HTTP
+      - "7687:7687"  # Bolt
+    environment:
+      NEO4J_AUTH: neo4j/testpassword
+      NEO4J_PLUGINS: '["apoc"]'
+    volumes:
+      - neo4j_data:/data
+    healthcheck:
+      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "testpassword", "RETURN 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MinIO como S3 local para diagramas (opcional)
+  minio:
+    image: minio/minio:latest
+    container_name: architect-minio-e2e
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Architect Agent com variáveis de teste
+  architect-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: architect-agent-e2e
+    ports:
+      - "8008:8008"
+      - "9098:9098"
+    environment:
+      PYTHONUNBUFFERED: "1"
+      LOG_LEVEL: "DEBUG"
+      # Configuração test
+      MONGODB_URL: "mongodb://mongodb:27017/architect"
+      REDIS_URL: "redis://redis:6379/0"
+      NEO4J_URI: "bolt://neo4j:7687"
+      NEO4J_USER: "neo4j"
+      NEO4J_PASSWORD: "testpassword"
+      # LLM APIs (opcional para E2E, usar mock)
+      OPENAI_API_KEY: "sk-test-key-for-e2e"
+      ANTHROPIC_API_KEY: "sk-ant-test-key-for-e2e"
+      # Disable retries em teste
+      TEST_MODE: "true"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+    volumes:
+      - ./tests/e2e:/app/tests/e2e:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8008/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mongodb_data:
+  neo4j_data:
+  minio_data:
+
+networks:
+  default:
+    name: architect-e2e
