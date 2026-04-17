@@ -52,6 +52,8 @@ class TestDetectionService:
     @pytest.mark.asyncio
     async def test_detect_deadlocks_no_deadlock(self, detection_service, mock_orchestrator_client):
         """Testa detecção quando workflow está progredindo."""
+        recent_time = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
+
         mock_orchestrator_client.get_workflow_status = AsyncMock(
             return_value={
                 "workflow_id": "wf-123",
@@ -60,15 +62,15 @@ class TestDetectionService:
                     {
                         "ticket_id": "t1",
                         "status": "COMPLETED",
-                        "updated_at": "2026-03-18T10:25:00Z",
+                        "updated_at": recent_time,
                     },
                     {
                         "ticket_id": "t2",
                         "status": "IN_PROGRESS",
-                        "updated_at": "2026-03-18T10:26:00Z",
+                        "updated_at": recent_time,
                     },
                 ],
-                "last_progress_at": "2026-03-18T10:26:00Z",
+                "last_progress_at": recent_time,
             }
         )
 
@@ -171,8 +173,13 @@ class TestDetectionService:
         )
 
         # Mock playbook executor
-        mock_executor = AsyncMock()
+        from unittest.mock import MagicMock
+
+        mock_executor = MagicMock()
         mock_executor.execute_playbook = AsyncMock(return_value={"success": True})
+        mock_executor.validate_playbook_structure = MagicMock(
+            return_value={"valid": True, "errors": [], "warnings": []}
+        )
 
         result = await detection_service.trigger_remediation(
             trigger, playbook_executor=mock_executor
@@ -192,8 +199,13 @@ class TestDetectionService:
         )
 
         # Mock playbook executor
-        mock_executor = AsyncMock()
+        from unittest.mock import MagicMock
+
+        mock_executor = MagicMock()
         mock_executor.execute_playbook = AsyncMock(return_value={"success": True})
+        mock_executor.validate_playbook_structure = MagicMock(
+            return_value={"valid": True, "errors": [], "warnings": []}
+        )
 
         result = await detection_service.trigger_remediation(
             trigger, playbook_executor=mock_executor
@@ -305,7 +317,7 @@ async def test_detect_pod_crash_loop_no_crash(mock_k8s_core_api):
                     "lastState": {},
                 }
             ]
-        }
+        },
     }
 
     mock_k8s_core_api.read_namespaced_pod = AsyncMock(return_value=mock_pod_dict)
@@ -324,21 +336,28 @@ async def test_detect_pod_crash_loop_with_restarts(detection_service_with_k8s, m
     old_time = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
 
     # Mock pod com 5 restarts recentes
-    mock_pod = MagicMock()
-    mock_pod.status = MagicMock()
-    mock_pod.status.containerStatuses = [
-        {
-            "name": "main",
-            "restartCount": 5,
-            "state": {"waiting": {"reason": "CrashLoopBackOff"}},
-            "lastState": {
-                "terminated": {
-                    "finishedAt": old_time,
-                    "reason": "Error",
+    mock_pod_dict = {
+        "metadata": {"name": "crashy-pod", "namespace": "default"},
+        "status": {
+            "containerStatuses": [
+                {
+                    "name": "main",
+                    "restartCount": 5,
+                    "state": {"waiting": {"reason": "CrashLoopBackOff"}},
+                    "lastState": {
+                        "terminated": {
+                            "finishedAt": old_time,
+                            "reason": "Error",
+                        }
+                    },
                 }
-            },
-        }
-    ]
+            ]
+        },
+    }
+
+    # Mock pod object com método to_dict()
+    mock_pod = MagicMock()
+    mock_pod.to_dict = MagicMock(return_value=mock_pod_dict)
     mock_k8s_core_api.read_namespaced_pod = AsyncMock(return_value=mock_pod)
 
     status = await detection_service_with_k8s.detect_pod_crash_loop(
@@ -357,18 +376,23 @@ async def test_detect_pod_crash_loop_below_threshold(detection_service_with_k8s,
     old_time = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
 
     # Mock pod com apenas 2 restarts
+    mock_pod_dict = {
+        "metadata": {"name": "test-pod", "namespace": "default"},
+        "status": {
+            "containerStatuses": [
+                {
+                    "name": "main",
+                    "restartCount": 2,
+                    "state": {"running": {"startedAt": "2026-04-07T10:00:00Z"}},
+                    "lastState": {"terminated": {"finishedAt": old_time, "reason": "Error"}},
+                }
+            ]
+        },
+    }
+
+    # Mock pod object com método to_dict()
     mock_pod = MagicMock()
-    mock_pod.status = MagicMock()
-    mock_pod.status.containerStatuses = [
-        {
-            "name": "main",
-            "restartCount": 2,
-            "state": {"running": {"startedAt": "2026-04-07T10:00:00Z"}},
-            "lastState": {
-                "terminated": {"finishedAt": old_time, "reason": "Error"}
-            },
-        }
-    ]
+    mock_pod.to_dict = MagicMock(return_value=mock_pod_dict)
     mock_k8s_core_api.read_namespaced_pod = AsyncMock(return_value=mock_pod)
 
     status = await detection_service_with_k8s.detect_pod_crash_loop(
@@ -392,9 +416,7 @@ async def test_detect_pod_crash_loop_old_restarts(detection_service_with_k8s, mo
             "name": "main",
             "restartCount": 5,
             "state": {"running": {"startedAt": "2026-04-07T10:00:00Z"}},
-            "lastState": {
-                "terminated": {"finishedAt": old_time, "reason": "Error"}
-            },
+            "lastState": {"terminated": {"finishedAt": old_time, "reason": "Error"}},
         }
     ]
     mock_k8s_core_api.read_namespaced_pod = AsyncMock(return_value=mock_pod)
@@ -412,19 +434,24 @@ async def test_detect_pod_crash_loop_init_container(detection_service_with_k8s, 
     """Testa detecção de crash loop em init container."""
     old_time = (datetime.now(timezone.utc) - timedelta(minutes=3)).isoformat()
 
+    mock_pod_dict = {
+        "metadata": {"name": "test-pod", "namespace": "default"},
+        "status": {
+            "containerStatuses": [],
+            "initContainerStatuses": [
+                {
+                    "name": "init-db",
+                    "restartCount": 4,
+                    "state": {"waiting": {"reason": "CrashLoopBackOff"}},
+                    "lastState": {"terminated": {"finishedAt": old_time, "reason": "Error"}},
+                }
+            ],
+        },
+    }
+
+    # Mock pod object com método to_dict()
     mock_pod = MagicMock()
-    mock_pod.status = MagicMock()
-    mock_pod.status.containerStatuses = []
-    mock_pod.status.initContainerStatuses = [
-        {
-            "name": "init-db",
-            "restartCount": 4,
-            "state": {"waiting": {"reason": "CrashLoopBackOff"}},
-            "lastState": {
-                "terminated": {"finishedAt": old_time, "reason": "Error"}
-            },
-        }
-    ]
+    mock_pod.to_dict = MagicMock(return_value=mock_pod_dict)
     mock_k8s_core_api.read_namespaced_pod = AsyncMock(return_value=mock_pod)
 
     status = await detection_service_with_k8s.detect_pod_crash_loop(
@@ -458,7 +485,7 @@ async def test_detect_pod_crash_loop_pod_not_found(detection_service_with_k8s, m
     from kubernetes.client.exceptions import ApiException
 
     mock_k8s_core_api.read_namespaced_pod = AsyncMock(
-        side_effect= ApiException(status=404, reason="Not Found")
+        side_effect=ApiException(status=404, reason="Not Found")
     )
 
     status = await detection_service_with_k8s.detect_pod_crash_loop("missing-pod", "default")
