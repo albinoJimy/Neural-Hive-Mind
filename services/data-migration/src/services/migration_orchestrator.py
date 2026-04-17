@@ -400,6 +400,62 @@ class MigrationOrchestrator:
 
         return True
 
+    async def pause_job(self, job_id: str) -> dict:
+        """Pausa um job de migração em andamento.
+
+        Args:
+            job_id: ID do job
+
+        Returns:
+            Status atualizado do job
+
+        Raises:
+            ValueError: Se job não existe ou não pode ser pausado
+        """
+        job = await self.get_migration_status(job_id)
+        if not job:
+            raise ValueError(f"Job {job_id} not found")
+
+        if job.status not in ["running", "pending"]:
+            raise ValueError(f"Job {job_id} cannot be paused (current status: {job.status})")
+
+        # Atualizar status para paused
+        job.status = "paused"
+        job.paused_at = datetime.now(timezone.utc).isoformat()
+        job.paused_by = "user_request"
+
+        logger.info("migration_job_paused", job_id=job_id)
+
+        return job.model_dump()
+
+    async def resume_job(self, job_id: str) -> dict:
+        """Retoma um job de migração pausado.
+
+        Args:
+            job_id: ID do job
+
+        Returns:
+            Status atualizado do job
+
+        Raises:
+            ValueError: Se job não existe ou não pode ser retomado
+        """
+        job = await self.get_migration_status(job_id)
+        if not job:
+            raise ValueError(f"Job {job_id} not found")
+
+        if job.status != "paused":
+            raise ValueError(f"Job {job_id} cannot be resumed (current status: {job.status})")
+
+        # Atualizar status para running
+        job.status = "running"
+        job.resumed_at = datetime.now(timezone.utc).isoformat()
+        job.resumed_by = "user_request"
+
+        logger.info("migration_job_resumed", job_id=job_id)
+
+        return job.model_dump()
+
     async def rollback_migration(
         self,
         migration_job: MigrationJob,
