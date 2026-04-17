@@ -2,6 +2,7 @@
 
 import pytest
 from httpx import AsyncClient
+
 from src.main import app
 
 
@@ -11,7 +12,6 @@ async def test_download_document():
     # Setup: criar documento de teste
     from src.models.document import DocumentCreate, DocumentFormat
     from src.repositories.document_repository import DocumentRepository
-    from src.clients.s3_client import get_s3_client
 
     repository = DocumentRepository()
     doc_create = DocumentCreate(
