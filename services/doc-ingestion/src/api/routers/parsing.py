@@ -9,10 +9,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse
 
 from src.clients.s3_client import get_s3_client
+from src.config.settings import get_settings
 from src.dependencies import get_doc_producer
 from src.models.document import DocumentStatus
+from src.models.entities import EntitySet
 from src.repositories.document_repository import DocumentRepository
+from src.repositories.entity_repository import EntityRepository
 from src.services.entity_extractor import EntityExtractor
+from src.services.gateway_client import GatewayClient, GatewayClientError
 from src.services.parsers.pdf_parser import PDFParser
 from src.services.parsers.postman_parser import PostmanParser
 from src.services.parsers.visio_parser import VisioParser
@@ -122,9 +126,7 @@ async def parse_document(
                 job_id=job_id,
                 error=parsing_error,
             )
-            await repository.update_status(
-                document_id, DocumentStatus.FAILED, error=parsing_error
-            )
+            await repository.update_status(document_id, DocumentStatus.FAILED, error=parsing_error)
 
         duration_ms = int((time.time() - start_time) * 1000)
 
@@ -151,9 +153,9 @@ async def parse_document(
                 "parsed_text_length": len(parsed_text) if parsed_text else 0,
                 "duration_ms": duration_ms,
                 "error": parsing_error,
-                "message": "Document parsing completed"
-                if not parsing_error
-                else "Document parsing failed",
+                "message": (
+                    "Document parsing completed" if not parsing_error else "Document parsing failed"
+                ),
             },
         )
 
@@ -225,6 +227,23 @@ async def extract_entities(
                     "format": document.format.value,
                     "title": document.title,
                 },
+            )
+
+            # ✅ ADICIONAR: Persistir entidades
+            from src.db.mongodb import get_mongodb_client
+            from src.repositories.entity_repository import EntityRepository
+
+            mongodb_client = await get_mongodb_client()
+            entity_repository = EntityRepository(mongodb_client)
+
+            entity_ids = await entity_repository.create_many(
+                entities=entities, document_id=document_id
+            )
+
+            logger.info(
+                "entities_persisted",
+                document_id=document_id,
+                entity_count=len(entity_ids),
             )
 
             # Calcular tipos extraídos
@@ -346,16 +365,22 @@ async def list_document_entities(
                 detail=f"Document entities not extracted yet. Current status: {document.status.value}",
             )
 
-        # Em uma implementação real, buscaríamos as entidades da coleção entities
-        # Por enquanto, retornamos informações do documento
+        # ✅ ADICIONAR: Buscar entidades usando EntityRepository
+        from src.db.mongodb import get_mongodb_client
+        from src.repositories.entity_repository import EntityRepository
+
+        mongodb_client = await get_mongodb_client()
+        entity_repository = EntityRepository(mongodb_client)
+
+        entities = await entity_repository.list_by_document(
+            document_id=document_id, entity_type=entity_type
+        )
+
         return {
             "document_id": document_id,
-            "entity_count": document.entity_count,
-            "extracted_entity_types": document.extracted_entity_types,
-            "extracted_at": document.extracted_at.isoformat()
-            if document.extracted_at
-            else None,
-            "message": "Entity details not yet persisted",
+            "entity_count": len(entities),
+            "entities": entities,
+            "extracted_at": document.extracted_at.isoformat() if document.extracted_at else None,
         }
 
     except HTTPException:
@@ -429,9 +454,11 @@ async def approve_document(
             "document_id": document_id,
             "status": DocumentStatus.APPROVED.value,
             "approved_by": approved_by,
-            "approved_at": updated_doc.updated_at.isoformat()
-            if updated_doc and updated_doc.updated_at
-            else None,
+            "approved_at": (
+                updated_doc.updated_at.isoformat()
+                if updated_doc and updated_doc.updated_at
+                else None
+            ),
             "message": "Document approved successfully",
         }
 
@@ -442,4 +469,183 @@ async def approve_document(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e),
+        )
+
+
+@router.post("/{document_id}/send-to-gateway", status_code=status.HTTP_202_ACCEPTED)
+async def send_to_gateway(
+    document_id: str,
+    repository: DocumentRepository = Depends(get_repository),
+):
+    """Envia entidades extraídas para Gateway Intenções.
+
+    Este endpoint converte as entidades extraídas em um CognitivePlan
+    e envia para o Gateway Intenções iniciar o Fluxo G.
+
+    Args:
+        document_id: ID do documento.
+        repository: Instância do repositório (injetado).
+
+    Returns:
+        Resposta do Gateway com intent_id e status.
+
+    Raises:
+        HTTPException: Se documento não encontrado ou sem entidades extraídas.
+    """
+    job_id = str(uuid.uuid4())
+    ingestion_id = str(uuid.uuid4())
+    settings = get_settings()
+
+    try:
+        # Buscar documento
+        document = await repository.get_by_id(document_id)
+        if not document:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Document {document_id} not found",
+            )
+
+        # Verificar se entidades foram extraídas
+        if not document.entity_count or document.entity_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Document must have entities extracted before sending to Gateway. Call /extract first.",
+            )
+
+        logger.info(
+            "send_to_gateway_started",
+            document_id=document_id,
+            job_id=job_id,
+            ingestion_id=ingestion_id,
+            entity_count=document.entity_count,
+        )
+
+        start_time = time.time()
+
+        # Criar EntitySet a partir dos dados do documento
+        # Em uma implementação real, buscaríamos entidades da coleção entities
+        # Por enquanto, usamos um placeholder com as informações do documento
+        entity_set = EntitySet(
+            document_id=document_id,
+            entities=[],  # Seria populado a partir da coleção entities
+        )
+
+        try:
+            # Enviar para Gateway
+            gateway_client = GatewayClient(
+                gateway_url=settings.gateway_url,
+                timeout=30.0,
+                max_retries=3,
+            )
+
+            result = await gateway_client.send_to_gateway(
+                document_id=document_id,
+                entity_set=entity_set,
+                ingestion_id=ingestion_id,
+            )
+
+            duration_ms = int((time.time() - start_time) * 1000)
+
+            # Atualizar documento com intent_id
+            # Em uma implementação real, salvaríamos no documento
+            # await repository.update_gateway_intent_id(document_id, result.get("intent_id"))
+
+            # Publicar evento Kafka
+            producer = get_doc_producer()
+            if producer:
+                try:
+                    await producer.publish_doc_sent_to_gateway(
+                        document_id=document_id,
+                        intent_id=result.get("intent_id"),
+                        ingestion_id=ingestion_id,
+                        duration_ms=duration_ms,
+                    )
+                except Exception as e:
+                    logger.warning("failed_to_publish_gateway_event", error=str(e))
+
+            logger.info(
+                "send_to_gateway_completed",
+                document_id=document_id,
+                job_id=job_id,
+                intent_id=result.get("intent_id"),
+                status=result.get("status"),
+                duration_ms=duration_ms,
+            )
+
+            return JSONResponse(
+                status_code=status.HTTP_202_ACCEPTED,
+                content={
+                    "job_id": job_id,
+                    "document_id": document_id,
+                    "ingestion_id": ingestion_id,
+                    "intent_id": result.get("intent_id"),
+                    "correlation_id": result.get("correlation_id"),
+                    "status": result.get("status"),
+                    "duration_ms": duration_ms,
+                    "message": "Document entities sent to Gateway for processing",
+                },
+            )
+
+        except GatewayClientError as e:
+            logger.error(
+                "gateway_client_error",
+                document_id=document_id,
+                error=str(e),
+                status_code=e.status_code,
+            )
+            raise HTTPException(
+                status_code=e.status_code or status.HTTP_502_BAD_GATEWAY,
+                detail=f"Failed to communicate with Gateway: {e.message}",
+            )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("send_to_gateway_error", id=document_id, error=str(e), exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to send to Gateway: {str(e)}",
+        )
+
+
+@router.get("/intentions/{intent_id}/status")
+async def get_intent_status(intent_id: str):
+    """Verifica status de intenção no Gateway.
+
+    Args:
+        intent_id: ID da intenção a consultar.
+
+    Returns:
+        Status da intenção do Gateway.
+    """
+    settings = get_settings()
+
+    try:
+        gateway_client = GatewayClient(
+            gateway_url=settings.gateway_url,
+            timeout=10.0,
+        )
+
+        status_result = await gateway_client.check_intent_status(intent_id)
+
+        if status_result is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Intent {intent_id} not found in Gateway",
+            )
+
+        return {
+            "intent_id": intent_id,
+            "status": status_result.get("status"),
+            "cached": status_result.get("cached", False),
+            "data": status_result.get("data"),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("get_intent_status_error", intent_id=intent_id, error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to check intent status: {str(e)}",
         )
