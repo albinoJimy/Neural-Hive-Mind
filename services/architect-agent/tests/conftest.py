@@ -1,9 +1,17 @@
 """Pytest configuration and fixtures for Architect Agent tests"""
 
 import asyncio
+import sys
+from pathlib import Path
+
 import pytest
 from unittest.mock import AsyncMock
 from motor.motor_asyncio import AsyncIOMotorClient
+
+# Adicionar src ao PYTHONPATH para importações funcionarem
+_src_path = Path(__file__).parent.parent / "src"
+if str(_src_path) not in sys.path:
+    sys.path.insert(0, str(_src_path))
 
 from src.config.settings import get_settings
 
