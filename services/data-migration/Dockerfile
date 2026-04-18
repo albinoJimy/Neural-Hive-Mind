@@ -10,13 +10,13 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements
-COPY requirements.txt requirements-dev.txt ./
+COPY services/data-migration/requirements.txt services/data-migration/requirements-dev.txt ./
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application
-COPY ./src ./src
+COPY services/data-migration/src ./src
 
 # Expose port
 EXPOSE 8019

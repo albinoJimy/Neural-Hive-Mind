@@ -15,7 +15,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     npm install -g @mermaid-js/mermaid-cli && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY services/architect-agent/requirements.txt .
 RUN pip install --no-cache-dir --user -r requirements.txt
 
 FROM python:3.12-slim
@@ -40,7 +40,7 @@ COPY --from=builder --chown=architect:architect /root/.local /home/architect/.lo
 COPY --from=builder --chown=architect:architect /usr/local/bin /usr/local/bin
 
 # Copy source code
-COPY --chown=architect:architect src/ ./src/
+COPY --chown=architect:architect services/architect-agent/src/ ./src/
 
 # Set environment
 ENV PATH=/home/architect/.local/bin:/usr/local/bin:$PATH
@@ -50,9 +50,9 @@ ENV PYTHONPATH=/app
 # Switch to non-root user
 USER architect
 
-EXPOSE 8008 9098
+EXPOSE 8011 9098
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8008/health/live || exit 1
+    CMD curl -f http://localhost:8011/health/live || exit 1
 
 CMD ["python", "-m", "src.main"]

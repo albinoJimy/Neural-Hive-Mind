@@ -8,14 +8,14 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements
-COPY requirements.txt requirements-dev.txt ./
+COPY services/requirements-engineering/requirements.txt services/requirements-engineering/requirements-dev.txt ./
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install --no-cache-dir -r requirements-dev.txt
 
 # Copy application
-COPY ./src ./src
+COPY services/requirements-engineering/src ./src
 
 # Expose port
 EXPOSE 8010

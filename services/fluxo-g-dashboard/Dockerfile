@@ -8,22 +8,22 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copiar requirements primeiro para cache
-COPY requirements.txt .
+COPY services/fluxo-g-dashboard/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar código fonte
-COPY src/ ./src/
+COPY services/fluxo-g-dashboard/src/ ./src/
 
 # Criar usuário não-root
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
 # Expor porta
-EXPOSE 8018
+EXPOSE 8021
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8018/health || exit 1
+    CMD curl -f http://localhost:8021/health || exit 1
 
 # Comando de启动
-CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8018"]
+CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8021"]

@@ -9,11 +9,11 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copiar requirements primeiro para cache
-COPY requirements.txt .
+COPY services/knowledge-graph-rag/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar código fonte
-COPY src/ ./src/
+COPY services/knowledge-graph-rag/src/ ./src/
 
 # Criar usuário não-root
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
