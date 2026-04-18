@@ -1,5 +1,6 @@
 # Dependências base consolidadas para Neural-Hive-Mind
--r ../../requirements-base.txt
+# Nota: No contexto Docker build, requirements-base.txt está no mesmo diretório
+-r requirements-base.txt
 
 # Service-specific dependencies
 openai==1.10.0; python_version >= "3.12"
