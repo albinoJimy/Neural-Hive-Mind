@@ -61,7 +61,7 @@ def test_validate_bounded_contexts_missing_name(repository):
         bounded_contexts=[ctx],
     )
 
-    with pytest.raises(ValueError, match="bounded_contexts\\[0\\].name cannot be empty"):
+    with pytest.raises(ValueError, match=r"bounded_contexts\[0\]\.name cannot be empty"):
         repository._validate_extended_fields(plan)
 
 

@@ -14,7 +14,6 @@ target-version = "py312"
     "F841",    # unused variables allowed in tests
     "SIM105",  # try-except-pass allowed in tests
     "PT012",   # pytest.raises with multiple statements
-    "RUF043",  # regex pattern with metacharacters
     "RET504",  # unnecessary assignment before return
     "B007",    # unused loop variable
     "SIM117",  # nested with statements
