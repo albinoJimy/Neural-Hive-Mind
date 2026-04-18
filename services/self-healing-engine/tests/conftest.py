@@ -37,6 +37,25 @@ def clean_prometheus_registry():
             pass
 
 
+@pytest.fixture(autouse=True)
+def mock_neural_hive_observability():
+    """Mock do neural_hive_observability.get_tracer para todos os testes."""
+    mock_tracer = MagicMock()
+    span = MagicMock()
+    span.__enter__ = MagicMock(return_value=span)
+    span.__exit__ = MagicMock(return_value=False)
+    span.set_attribute = MagicMock()
+    span.set_status = MagicMock()
+    mock_tracer.start_as_current_span = MagicMock(return_value=span)
+
+    # Patchar o módulo get_tracer e também o tracer já importado nos serviços
+    with patch('neural_hive_observability.get_tracer', return_value=mock_tracer), \
+         patch('src.services.detection_service.tracer', mock_tracer), \
+         patch('src.services.health_monitor.tracer', mock_tracer), \
+         patch('src.services.remediation_manager.tracer', mock_tracer):
+        yield mock_tracer
+
+
 @pytest.fixture
 def mock_tracer():
     """Mock do OpenTelemetry tracer."""

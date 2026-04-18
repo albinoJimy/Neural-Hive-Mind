@@ -813,7 +813,7 @@ class DetectionService:
                 restart_count=0,
                 last_restart_time=None,
                 time_since_last_restart_seconds=0,
-                container_name=container_name,
+                container_name=None,
                 metadata={"error": str(e)},
             )
 
