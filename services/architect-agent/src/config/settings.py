@@ -153,9 +153,9 @@ def _get_cors_origins(environment: str, is_public_api: bool) -> list[str]:
     """
     if environment == "development":
         return ["http://localhost:*", "http://127.0.0.1:*"]
-    elif environment == "staging":
+    if environment == "staging":
         return ["https://staging.example.com"]
-    elif environment == "production":
+    if environment == "production":
         if is_public_api:
             return ["https://api.example.com"]
         return []

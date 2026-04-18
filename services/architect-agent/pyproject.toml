@@ -71,6 +71,7 @@ exclude = [
 ]
 "src/config/settings.py" = [
     "N802",    # uppercase property name allowed
+    "RET505",  # elif after return (guard pattern)
 ]
 "src/planners/design_planner.py" = [
     "SIM105",  # try-except-pass for validation
