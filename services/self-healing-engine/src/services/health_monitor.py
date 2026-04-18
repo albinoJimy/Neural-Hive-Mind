@@ -174,58 +174,61 @@ class HealthMonitor:
             span.set_attribute("health_endpoint", health_endpoint)
 
             try:
-            # Obter endereço do serviço via Service Registry
-            if self.service_registry_client:
-                address = await self.service_registry_client.get_service_address(service_name)
-                if not address:
-                    self._health_checks_total.labels(
-                        service=service_name, check_type="http", status="failed"
-                    ).inc()
-                    return HealthStatus(
-                        service_name=service_name,
-                        healthy=False,
-                        error_message=f"Service {service_name} not found in registry",
-                    )
-                url = f"{address}{health_endpoint}"
-            else:
-                # Fallback para DNS Kubernetes padrão
-                url = f"http://{service_name}.{namespace}.svc.cluster.local:8080{health_endpoint}"
-
-            session = await self._get_http_session()
-            async with session.get(url) as response:
-                elapsed_ms = (asyncio.get_event_loop().time() - start_time) * 1000
-
-                if response.status == 200:
-                    self._health_checks_total.labels(
-                        service=service_name, check_type="http", status="success"
-                    ).inc()
-                    return HealthStatus(
-                        service_name=service_name,
-                        healthy=True,
-                        response_time_ms=elapsed_ms,
-                        metadata={"url": url},
-                    )
+                # Obter endereço do serviço via Service Registry
+                if self.service_registry_client:
+                    address = await self.service_registry_client.get_service_address(service_name)
+                    if not address:
+                        self._health_checks_total.labels(
+                            service=service_name, check_type="http", status="failed"
+                        ).inc()
+                        return HealthStatus(
+                            service_name=service_name,
+                            healthy=False,
+                            error_message=f"Service {service_name} not found in registry",
+                        )
+                    url = f"{address}{health_endpoint}"
                 else:
-                    self._health_checks_total.labels(
-                        service=service_name, check_type="http", status="failed"
-                    ).inc()
-                    return HealthStatus(
-                        service_name=service_name,
-                        healthy=False,
-                        response_time_ms=elapsed_ms,
-                        error_message=f"HTTP {response.status}",
+                    # Fallback para DNS Kubernetes padrão
+                    url = (
+                        f"http://{service_name}.{namespace}.svc.cluster.local:8080{health_endpoint}"
                     )
 
-        except asyncio.TimeoutError:
-            self._health_checks_total.labels(
-                service=service_name, check_type="http", status="timeout"
-            ).inc()
-            return HealthStatus(service_name=service_name, healthy=False, error_message="Timeout")
-        except Exception as e:
-            self._health_checks_total.labels(
-                service=service_name, check_type="http", status="error"
-            ).inc()
-            return HealthStatus(service_name=service_name, healthy=False, error_message=str(e))
+                session = await self._get_http_session()
+                async with session.get(url) as response:
+                    elapsed_ms = (asyncio.get_event_loop().time() - start_time) * 1000
+
+                    if response.status == 200:
+                        self._health_checks_total.labels(
+                            service=service_name, check_type="http", status="success"
+                        ).inc()
+                        return HealthStatus(
+                            service_name=service_name,
+                            healthy=True,
+                            response_time_ms=elapsed_ms,
+                            metadata={"url": url},
+                        )
+                    else:
+                        self._health_checks_total.labels(
+                            service=service_name, check_type="http", status="failed"
+                        ).inc()
+                        return HealthStatus(
+                            service_name=service_name,
+                            healthy=False,
+                            response_time_ms=elapsed_ms,
+                            error_message=f"HTTP {response.status}",
+                        )
+            except asyncio.TimeoutError:
+                self._health_checks_total.labels(
+                    service=service_name, check_type="http", status="timeout"
+                ).inc()
+                return HealthStatus(
+                    service_name=service_name, healthy=False, error_message="Timeout"
+                )
+            except Exception as e:
+                self._health_checks_total.labels(
+                    service=service_name, check_type="http", status="error"
+                ).inc()
+                return HealthStatus(service_name=service_name, healthy=False, error_message=str(e))
 
     async def check_kafka_consumer_lag(
         self, consumer_group: str, topic: str, threshold: Optional[int] = None

@@ -292,107 +292,114 @@ class DetectionService:
             operation_type="detect_deadlocks", status="started"
         ).inc()
 
-        with tracer.start_as_current_span("detection_service.detect_deadlocks") as span:
-            span.set_attribute("workflow_id", workflow_id)
+        try:
+            with tracer.start_as_current_span("detection_service.detect_deadlocks") as span:
+                span.set_attribute("workflow_id", workflow_id)
 
-            if not self.orchestrator_client:
-                logger.warning("detection_service.no_orchestrator_client")
+                if not self.orchestrator_client:
+                    logger.warning("detection_service.no_orchestrator_client")
+                    self._detection_operations_total.labels(
+                        operation_type="detect_deadlocks", status="error"
+                    ).inc()
+                    self._detection_duration_seconds.labels(
+                        operation_type="detect_deadlocks"
+                    ).observe(time.time() - start_time)
+                    span.set_status(Status(StatusCode.ERROR))
+                    return DeadlockStatus(
+                        workflow_id=workflow_id,
+                        has_deadlock=False,
+                        metadata={"error": "Orchestrator client not available"},
+                    )
+
+                response = await self.orchestrator_client.get_workflow_status(
+                    workflow_id=workflow_id, include_tickets=True
+                )
+
+                # Se veio como mock, pode vir various formatos
+                if isinstance(response, dict):
+                    status = response.get("status", "")
+                    last_progress = response.get("last_progress_at")
+                    tickets = response.get("tickets", [])
+                else:
+                    # gRPC response object
+                    status = getattr(response, "status", "")
+                    last_progress = getattr(response, "last_progress_at", None)
+                    tickets = getattr(response, "tickets", [])
+
+                # Verificar se há progresso recente
+                now = datetime.now(timezone.utc)
+                stuck_duration = 0
+                suspected_tickets = []
+
+                if last_progress:
+                    try:
+                        if isinstance(last_progress, str):
+                            progress_time = datetime.fromisoformat(
+                                last_progress.replace("Z", "+00:00")
+                            )
+                        else:
+                            progress_time = last_progress
+
+                        stuck_duration = int((now - progress_time).total_seconds())
+                    except Exception:
+                        stuck_duration = 0
+
+                # Verificar tickets presos
+                for ticket in tickets:
+                    if isinstance(ticket, dict):
+                        ticket_status = ticket.get("status")
+                        ticket_id = ticket.get("ticket_id")
+                        updated_at = ticket.get("updated_at")
+                    else:
+                        ticket_status = getattr(ticket, "status", None)
+                        ticket_id = getattr(ticket, "ticket_id", None)
+                        updated_at = getattr(ticket, "updated_at", None)
+
+                    if ticket_status == "IN_PROGRESS" and updated_at:
+                        try:
+                            if isinstance(updated_at, str):
+                                ticket_time = datetime.fromisoformat(
+                                    updated_at.replace("Z", "+00:00")
+                                )
+                            else:
+                                ticket_time = updated_at
+
+                            ticket_stuck = (now - ticket_time).total_seconds()
+                            if ticket_stuck > 1800:  # 30 minutos
+                                suspected_tickets.append(ticket_id)
+                        except Exception:
+                            pass
+
+                has_deadlock = (
+                    status == "RUNNING" and stuck_duration >= self.workflow_timeout_seconds
+                )
+
+                result = "detected" if has_deadlock else "not_detected"
+                duration = time.time() - start_time
+
                 self._detection_operations_total.labels(
-                    operation_type="detect_deadlocks", status="error"
+                    operation_type="detect_deadlocks", status="success"
                 ).inc()
                 self._detection_duration_seconds.labels(operation_type="detect_deadlocks").observe(
-                    time.time() - start_time
+                    duration
                 )
-                span.set_status(Status(StatusCode.ERROR))
+                self._deadlock_detection_duration_seconds.labels(
+                    workflow_id=workflow_id, result=result
+                ).observe(duration)
+
+                if has_deadlock:
+                    severity = "high" if stuck_duration >= 3600 else "medium"
+                    self._deadlocks_detected_total.labels(
+                        workflow_id=workflow_id, severity=severity
+                    ).inc()
+
                 return DeadlockStatus(
                     workflow_id=workflow_id,
-                    has_deadlock=False,
-                    metadata={"error": "Orchestrator client not available"},
+                    has_deadlock=has_deadlock,
+                    stuck_duration_seconds=stuck_duration,
+                    suspected_tickets=suspected_tickets,
+                    metadata={"workflow_status": status, "ticket_count": len(tickets)},
                 )
-
-            response = await self.orchestrator_client.get_workflow_status(
-                workflow_id=workflow_id, include_tickets=True
-            )
-
-            # Se veio como mock, pode vir various formatos
-            if isinstance(response, dict):
-                status = response.get("status", "")
-                last_progress = response.get("last_progress_at")
-                tickets = response.get("tickets", [])
-            else:
-                # gRPC response object
-                status = getattr(response, "status", "")
-                last_progress = getattr(response, "last_progress_at", None)
-                tickets = getattr(response, "tickets", [])
-
-            # Verificar se há progresso recente
-            now = datetime.now(timezone.utc)
-            stuck_duration = 0
-            suspected_tickets = []
-
-            if last_progress:
-                try:
-                    if isinstance(last_progress, str):
-                        progress_time = datetime.fromisoformat(last_progress.replace("Z", "+00:00"))
-                    else:
-                        progress_time = last_progress
-
-                    stuck_duration = int((now - progress_time).total_seconds())
-                except Exception:
-                    stuck_duration = 0
-
-            # Verificar tickets presos
-            for ticket in tickets:
-                if isinstance(ticket, dict):
-                    ticket_status = ticket.get("status")
-                    ticket_id = ticket.get("ticket_id")
-                    updated_at = ticket.get("updated_at")
-                else:
-                    ticket_status = getattr(ticket, "status", None)
-                    ticket_id = getattr(ticket, "ticket_id", None)
-                    updated_at = getattr(ticket, "updated_at", None)
-
-                if ticket_status == "IN_PROGRESS" and updated_at:
-                    try:
-                        if isinstance(updated_at, str):
-                            ticket_time = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
-                        else:
-                            ticket_time = updated_at
-
-                        ticket_stuck = (now - ticket_time).total_seconds()
-                        if ticket_stuck > 1800:  # 30 minutos
-                            suspected_tickets.append(ticket_id)
-                    except Exception:
-                        pass
-
-            has_deadlock = status == "RUNNING" and stuck_duration >= self.workflow_timeout_seconds
-
-            result = "detected" if has_deadlock else "not_detected"
-            duration = time.time() - start_time
-
-            self._detection_operations_total.labels(
-                operation_type="detect_deadlocks", status="success"
-            ).inc()
-            self._detection_duration_seconds.labels(operation_type="detect_deadlocks").observe(
-                duration
-            )
-            self._deadlock_detection_duration_seconds.labels(
-                workflow_id=workflow_id, result=result
-            ).observe(duration)
-
-            if has_deadlock:
-                severity = "high" if stuck_duration >= 3600 else "medium"
-                self._deadlocks_detected_total.labels(
-                    workflow_id=workflow_id, severity=severity
-                ).inc()
-
-            return DeadlockStatus(
-                workflow_id=workflow_id,
-                has_deadlock=has_deadlock,
-                stuck_duration_seconds=stuck_duration,
-                suspected_tickets=suspected_tickets,
-                metadata={"workflow_status": status, "ticket_count": len(tickets)},
-            )
 
         except Exception as e:
             logger.error(
@@ -437,106 +444,106 @@ class DetectionService:
             operation_type="detect_memory_leak", status="started"
         ).inc()
 
-        with tracer.start_as_current_span("detection_service.detect_memory_leak") as span:
-            span.set_attribute("pod_name", pod_name)
-            span.set_attribute("namespace", namespace)
-            span.set_attribute("container_name", container_name or "unknown")
-            span.set_attribute("memory_limit_bytes", str(memory_limit_bytes))
+        try:
+            with tracer.start_as_current_span("detection_service.detect_memory_leak") as span:
+                span.set_attribute("pod_name", pod_name)
+                span.set_attribute("namespace", namespace)
+                span.set_attribute("container_name", container_name or "unknown")
+                span.set_attribute("memory_limit_bytes", str(memory_limit_bytes))
 
-            try:
-            # Obter métricas do pod via Kubernetes Metrics API
-            if self.k8s_custom_api:
-                metrics = await self._get_pod_metrics(pod_name, namespace)
-            else:
-                logger.warning("detection_service.no_k8s_metrics_api")
+                # Obter métricas do pod via Kubernetes Metrics API
+                if self.k8s_custom_api:
+                    metrics = await self._get_pod_metrics(pod_name, namespace)
+                else:
+                    logger.warning("detection_service.no_k8s_metrics_api")
+                    self._detection_operations_total.labels(
+                        operation_type="detect_memory_leak", status="error"
+                    ).inc()
+                    self._detection_duration_seconds.labels(
+                        operation_type="detect_memory_leak"
+                    ).observe(time.time() - start_time)
+                    return MemoryStatus(
+                        pod_name=pod_name,
+                        namespace=namespace,
+                        has_leak=False,
+                        usage_bytes=0,
+                        usage_percent=0.0,
+                        limit_bytes=memory_limit_bytes,
+                        metadata={"error": "Metrics API not available"},
+                    )
+
+                usage_bytes = 0
+                target_container = container_name
+
+                for container in metrics.get("containers", []):
+                    c_name = container.get("name")
+                    if container_name is None or c_name == container_name:
+                        mem_str = container.get("usage", {}).get("memory", "0")
+                        usage_bytes = self._parse_memory_bytes(mem_str)
+                        target_container = c_name
+                        break
+
+                usage_percent = (
+                    (usage_bytes / memory_limit_bytes) * 100 if memory_limit_bytes > 0 else 0
+                )
+
+                # Verificar se está acima do threshold
+                above_threshold = usage_percent >= self.memory_threshold_percent
+
+                has_leak = False
+                duration_above = 0
+
+                if above_threshold:
+                    key = f"{namespace}/{pod_name}/{target_container or 'main'}"
+                    now = datetime.now(timezone.utc)
+
+                    if key not in self._memory_history:
+                        self._memory_history[key] = []
+
+                    # Adicionar timestamp atual
+                    self._memory_history[key].append(now)
+
+                    # Limpar timestamps antigos (mais de 2x a duração)
+                    cutoff = now - timedelta(seconds=self.memory_duration_seconds * 2)
+                    self._memory_history[key] = [t for t in self._memory_history[key] if t > cutoff]
+
+                    # Verificar se está acima há tempo suficiente
+                    if self._memory_history[key]:
+                        first_above = self._memory_history[key][0]
+                        duration_above = int((now - first_above).total_seconds())
+
+                        if duration_above >= self.memory_duration_seconds:
+                            has_leak = True
+
+                result = "detected" if has_leak else "not_detected"
+                duration = time.time() - start_time
+
                 self._detection_operations_total.labels(
-                    operation_type="detect_memory_leak", status="error"
+                    operation_type="detect_memory_leak", status="success"
                 ).inc()
                 self._detection_duration_seconds.labels(
                     operation_type="detect_memory_leak"
-                ).observe(time.time() - start_time)
+                ).observe(duration)
+                self._memory_leak_detection_duration_seconds.labels(
+                    pod_name=pod_name, namespace=namespace, result=result
+                ).observe(duration)
+
+                if has_leak:
+                    severity = "critical" if usage_percent >= 95 else "high"
+                    self._memory_leaks_detected_total.labels(
+                        pod_name=pod_name, namespace=namespace, severity=severity
+                    ).inc()
+
                 return MemoryStatus(
                     pod_name=pod_name,
                     namespace=namespace,
-                    has_leak=False,
-                    usage_bytes=0,
-                    usage_percent=0.0,
+                    has_leak=has_leak,
+                    usage_bytes=usage_bytes,
+                    usage_percent=round(usage_percent, 2),
                     limit_bytes=memory_limit_bytes,
-                    metadata={"error": "Metrics API not available"},
+                    duration_above_threshold_seconds=duration_above,
+                    container_name=target_container,
                 )
-
-            usage_bytes = 0
-            target_container = container_name
-
-            for container in metrics.get("containers", []):
-                c_name = container.get("name")
-                if container_name is None or c_name == container_name:
-                    mem_str = container.get("usage", {}).get("memory", "0")
-                    usage_bytes = self._parse_memory_bytes(mem_str)
-                    target_container = c_name
-                    break
-
-            usage_percent = (
-                (usage_bytes / memory_limit_bytes) * 100 if memory_limit_bytes > 0 else 0
-            )
-
-            # Verificar se está acima do threshold
-            above_threshold = usage_percent >= self.memory_threshold_percent
-
-            has_leak = False
-            duration_above = 0
-
-            if above_threshold:
-                key = f"{namespace}/{pod_name}/{target_container or 'main'}"
-                now = datetime.now(timezone.utc)
-
-                if key not in self._memory_history:
-                    self._memory_history[key] = []
-
-                # Adicionar timestamp atual
-                self._memory_history[key].append(now)
-
-                # Limpar timestamps antigos (mais de 2x a duração)
-                cutoff = now - timedelta(seconds=self.memory_duration_seconds * 2)
-                self._memory_history[key] = [t for t in self._memory_history[key] if t > cutoff]
-
-                # Verificar se está acima há tempo suficiente
-                if self._memory_history[key]:
-                    first_above = self._memory_history[key][0]
-                    duration_above = int((now - first_above).total_seconds())
-
-                    if duration_above >= self.memory_duration_seconds:
-                        has_leak = True
-
-            result = "detected" if has_leak else "not_detected"
-            duration = time.time() - start_time
-
-            self._detection_operations_total.labels(
-                operation_type="detect_memory_leak", status="success"
-            ).inc()
-            self._detection_duration_seconds.labels(operation_type="detect_memory_leak").observe(
-                duration
-            )
-            self._memory_leak_detection_duration_seconds.labels(
-                pod_name=pod_name, namespace=namespace, result=result
-            ).observe(duration)
-
-            if has_leak:
-                severity = "critical" if usage_percent >= 95 else "high"
-                self._memory_leaks_detected_total.labels(
-                    pod_name=pod_name, namespace=namespace, severity=severity
-                ).inc()
-
-            return MemoryStatus(
-                pod_name=pod_name,
-                namespace=namespace,
-                has_leak=has_leak,
-                usage_bytes=usage_bytes,
-                usage_percent=round(usage_percent, 2),
-                limit_bytes=memory_limit_bytes,
-                duration_above_threshold_seconds=duration_above,
-                container_name=target_container,
-            )
 
         except Exception as e:
             logger.error(
@@ -632,153 +639,157 @@ class DetectionService:
             operation_type="detect_pod_crash_loop", status="started"
         ).inc()
 
-        with tracer.start_as_current_span("detection_service.detect_pod_crash_loop") as span:
-            span.set_attribute("pod_name", pod_name)
-            span.set_attribute("namespace", namespace)
-            span.set_attribute("restart_threshold", str(restart_threshold))
-            span.set_attribute("time_window_minutes", str(time_window_minutes))
+        try:
+            with tracer.start_as_current_span("detection_service.detect_pod_crash_loop") as span:
+                span.set_attribute("pod_name", pod_name)
+                span.set_attribute("namespace", namespace)
+                span.set_attribute("restart_threshold", str(restart_threshold))
+                span.set_attribute("time_window_minutes", str(time_window_minutes))
 
-            try:
-            if not self.k8s_core_v1:
-                logger.warning("detection_service.no_k8s_core_api")
-                self._detection_operations_total.labels(
-                    operation_type="detect_pod_crash_loop", status="error"
-                ).inc()
-                self._detection_duration_seconds.labels(
-                    operation_type="detect_pod_crash_loop"
-                ).observe(time.time() - start_time)
-                return PodCrashLoopStatus(
-                    pod_name=pod_name,
-                    namespace=namespace,
-                    has_crash_loop=False,
-                    restart_count=0,
-                    last_restart_time=None,
-                    metadata={"error": "Kubernetes CoreV1Api not available"},
-                )
+                if not self.k8s_core_v1:
+                    logger.warning("detection_service.no_k8s_core_api")
+                    self._detection_operations_total.labels(
+                        operation_type="detect_pod_crash_loop", status="error"
+                    ).inc()
+                    self._detection_duration_seconds.labels(
+                        operation_type="detect_pod_crash_loop"
+                    ).observe(time.time() - start_time)
+                    return PodCrashLoopStatus(
+                        pod_name=pod_name,
+                        namespace=namespace,
+                        has_crash_loop=False,
+                        restart_count=0,
+                        last_restart_time=None,
+                        metadata={"error": "Kubernetes CoreV1Api not available"},
+                    )
 
-            # Obter estado do pod
-            pod = await self._get_pod(pod_name, namespace)
-            if not pod:
-                self._detection_operations_total.labels(
-                    operation_type="detect_pod_crash_loop", status="error"
-                ).inc()
-                self._detection_duration_seconds.labels(
-                    operation_type="detect_pod_crash_loop"
-                ).observe(time.time() - start_time)
-                return PodCrashLoopStatus(
-                    pod_name=pod_name,
-                    namespace=namespace,
-                    has_crash_loop=False,
-                    restart_count=0,
-                    last_restart_time=None,
-                    metadata={"error": "Pod not found"},
-                )
+                # Obter estado do pod
+                pod = await self._get_pod(pod_name, namespace)
+                if not pod:
+                    self._detection_operations_total.labels(
+                        operation_type="detect_pod_crash_loop", status="error"
+                    ).inc()
+                    self._detection_duration_seconds.labels(
+                        operation_type="detect_pod_crash_loop"
+                    ).observe(time.time() - start_time)
+                    return PodCrashLoopStatus(
+                        pod_name=pod_name,
+                        namespace=namespace,
+                        has_crash_loop=False,
+                        restart_count=0,
+                        last_restart_time=None,
+                        metadata={"error": "Pod not found"},
+                    )
 
-            # Verificar cada container status
-            worst_status = None
-            highest_restart_count = 0
+                # Verificar cada container status
+                worst_status = None
+                highest_restart_count = 0
 
-            for container_status in pod.get("status", {}).get("containerStatuses", []):
-                # Também verificar init containers
-                restart_count = container_status.get("restartCount", 0)
-                state = container_status.get("state", {})
-                last_state = container_status.get("lastState", {})
+                for container_status in pod.get("status", {}).get("containerStatuses", []):
+                    # Também verificar init containers
+                    restart_count = container_status.get("restartCount", 0)
+                    state = container_status.get("state", {})
+                    last_state = container_status.get("lastState", {})
 
-                # Determinar último restart time
-                last_restart_time = None
-                time_since_restart = 0
+                    # Determinar último restart time
+                    last_restart_time = None
+                    time_since_restart = 0
 
-                # Verificar terminated state (último término)
-                if "terminated" in last_state:
-                    finished_at = last_state["terminated"].get("finishedAt")
-                    if finished_at:
-                        try:
-                            if isinstance(finished_at, str):
-                                last_restart_time = datetime.fromisoformat(
-                                    finished_at.replace("Z", "+00:00")
+                    # Verificar terminated state (último término)
+                    if "terminated" in last_state:
+                        finished_at = last_state["terminated"].get("finishedAt")
+                        if finished_at:
+                            try:
+                                if isinstance(finished_at, str):
+                                    last_restart_time = datetime.fromisoformat(
+                                        finished_at.replace("Z", "+00:00")
+                                    )
+                                else:
+                                    last_restart_time = finished_at
+                                time_since_restart = int(
+                                    (datetime.now(timezone.utc) - last_restart_time).total_seconds()
                                 )
-                            else:
-                                last_restart_time = finished_at
-                            time_since_restart = int(
-                                (datetime.now(timezone.utc) - last_restart_time).total_seconds()
-                            )
-                        except Exception:
-                            pass
+                            except Exception:
+                                pass
 
-                # Verificar waiting state (pod pode estar em crash loop agora)
-                if "waiting" in state:
-                    waiting = state["waiting"]
-                    if waiting.get("reason") in ["CrashLoopBackOff", "Error"]:
-                        # Pod está atualmente em crash loop
-                        if time_since_restart == 0:
-                            time_since_restart = 60  # Valor default se não conseguirmos calcular
+                    # Verificar waiting state (pod pode estar em crash loop agora)
+                    if "waiting" in state:
+                        waiting = state["waiting"]
+                        if waiting.get("reason") in ["CrashLoopBackOff", "Error"]:
+                            # Pod está atualmente em crash loop
+                            if time_since_restart == 0:
+                                time_since_restart = (
+                                    60  # Valor default se não conseguirmos calcular
+                                )
 
-                # Atualizar pior status
-                if restart_count > highest_restart_count:
-                    highest_restart_count = restart_count
-                    worst_status = {
-                        "restart_count": restart_count,
-                        "last_restart_time": last_restart_time,
-                        "time_since_restart": time_since_restart,
-                        "container_name": container_status.get("name"),
-                        "state": state.get("waiting", {}).get("reason", "Running"),
-                    }
+                    # Atualizar pior status
+                    if restart_count > highest_restart_count:
+                        highest_restart_count = restart_count
+                        worst_status = {
+                            "restart_count": restart_count,
+                            "last_restart_time": last_restart_time,
+                            "time_since_restart": time_since_restart,
+                            "container_name": container_status.get("name"),
+                            "state": state.get("waiting", {}).get("reason", "Running"),
+                        }
 
-            # Verificar init containers também
-            for init_container_status in pod.get("status", {}).get("initContainerStatuses", []):
-                restart_count = init_container_status.get("restartCount", 0)
-                if restart_count > highest_restart_count:
-                    highest_restart_count = restart_count
-                    worst_status = {
-                        "restart_count": restart_count,
-                        "container_name": init_container_status.get("name"),
-                        "container_type": "init",
-                    }
+                # Verificar init containers também
+                for init_container_status in pod.get("status", {}).get("initContainerStatuses", []):
+                    restart_count = init_container_status.get("restartCount", 0)
+                    if restart_count > highest_restart_count:
+                        highest_restart_count = restart_count
+                        worst_status = {
+                            "restart_count": restart_count,
+                            "container_name": init_container_status.get("name"),
+                            "container_type": "init",
+                        }
 
-            # Determinar se há crash loop
-            has_crash_loop = False
-            if highest_restart_count > 0:
-                time_window_seconds = time_window_minutes * 60
+                # Determinar se há crash loop
+                has_crash_loop = False
+                if highest_restart_count > 0:
+                    time_window_seconds = time_window_minutes * 60
 
-                if worst_status:
-                    time_since_restart = worst_status.get("time_since_restart", 0)
+                    if worst_status:
+                        time_since_restart = worst_status.get("time_since_restart", 0)
 
-                    # Se restartou recentemente e excede threshold
-                    if (
-                        highest_restart_count >= restart_threshold
-                        and time_since_restart <= time_window_seconds
-                    ):
-                        has_crash_loop = True
-                    # Se está em CrashLoopBackOff, é definitivamente crash loop
-                    elif worst_status.get("state") == "CrashLoopBackOff":
-                        has_crash_loop = True
+                        # Se restartou recentemente e excede threshold
+                        if (
+                            highest_restart_count >= restart_threshold
+                            and time_since_restart <= time_window_seconds
+                        ):
+                            has_crash_loop = True
+                        # Se está em CrashLoopBackOff, é definitivamente crash loop
+                        elif worst_status.get("state") == "CrashLoopBackOff":
+                            has_crash_loop = True
 
-            duration = time.time() - start_time
-            self._detection_operations_total.labels(
-                operation_type="detect_pod_crash_loop", status="success"
-            ).inc()
-            self._detection_duration_seconds.labels(operation_type="detect_pod_crash_loop").observe(
-                duration
-            )
-
-            if has_crash_loop:
-                severity = "critical" if highest_restart_count >= 5 else "high"
-                self._pod_crash_loops_detected_total.labels(
-                    pod_name=pod_name, namespace=namespace, severity=severity
+                duration = time.time() - start_time
+                self._detection_operations_total.labels(
+                    operation_type="detect_pod_crash_loop", status="success"
                 ).inc()
+                self._detection_duration_seconds.labels(
+                    operation_type="detect_pod_crash_loop"
+                ).observe(duration)
 
-            return PodCrashLoopStatus(
-                pod_name=pod_name,
-                namespace=namespace,
-                has_crash_loop=has_crash_loop,
-                restart_count=highest_restart_count,
-                last_restart_time=worst_status.get("last_restart_time") if worst_status else None,
-                time_since_last_restart_seconds=(
-                    worst_status.get("time_since_restart", 0) if worst_status else 0
-                ),
-                container_name=worst_status.get("container_name") if worst_status else None,
-                metadata={"worst_container": worst_status} if worst_status else {},
-            )
+                if has_crash_loop:
+                    severity = "critical" if highest_restart_count >= 5 else "high"
+                    self._pod_crash_loops_detected_total.labels(
+                        pod_name=pod_name, namespace=namespace, severity=severity
+                    ).inc()
+
+                return PodCrashLoopStatus(
+                    pod_name=pod_name,
+                    namespace=namespace,
+                    has_crash_loop=has_crash_loop,
+                    restart_count=highest_restart_count,
+                    last_restart_time=(
+                        worst_status.get("last_restart_time") if worst_status else None
+                    ),
+                    time_since_last_restart_seconds=(
+                        worst_status.get("time_since_restart", 0) if worst_status else 0
+                    ),
+                    container_name=worst_status.get("container_name") if worst_status else None,
+                    metadata={"worst_container": worst_status} if worst_status else {},
+                )
 
         except Exception as e:
             logger.error(

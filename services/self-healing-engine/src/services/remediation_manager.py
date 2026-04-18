@@ -150,7 +150,9 @@ class RemediationManager:
 
                 state.result = result
                 final_status = (
-                    RemediationStatus.COMPLETED if result.get("success") else RemediationStatus.FAILED
+                    RemediationStatus.COMPLETED
+                    if result.get("success")
+                    else RemediationStatus.FAILED
                 )
                 state.status = final_status
                 state.error = result.get("error")
@@ -177,7 +179,11 @@ class RemediationManager:
                     remediation_type=remediation_type,
                 ).observe(total_duration)
 
-                span.set_status(Status(StatusCode.OK) if final_status == RemediationStatus.COMPLETED else Status(StatusCode.ERROR))
+                span.set_status(
+                    Status(StatusCode.OK)
+                    if final_status == RemediationStatus.COMPLETED
+                    else Status(StatusCode.ERROR)
+                )
                 span.set_attribute("final_status", final_status.value)
                 span.set_attribute("duration_seconds", str(total_duration))
 
@@ -186,86 +192,86 @@ class RemediationManager:
                     on_completed(state)
 
             try:
-            await executor.execute_playbook(
-                request.playbook_name,
-                request.parameters,
-                on_action_completed=on_action_completed,
-                on_playbook_completed=on_playbook_completed,
-                timeout_seconds=self.default_timeout_seconds,
-            )
-        except asyncio.TimeoutError:
-            total_duration = time.time() - remediation_start_time
-            state.status = RemediationStatus.TIMEOUT
-            state.error = "Playbook timeout"
-            state.completed_at = datetime.now(timezone.utc).isoformat()
+                await executor.execute_playbook(
+                    request.playbook_name,
+                    request.parameters,
+                    on_action_completed=on_action_completed,
+                    on_playbook_completed=on_playbook_completed,
+                    timeout_seconds=self.default_timeout_seconds,
+                )
+            except asyncio.TimeoutError:
+                total_duration = time.time() - remediation_start_time
+                state.status = RemediationStatus.TIMEOUT
+                state.error = "Playbook timeout"
+                state.completed_at = datetime.now(timezone.utc).isoformat()
 
-            # Registrar métricas de timeout
-            self._remediation_duration_seconds.labels(
-                remediation_type=remediation_type,
-                playbook_name=playbook_name,
-                status="timeout",
-            ).observe(total_duration)
+                # Registrar métricas de timeout
+                self._remediation_duration_seconds.labels(
+                    remediation_type=remediation_type,
+                    playbook_name=playbook_name,
+                    status="timeout",
+                ).observe(total_duration)
 
-            self._remediations_total.labels(
-                remediation_type=remediation_type,
-                status="timeout",
-                playbook_name=playbook_name,
-            ).inc()
+                self._remediations_total.labels(
+                    remediation_type=remediation_type,
+                    status="timeout",
+                    playbook_name=playbook_name,
+                ).inc()
 
-            await self._persist_state(state)
-            logger.warning(
-                "remediation_manager.playbook_timeout",
-                remediation_id=state.remediation_id,
-                playbook=state.playbook_name,
-            )
-        except asyncio.CancelledError:
-            total_duration = time.time() - remediation_start_time
-            state.status = RemediationStatus.CANCELLED
-            state.error = "Cancelled"
-            state.completed_at = datetime.now(timezone.utc).isoformat()
+                await self._persist_state(state)
+                logger.warning(
+                    "remediation_manager.playbook_timeout",
+                    remediation_id=state.remediation_id,
+                    playbook=state.playbook_name,
+                )
+            except asyncio.CancelledError:
+                total_duration = time.time() - remediation_start_time
+                state.status = RemediationStatus.CANCELLED
+                state.error = "Cancelled"
+                state.completed_at = datetime.now(timezone.utc).isoformat()
 
-            # Registrar métricas de cancelamento
-            self._remediation_duration_seconds.labels(
-                remediation_type=remediation_type,
-                playbook_name=playbook_name,
-                status="cancelled",
-            ).observe(total_duration)
+                # Registrar métricas de cancelamento
+                self._remediation_duration_seconds.labels(
+                    remediation_type=remediation_type,
+                    playbook_name=playbook_name,
+                    status="cancelled",
+                ).observe(total_duration)
 
-            self._remediations_total.labels(
-                remediation_type=remediation_type,
-                status="cancelled",
-                playbook_name=playbook_name,
-            ).inc()
+                self._remediations_total.labels(
+                    remediation_type=remediation_type,
+                    status="cancelled",
+                    playbook_name=playbook_name,
+                ).inc()
 
-            await self._persist_state(state)
-            logger.info(
-                "remediation_manager.playbook_cancelled", remediation_id=state.remediation_id
-            )
-        except Exception as exc:  # noqa: BLE001 - fail-open
-            total_duration = time.time() - remediation_start_time
-            state.status = RemediationStatus.FAILED
-            state.error = str(exc)
-            state.completed_at = datetime.now(timezone.utc).isoformat()
+                await self._persist_state(state)
+                logger.info(
+                    "remediation_manager.playbook_cancelled", remediation_id=state.remediation_id
+                )
+            except Exception as exc:  # noqa: BLE001 - fail-open
+                total_duration = time.time() - remediation_start_time
+                state.status = RemediationStatus.FAILED
+                state.error = str(exc)
+                state.completed_at = datetime.now(timezone.utc).isoformat()
 
-            # Registrar métricas de falha
-            self._remediation_duration_seconds.labels(
-                remediation_type=remediation_type,
-                playbook_name=playbook_name,
-                status="failed",
-            ).observe(total_duration)
+                # Registrar métricas de falha
+                self._remediation_duration_seconds.labels(
+                    remediation_type=remediation_type,
+                    playbook_name=playbook_name,
+                    status="failed",
+                ).observe(total_duration)
 
-            self._remediations_total.labels(
-                remediation_type=remediation_type,
-                status="failed",
-                playbook_name=playbook_name,
-            ).inc()
+                self._remediations_total.labels(
+                    remediation_type=remediation_type,
+                    status="failed",
+                    playbook_name=playbook_name,
+                ).inc()
 
-            await self._persist_state(state)
-            logger.error(
-                "remediation_manager.playbook_failed",
-                remediation_id=state.remediation_id,
-                error=str(exc),
-            )
+                await self._persist_state(state)
+                logger.error(
+                    "remediation_manager.playbook_failed",
+                    remediation_id=state.remediation_id,
+                    error=str(exc),
+                )
 
     def update_status(self, remediation_id: str, **kwargs) -> Optional[RemediationState]:
         """Atualiza atributos do estado e persiste (fail-open)."""
