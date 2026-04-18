@@ -24,6 +24,7 @@ def _start_span(name):
     """Inicia um span OTEL, ou noop context se tracer indisponível."""
     if _tracer is None:
         from contextlib import nullcontext
+
         return nullcontext()
     return _tracer.start_as_current_span(name)
 
@@ -159,7 +160,9 @@ class AlertManagerClient:
                 return False
 
         except Exception as e:
-            logger.error("alert_client.alertmanager_error", alert_name=alert.alert_name, error=str(e))
+            logger.error(
+                "alert_client.alertmanager_error", alert_name=alert.alert_name, error=str(e)
+            )
             return False
 
     async def _send_to_slack(self, alert: Alert) -> bool:
@@ -191,7 +194,9 @@ class AlertManagerClient:
 
             # Adicionar labels como fields
             for key, value in alert.labels.items():
-                payload["attachments"][0]["fields"].append({"title": key, "value": value, "short": True})
+                payload["attachments"][0]["fields"].append(
+                    {"title": key, "value": value, "short": True}
+                )
 
             response = await self._client.post(self.slack_webhook_url, json=payload)
 
@@ -291,6 +296,7 @@ class AlertManagerClient:
 
 
 # Convenience functions para alertas comuns
+
 
 async def alert_deadlock_detected(
     workflow_id: str,

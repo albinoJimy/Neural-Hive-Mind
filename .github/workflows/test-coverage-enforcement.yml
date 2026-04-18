@@ -49,6 +49,10 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
+          # Instalar bibliotecas locais na ordem correta de dependencias
+          pip install -e libraries/python/neural_hive_domain
+          pip install -e libraries/python/neural_hive_observability
+          pip install -e libraries/python/neural_hive_resilience
           pip install pytest pytest-cov pytest-asyncio pytest-mock
           pip install pytest-aiohttp pytest-grpc pytest-timeout
           pip install -r requirements-base.txt

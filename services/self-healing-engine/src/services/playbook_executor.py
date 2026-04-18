@@ -48,7 +48,11 @@ def _get_or_create_metric(metric_class, name, description, labels=None, **kwargs
         # Fallback: buscar por _name do collector ou nome similar
         for collector in list(REGISTRY._names_to_collectors.values()):
             collector_name = getattr(collector, "_name", "")
-            if collector_name == name or collector_name == base_name or collector_name == f"{name}_total":
+            if (
+                collector_name == name
+                or collector_name == base_name
+                or collector_name == f"{name}_total"
+            ):
                 return collector
         # Se ainda nao encontrou, relançar o erro com informacao útil
         raise ValueError(
@@ -260,9 +264,7 @@ class PlaybookExecutor:
             # Verificar se há ações sem descrição
             actions_without_desc = sum(1 for a in playbook.actions if not a.description)
             if actions_without_desc > 0:
-                warnings.append(
-                    f"{actions_without_desc} ações sem descrição"
-                )
+                warnings.append(f"{actions_without_desc} ações sem descrição")
 
             result = PlaybookValidationResult(
                 valid=True,
@@ -277,7 +279,7 @@ class PlaybookExecutor:
             logger.info(
                 "playbook_executor.validation_success",
                 playbook=playbook_name,
-                action_count= len(playbook.actions),
+                action_count=len(playbook.actions),
             )
 
             return result.model_dump()
