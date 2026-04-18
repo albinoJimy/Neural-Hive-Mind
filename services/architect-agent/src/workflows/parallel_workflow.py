@@ -360,7 +360,7 @@ def create_multi_region_replica_workflow() -> ParallelWorkflow:
             name="update_dns_records",
             activity={
                 "type": "dns_update",
-                "type": "geo_routing",
+                "strategy": "geo_routing",
             },
             dependencies={f"replicate-{r}" for r in regions},
             timeout_seconds=300,

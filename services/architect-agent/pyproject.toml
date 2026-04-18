@@ -30,6 +30,7 @@ exclude = [
     "PT001",   # pytest.fixture() without parenthesis
     "PT023",   # pytest.mark without parenthesis
     "PT004",   # fixture without return
+    "UP017",   # datetime.UTC not available in Python 3.10
 ]
 "tests/integration/**/*.py" = [
     "ARG", "PLR2004", "PLC0415", "F841", "SIM105", "PT012", "RET504",
@@ -61,10 +62,12 @@ exclude = [
     "PLR0911", # too many return statements
     "TRY200",  # raise from pattern
     "UP038",   # isinstance with tuple
+    "UP017",   # datetime.UTC not available in Python 3.10
 ]
 # Ignorar falsos positivos em geradores de código
 "src/generators/temporal_generator.py" = [
     "F821",    # undefined name in f-string templates (code generation)
+    "E501",    # line too long in code templates
 ]
 "src/config/settings.py" = [
     "N802",    # uppercase property name allowed
@@ -72,10 +75,10 @@ exclude = [
 "src/planners/design_planner.py" = [
     "SIM105",  # try-except-pass for validation
 ]
-"src/repositories/base.py" = [
+"src/planners/templates.py" = [
+    "E501",    # line too long in templates
 ]
-"src/workflows/parallel_workflow.py" = [
-    "F601",    # repeated key in dict (temporal workflow)
+"src/repositories/base.py" = [
 ]
 "tests/integration/conftest.py" = [
     "PTH118",  # os.path.join allowed
