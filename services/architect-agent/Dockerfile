@@ -15,7 +15,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     npm install -g @mermaid-js/mermaid-cli && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-COPY services/architect-agent/requirements.txt .
+COPY services/architect-agent/requirements.txt requirements-base.txt ./
 RUN pip install --no-cache-dir --user -r requirements.txt
 
 FROM python:3.12-slim
