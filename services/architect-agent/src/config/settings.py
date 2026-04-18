@@ -5,8 +5,6 @@ from functools import lru_cache
 from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from neural_hive_security.cors import CORSConfig
-
 
 class ServiceConfig(BaseModel):
     """Service configuration"""
@@ -142,6 +140,28 @@ class ObservabilityConfig(BaseModel):
         return v
 
 
+def _get_cors_origins(environment: str, is_public_api: bool) -> list[str]:
+    """
+    Retorna CORS origins baseado no ambiente.
+
+    Args:
+        environment: Ambiente (development/staging/production)
+        is_public_api: Se é API pública
+
+    Returns:
+        Lista de origens permitidas
+    """
+    if environment == "development":
+        return ["http://localhost:*", "http://127.0.0.1:*"]
+    elif environment == "staging":
+        return ["https://staging.example.com"]
+    elif environment == "production":
+        if is_public_api:
+            return ["https://api.example.com"]
+        return []
+    return []
+
+
 class Settings(BaseSettings):
     """Main settings class aggregating all configurations"""
 
@@ -159,10 +179,8 @@ class Settings(BaseSettings):
 
     @property
     def CORS_ORIGINS(self) -> list[str]:
-        """
-        CORS origins dinâmicas por ambiente usando neural_hive_security.
-        """
-        return CORSConfig.get_origins_for_environment(
+        """CORS origins dinâmicas por ambiente."""
+        return _get_cors_origins(
             self.service.environment, is_public_api=self.service.is_public_api
         )
 
