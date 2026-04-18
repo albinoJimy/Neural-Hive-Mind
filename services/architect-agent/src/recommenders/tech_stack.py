@@ -1,21 +1,12 @@
 """Tech Stack Recommender using LLM."""
 
-from typing import List, Optional
 import json
+
 from openai import AsyncOpenAI
 from structlog import get_logger
-from tenacity import (
-    retry,
-    stop_after_attempt,
-    wait_exponential,
-    retry_if_exception_type
-)
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from src.models.tech_stack import (
-    TechStackRecommendation,
-    TechChoice,
-    Constraint
-)
+from src.models.tech_stack import TechChoice, TechStackRecommendation
 from src.recommenders.knowledge_base import TECH_KNOWLEDGE_BASE
 
 logger = get_logger(__name__)
@@ -54,11 +45,7 @@ Responda em JSON:
 }}
 """
 
-    def __init__(
-        self,
-        llm_client: Optional[AsyncOpenAI] = None,
-        model: str = "gpt-4"
-    ):
+    def __init__(self, llm_client: AsyncOpenAI | None = None, model: str = "gpt-4"):
         """
         Inicializa o recomendador de stack tecnológico.
 
@@ -75,7 +62,7 @@ Responda em JSON:
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
         retry=retry_if_exception_type((ConnectionError, TimeoutError)),
-        reraise=True
+        reraise=True,
     )
     async def _call_llm(self, prompt: str) -> dict:
         """Chama LLM com retry logic.
@@ -94,18 +81,16 @@ Responda em JSON:
             model=self._model,
             messages=[
                 {"role": "system", "content": "Você é um arquiteto de software especialista."},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": prompt},
             ],
             response_format={"type": "json_object"},
-            temperature=0.3
+            temperature=0.3,
         )
 
         return json.loads(response.choices[0].message.content)
 
     async def recommend(
-        self,
-        requirements: str,
-        constraints: Optional[List[dict]] = None
+        self, requirements: str, constraints: list[dict] | None = None
     ) -> TechStackRecommendation:
         """
         Recomenda stack tecnológico.
@@ -124,8 +109,7 @@ Responda em JSON:
         self._logger.info("recommending_tech_stack", constraints=constraints)
 
         prompt = self.PROMPT_TEMPLATE.format(
-            requirements=requirements,
-            constraints=self._format_constraints(constraints or [])
+            requirements=requirements, constraints=self._format_constraints(constraints or [])
         )
 
         try:
@@ -137,7 +121,7 @@ Responda em JSON:
                     category=choice["category"],
                     name=choice["name"],
                     version=choice.get("version"),
-                    rationale=choice["rationale"]
+                    rationale=choice["rationale"],
                 )
                 for choice in result_data.get("choices", [])
             ]
@@ -148,13 +132,13 @@ Responda em JSON:
                 constraints_violated=result_data.get("constraints_violated", []),
                 confidence_score=result_data.get("confidence_score", 0.8),
                 estimated_complexity=result_data.get("estimated_complexity"),
-                estimated_cost=result_data.get("estimated_cost")
+                estimated_cost=result_data.get("estimated_cost"),
             )
 
             self._logger.info(
                 "tech_stack_recommended",
                 choices_count=len(choices),
-                complexity=recommendation.estimated_complexity
+                complexity=recommendation.estimated_complexity,
             )
 
             return recommendation
@@ -165,15 +149,14 @@ Responda em JSON:
             raise
         except Exception as e:
             # Log outros errors inesperados
-            self._logger.error("failed_to_recommend_tech_stack", error=str(e), error_type=type(e).__name__)
+            self._logger.error(
+                "failed_to_recommend_tech_stack", error=str(e), error_type=type(e).__name__
+            )
             raise
 
-    def _format_constraints(self, constraints: List[dict]) -> str:
+    def _format_constraints(self, constraints: list[dict]) -> str:
         """Formata restrições para o prompt."""
         if not constraints:
             return "Nenhuma"
 
-        return "\n".join(
-            f"- {c.get('type', 'N/A')}: {c.get('value', 'N/A')}"
-            for c in constraints
-        )
+        return "\n".join(f"- {c.get('type', 'N/A')}: {c.get('value', 'N/A')}" for c in constraints)

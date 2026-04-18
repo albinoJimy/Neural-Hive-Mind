@@ -1,7 +1,7 @@
 """Interface base para planners de arquitetura."""
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any
 
 from src.models.architecture import ArchitecturePlan
 
@@ -11,7 +11,7 @@ class BasePlanner(ABC):
 
     @abstractmethod
     async def plan(
-        self, requirements: Dict[str, Any], context: Optional[Dict[str, Any]] = None
+        self, requirements: dict[str, Any], context: dict[str, Any] | None = None
     ) -> ArchitecturePlan:
         """Cria um plano arquitetural baseado nos requisitos.
 
@@ -22,10 +22,9 @@ class BasePlanner(ABC):
         Returns:
             ArchitecturePlan com a proposta arquitetural
         """
-        pass
 
     @abstractmethod
-    async def refine(self, plan_id: str, feedback: Dict[str, Any]) -> ArchitecturePlan:
+    async def refine(self, plan_id: str, feedback: dict[str, Any]) -> ArchitecturePlan:
         """Refina um plano existente com feedback.
 
         Args:
@@ -35,4 +34,3 @@ class BasePlanner(ABC):
         Returns:
             ArchitecturePlan refinado
         """
-        pass

@@ -1,6 +1,5 @@
 """C4 Diagram generator for architecture."""
 
-from typing import List
 from src.models.architecture import Component
 
 
@@ -9,16 +8,12 @@ class C4DiagramGenerator:
 
     @staticmethod
     def generate_context(
-        project_name: str,
-        system_description: str,
-        actors: List[str],
-        external_systems: List[str]
+        project_name: str, system_description: str, actors: list[str], external_systems: list[str]
     ) -> str:
         """Gera diagrama C4 Context."""
 
         actors_block = "\n".join(
-            f'    Person({actor.lower()}, "{actor}", "User")'
-            for actor in actors
+            f'    Person({actor.lower()}, "{actor}", "User")' for actor in actors
         )
 
         system_block = f"""
@@ -49,10 +44,7 @@ class C4DiagramGenerator:
 """
 
     @staticmethod
-    def generate_container(
-        project_name: str,
-        containers: List[Component]
-    ) -> str:
+    def generate_container(project_name: str, containers: list[Component]) -> str:
         """Gera diagrama C4 Container."""
 
         containers_block = ""
@@ -71,9 +63,7 @@ Container({container.name}, "{container.name}", "{container.stack}", "Service Co
 
     @staticmethod
     def generate_component(
-        component_name: str,
-        component_description: str,
-        subcomponents: List[str]
+        component_name: str, component_description: str, subcomponents: list[str]
     ) -> str:
         """Gera diagrama C4 Component."""
 

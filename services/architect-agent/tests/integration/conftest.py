@@ -6,19 +6,19 @@ Os testes de integração utilizam serviços reais (MongoDB, Kafka, OPA) via con
 
 import asyncio
 import os
-import pytest
-from typing import AsyncGenerator, Generator
 import subprocess
 import time
-from motor.motor_asyncio import AsyncIOMotorClient
-from confluent_kafka import Consumer, Producer
-import structlog
+from collections.abc import AsyncGenerator, Generator
 
-from src.config.settings import get_settings
+import pytest
+import structlog
+from confluent_kafka import Consumer, Producer
+from motor.motor_asyncio import AsyncIOMotorClient
 from src.api.app import create_app
+from src.config.settings import get_settings
 from src.repositories.architecture_repository import ArchitectureRepository
-from src.repositories.validation_repository import ValidationRepository
 from src.repositories.evolution_repository import EvolutionRepository
+from src.repositories.validation_repository import ValidationRepository
 
 logger = structlog.get_logger(__name__)
 
@@ -192,7 +192,7 @@ async def test_app(docker_compose, mongo_client):
 
     app = create_app()
     client = TestClient(app)
-    yield client
+    return client
 
 
 @pytest.fixture
@@ -265,12 +265,12 @@ def sample_architecture_plan():
 def sample_validation_report():
     """Relatório de validação de exemplo para testes."""
     from src.models.validation import (
-        ValidationReport,
-        Violation,
+        Severity,
         Suggestion,
         Trend,
+        ValidationReport,
+        Violation,
         ViolationType,
-        Severity,
     )
 
     return ValidationReport(

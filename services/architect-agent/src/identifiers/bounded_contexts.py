@@ -1,21 +1,16 @@
 """Bounded Contexts Identifier using DDD principles."""
 
-from typing import List, Optional
 import json
+
 from openai import AsyncOpenAI
 from structlog import get_logger
-from tenacity import (
-    retry,
-    stop_after_attempt,
-    wait_exponential,
-    retry_if_exception_type
-)
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from src.models.bounded_context import (
     BoundedContext,
     BoundedContextRelationship,
     BoundedContextsAnalysis,
-    UbiquitousLanguageTerm
+    UbiquitousLanguageTerm,
 )
 
 logger = get_logger(__name__)
@@ -70,11 +65,7 @@ Responda em formato JSON válido com esta estrutura:
 }}
 """
 
-    def __init__(
-        self,
-        llm_client: Optional[AsyncOpenAI] = None,
-        model: str = "gpt-4"
-    ):
+    def __init__(self, llm_client: AsyncOpenAI | None = None, model: str = "gpt-4"):
         """
         Inicializa o identificador de bounded contexts.
 
@@ -86,7 +77,7 @@ Responda em formato JSON válido com esta estrutura:
         self._model = model
         self._logger = logger
 
-    def _validate_input(self, requirements: str, domain_hints: Optional[List[str]]):
+    def _validate_input(self, requirements: str, domain_hints: list[str] | None):
         """Valida input antes de processar.
 
         Args:
@@ -110,15 +101,13 @@ Responda em formato JSON válido com esta estrutura:
             )
 
         if domain_hints and len(domain_hints) > MAX_DOMAIN_HINTS:
-            raise ValueError(
-                f"Too many domain hints: {len(domain_hints)} > {MAX_DOMAIN_HINTS}"
-            )
+            raise ValueError(f"Too many domain hints: {len(domain_hints)} > {MAX_DOMAIN_HINTS}")
 
     @retry(
         stop=stop_after_attempt(3),
         wait=wait_exponential(multiplier=1, min=2, max=10),
         retry=retry_if_exception_type((ConnectionError, TimeoutError)),
-        reraise=True
+        reraise=True,
     )
     async def _call_llm(self, prompt: str) -> dict:
         """Chama LLM com retry logic.
@@ -137,18 +126,16 @@ Responda em formato JSON válido com esta estrutura:
             model=self._model,
             messages=[
                 {"role": "system", "content": "Você é um especialista em DDD."},
-                {"role": "user", "content": prompt}
+                {"role": "user", "content": prompt},
             ],
             response_format={"type": "json_object"},
-            temperature=0.3
+            temperature=0.3,
         )
 
         return json.loads(response.choices[0].message.content)
 
     async def identify(
-        self,
-        requirements: str,
-        domain_hints: Optional[List[str]] = None
+        self, requirements: str, domain_hints: list[str] | None = None
     ) -> BoundedContextsAnalysis:
         """
         Identifica bounded contexts a partir de requisitos.
@@ -180,20 +167,19 @@ Responda em formato JSON válido com esta estrutura:
             result_data = await self._call_llm(prompt)
 
             contexts = [
-                self._parse_context(ctx_data)
-                for ctx_data in result_data.get("contexts", [])
+                self._parse_context(ctx_data) for ctx_data in result_data.get("contexts", [])
             ]
 
             analysis = BoundedContextsAnalysis(
                 contexts=contexts,
                 total_contexts=len(contexts),
-                confidence_score=result_data.get("confidence_score", 0.8)
+                confidence_score=result_data.get("confidence_score", 0.8),
             )
 
             self._logger.info(
                 "bounded_contexts_identified",
                 count=len(contexts),
-                confidence=analysis.confidence_score
+                confidence=analysis.confidence_score,
             )
 
             return analysis
@@ -207,7 +193,9 @@ Responda em formato JSON válido com esta estrutura:
             raise
         except Exception as e:
             # Log outros errors inesperados
-            self._logger.error("failed_to_identify_contexts", error=str(e), error_type=type(e).__name__)
+            self._logger.error(
+                "failed_to_identify_contexts", error=str(e), error_type=type(e).__name__
+            )
             raise
 
     def _parse_context(self, ctx_data: dict) -> BoundedContext:
@@ -218,16 +206,14 @@ Responda em formato JSON válido com esta estrutura:
                 from_context=rel["from"],
                 to_context=rel["to"],
                 relationship_type=rel["type"],
-                description=rel.get("description")
+                description=rel.get("description"),
             )
             for rel in ctx_data.get("relationships", [])
         ]
 
         ubiquitous_language = [
             UbiquitousLanguageTerm(
-                term=term["term"],
-                definition=term["definition"],
-                examples=term.get("examples", [])
+                term=term["term"], definition=term["definition"], examples=term.get("examples", [])
             )
             for term in ctx_data.get("ubiquitous_language", [])
         ]
@@ -238,5 +224,5 @@ Responda em formato JSON válido com esta estrutura:
             responsibilities=ctx_data.get("responsibilities", []),
             domain_models=ctx_data.get("domain_models", []),
             relationships=relationships,
-            ubiquitous_language=ubiquitous_language
+            ubiquitous_language=ubiquitous_language,
         )

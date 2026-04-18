@@ -1,6 +1,6 @@
 """Templates de prompts para LLM de arquitetura."""
 
-from typing import Any, Dict
+from typing import Any
 
 SYSTEM_PROMPT = """You are an expert software architect specializing in distributed systems, microservices, and cloud-native applications.
 
@@ -24,7 +24,7 @@ Respond ONLY with valid JSON in the following format:
 """
 
 
-def get_user_prompt(requirements: Dict[str, Any]) -> str:
+def get_user_prompt(requirements: dict[str, Any]) -> str:
     """Gera prompt para o usuário baseado nos requisitos.
 
     Args:

@@ -1,7 +1,8 @@
 """Unit tests for ArchitectureDiagramGenerator."""
 
+from unittest.mock import AsyncMock, Mock
+
 import pytest
-from unittest.mock import AsyncMock, Mock, patch
 from src.generators.architecture_diagram_generator import ArchitectureDiagramGenerator
 from src.models.bounded_context import BoundedContext
 from src.models.diagrams import DiagramType
@@ -26,8 +27,7 @@ async def test_generate_context_diagram(mock_llm_client):
     """Testa geração de diagrama C4 Context."""
 
     generator = ArchitectureDiagramGenerator(
-        llm_client=mock_llm_client,
-        output_dir="/tmp/test_diagrams"
+        llm_client=mock_llm_client, output_dir="/tmp/test_diagrams"
     )
 
     result = await generator.generate_context_diagram(
@@ -35,7 +35,7 @@ async def test_generate_context_diagram(mock_llm_client):
         system_description="Sistema de teste",
         actors=["Admin", "User"],
         external_systems=["ExternalAPI"],
-        render=False  # Não renderiza no teste unitário
+        render=False,  # Não renderiza no teste unitário
     )
 
     assert result.diagram_id == "TestProject-context"
@@ -50,8 +50,7 @@ async def test_generate_container_diagram(mock_llm_client):
     """Testa geração de diagrama C4 Container."""
 
     generator = ArchitectureDiagramGenerator(
-        llm_client=mock_llm_client,
-        output_dir="/tmp/test_diagrams"
+        llm_client=mock_llm_client, output_dir="/tmp/test_diagrams"
     )
 
     bounded_contexts = [
@@ -61,7 +60,7 @@ async def test_generate_container_diagram(mock_llm_client):
             responsibilities=["Process orders"],
             domain_models=["Order", "Customer"],
             relationships=[],
-            ubiquitous_language=[]
+            ubiquitous_language=[],
         ),
         BoundedContext(
             name="Inventory",
@@ -69,15 +68,12 @@ async def test_generate_container_diagram(mock_llm_client):
             responsibilities=["Manage stock"],
             domain_models=["Product", "Stock"],
             relationships=[],
-            ubiquitous_language=[]
-        )
+            ubiquitous_language=[],
+        ),
     ]
 
     result = await generator.generate_container_diagram(
-        project_name="TestProject",
-        bounded_contexts=bounded_contexts,
-        tech_stack=None,
-        render=False
+        project_name="TestProject", bounded_contexts=bounded_contexts, tech_stack=None, render=False
     )
 
     assert result.diagram_id == "TestProject-container"
@@ -92,15 +88,14 @@ async def test_generate_component_diagram(mock_llm_client):
     """Testa geração de diagrama C4 Component."""
 
     generator = ArchitectureDiagramGenerator(
-        llm_client=mock_llm_client,
-        output_dir="/tmp/test_diagrams"
+        llm_client=mock_llm_client, output_dir="/tmp/test_diagrams"
     )
 
     result = await generator.generate_component_diagram(
         component_name="OrderService",
         component_description="Serviço de pedidos",
         subcomponents=["OrderController", "OrderService", "OrderRepository"],
-        render=False
+        render=False,
     )
 
     assert result.diagram_id == "OrderService-component"
@@ -113,8 +108,7 @@ async def test_generate_all_diagrams(mock_llm_client):
     """Testa geração de todos os diagramas."""
 
     generator = ArchitectureDiagramGenerator(
-        llm_client=mock_llm_client,
-        output_dir="/tmp/test_diagrams"
+        llm_client=mock_llm_client, output_dir="/tmp/test_diagrams"
     )
 
     bounded_contexts = [
@@ -124,7 +118,7 @@ async def test_generate_all_diagrams(mock_llm_client):
             responsibilities=["Core logic"],
             domain_models=["Entity"],
             relationships=[],
-            ubiquitous_language=[]
+            ubiquitous_language=[],
         )
     ]
 
@@ -135,7 +129,7 @@ async def test_generate_all_diagrams(mock_llm_client):
         actors=["User"],
         external_systems=[],
         tech_stack=None,
-        render=False  # Não renderiza no teste unitário
+        render=False,  # Não renderiza no teste unitário
     )
 
     assert len(results) == 2  # Context + Container
@@ -149,8 +143,7 @@ async def test_generate_sequence_diagram(mock_llm_client):
     """Testa geração de diagrama de sequência."""
 
     generator = ArchitectureDiagramGenerator(
-        llm_client=mock_llm_client,
-        output_dir="/tmp/test_diagrams"
+        llm_client=mock_llm_client, output_dir="/tmp/test_diagrams"
     )
 
     steps = [
@@ -159,16 +152,13 @@ async def test_generate_sequence_diagram(mock_llm_client):
         "Service->>Database: Query data",
         "Database-->>Service: Return results",
         "Service-->>Gateway: Response",
-        "Gateway-->>User: Return response"
+        "Gateway-->>User: Return response",
     ]
 
     artifacts = ["Request", "Response"]
 
     result = await generator.generate_sequence(
-        title="API Request Flow",
-        steps=steps,
-        artifacts=artifacts,
-        render=False
+        title="API Request Flow", steps=steps, artifacts=artifacts, render=False
     )
 
     assert result.diagram_id == "api-request-flow-sequence"
@@ -184,20 +174,13 @@ async def test_generate_sequence_diagram_without_artifacts(mock_llm_client):
     """Testa geração de diagrama de sequência sem artefatos."""
 
     generator = ArchitectureDiagramGenerator(
-        llm_client=mock_llm_client,
-        output_dir="/tmp/test_diagrams"
+        llm_client=mock_llm_client, output_dir="/tmp/test_diagrams"
     )
 
-    steps = [
-        "Client->>Server: Connect",
-        "Server-->>Client: Acknowledge"
-    ]
+    steps = ["Client->>Server: Connect", "Server-->>Client: Acknowledge"]
 
     result = await generator.generate_sequence(
-        title="Simple Connection",
-        steps=steps,
-        artifacts=None,
-        render=False
+        title="Simple Connection", steps=steps, artifacts=None, render=False
     )
 
     assert result.type == DiagramType.SEQUENCE
@@ -210,17 +193,13 @@ async def test_generate_sequence_with_mermaid_code(mock_llm_client):
     """Testa geração de sequência com mermaid_code já fornecido."""
 
     generator = ArchitectureDiagramGenerator(
-        llm_client=mock_llm_client,
-        output_dir="/tmp/test_diagrams"
+        llm_client=mock_llm_client, output_dir="/tmp/test_diagrams"
     )
 
     mermaid_code = "sequenceDiagram\n    A->>B: Test"
 
     result = await generator.generate_sequence(
-        title="Test",
-        steps=None,
-        mermaid_code=mermaid_code,
-        render=False
+        title="Test", steps=None, mermaid_code=mermaid_code, render=False
     )
 
     assert result.type == DiagramType.SEQUENCE
@@ -232,16 +211,12 @@ async def test_generate_from_description_uses_llm(mock_llm_client):
     """Testa que generate_from_description usa LLM."""
 
     generator = ArchitectureDiagramGenerator(
-        llm_client=mock_llm_client,
-        output_dir="/tmp/test_diagrams"
+        llm_client=mock_llm_client, output_dir="/tmp/test_diagrams"
     )
 
     description = "User sends request to system, then system processes and returns response"
 
-    result = await generator.generate_from_description(
-        description=description,
-        render=False
-    )
+    result = await generator.generate_from_description(description=description, render=False)
 
     # Verificar que o LLM foi chamado
     mock_llm_client.chat.completions.create.assert_called_once()
@@ -270,14 +245,10 @@ async def test_generate_from_description_cleans_markdown(mock_llm_client):
     mock_llm_client.chat.completions.create = AsyncMock(return_value=response)
 
     generator = ArchitectureDiagramGenerator(
-        llm_client=mock_llm_client,
-        output_dir="/tmp/test_diagrams"
+        llm_client=mock_llm_client, output_dir="/tmp/test_diagrams"
     )
 
-    result = await generator.generate_from_description(
-        description="Test",
-        render=False
-    )
+    result = await generator.generate_from_description(description="Test", render=False)
 
     # Verificar que markdown foi limpo
     assert not result.mermaid_code.startswith("```")
@@ -294,15 +265,18 @@ async def test_mermaid_renderer_render_to_svg(monkeypatch):
     async def mock_run(*args, **kwargs):
         class Result:
             returncode = 0
+
         return Result()
 
     import subprocess
+
     monkeypatch.setattr(subprocess, "run", mock_run)
 
     renderer = MermaidRenderer()
 
     # Mock write_text
     import tempfile
+
     original_mkdtemp = tempfile.mkdtemp
 
     def mock_mkdtemp(*args, **kwargs):

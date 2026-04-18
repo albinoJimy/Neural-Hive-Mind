@@ -1,13 +1,13 @@
 """Unit tests for BoundedContextsIdentifier."""
 
+from unittest.mock import AsyncMock, Mock
+
 import pytest
-from unittest.mock import AsyncMock, Mock, patch
 from src.identifiers.bounded_contexts import BoundedContextsIdentifier
 from src.models.bounded_context import (
     BoundedContext,
-    BoundedContextsAnalysis,
     BoundedContextRelationship,
-    UbiquitousLanguageTerm
+    BoundedContextsAnalysis,
 )
 
 
@@ -18,7 +18,7 @@ def mock_llm_client():
     response = Mock()
     choice = Mock()
     message = Mock()
-    message.content = '''{
+    message.content = """{
       "contexts": [
         {
           "name": "Identity",
@@ -38,7 +38,7 @@ def mock_llm_client():
         }
       ],
       "confidence_score": 0.9
-    }'''
+    }"""
     choice.message = message
     response.choices = [choice]
     client.chat.completions.create = AsyncMock(return_value=response)
@@ -84,10 +84,7 @@ async def test_identify_bounded_contexts_returns_ubiquitous_language(mock_llm_cl
     result = await identifier.identify(requirements)
 
     # Verificar que pelo menos um contexto tem termos ubiquituos
-    has_terms = any(
-        len(ctx.ubiquitous_language) > 0
-        for ctx in result.contexts
-    )
+    has_terms = any(len(ctx.ubiquitous_language) > 0 for ctx in result.contexts)
     assert has_terms
 
 
@@ -112,7 +109,7 @@ def test_bounded_context_has_is_external_field():
         description="Sistema de pagamentos externo",
         responsibilities=["Processar pagamentos"],
         domain_models=["Payment", "Transaction"],
-        is_external=True
+        is_external=True,
     )
     assert context.is_external is True
     assert context.name == "ExternalPayment"
@@ -124,7 +121,7 @@ def test_bounded_context_defaults_is_external_to_false():
         name="Identity",
         description="Gestão de identidade",
         responsibilities=["Autenticação", "Autorização"],
-        domain_models=["User", "Role"]
+        domain_models=["User", "Role"],
     )
     assert context.is_external is False
 
@@ -135,7 +132,7 @@ def test_bounded_context_relationship_has_direction_field():
         **{"from": "Identity", "to": "Billing"},  # Usar alias com dict unpacking
         relationship_type="partnership",
         direction="outgoing",
-        description="Identity usa Billing para faturação"
+        description="Identity usa Billing para faturação",
     )
     assert relationship.direction == "outgoing"
     assert relationship.from_context == "Identity"
@@ -145,7 +142,7 @@ def test_bounded_context_relationship_direction_is_optional():
     """Testa que direction é opcional."""
     relationship = BoundedContextRelationship(
         **{"from": "Catalog", "to": "Inventory"},  # Usar alias com dict unpacking
-        relationship_type="shared_kernel"
+        relationship_type="shared_kernel",
     )
     assert relationship.direction is None
 
@@ -156,13 +153,13 @@ def test_bounded_context_with_relationships_and_direction():
         BoundedContextRelationship(
             **{"from": "Identity", "to": "Orders"},
             relationship_type="partnership",
-            direction="outgoing"
+            direction="outgoing",
         ),
         BoundedContextRelationship(
             **{"from": "Payments", "to": "Orders"},
             relationship_type="partnership",
-            direction="incoming"
-        )
+            direction="incoming",
+        ),
     ]
 
     context = BoundedContext(
@@ -171,7 +168,7 @@ def test_bounded_context_with_relationships_and_direction():
         responsibilities=["Criar encomendas", "Gerir estado"],
         domain_models=["Order", "OrderItem"],
         relationships=relationships,
-        is_external=False
+        is_external=False,
     )
 
     assert len(context.relationships) == 2
@@ -186,6 +183,7 @@ def test_bounded_contexts_validates_empty_requirements(mock_llm_client):
     with pytest.raises(ValueError, match="Requirements cannot be empty"):
         # Usar sync wrapper para async
         import asyncio
+
         asyncio.run(identifier.identify("   "))
 
 
@@ -195,6 +193,7 @@ def test_bounded_contexts_validates_too_short_requirements(mock_llm_client):
 
     with pytest.raises(ValueError, match="Requirements too short"):
         import asyncio
+
         asyncio.run(identifier.identify("abc"))
 
 
@@ -207,6 +206,7 @@ def test_bounded_contexts_validates_too_long_requirements(mock_llm_client):
 
     with pytest.raises(ValueError, match="Requirements too long"):
         import asyncio
+
         asyncio.run(identifier.identify(long_requirements))
 
 
@@ -222,9 +222,5 @@ def test_bounded_contexts_validates_too_many_hints(mock_llm_client):
 
     with pytest.raises(ValueError, match="Too many domain hints"):
         import asyncio
-        asyncio.run(
-            identifier.identify(
-                long_requirements,
-                domain_hints=too_many_hints
-            )
-        )
+
+        asyncio.run(identifier.identify(long_requirements, domain_hints=too_many_hints))

@@ -7,7 +7,7 @@ distribuídos, permitindo rollback de execuções parciais.
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -28,15 +28,15 @@ class CompensationStep:
 
     step_id: str
     name: str
-    original_activity: Dict[str, Any]
-    compensation_activity: Dict[str, Any]
+    original_activity: dict[str, Any]
+    compensation_activity: dict[str, Any]
     order: int  # Ordem inversa para execução de compensação
     timeout_seconds: int = 300
-    retry_policy: Optional[Dict[str, Any]] = None
-    compensates_if: Optional[Dict[str, Any]] = None  # Condição para compensar
+    retry_policy: dict[str, Any] | None = None
+    compensates_if: dict[str, Any] | None = None  # Condição para compensar
     description: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Converte para dicionário serializável."""
         return {
             "step_id": self.step_id,
@@ -59,12 +59,12 @@ class SagaState:
     workflow_id: str
     current_step: int = 0
     status: str = "running"  # running, compensating, completed, failed
-    completed_steps: List[str] = field(default_factory=list)
-    compensation_order: List[str] = field(default_factory=list)
-    error: Optional[str] = None
-    context: Dict[str, Any] = field(default_factory=dict)
+    completed_steps: list[str] = field(default_factory=list)
+    compensation_order: list[str] = field(default_factory=list)
+    error: str | None = None
+    context: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Converte para dicionário."""
         return {
             "saga_id": self.saga_id,
@@ -99,14 +99,14 @@ class CompensationWorkflow(BaseModel):
     workflow_id: str = Field(..., description="ID único do workflow")
     name: str = Field(..., description="Nome do workflow")
     description: str = Field(default="", description="Descrição do propósito")
-    steps: List[CompensationStep] = Field(..., description="Passos do workflow com compensação")
+    steps: list[CompensationStep] = Field(..., description="Passos do workflow com compensação")
     auto_compensate: bool = Field(default=True, description="Compensar automaticamente em erro")
     compensation_timeout_seconds: int = Field(
         default=3600, description="Timeout total para compensação"
     )
-    input_context: Dict[str, Any] = Field(default_factory=dict, description="Contexto de entrada")
+    input_context: dict[str, Any] = Field(default_factory=dict, description="Contexto de entrada")
 
-    def get_compensation_order(self) -> List[str]:
+    def get_compensation_order(self) -> list[str]:
         """Retorna ordem de compensação (inverso da execução).
 
         Returns:
@@ -114,7 +114,7 @@ class CompensationWorkflow(BaseModel):
         """
         return [step.step_id for step in sorted(self.steps, key=lambda s: -s.order)]
 
-    def get_compensation_steps(self, completed_step_ids: List[str]) -> List[CompensationStep]:
+    def get_compensation_steps(self, completed_step_ids: list[str]) -> list[CompensationStep]:
         """Retorna passos de compensação para os passos completados.
 
         Args:
@@ -131,7 +131,7 @@ class CompensationWorkflow(BaseModel):
         # Ordenar inversamente para compensação
         return sorted(completed_steps, key=lambda s: -s.order)
 
-    def needs_compensation(self, step: CompensationStep, error_context: Dict[str, Any]) -> bool:
+    def needs_compensation(self, step: CompensationStep, error_context: dict[str, Any]) -> bool:
         """Verifica se um passo precisa ser compensado.
 
         Args:
@@ -166,7 +166,7 @@ class CompensationWorkflow(BaseModel):
             case _:
                 return True
 
-    def create_saga_state(self, saga_id: Optional[str] = None) -> SagaState:
+    def create_saga_state(self, saga_id: str | None = None) -> SagaState:
         """Cria estado inicial para execução Saga.
 
         Args:
@@ -186,7 +186,7 @@ class CompensationWorkflow(BaseModel):
             context=self.input_context.copy(),
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Converte para dicionário serializável."""
         return {
             "workflow_id": self.workflow_id,
@@ -200,7 +200,7 @@ class CompensationWorkflow(BaseModel):
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "CompensationWorkflow":
+    def from_dict(cls, data: dict[str, Any]) -> "CompensationWorkflow":
         """Cria CompensationWorkflow a partir de dicionário."""
         steps = []
         for s_data in data.get("steps", []):

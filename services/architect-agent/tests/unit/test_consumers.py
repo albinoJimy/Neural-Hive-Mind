@@ -1,10 +1,10 @@
 """Testes unitários para consumidores Kafka."""
 
 import asyncio
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
 import json
+from unittest.mock import AsyncMock, Mock, patch
 
+import pytest
 from src.consumers.base import BaseKafkaConsumer
 from src.consumers.cognitive_plan_consumer import CognitivePlanConsumer
 from src.consumers.lifecycle import ConsumerManager

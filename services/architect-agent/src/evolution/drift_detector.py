@@ -1,6 +1,6 @@
 """Detector de divergências entre arquitetura planejada e implementada."""
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from src.models.architecture import ArchitecturePlan
 from src.models.evolution import DriftDetection, DriftType
@@ -11,8 +11,8 @@ class DriftDetector:
     """Detecta divergências entre plano e implementação."""
 
     def detect_drifts(
-        self, planned: ArchitecturePlan, implemented: Dict[str, Any]
-    ) -> List[DriftDetection]:
+        self, planned: ArchitecturePlan, implemented: dict[str, Any]
+    ) -> list[DriftDetection]:
         """Compara plano planejado com implementação detectada.
 
         Args:
@@ -44,8 +44,8 @@ class DriftDetector:
         return drifts
 
     def _check_architecture_type(
-        self, planned: ArchitecturePlan, implemented: Dict[str, Any]
-    ) -> Optional[DriftDetection]:
+        self, planned: ArchitecturePlan, implemented: dict[str, Any]
+    ) -> DriftDetection | None:
         """Verifica se o tipo de arquitetura divergiu."""
         planned_type = planned.architecture_type.value
         impl_type = implemented.get("architecture_type", planned_type)
@@ -61,8 +61,8 @@ class DriftDetector:
         return None
 
     def _check_components(
-        self, planned: ArchitecturePlan, implemented: Dict[str, Any]
-    ) -> List[DriftDetection]:
+        self, planned: ArchitecturePlan, implemented: dict[str, Any]
+    ) -> list[DriftDetection]:
         """Verifica divergências nos componentes."""
         drifts = []
         impl_components = {c.get("name"): c for c in implemented.get("components", [])}
@@ -95,8 +95,8 @@ class DriftDetector:
         return drifts
 
     def _check_patterns(
-        self, planned: ArchitecturePlan, implemented: Dict[str, Any]
-    ) -> List[DriftDetection]:
+        self, planned: ArchitecturePlan, implemented: dict[str, Any]
+    ) -> list[DriftDetection]:
         """Verifica padrões não aplicados."""
         drifts = []
         impl_patterns = set(implemented.get("patterns", []))
@@ -117,8 +117,8 @@ class DriftDetector:
         return drifts
 
     def _check_stack(
-        self, planned: ArchitecturePlan, implemented: Dict[str, Any]
-    ) -> List[DriftDetection]:
+        self, planned: ArchitecturePlan, implemented: dict[str, Any]
+    ) -> list[DriftDetection]:
         """Verifica divergências na stack tecnológica."""
         drifts = []
         impl_stack = implemented.get("tech_stack", {})

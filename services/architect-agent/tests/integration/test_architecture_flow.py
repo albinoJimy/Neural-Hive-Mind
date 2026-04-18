@@ -6,7 +6,6 @@ incluindo integração com MongoDB e validação via API.
 
 import pytest
 from fastapi.testclient import TestClient
-
 from src.models.architecture import ArchitectureType
 
 

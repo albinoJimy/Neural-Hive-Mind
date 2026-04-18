@@ -5,7 +5,7 @@ from src.workflows.conditional_workflow import ConditionalWorkflow
 from src.workflows.parallel_workflow import ParallelWorkflow
 
 __all__ = [
+    "CompensationWorkflow",
     "ConditionalWorkflow",
     "ParallelWorkflow",
-    "CompensationWorkflow",
 ]

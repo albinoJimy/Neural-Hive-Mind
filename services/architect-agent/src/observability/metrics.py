@@ -15,4 +15,3 @@ def init_metrics(app: Any) -> None:
 
     This is a stub implementation that will be expanded in Task 8.
     """
-    pass

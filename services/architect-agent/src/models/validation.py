@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -47,7 +47,7 @@ class Violation(BaseModel):
     severity: Severity = Field(..., description="Nível de severidade")
     location: str = Field(..., description="Localização no código (ex: file.py:linha)")
     description: str = Field(..., description="Descrição da violação")
-    suggestion: Optional[str] = Field(None, description="Sugestão de correção")
+    suggestion: str | None = Field(None, description="Sugestão de correção")
 
 
 class Suggestion(BaseModel):
@@ -61,7 +61,7 @@ class Suggestion(BaseModel):
         default="M",
         description="Esforço estimado: XS, S, M, L, XL",
     )
-    affected_files: List[str] = Field(
+    affected_files: list[str] = Field(
         default_factory=list, description="Arquivos afetados pela mudança"
     )
 
@@ -112,14 +112,14 @@ class ValidationReport(BaseModel):
     report_id: str = Field(..., description="ID único do relatório")
     repo_url: str = Field(..., description="URL do repositório")
     branch: str = Field(default="main", description="Branch analisada")
-    commit_sha: Optional[str] = Field(None, description="SHA do commit analisado")
+    commit_sha: str | None = Field(None, description="SHA do commit analisado")
     health_score: int = Field(..., ge=0, le=100, description="Score de saúde 0-100")
     trend: Trend = Field(default=Trend.STABLE, description="Tendência de evolução")
-    violations: List[Violation] = Field(
+    violations: list[Violation] = Field(
         default_factory=list, description="Lista de violações detectadas"
     )
-    suggestions: List[Suggestion] = Field(
+    suggestions: list[Suggestion] = Field(
         default_factory=list, description="Lista de sugestões de melhoria"
     )
-    metrics: Dict[str, Any] = Field(default_factory=dict, description="Métricas adicionais")
+    metrics: dict[str, Any] = Field(default_factory=dict, description="Métricas adicionais")
     created_at: datetime = Field(default_factory=datetime.utcnow, description="Data de criação")

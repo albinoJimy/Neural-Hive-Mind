@@ -1,11 +1,11 @@
 """Testes unitários para Evolution Tracker."""
 
-import pytest
-from datetime import datetime, timezone
-from unittest.mock import Mock, AsyncMock, patch
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, Mock, patch
 
-from src.evolution.drift_detector import DriftDetector
+import pytest
 from src.evolution.diff_calculator import DiffCalculator
+from src.evolution.drift_detector import DriftDetector
 from src.models.architecture import ArchitecturePlan, ArchitectureType, Component, Pattern
 from src.models.evolution import DriftType, Severity
 
@@ -273,9 +273,10 @@ async def test_record_evolution_creates_history(sample_plan):
     tracker = EvolutionTracker(mock_session)
 
     # Criar histórico diretamente sem mockar db (teste unitário simplificado)
-    from src.models.evolution import EvolutionHistory
-    from datetime import datetime, timezone
     import uuid
+    from datetime import datetime
+
+    from src.models.evolution import EvolutionHistory
 
     history = EvolutionHistory(
         history_id=f"evo-{uuid.uuid4().hex[:8]}",
@@ -283,7 +284,7 @@ async def test_record_evolution_creates_history(sample_plan):
         version=1,
         changes=["Added new component"],
         drifts=[],
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
         created_by="test-user",
     )
 
@@ -320,7 +321,7 @@ async def test_get_history_returns_list():
                 "version": 1,
                 "changes": ["Initial version"],
                 "drifts": [],
-                "created_at": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(UTC).isoformat(),
                 "created_by": "architect-agent",
             }
         ]

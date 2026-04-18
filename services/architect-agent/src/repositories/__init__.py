@@ -6,8 +6,8 @@ from src.repositories.evolution_repository import EvolutionRepository
 from src.repositories.validation_repository import ValidationRepository
 
 __all__ = [
-    "BaseRepository",
     "ArchitectureRepository",
-    "ValidationRepository",
+    "BaseRepository",
     "EvolutionRepository",
+    "ValidationRepository",
 ]

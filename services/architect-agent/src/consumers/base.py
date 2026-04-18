@@ -1,7 +1,7 @@
 """Consumidor base para Kafka."""
 
 from abc import ABC, abstractmethod
-from typing import Awaitable, Callable
+from collections.abc import Awaitable, Callable
 
 import structlog
 from aiokafka import AIOKafkaConsumer
@@ -26,12 +26,10 @@ class BaseKafkaConsumer(ABC):
     @abstractmethod
     def get_topic(self) -> str:
         """Retorna o tópico a consumir."""
-        pass
 
     @abstractmethod
     async def process_message(self, message: dict) -> None:
         """Processa mensagem recebida."""
-        pass
 
     def register_callback(self, callback: Callable[[dict], Awaitable[None]]) -> None:
         """Registra callback para processamento."""

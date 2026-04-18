@@ -3,10 +3,10 @@
 import json
 import re
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from pydantic import ValidationError
 from openai import AsyncOpenAI
+from pydantic import ValidationError
 
 from src.models.architecture import (
     ArchitecturePlan,
@@ -14,17 +14,16 @@ from src.models.architecture import (
     Component,
     Pattern,
 )
-from src.models.bounded_context import BoundedContext
-from src.models.tech_stack import TechChoice
 from src.planners.base import BasePlanner
 from src.planners.llm_client import LLMClient
 from src.planners.templates import SYSTEM_PROMPT, get_user_prompt
 
 # Novos módulos (opcionais)
 try:
+    from src.generators.architecture_diagram_generator import ArchitectureDiagramGenerator
     from src.identifiers.bounded_contexts import BoundedContextsIdentifier
     from src.recommenders.tech_stack import TechStackRecommender
-    from src.generators.architecture_diagram_generator import ArchitectureDiagramGenerator
+
     EXTENDED_MODULES_AVAILABLE = True
 except ImportError:
     EXTENDED_MODULES_AVAILABLE = False
@@ -35,9 +34,9 @@ class DesignPlanner(BasePlanner):
 
     def __init__(
         self,
-        bounded_contexts_identifier: Optional[BoundedContextsIdentifier] = None,
-        tech_stack_recommender: Optional[TechStackRecommender] = None,
-        diagram_generator: Optional[ArchitectureDiagramGenerator] = None,
+        bounded_contexts_identifier: BoundedContextsIdentifier | None = None,
+        tech_stack_recommender: TechStackRecommender | None = None,
+        diagram_generator: ArchitectureDiagramGenerator | None = None,
         use_extended_features: bool = True,
     ):
         """Inicializa o DesignPlanner.
@@ -56,6 +55,7 @@ class DesignPlanner(BasePlanner):
             llm = None
             try:
                 import os
+
                 if os.getenv("OPENAI_API_KEY"):
                     llm = AsyncOpenAI()
             except Exception:
@@ -63,9 +63,13 @@ class DesignPlanner(BasePlanner):
 
             # Inicializar novos módulos apenas se LLM disponível
             if llm:
-                self._bounded_contexts_identifier = bounded_contexts_identifier or BoundedContextsIdentifier(llm)
+                self._bounded_contexts_identifier = (
+                    bounded_contexts_identifier or BoundedContextsIdentifier(llm)
+                )
                 self._tech_stack_recommender = tech_stack_recommender or TechStackRecommender(llm)
-                self._diagram_generator = diagram_generator or ArchitectureDiagramGenerator(llm_client=llm)
+                self._diagram_generator = diagram_generator or ArchitectureDiagramGenerator(
+                    llm_client=llm
+                )
             else:
                 # Módulos desativados
                 self._bounded_contexts_identifier = None
@@ -77,7 +81,7 @@ class DesignPlanner(BasePlanner):
             self._diagram_generator = None
 
     async def plan(
-        self, requirements: Dict[str, Any], context: Optional[Dict[str, Any]] = None
+        self, requirements: dict[str, Any], context: dict[str, Any] | None = None
     ) -> ArchitecturePlan:
         """Cria plano arquitetural.
 
@@ -108,13 +112,13 @@ class DesignPlanner(BasePlanner):
                 try:
                     domain_hints = context.get("domain_hints") if context else None
                     contexts_analysis = await self._bounded_contexts_identifier.identify(
-                        requirements=requirements_text,
-                        domain_hints=domain_hints
+                        requirements=requirements_text, domain_hints=domain_hints
                     )
                     bounded_contexts = contexts_analysis.contexts
                 except Exception as e:
                     # Log error mas continuar sem bounded contexts
                     import structlog
+
                     logger = structlog.get_logger(__name__)
                     logger.warning("bounded_contexts_failed", error=str(e))
 
@@ -123,12 +127,12 @@ class DesignPlanner(BasePlanner):
                 try:
                     constraints = context.get("constraints") if context else None
                     tech_recommendation = await self._tech_stack_recommender.recommend(
-                        requirements=requirements_text,
-                        constraints=constraints
+                        requirements=requirements_text, constraints=constraints
                     )
                     tech_stack = tech_recommendation.choices
                 except Exception as e:
                     import structlog
+
                     logger = structlog.get_logger(__name__)
                     logger.warning("tech_stack_recommendation_failed", error=str(e))
 
@@ -147,10 +151,13 @@ class DesignPlanner(BasePlanner):
                                 external_systems.append(ctx.name)
                             else:
                                 # Para relacionamentos incoming, o ator é o contexto externo (from_context)
-                                actors.extend([
-                                    r.from_context for r in ctx.relationships
-                                    if r.direction == "incoming"
-                                ])
+                                actors.extend(
+                                    [
+                                        r.from_context
+                                        for r in ctx.relationships
+                                        if r.direction == "incoming"
+                                    ]
+                                )
 
                     # Gerar diagrama de contexto
                     context_diagram = await self._diagram_generator.generate_context_diagram(
@@ -158,11 +165,12 @@ class DesignPlanner(BasePlanner):
                         system_description=system_description,
                         actors=list(set(actors)) if actors else ["User"],
                         external_systems=list(set(external_systems)) if external_systems else [],
-                        render=True
+                        render=True,
                     )
                     diagrams = [context_diagram]
                 except Exception as e:
                     import structlog
+
                     logger = structlog.get_logger(__name__)
                     logger.warning("diagram_generation_failed", error=str(e))
 
@@ -180,7 +188,7 @@ class DesignPlanner(BasePlanner):
             diagrams=diagrams,
         )
 
-    async def refine(self, plan_id: str, feedback: Dict[str, Any]) -> ArchitecturePlan:
+    async def refine(self, plan_id: str, feedback: dict[str, Any]) -> ArchitecturePlan:
         """Refina plano existente com feedback.
 
         Args:
@@ -198,7 +206,7 @@ class DesignPlanner(BasePlanner):
         }
         return await self.plan(requirements)
 
-    def _extract_requirements_text(self, requirements: Dict[str, Any]) -> str:
+    def _extract_requirements_text(self, requirements: dict[str, Any]) -> str:
         """Extrai texto de requisitos do dicionário.
 
         Args:
@@ -221,7 +229,7 @@ class DesignPlanner(BasePlanner):
         # Fallback: converter dicionário para string
         return json.dumps(requirements, ensure_ascii=False)
 
-    def _parse_llm_response(self, response: str) -> Dict[str, Any]:
+    def _parse_llm_response(self, response: str) -> dict[str, Any]:
         """Parseia resposta JSON do LLM.
 
         Args:
@@ -295,6 +303,6 @@ class DesignPlanner(BasePlanner):
                 "architecture_type": ArchitectureType.MONOLITH,
                 "components": [Component(name="app", stack="python/fastapi")],
                 "patterns": [Pattern.REPOSITORY],
-                "rationale": f"Error parsing LLM response: {str(e)}",
+                "rationale": f"Error parsing LLM response: {e!s}",
                 "requirements": {},
             }

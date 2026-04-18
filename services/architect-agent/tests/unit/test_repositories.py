@@ -1,23 +1,23 @@
 """Testes unitários para repositórios."""
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
-from src.repositories.architecture_repository import ArchitectureRepository
-from src.repositories.validation_repository import ValidationRepository
-from src.repositories.evolution_repository import EvolutionRepository
+import pytest
 from src.models.architecture import (
     ArchitecturePlan,
     ArchitectureType,
     Component,
     Pattern,
 )
-from src.models.validation import (
-    ValidationReport,
-    Trend,
-)
 from src.models.evolution import EvolutionHistory
+from src.models.validation import (
+    Trend,
+    ValidationReport,
+)
+from src.repositories.architecture_repository import ArchitectureRepository
+from src.repositories.evolution_repository import EvolutionRepository
+from src.repositories.validation_repository import ValidationRepository
 
 
 @pytest.fixture
@@ -274,7 +274,7 @@ async def test_validation_repo_get_by_report_id(mock_settings):
             "violations": [],
             "suggestions": [],
             "metrics": {},
-            "created_at": datetime.now(timezone.utc),
+            "created_at": datetime.now(UTC),
         }
     )
     mock_db.__getitem__ = Mock(return_value=mock_collection)
@@ -322,7 +322,7 @@ async def test_validation_repo_get_by_repo_url(mock_settings):
                 "violations": [],
                 "suggestions": [],
                 "metrics": {},
-                "created_at": datetime.now(timezone.utc),
+                "created_at": datetime.now(UTC),
             }
         ]
     )
@@ -353,7 +353,7 @@ async def test_validation_repo_get_latest_by_repo(mock_settings):
             "violations": [],
             "suggestions": [],
             "metrics": {},
-            "created_at": datetime.now(timezone.utc),
+            "created_at": datetime.now(UTC),
         }
     )
     mock_db.__getitem__ = Mock(return_value=mock_collection)
@@ -493,7 +493,7 @@ async def test_evolution_repo_get_by_plan_id(mock_settings):
                 "version": 1,
                 "changes": ["Initial"],
                 "drifts": [],
-                "created_at": datetime.now(timezone.utc),
+                "created_at": datetime.now(UTC),
                 "created_by": "architect-agent",
             }
         ]

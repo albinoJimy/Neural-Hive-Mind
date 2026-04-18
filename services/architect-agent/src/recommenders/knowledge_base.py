@@ -9,15 +9,15 @@ TECH_KNOWLEDGE_BASE = {
                     "cons": ["ecossistema menor que Django/Flask"],
                     "use_cases": ["APIs REST", "microserviços", "high performance"],
                     "complexity": "media",
-                    "learning_curve": "media"
+                    "learning_curve": "media",
                 },
                 "django": {
                     "pros": ["batteries included", "admin ORM", "ecosistema enorme"],
                     "cons": ["pesado", "sync por padrão", "verboso"],
                     "use_cases": ["monólitos", "CRUD apps", "prototipagem rápida"],
                     "complexity": "baixa",
-                    "learning_curve": "baixa"
-                }
+                    "learning_curve": "baixa",
+                },
             }
         },
         "nodejs": {
@@ -27,17 +27,17 @@ TECH_KNOWLEDGE_BASE = {
                     "cons": ["pouco opinionado", "requer setup manual"],
                     "use_cases": ["APIs", "microserviços", "serverless"],
                     "complexity": "baixa",
-                    "learning_curve": "baixa"
+                    "learning_curve": "baixa",
                 },
                 "nest": {
                     "pros": ["TypeScript nativo", "estruturado", "injeção de dependências"],
                     "cons": ["curva de aprendizado", "verboso"],
                     "use_cases": ["apps empresariais", "microserviços"],
                     "complexity": "media",
-                    "learning_curve": "media"
-                }
+                    "learning_curve": "media",
+                },
             }
-        }
+        },
     },
     "database": {
         "relational": {
@@ -46,15 +46,15 @@ TECH_KNOWLEDGE_BASE = {
                 "cons": ["setup mais complexo que SQLite"],
                 "use_cases": ["dados estruturados", "transações", "analytics"],
                 "complexity": "media",
-                "cost": "baixo"
+                "cost": "baixo",
             },
             "mysql": {
                 "pros": ["popular", "robusto", "boa performance"],
                 "cons": ["licenciamento em alguns casos"],
                 "use_cases": ["web apps", "e-commerce"],
                 "complexity": "media",
-                "cost": "baixo"
-            }
+                "cost": "baixo",
+            },
         },
         "nosql": {
             "mongodb": {
@@ -62,16 +62,16 @@ TECH_KNOWLEDGE_BASE = {
                 "cons": ["sem ACID nativo em algumas operações"],
                 "use_cases": ["dados dinâmicos", "prototipagem", "hierarchical data"],
                 "complexity": "baixa",
-                "cost": "baixo"
+                "cost": "baixo",
             },
             "redis": {
                 "pros": ["rápido", "in-memory", "versátil"],
                 "cons": ["volátil por padrão", "tamanho limitado"],
                 "use_cases": ["cache", "sessions", "rate limiting", "queues"],
                 "complexity": "baixa",
-                "cost": "baixo"
-            }
-        }
+                "cost": "baixo",
+            },
+        },
     },
     "messaging": {
         "kafka": {
@@ -79,14 +79,14 @@ TECH_KNOWLEDGE_BASE = {
             "cons": ["complexo", "requer ZooKeeper/KRaft"],
             "use_cases": ["event-driven", "microserviços", "data pipelines"],
             "complexity": "alta",
-            "cost": "alto"
+            "cost": "alto",
         },
         "rabbitmq": {
             "pros": ["flexível", "simples", "work queues"],
             "cons": ["menos escalável que Kafka"],
             "use_cases": ["work queues", "request/response"],
             "complexity": "media",
-            "cost": "baixo"
-        }
-    }
+            "cost": "baixo",
+        },
+    },
 }

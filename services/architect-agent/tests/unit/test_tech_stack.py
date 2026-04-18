@@ -1,7 +1,8 @@
 """Unit tests for TechStackRecommender."""
 
-import pytest
 from unittest.mock import AsyncMock, Mock
+
+import pytest
 from src.recommenders.tech_stack import TechStackRecommender
 
 
@@ -12,7 +13,7 @@ def mock_llm_client():
     response = Mock()
     choice = Mock()
     message = Mock()
-    message.content = '''{
+    message.content = """{
       "choices": [
         {"category": "backend", "name": "FastAPI", "version": "0.104", "rationale": "Async nativo"},
         {"category": "database", "name": "PostgreSQL", "version": "15", "rationale": "ACID compliant"}
@@ -22,7 +23,7 @@ def mock_llm_client():
       "confidence_score": 0.9,
       "estimated_complexity": "media",
       "estimated_cost": "$$"
-    }'''
+    }"""
     choice.message = message
     response.choices = [choice]
     client.chat.completions.create = AsyncMock(return_value=response)

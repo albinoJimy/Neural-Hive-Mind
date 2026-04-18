@@ -1,7 +1,7 @@
 """Regras de validação de arquitetura (SOLID)."""
 
 from enum import Enum
-from typing import Any, Dict
+from typing import Any
 
 
 class SOLIDPrinciple(str, Enum):
@@ -18,7 +18,7 @@ class ArchitecturalRules:
     """Validador de regras arquiteturais SOLID."""
 
     @staticmethod
-    def check_srp(class_info: Dict[str, Any]) -> Dict[str, Any] | None:
+    def check_srp(class_info: dict[str, Any]) -> dict[str, Any] | None:
         """Single Responsibility: classe com muitas responsabilidades."""
         methods = class_info.get("methods", [])
         if isinstance(methods, list) and len(methods) > 15:
@@ -32,7 +32,7 @@ class ArchitecturalRules:
         return None
 
     @staticmethod
-    def check_ocp(class_info: Dict[str, Any]) -> Dict[str, Any] | None:
+    def check_ocp(class_info: dict[str, Any]) -> dict[str, Any] | None:
         """Open/Closed: muitos condicionais tipo-dependent."""
         if_statements = class_info.get("if_statements", 0)
         switch_statements = class_info.get("switch_statements", 0)
@@ -47,9 +47,9 @@ class ArchitecturalRules:
         return None
 
     @staticmethod
-    def check_lsp(insights: Dict[str, Any]) -> list[Dict[str, Any]]:
+    def check_lsp(insights: dict[str, Any]) -> list[dict[str, Any]]:
         """Liskov: detecta override problemático."""
-        violations: list[Dict[str, Any]] = []
+        violations: list[dict[str, Any]] = []
         for inheritance in insights.get("inheritance", []):
             if inheritance.get("overrides_method_without_calling_super"):
                 violations.append(
@@ -64,9 +64,9 @@ class ArchitecturalRules:
         return violations
 
     @staticmethod
-    def check_isp(insights: Dict[str, Any]) -> list[Dict[str, Any]]:
+    def check_isp(insights: dict[str, Any]) -> list[dict[str, Any]]:
         """Interface Segregation: interfaces com muitos métodos."""
-        violations: list[Dict[str, Any]] = []
+        violations: list[dict[str, Any]] = []
         for interface in insights.get("interfaces", []):
             if interface.get("method_count", 0) > 10:
                 violations.append(
@@ -81,9 +81,9 @@ class ArchitecturalRules:
         return violations
 
     @staticmethod
-    def check_dip(insights: Dict[str, Any]) -> list[Dict[str, Any]]:
+    def check_dip(insights: dict[str, Any]) -> list[dict[str, Any]]:
         """Dependency Inversion: dependência de concretas."""
-        violations: list[Dict[str, Any]] = []
+        violations: list[dict[str, Any]] = []
         for dependency in insights.get("dependencies", []):
             if dependency.get("is_concrete") and not dependency.get("is_interface"):
                 violations.append(
@@ -99,10 +99,10 @@ class ArchitecturalRules:
 
     @classmethod
     def validate_all(
-        cls, patterns: list[Dict[str, Any]], insights: Dict[str, Any]
-    ) -> list[Dict[str, Any]]:
+        cls, patterns: list[dict[str, Any]], insights: dict[str, Any]
+    ) -> list[dict[str, Any]]:
         """Executa todas as validações SOLID."""
-        violations: list[Dict[str, Any]] = []
+        violations: list[dict[str, Any]] = []
 
         # SRP e OCP por classe
         for pattern in patterns:

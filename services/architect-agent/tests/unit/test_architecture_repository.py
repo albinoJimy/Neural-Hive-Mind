@@ -1,12 +1,13 @@
 """Testes unitários para ArchitectureRepository."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
-from src.repositories.architecture_repository import ArchitectureRepository
+
+import pytest
 from src.models.architecture import ArchitecturePlan, ArchitectureType, Component, Pattern
-from src.models.bounded_context import BoundedContext, BoundedContextsAnalysis
-from src.models.tech_stack import TechChoice, TechStackRecommendation
+from src.models.bounded_context import BoundedContext
 from src.models.diagrams import Diagram, DiagramType
+from src.models.tech_stack import TechChoice
+from src.repositories.architecture_repository import ArchitectureRepository
 
 
 @pytest.fixture
@@ -35,7 +36,7 @@ def test_validate_bounded_contexts_empty_list(repository):
         components=[Component(name="api", stack="python")],
         patterns=[Pattern.API_GATEWAY],
         rationale="Test",
-        bounded_contexts=[]  # Lista vazia
+        bounded_contexts=[],  # Lista vazia
     )
 
     with pytest.raises(ValueError, match="bounded_contexts cannot be empty"):
@@ -48,7 +49,7 @@ def test_validate_bounded_contexts_missing_name(repository):
         name="",  # Nome vazio
         description="Test",
         responsibilities=["test"],
-        domain_models=["Model"]
+        domain_models=["Model"],
     )
 
     plan = ArchitecturePlan(
@@ -57,7 +58,7 @@ def test_validate_bounded_contexts_missing_name(repository):
         components=[Component(name="api", stack="python")],
         patterns=[Pattern.API_GATEWAY],
         rationale="Test",
-        bounded_contexts=[ctx]
+        bounded_contexts=[ctx],
     )
 
     with pytest.raises(ValueError, match="bounded_contexts\\[0\\].name cannot be empty"):
@@ -72,7 +73,7 @@ def test_validate_tech_stack_empty_list(repository):
         components=[Component(name="api", stack="python")],
         patterns=[Pattern.API_GATEWAY],
         rationale="Test",
-        tech_stack=[]  # Lista vazia
+        tech_stack=[],  # Lista vazia
     )
 
     with pytest.raises(ValueError, match="tech_stack cannot be empty"):
@@ -87,7 +88,7 @@ def test_validate_diagrams_empty_list(repository):
         components=[Component(name="api", stack="python")],
         patterns=[Pattern.API_GATEWAY],
         rationale="Test",
-        diagrams=[]  # Lista vazia
+        diagrams=[],  # Lista vazia
     )
 
     with pytest.raises(ValueError, match="diagrams cannot be empty"):
@@ -100,21 +101,16 @@ def test_validate_valid_extended_fields(repository):
         name="Identity",
         description="Gestão de identidade",
         responsibilities=["Auth"],
-        domain_models=["User"]
+        domain_models=["User"],
     )
 
-    choice = TechChoice(
-        category="language",
-        name="Python",
-        version="3.12",
-        rationale="Type hints"
-    )
+    choice = TechChoice(category="language", name="Python", version="3.12", rationale="Type hints")
 
     diagram = Diagram(
         diagram_id="diag-1",
         type=DiagramType.C4_CONTEXT,
         title="Context",
-        mermaid_code="graph TD\nA[User]"
+        mermaid_code="graph TD\nA[User]",
     )
 
     plan = ArchitecturePlan(
@@ -125,7 +121,7 @@ def test_validate_valid_extended_fields(repository):
         rationale="Test",
         bounded_contexts=[ctx],
         tech_stack=[choice],
-        diagrams=[diagram]
+        diagrams=[diagram],
     )
 
     # Não deve lançar exceção
@@ -142,7 +138,7 @@ def test_validate_none_extended_fields(repository):
         rationale="Test",
         bounded_contexts=None,
         tech_stack=None,
-        diagrams=None
+        diagrams=None,
     )
 
     # Não deve lançar exceção

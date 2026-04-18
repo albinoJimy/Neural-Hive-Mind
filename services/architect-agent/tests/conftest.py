@@ -3,9 +3,9 @@
 import asyncio
 import sys
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import pytest
-from unittest.mock import AsyncMock
 from motor.motor_asyncio import AsyncIOMotorClient
 
 # Adicionar src ao PYTHONPATH para importações funcionarem

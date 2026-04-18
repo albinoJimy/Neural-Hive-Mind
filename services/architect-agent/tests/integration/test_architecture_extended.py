@@ -17,8 +17,8 @@ class TestExtendedFeatures:
             "/api/v1/architecture/bounded-contexts/identify",
             json={
                 "requirements": "Sistema de e-commerce com catálogo, carrinho e pagamentos",
-                "domain_hints": ["Catalog", "Checkout", "Payments"]
-            }
+                "domain_hints": ["Catalog", "Checkout", "Payments"],
+            },
         )
 
         # Sem LLM configurado, deve retornar 503
@@ -30,8 +30,8 @@ class TestExtendedFeatures:
             "/api/v1/architecture/tech-stack/recommend",
             json={
                 "requirements": "API REST de alta performance",
-                "constraints": [{"type": "language", "value": "Python"}]
-            }
+                "constraints": [{"type": "language", "value": "Python"}],
+            },
         )
 
         # Sem LLM configurado, deve retornar 503
@@ -41,10 +41,7 @@ class TestExtendedFeatures:
         """Testa endpoint de geração de diagrama C4 Context."""
         response = test_app.post(
             "/api/v1/architecture/diagrams/generate",
-            json={
-                "description": "Sistema de gestão de tarefas",
-                "diagram_type": "c4_context"
-            }
+            json={"description": "Sistema de gestão de tarefas", "diagram_type": "c4_context"},
         )
 
         # Sem módulos configurados, deve retornar 503
@@ -54,10 +51,7 @@ class TestExtendedFeatures:
         """Testa endpoint com tipo de diagrama não suportado."""
         response = test_app.post(
             "/api/v1/architecture/diagrams/generate",
-            json={
-                "description": "Test flow",
-                "diagram_type": "unsupported_type"
-            }
+            json={"description": "Test flow", "diagram_type": "unsupported_type"},
         )
 
         # Tipo não suportado deve retornar 503 ou 400
@@ -80,10 +74,7 @@ class TestExtendedFeaturesWithMocks:
     def test_identify_contexts_request_validation(self, test_app: TestClient):
         """Testa validação do request de bounded contexts."""
         # Request sem requirements
-        response = test_app.post(
-            "/api/v1/architecture/bounded-contexts/identify",
-            json={}
-        )
+        response = test_app.post("/api/v1/architecture/bounded-contexts/identify", json={})
 
         # Deve retornar erro de validação (422)
         assert response.status_code == 422
@@ -91,10 +82,7 @@ class TestExtendedFeaturesWithMocks:
     def test_recommend_stack_request_validation(self, test_app: TestClient):
         """Testa validação do request de tech stack."""
         # Request sem requirements
-        response = test_app.post(
-            "/api/v1/architecture/tech-stack/recommend",
-            json={}
-        )
+        response = test_app.post("/api/v1/architecture/tech-stack/recommend", json={})
 
         # Deve retornar erro de validação (422)
         assert response.status_code == 422
@@ -102,10 +90,7 @@ class TestExtendedFeaturesWithMocks:
     def test_diagram_generation_request_validation(self, test_app: TestClient):
         """Testa validação do request de diagram generation."""
         # Request sem campos obrigatórios
-        response = test_app.post(
-            "/api/v1/architecture/diagrams/generate",
-            json={}
-        )
+        response = test_app.post("/api/v1/architecture/diagrams/generate", json={})
 
         # Deve retornar erro de validação (422)
         assert response.status_code == 422

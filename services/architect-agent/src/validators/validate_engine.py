@@ -1,8 +1,8 @@
 """Motor principal de validação de arquitetura."""
 
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Dict
+from datetime import UTC, datetime
+from typing import Any
 
 import structlog
 
@@ -30,7 +30,7 @@ class ValidateEngine(BaseValidator):
         self.opa_client = OPAClient()
         self.rules = ArchitecturalRules()
 
-    async def validate(self, target: Dict[str, Any]) -> ValidationReport:
+    async def validate(self, target: dict[str, Any]) -> ValidationReport:
         """Executa validação completa de arquitetura.
 
         Args:
@@ -85,7 +85,7 @@ class ValidateEngine(BaseValidator):
                 "class_count": len([p for p in patterns if p.get("type") == "class"]),
                 "interface_count": len([p for p in patterns if p.get("type") == "interface"]),
             },
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
 
     async def _get_patterns_safe(self, repo_url: str, branch: str) -> list:

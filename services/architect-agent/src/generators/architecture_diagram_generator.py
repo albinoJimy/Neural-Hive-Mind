@@ -1,18 +1,16 @@
 """Architecture diagram generator orchestrator."""
 
-import json
 from pathlib import Path
-from typing import List, Optional
+
 from openai import AsyncOpenAI
+from structlog import get_logger
 
 from src.generators.c4_diagram import C4DiagramGenerator
 from src.generators.mermaid_renderer import MermaidRenderer
+from src.models.architecture import Component
 from src.models.bounded_context import BoundedContext
 from src.models.diagrams import Diagram, DiagramType
 from src.models.tech_stack import TechStackRecommendation
-from src.models.architecture import Component
-
-from structlog import get_logger
 
 logger = get_logger(__name__)
 
@@ -33,10 +31,10 @@ Responda apenas com o código Mermaid, sem markdown.
 
     def __init__(
         self,
-        llm_client: Optional[AsyncOpenAI] = None,
-        mermaid_renderer: Optional[MermaidRenderer] = None,
-        output_dir: Optional[str] = None,
-        mmdc_command: str = "mmdc"
+        llm_client: AsyncOpenAI | None = None,
+        mermaid_renderer: MermaidRenderer | None = None,
+        output_dir: str | None = None,
+        mmdc_command: str = "mmdc",
     ):
         """
         Inicializa o gerador.
@@ -57,9 +55,9 @@ Responda apenas com o código Mermaid, sem markdown.
         self,
         project_name: str,
         system_description: str,
-        actors: List[str],
-        external_systems: List[str],
-        render: bool = True
+        actors: list[str],
+        external_systems: list[str],
+        render: bool = True,
     ) -> Diagram:
         """
         Gera diagrama C4 Context.
@@ -80,31 +78,28 @@ Responda apenas com o código Mermaid, sem markdown.
             project_name=project_name,
             system_description=system_description,
             actors=actors,
-            external_systems=external_systems
+            external_systems=external_systems,
         )
 
         svg_url = None
         if render:
             output_path = self._output_dir / "context"
-            svg_url = await self._renderer.render_to_svg(
-                mermaid_code,
-                str(output_path)
-            )
+            svg_url = await self._renderer.render_to_svg(mermaid_code, str(output_path))
 
         return Diagram(
             diagram_id=f"{project_name}-context",
             type=DiagramType.C4_CONTEXT,
             title=f"{project_name} - Context Diagram",
             mermaid_code=mermaid_code,
-            svg_url=svg_url
+            svg_url=svg_url,
         )
 
     async def generate_container_diagram(
         self,
         project_name: str,
-        bounded_contexts: List[BoundedContext],
-        tech_stack: Optional[TechStackRecommendation] = None,
-        render: bool = True
+        bounded_contexts: list[BoundedContext],
+        tech_stack: TechStackRecommendation | None = None,
+        render: bool = True,
     ) -> Diagram:
         """
         Gera diagrama C4 Container.
@@ -122,40 +117,33 @@ Responda apenas com o código Mermaid, sem markdown.
 
         # Simplificado: usa bounded contexts como containers
         containers = [
-            Component(
-                name=ctx.name,
-                stack=tech_stack.choices[0].name if tech_stack else "TBD"
-            )
+            Component(name=ctx.name, stack=tech_stack.choices[0].name if tech_stack else "TBD")
             for ctx in bounded_contexts
         ]
 
         mermaid_code = self._c4_generator.generate_container(
-            project_name=project_name,
-            containers=containers
+            project_name=project_name, containers=containers
         )
 
         svg_url = None
         if render:
             output_path = self._output_dir / "container"
-            svg_url = await self._renderer.render_to_svg(
-                mermaid_code,
-                str(output_path)
-            )
+            svg_url = await self._renderer.render_to_svg(mermaid_code, str(output_path))
 
         return Diagram(
             diagram_id=f"{project_name}-container",
             type=DiagramType.C4_CONTAINER,
             title=f"{project_name} - Container Diagram",
             mermaid_code=mermaid_code,
-            svg_url=svg_url
+            svg_url=svg_url,
         )
 
     async def generate_component_diagram(
         self,
         component_name: str,
         component_description: str,
-        subcomponents: List[str],
-        render: bool = True
+        subcomponents: list[str],
+        render: bool = True,
     ) -> Diagram:
         """
         Gera diagrama C4 Component.
@@ -174,35 +162,32 @@ Responda apenas com o código Mermaid, sem markdown.
         mermaid_code = self._c4_generator.generate_component(
             component_name=component_name,
             component_description=component_description,
-            subcomponents=subcomponents
+            subcomponents=subcomponents,
         )
 
         svg_url = None
         if render:
             output_path = self._output_dir / "component"
-            svg_url = await self._renderer.render_to_svg(
-                mermaid_code,
-                str(output_path)
-            )
+            svg_url = await self._renderer.render_to_svg(mermaid_code, str(output_path))
 
         return Diagram(
             diagram_id=f"{component_name}-component",
             type=DiagramType.C4_COMPONENT,
             title=f"{component_name} - Component Diagram",
             mermaid_code=mermaid_code,
-            svg_url=svg_url
+            svg_url=svg_url,
         )
 
     async def generate_all_diagrams(
         self,
         project_name: str,
         system_description: str,
-        bounded_contexts: List[BoundedContext],
-        tech_stack: Optional[TechStackRecommendation] = None,
-        actors: Optional[List[str]] = None,
-        external_systems: Optional[List[str]] = None,
-        render: bool = False
-    ) -> List[Diagram]:
+        bounded_contexts: list[BoundedContext],
+        tech_stack: TechStackRecommendation | None = None,
+        actors: list[str] | None = None,
+        external_systems: list[str] | None = None,
+        render: bool = False,
+    ) -> list[Diagram]:
         """
         Gera todos os diagramas de arquitetura.
 
@@ -229,7 +214,7 @@ Responda apenas com o código Mermaid, sem markdown.
                 system_description=system_description,
                 actors=actors or ["User"],
                 external_systems=external_systems or [],
-                render=render
+                render=render,
             )
             diagrams.append(context)
 
@@ -238,7 +223,7 @@ Responda apenas com o código Mermaid, sem markdown.
             project_name=project_name,
             bounded_contexts=bounded_contexts,
             tech_stack=tech_stack,
-            render=render
+            render=render,
         )
         diagrams.append(container)
 
@@ -247,10 +232,10 @@ Responda apenas com o código Mermaid, sem markdown.
     async def generate_sequence(
         self,
         title: str,
-        steps: Optional[List[str]] = None,
-        artifacts: Optional[List[str]] = None,
+        steps: list[str] | None = None,
+        artifacts: list[str] | None = None,
         render: bool = True,
-        mermaid_code: Optional[str] = None
+        mermaid_code: str | None = None,
     ) -> Diagram:
         """
         Gera diagrama de sequência.
@@ -286,24 +271,17 @@ Responda apenas com o código Mermaid, sem markdown.
         svg_url = None
         if render:
             output_path = self._output_dir / "sequence"
-            svg_url = await self._renderer.render_to_svg(
-                final_mermaid_code,
-                str(output_path)
-            )
+            svg_url = await self._renderer.render_to_svg(final_mermaid_code, str(output_path))
 
         return Diagram(
             diagram_id=f"{title.lower().replace(' ', '-')}-sequence",
             type=DiagramType.SEQUENCE,
             title=title,
             mermaid_code=final_mermaid_code,
-            svg_url=svg_url
+            svg_url=svg_url,
         )
 
-    async def generate_from_description(
-        self,
-        description: str,
-        render: bool = True
-    ) -> Diagram:
+    async def generate_from_description(self, description: str, render: bool = True) -> Diagram:
         """
         Gera diagrama a partir de descrição em linguagem natural usando LLM.
 
@@ -320,9 +298,12 @@ Responda apenas com o código Mermaid, sem markdown.
             model="gpt-4",
             messages=[
                 {"role": "system", "content": "Você é um especialista em diagramas UML e Mermaid."},
-                {"role": "user", "content": self.SEQUENCE_PROMPT.format(flow_description=description)}
+                {
+                    "role": "user",
+                    "content": self.SEQUENCE_PROMPT.format(flow_description=description),
+                },
             ],
-            temperature=0.3
+            temperature=0.3,
         )
 
         mermaid_code = response.choices[0].message.content.strip()
@@ -332,12 +313,10 @@ Responda apenas com o código Mermaid, sem markdown.
             mermaid_code = mermaid_code.split("\n", 1)[-1].rstrip("\n`")
 
         return await self.generate_sequence(
-            title="Generated Diagram",
-            steps=[],  # Steps já estão no mermaid_code
-            render=render
+            title="Generated Diagram", steps=[], render=render  # Steps já estão no mermaid_code
         )
 
-    def _parse_sequence_from_description(self, description: str) -> List[str]:
+    def _parse_sequence_from_description(self, description: str) -> list[str]:
         """
         Parseia passos de sequência de uma descrição textual.
 

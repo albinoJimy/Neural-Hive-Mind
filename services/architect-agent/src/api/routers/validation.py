@@ -1,6 +1,6 @@
 """Router para endpoints de validação."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import structlog
 from fastapi import APIRouter, HTTPException, status
@@ -88,7 +88,7 @@ async def validate_repository(request: ValidationRequest) -> ValidationResponse:
                 )
                 for s in report.suggestions
             ],
-            created_at=report.created_at or datetime.now(timezone.utc),
+            created_at=report.created_at or datetime.now(UTC),
         )
 
     except Exception as e:
@@ -129,7 +129,7 @@ async def get_validation_report(report_id: str) -> ValidationResponse:
             )
             for s in report.suggestions
         ],
-        created_at=report.created_at or datetime.now(timezone.utc),
+        created_at=report.created_at or datetime.now(UTC),
     )
 
 
@@ -165,7 +165,7 @@ async def get_validations_by_repo(repo_url: str, limit: int = 10) -> list[Valida
                 )
                 for s in r.suggestions
             ],
-            created_at=r.created_at or datetime.now(timezone.utc),
+            created_at=r.created_at or datetime.now(UTC),
         )
         for r in reports
     ]

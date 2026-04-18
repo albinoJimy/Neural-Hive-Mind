@@ -56,9 +56,7 @@ async def main():
         await architecture_plan_producer.start()
 
         # Inicializar consumer com producer injetado
-        cognitive_plan_consumer = CognitivePlanConsumer(
-            producer=architecture_plan_producer
-        )
+        cognitive_plan_consumer = CognitivePlanConsumer(producer=architecture_plan_producer)
         consumer_manager.register(cognitive_plan_consumer)
         logger.info("kafka_consumer_enabled")
     else:

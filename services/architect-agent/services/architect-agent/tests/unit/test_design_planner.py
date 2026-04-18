@@ -1,9 +1,10 @@
 """Testes unitários para DesignPlanner."""
 
-import pytest
 from unittest.mock import AsyncMock
 
+import pytest
 from src.models.architecture import ArchitectureType, Pattern
+from src.planners import design_planner
 from src.planners.design_planner import DesignPlanner
 
 
@@ -27,8 +28,6 @@ def mock_llm_client():
 async def test_design_planner_generates_plan(mock_llm_client):
     """Testa que DesignPlanner gera ArchitecturePlan."""
     # Patch o LLMClient para usar o mock
-    from src.planners import design_planner
-
     original_llm_client = design_planner.LLMClient
     design_planner.LLMClient = lambda: mock_llm_client
 
@@ -61,8 +60,6 @@ async def test_design_planner_generates_plan(mock_llm_client):
 @pytest.mark.asyncio
 async def test_design_planner_refines_plan(mock_llm_client):
     """Testa que DesignPlanner refina plano existente."""
-    from src.planners import design_planner
-
     original_llm_client = design_planner.LLMClient
     design_planner.LLMClient = lambda: mock_llm_client
 
@@ -196,11 +193,7 @@ async def test_design_planner_parse_with_invalid_pattern():
 @pytest.mark.asyncio
 async def test_design_planner_with_cognitive_plan_id():
     """Testa que cognitive_plan_id é propagado."""
-    from src.planners import design_planner
-
     # Criar mock real
-    from unittest.mock import AsyncMock
-
     mock_llm = AsyncMock()
     mock_llm.generate.return_value = """{
       "architecture_type": "monolith",

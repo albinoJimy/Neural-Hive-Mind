@@ -1,7 +1,5 @@
 """Cliente unificado para OpenAI e Anthropic LLMs."""
 
-from typing import Optional
-
 from src.config.settings import get_settings
 
 
@@ -17,7 +15,7 @@ class LLMClient:
         self.timeout = settings.llm.timeout_seconds
         self.max_tokens = settings.llm.max_tokens
 
-    async def generate(self, prompt: str, system_prompt: Optional[str] = None) -> str:
+    async def generate(self, prompt: str, system_prompt: str | None = None) -> str:
         """Gera resposta do LLM.
 
         Args:
@@ -33,12 +31,11 @@ class LLMClient:
 
         if self.provider == "openai":
             return await self._generate_openai(prompt, system_prompt)
-        elif self.provider == "anthropic":
+        if self.provider == "anthropic":
             return await self._generate_anthropic(prompt, system_prompt)
-        else:
-            return self._get_default_response(prompt)
+        return self._get_default_response(prompt)
 
-    async def _generate_openai(self, prompt: str, system_prompt: Optional[str] = None) -> str:
+    async def _generate_openai(self, prompt: str, system_prompt: str | None = None) -> str:
         """Gera resposta usando OpenAI.
 
         Args:
@@ -69,7 +66,7 @@ class LLMClient:
             # Fallback em erro
             return self._get_default_response(prompt)
 
-    async def _generate_anthropic(self, prompt: str, system_prompt: Optional[str] = None) -> str:
+    async def _generate_anthropic(self, prompt: str, system_prompt: str | None = None) -> str:
         """Gera resposta usando Anthropic.
 
         Args:
@@ -117,8 +114,7 @@ class LLMClient:
   "patterns": ["repository", "api_gateway"],
   "rationale": "Microservices for independent scaling"
 }"""
-        else:
-            return """{
+        return """{
   "architecture_type": "monolith",
   "components": [{"name": "app", "stack": "python/fastapi", "replicas": 1}],
   "patterns": ["repository"],

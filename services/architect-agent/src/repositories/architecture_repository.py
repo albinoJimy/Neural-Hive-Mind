@@ -1,7 +1,6 @@
 """Repositório para planos arquiteturais."""
 
-from datetime import datetime, timezone
-from typing import List, Optional
+from datetime import UTC, datetime
 
 from pymongo.errors import DuplicateKeyError
 from structlog import get_logger
@@ -94,7 +93,7 @@ class ArchitectureRepository(BaseRepository[ArchitecturePlan]):
 
         doc = plan.model_dump(by_alias=True, exclude_none=True)
         doc["_id"] = plan.plan_id
-        doc["created_at"] = datetime.now(timezone.utc)
+        doc["created_at"] = datetime.now(UTC)
 
         try:
             await self.collection.insert_one(doc)
@@ -106,14 +105,14 @@ class ArchitectureRepository(BaseRepository[ArchitecturePlan]):
         except DuplicateKeyError as e:
             raise ValueError(f"Plano com ID {plan.plan_id} já existe") from e
 
-    async def get_by_plan_id(self, plan_id: str) -> Optional[ArchitecturePlan]:
+    async def get_by_plan_id(self, plan_id: str) -> ArchitecturePlan | None:
         """Busca plano por plan_id."""
         doc = await self.collection.find_one({"_id": plan_id})
         if doc:
             return self._doc_to_model(doc)
         return None
 
-    async def get_by_cognitive_plan_id(self, cognitive_plan_id: str) -> List[ArchitecturePlan]:
+    async def get_by_cognitive_plan_id(self, cognitive_plan_id: str) -> list[ArchitecturePlan]:
         """Busca planos por cognitive_plan_id."""
         cursor = self.collection.find({"cognitive_plan_id": cognitive_plan_id})
         docs = await cursor.to_list(length=100)
@@ -121,7 +120,7 @@ class ArchitectureRepository(BaseRepository[ArchitecturePlan]):
 
     async def list_by_type(
         self, arch_type: ArchitectureType, limit: int = 50
-    ) -> List[ArchitecturePlan]:
+    ) -> list[ArchitecturePlan]:
         """Lista planos por tipo de arquitetura."""
         cursor = self.collection.find({"architecture_type": arch_type.value}).limit(limit)
         docs = await cursor.to_list(length=limit)
@@ -134,7 +133,7 @@ class ArchitectureRepository(BaseRepository[ArchitecturePlan]):
             {
                 "$set": {
                     "rationale": rationale,
-                    "updated_at": datetime.now(timezone.utc),
+                    "updated_at": datetime.now(UTC),
                 }
             },
         )
@@ -142,7 +141,7 @@ class ArchitectureRepository(BaseRepository[ArchitecturePlan]):
 
     async def list_by_bounded_context(
         self, context_name: str, limit: int = 50
-    ) -> List[ArchitecturePlan]:
+    ) -> list[ArchitecturePlan]:
         """Lista planos que contêm um bounded context específico.
 
         Args:
@@ -152,15 +151,13 @@ class ArchitectureRepository(BaseRepository[ArchitecturePlan]):
         Returns:
             Lista de planos com o bounded context
         """
-        cursor = self.collection.find(
-            {"bounded_contexts.name": context_name}
-        ).limit(limit)
+        cursor = self.collection.find({"bounded_contexts.name": context_name}).limit(limit)
         docs = await cursor.to_list(length=limit)
         return [self._doc_to_model(doc) for doc in docs]
 
     async def list_by_diagram_type(
         self, diagram_type: str, limit: int = 50
-    ) -> List[ArchitecturePlan]:
+    ) -> list[ArchitecturePlan]:
         """Lista planos que contêm um tipo de diagrama específico.
 
         Args:
@@ -170,8 +167,6 @@ class ArchitectureRepository(BaseRepository[ArchitecturePlan]):
         Returns:
             Lista de planos com o diagrama
         """
-        cursor = self.collection.find(
-            {"diagrams.type": diagram_type}
-        ).limit(limit)
+        cursor = self.collection.find({"diagrams.type": diagram_type}).limit(limit)
         docs = await cursor.to_list(length=limit)
         return [self._doc_to_model(doc) for doc in docs]

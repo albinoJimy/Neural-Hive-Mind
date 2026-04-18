@@ -7,7 +7,7 @@ decisões baseadas em condições (ex: escolher DB baseado em volume).
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -43,11 +43,11 @@ class ConditionalBranch:
     """Branch condicional com suas atividades."""
 
     name: str
-    condition: Optional[Condition] = None  # None = else/default
-    activities: List[Dict[str, Any]] = field(default_factory=list)
+    condition: Condition | None = None  # None = else/default
+    activities: list[dict[str, Any]] = field(default_factory=list)
     description: str = ""
 
-    def matches(self, context: Dict[str, Any]) -> bool:
+    def matches(self, context: dict[str, Any]) -> bool:
         """Verifica se a condição é verdadeira dado o contexto."""
         if self.condition is None:
             return True  # Branch default/else
@@ -96,12 +96,12 @@ class ConditionalWorkflow(BaseModel):
     workflow_id: str = Field(..., description="ID único do workflow")
     name: str = Field(..., description="Nome do workflow")
     description: str = Field(default="", description="Descrição do propósito")
-    branches: List[ConditionalBranch] = Field(
+    branches: list[ConditionalBranch] = Field(
         ..., description="Lista de branches (último deve ser default/else)"
     )
-    input_context: Dict[str, Any] = Field(default_factory=dict, description="Contexto de entrada")
+    input_context: dict[str, Any] = Field(default_factory=dict, description="Contexto de entrada")
 
-    def evaluate(self, context: Optional[Dict[str, Any]] = None) -> Optional[str]:
+    def evaluate(self, context: dict[str, Any] | None = None) -> str | None:
         """Avalia condições e retorna o nome do branch selecionado.
 
         Args:
@@ -119,8 +119,8 @@ class ConditionalWorkflow(BaseModel):
         return None
 
     def get_selected_branch(
-        self, context: Optional[Dict[str, Any]] = None
-    ) -> Optional[ConditionalBranch]:
+        self, context: dict[str, Any] | None = None
+    ) -> ConditionalBranch | None:
         """Retorna o branch selecionado baseado no contexto.
 
         Args:
@@ -135,7 +135,7 @@ class ConditionalWorkflow(BaseModel):
                 return branch
         return None
 
-    def get_activities(self, context: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    def get_activities(self, context: dict[str, Any] | None = None) -> list[dict[str, Any]]:
         """Retorna atividades do branch selecionado.
 
         Args:
@@ -147,7 +147,7 @@ class ConditionalWorkflow(BaseModel):
         branch = self.get_selected_branch(context)
         return branch.activities if branch else []
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Converte para dicionário serializável."""
         return {
             "workflow_id": self.workflow_id,
@@ -175,7 +175,7 @@ class ConditionalWorkflow(BaseModel):
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ConditionalWorkflow":
+    def from_dict(cls, data: dict[str, Any]) -> "ConditionalWorkflow":
         """Cria ConditionalWorkflow a partir de dicionário."""
         branches = []
         for b_data in data.get("branches", []):

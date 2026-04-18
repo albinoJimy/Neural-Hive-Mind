@@ -1,0 +1,64 @@
+[tool.ruff]
+# Herda configuração do projeto raiz
+extend = "../../pyproject.toml"
+
+# Configurações específicas para architect-agent
+target-version = "py312"
+
+[tool.ruff.lint.per-file-ignores]
+# Ignorar avisos específicos para testes
+"tests/**/*.py" = [
+    "ARG",     # unused arguments allowed in tests
+    "PLR2004", # magic values allowed in tests
+    "PLC0415", # imports inside functions allowed in tests
+    "F841",    # unused variables allowed in tests
+    "SIM105",  # try-except-pass allowed in tests
+    "PT012",   # pytest.raises with multiple statements
+    "RUF043",  # regex pattern with metacharacters
+    "RET504",  # unnecessary assignment before return
+    "B007",    # unused loop variable
+    "SIM117",  # nested with statements
+    "PTH123",  # os.join allowed
+    "TRY002",  # generic exception allowed
+    "N802",    # uppercase function name allowed
+    "UP018",   # Unnecessary `__all__` property
+]
+"src/**/*.py" = [
+    "PLW0603", # global statement allowed for singletons
+    "UP042",   # str, Enum inheritance pattern
+    "PLR0912", # too many branches allowed
+    "W505",    # doc line too long
+    "ARG001",  # unused request parameter
+    "ARG002",  # unused plan_id parameter
+    "ARG004",  # unused component_description parameter
+    "PLC0415", # imports inside try-except allowed
+    "TRY301",  # abstract raise pattern
+    "TRY400",  # logging.exception vs error
+    "B904",    # raise from err pattern
+    "TRY300",  # else block pattern
+    "SIM103",  # return condition directly
+    "PLW2901", # loop variable overwritten
+    "B015",    # pointless comparison
+    "PLR0911", # too many return statements
+    "RUF022",  # __all__ not sorted
+]
+# Ignorar falsos positivos em geradores de código
+"src/generators/temporal_generator.py" = [
+    "F821",    # undefined name in f-string templates (code generation)
+]
+"src/config/settings.py" = [
+    "N802",    # uppercase property name allowed
+]
+"src/planners/design_planner.py" = [
+    "SIM105",  # try-except-pass for validation
+]
+"src/repositories/base.py" = [
+    "UP046",   # Generic subclass pattern
+]
+"src/workflows/parallel_workflow.py" = [
+    "F601",    # repeated key in dict (temporal workflow)
+]
+"tests/integration/conftest.py" = [
+    "PTH118",  # os.path.join allowed
+    "PTH120",  # os.path.dirname allowed
+]

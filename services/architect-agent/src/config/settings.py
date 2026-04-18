@@ -1,7 +1,6 @@
 """Configuration settings for Architect Agent using Pydantic"""
 
 from functools import lru_cache
-from typing import List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -105,7 +104,7 @@ class LLMConfig(BaseModel):
     """LLM configuration (optional)"""
 
     provider: str = Field(default="", description="LLM provider (openai/anthropic)")
-    api_key: Optional[str] = Field(
+    api_key: str | None = Field(
         default=None, description="LLM API key (OBRIGATÓRIO se provider definido)"
     )
     model: str = Field(default="gpt-4", description="LLM model name")
@@ -159,7 +158,7 @@ class Settings(BaseSettings):
     observability: ObservabilityConfig = Field(default_factory=ObservabilityConfig)
 
     @property
-    def CORS_ORIGINS(self) -> List[str]:
+    def CORS_ORIGINS(self) -> list[str]:
         """
         CORS origins dinâmicas por ambiente usando neural_hive_security.
         """

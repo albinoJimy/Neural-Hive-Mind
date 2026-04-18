@@ -1,14 +1,13 @@
 """Router para endpoints de arquitetura."""
 
-from datetime import datetime, timezone
-from typing import Optional, List
+from datetime import UTC, datetime
 
 import structlog
-from fastapi import APIRouter, HTTPException, status, Request
+from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel
 from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 from src.api.schemas import (
     ArchitectureRequest,
@@ -37,7 +36,7 @@ class BoundedContextsResponse(BaseModel):
     """Resposta com bounded contexts."""
 
     architecture_id: str
-    bounded_contexts: List[dict]
+    bounded_contexts: list[dict]
     total_contexts: int
 
 
@@ -45,7 +44,7 @@ class DiagramsResponse(BaseModel):
     """Resposta com diagramas."""
 
     architecture_id: str
-    diagrams: List[dict]
+    diagrams: list[dict]
     total_diagrams: int
 
 
@@ -53,7 +52,7 @@ class ContextIdentificationRequest(BaseModel):
     """Request para identificação de bounded contexts."""
 
     requirements: str
-    domain_hints: Optional[List[str]] = None
+    domain_hints: list[str] | None = None
 
 
 class DiagramGenerationRequest(BaseModel):
@@ -67,7 +66,8 @@ class TechStackRecommendationRequest(BaseModel):
     """Request para recomendação de tech stack."""
 
     requirements: str
-    constraints: Optional[List[dict]] = None
+    constraints: list[dict] | None = None
+
 
 logger = structlog.get_logger(__name__)
 
@@ -97,8 +97,7 @@ def get_repository() -> ArchitectureRepository:
 @router.post("", response_model=ArchitectureResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("10/minute")  # Limitar devido a custo LLM
 async def create_architecture(
-    request_obj: ArchitectureRequest,
-    request: Request
+    request_obj: ArchitectureRequest, request: Request
 ) -> ArchitectureResponse:
     """Cria novo plano de arquitetura.
 
@@ -142,7 +141,7 @@ async def create_architecture(
             ],
             patterns=[p.value for p in plan.patterns],
             rationale=plan.rationale,
-            created_at=plan.created_at or datetime.now(timezone.utc),
+            created_at=plan.created_at or datetime.now(UTC),
         )
 
     except ValueError as e:
@@ -175,7 +174,7 @@ async def get_architecture(plan_id: str) -> ArchitectureResponse:
         ],
         patterns=[p.value for p in plan.patterns],
         rationale=plan.rationale,
-        created_at=plan.created_at or datetime.now(timezone.utc),
+        created_at=plan.created_at or datetime.now(UTC),
     )
 
 
@@ -208,7 +207,7 @@ async def list_architectures(
             ],
             patterns=[p.value for p in p.patterns],
             rationale=p.rationale,
-            created_at=p.created_at or datetime.now(timezone.utc),
+            created_at=p.created_at or datetime.now(UTC),
         )
         for p in plans
     ]
@@ -219,10 +218,7 @@ async def list_architectures(
 
 @router.post("/bounded-contexts/identify")
 @limiter.limit("10/minute")  # Limitar devido a custo LLM
-async def identify_bounded_contexts(
-    request_obj: ContextIdentificationRequest,
-    request: Request
-):
+async def identify_bounded_contexts(request_obj: ContextIdentificationRequest, request: Request):
     """Identifica bounded contexts a partir de requisitos.
 
     Endpoint independente que identifica bounded contexts sem criar arquitetura.
@@ -235,12 +231,11 @@ async def identify_bounded_contexts(
         if not planner._bounded_contexts_identifier:
             raise HTTPException(
                 status_code=503,
-                detail="Bounded contexts feature not available (check LLM configuration)"
+                detail="Bounded contexts feature not available (check LLM configuration)",
             )
 
         result = await planner._bounded_contexts_identifier.identify(
-            requirements=request_obj.requirements,
-            domain_hints=request_obj.domain_hints
+            requirements=request_obj.requirements, domain_hints=request_obj.domain_hints
         )
 
         return {
@@ -258,11 +253,11 @@ async def identify_bounded_contexts(
                     "relationships": [
                         {"type": r.relationship_type, "target": r.to_context}
                         for r in ctx.relationships
-                    ]
+                    ],
                 }
                 for ctx in result.contexts
             ],
-            "confidence_score": result.confidence_score
+            "confidence_score": result.confidence_score,
         }
 
     except HTTPException:
@@ -274,10 +269,7 @@ async def identify_bounded_contexts(
 
 @router.post("/tech-stack/recommend")
 @limiter.limit("10/minute")  # Limitar devido a custo LLM
-async def recommend_tech_stack(
-    request_obj: TechStackRecommendationRequest,
-    request: Request
-):
+async def recommend_tech_stack(request_obj: TechStackRecommendationRequest, request: Request):
     """Recomenda stack tecnológico baseado em requisitos.
 
     Endpoint independente que recomenda tecnologias sem criar arquitetura.
@@ -290,12 +282,11 @@ async def recommend_tech_stack(
         if not planner._tech_stack_recommender:
             raise HTTPException(
                 status_code=503,
-                detail="Tech stack recommendation feature not available (check LLM configuration)"
+                detail="Tech stack recommendation feature not available (check LLM configuration)",
             )
 
         result = await planner._tech_stack_recommender.recommend(
-            requirements=request_obj.requirements,
-            constraints=request_obj.constraints
+            requirements=request_obj.requirements, constraints=request_obj.constraints
         )
 
         return {
@@ -304,7 +295,7 @@ async def recommend_tech_stack(
                     "category": choice.category,
                     "name": choice.name,
                     "version": choice.version,
-                    "rationale": choice.rationale
+                    "rationale": choice.rationale,
                 }
                 for choice in result.choices
             ],
@@ -312,7 +303,7 @@ async def recommend_tech_stack(
             "constraints_violated": result.constraints_violated,
             "confidence_score": result.confidence_score,
             "estimated_complexity": result.estimated_complexity,
-            "estimated_cost": result.estimated_cost
+            "estimated_cost": result.estimated_cost,
         }
 
     except HTTPException:
@@ -324,10 +315,7 @@ async def recommend_tech_stack(
 
 @router.post("/diagrams/generate")
 @limiter.limit("20/minute")  # Mais liberal porque não usa LLM diretamente
-async def generate_diagram(
-    request_obj: DiagramGenerationRequest,
-    request: Request
-):
+async def generate_diagram(request_obj: DiagramGenerationRequest, request: Request):
     """Gera diagrama C4 a partir de descrição.
 
     Endpoint independente para geração de diagramas.
@@ -338,10 +326,7 @@ async def generate_diagram(
         planner = get_planner()
 
         if not planner._diagram_generator:
-            raise HTTPException(
-                status_code=503,
-                detail="Diagram generation feature not available"
-            )
+            raise HTTPException(status_code=503, detail="Diagram generation feature not available")
 
         # Gerar diagrama baseado no tipo
         if request.diagram_type == "c4_context":
@@ -350,7 +335,7 @@ async def generate_diagram(
                 system_description=request.description,
                 actors=["User"],
                 external_systems=[],
-                render=False
+                render=False,
             )
         elif request.diagram_type == "c4_container":
             # Para container, precisamos de bounded contexts
@@ -358,24 +343,22 @@ async def generate_diagram(
             diagram = {
                 "diagram_type": request.diagram_type,
                 "mermaid_code": "C4Container\n    title Generated Container\n",
-                "note": "Container diagram requires bounded contexts"
+                "note": "Container diagram requires bounded contexts",
             }
         else:
             raise HTTPException(
-                status_code=400,
-                detail=f"Unsupported diagram type: {request.diagram_type}"
+                status_code=400, detail=f"Unsupported diagram type: {request.diagram_type}"
             )
 
         if isinstance(diagram, dict):
             return diagram
-        else:
-            return {
-                "diagram_id": diagram.diagram_id,
-                "type": diagram.type.value,
-                "title": diagram.title,
-                "mermaid_code": diagram.mermaid_code,
-                "svg_url": diagram.svg_url
-            }
+        return {
+            "diagram_id": diagram.diagram_id,
+            "type": diagram.type.value,
+            "title": diagram.title,
+            "mermaid_code": diagram.mermaid_code,
+            "svg_url": diagram.svg_url,
+        }
 
     except HTTPException:
         raise
@@ -387,8 +370,7 @@ async def generate_diagram(
 @router.get("/{architecture_id}/bounded-contexts", response_model=BoundedContextsResponse)
 @limiter.limit("60/minute")  # Read endpoint, limit mais liberal
 async def get_architecture_bounded_contexts(
-    architecture_id: str,
-    request: Request
+    architecture_id: str, request: Request
 ) -> BoundedContextsResponse:
     """Obtém bounded contexts de uma arquitetura existente.
 
@@ -400,41 +382,42 @@ async def get_architecture_bounded_contexts(
 
         if not plan:
             raise HTTPException(
-                status_code=404,
-                detail=f"Architecture with id '{architecture_id}' not found"
+                status_code=404, detail=f"Architecture with id '{architecture_id}' not found"
             )
 
         # Extrair bounded contexts da arquitetura
         bounded_contexts_data = []
         if plan.bounded_contexts:
             for ctx in plan.bounded_contexts:
-                bounded_contexts_data.append({
-                    "name": ctx.name,
-                    "description": ctx.description,
-                    "responsibilities": ctx.responsibilities,
-                    "domain_models": ctx.domain_models,
-                    "ubiquitous_language": [
-                        {"term": t.term, "definition": t.definition}
-                        for t in ctx.ubiquitous_language
-                    ],
-                    "relationships": [
-                        {"type": r.relationship_type, "target": r.to_context}
-                        for r in ctx.relationships
-                    ]
-                })
+                bounded_contexts_data.append(
+                    {
+                        "name": ctx.name,
+                        "description": ctx.description,
+                        "responsibilities": ctx.responsibilities,
+                        "domain_models": ctx.domain_models,
+                        "ubiquitous_language": [
+                            {"term": t.term, "definition": t.definition}
+                            for t in ctx.ubiquitous_language
+                        ],
+                        "relationships": [
+                            {"type": r.relationship_type, "target": r.to_context}
+                            for r in ctx.relationships
+                        ],
+                    }
+                )
 
         total_contexts = len(bounded_contexts_data)
 
         logger.info(
             "architecture_bounded_contexts_retrieved",
             architecture_id=architecture_id,
-            total_contexts=total_contexts
+            total_contexts=total_contexts,
         )
 
         return BoundedContextsResponse(
             architecture_id=architecture_id,
             bounded_contexts=bounded_contexts_data,
-            total_contexts=total_contexts
+            total_contexts=total_contexts,
         )
 
     except HTTPException:
@@ -453,34 +436,33 @@ async def get_architecture_diagrams(architecture_id: str) -> DiagramsResponse:
 
         if not plan:
             raise HTTPException(
-                status_code=404,
-                detail=f"Architecture with id '{architecture_id}' not found"
+                status_code=404, detail=f"Architecture with id '{architecture_id}' not found"
             )
 
         # Extrair diagramas da arquitetura
         diagrams_data = []
         if plan.diagrams:
             for diag in plan.diagrams:
-                diagrams_data.append({
-                    "diagram_id": diag.diagram_id,
-                    "type": diag.type.value,
-                    "title": diag.title,
-                    "mermaid_code": diag.mermaid_code,
-                    "svg_url": diag.svg_url
-                })
+                diagrams_data.append(
+                    {
+                        "diagram_id": diag.diagram_id,
+                        "type": diag.type.value,
+                        "title": diag.title,
+                        "mermaid_code": diag.mermaid_code,
+                        "svg_url": diag.svg_url,
+                    }
+                )
 
         total_diagrams = len(diagrams_data)
 
         logger.info(
             "architecture_diagrams_retrieved",
             architecture_id=architecture_id,
-            total_diagrams=total_diagrams
+            total_diagrams=total_diagrams,
         )
 
         return DiagramsResponse(
-            architecture_id=architecture_id,
-            diagrams=diagrams_data,
-            total_diagrams=total_diagrams
+            architecture_id=architecture_id, diagrams=diagrams_data, total_diagrams=total_diagrams
         )
 
     except HTTPException:

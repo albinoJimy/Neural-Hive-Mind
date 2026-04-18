@@ -1,8 +1,8 @@
 """Rastreador de evolução de arquitetura."""
 
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 import structlog
 from motor.motor_asyncio import AsyncIOMotorClientSession
@@ -36,8 +36,8 @@ class EvolutionTracker:
         self,
         plan_id: str,
         version: int,
-        changes: List[str],
-        drifts: List[DriftDetection],
+        changes: list[str],
+        drifts: list[DriftDetection],
         created_by: str = "architect-agent",
     ) -> EvolutionHistory:
         """Registra entrada de histórico de evolução.
@@ -58,7 +58,7 @@ class EvolutionTracker:
             version=version,
             changes=changes,
             drifts=drifts,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             created_by=created_by,
         )
 
@@ -80,10 +80,10 @@ class EvolutionTracker:
     async def detect_and_record_drifts(
         self,
         planned: ArchitecturePlan,
-        implemented: Dict[str, Any],
+        implemented: dict[str, Any],
         version: int,
         created_by: str = "architect-agent",
-    ) -> List[DriftDetection]:
+    ) -> list[DriftDetection]:
         """Detecta divergências e registra no histórico.
 
         Args:
@@ -109,9 +109,7 @@ class EvolutionTracker:
 
         return drifts
 
-    async def calculate_diff(
-        self, plan_old_id: str, plan_new_id: str
-    ) -> Optional[ArchitectureDiff]:
+    async def calculate_diff(self, plan_old_id: str, plan_new_id: str) -> ArchitectureDiff | None:
         """Calcula diferença entre dois planos.
 
         Args:
@@ -132,7 +130,7 @@ class EvolutionTracker:
             requires_migration=False,
         )
 
-    async def get_history(self, plan_id: str, limit: int = 10) -> List[EvolutionHistory]:
+    async def get_history(self, plan_id: str, limit: int = 10) -> list[EvolutionHistory]:
         """Obtém histórico de evolução de um plano.
 
         Args:

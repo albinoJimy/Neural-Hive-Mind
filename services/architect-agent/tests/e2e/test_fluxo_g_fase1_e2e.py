@@ -14,9 +14,7 @@ Pré-requisitos:
 """
 
 import pytest
-import asyncio
-from httpx import AsyncClient, TimeoutException
-from typing import Dict, Any
+from httpx import AsyncClient
 
 
 @pytest.mark.e2e
@@ -26,19 +24,13 @@ class TestFluxoGFase1Integration:
     @pytest.fixture
     async def client(self):
         """Fixture para cliente HTTP."""
-        async with AsyncClient(
-            base_url="http://architect-agent:8011",
-            timeout=30.0
-        ) as ac:
+        async with AsyncClient(base_url="http://architect-agent:8011", timeout=30.0) as ac:
             yield ac
 
     @pytest.fixture
     def headers(self):
         """Headers comuns para requests."""
-        return {
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-        }
+        return {"Content-Type": "application/json", "Accept": "application/json"}
 
     async def test_health_check(self, client: AsyncClient):
         """Testa que o serviço está saudável."""
@@ -52,7 +44,7 @@ class TestFluxoGFase1Integration:
         data = response.json()
         assert data["status"] == "ready"
 
-    async def test_identify_bounded_contexts_e2e(self, client: AsyncClient, headers: Dict):
+    async def test_identify_bounded_contexts_e2e(self, client: AsyncClient, headers: dict):
         """Testa identificação de bounded contexts via API."""
         request_data = {
             "requirements": """
@@ -63,13 +55,11 @@ class TestFluxoGFase1Integration:
             - Processamento de pagamentos
             - Gestão de encomendas e envio
             """,
-            "domain_hints": ["Identity", "Catalog", "Billing"]
+            "domain_hints": ["Identity", "Catalog", "Billing"],
         }
 
         response = await client.post(
-            "/api/v1/architecture/bounded-contexts/identify",
-            json=request_data,
-            headers=headers
+            "/api/v1/architecture/bounded-contexts/identify", json=request_data, headers=headers
         )
 
         # Verificar response
@@ -98,20 +88,18 @@ class TestFluxoGFase1Integration:
         context_names = [ctx["name"] for ctx in data["contexts"]]
         assert any("Identity" in name or "Auth" in name for name in context_names)
 
-    async def test_recommend_tech_stack_e2e(self, client: AsyncClient, headers: Dict):
+    async def test_recommend_tech_stack_e2e(self, client: AsyncClient, headers: dict):
         """Testa recomendação de tech stack via API."""
         request_data = {
             "requirements": "API REST de alta performance para microsserviços",
             "constraints": [
                 {"type": "language", "value": "Python"},
-                {"type": "latency", "value": "<100ms"}
-            ]
+                {"type": "latency", "value": "<100ms"},
+            ],
         }
 
         response = await client.post(
-            "/api/v1/architecture/tech-stack/recommend",
-            json=request_data,
-            headers=headers
+            "/api/v1/architecture/tech-stack/recommend", json=request_data, headers=headers
         )
 
         # Verificar response
@@ -127,23 +115,18 @@ class TestFluxoGFase1Integration:
         assert len(data["choices"]) >= 1
 
         # Verificar que Python aparece nas choices
-        has_python = any(
-            choice.get("name", "").lower() == "python"
-            for choice in data["choices"]
-        )
+        has_python = any(choice.get("name", "").lower() == "python" for choice in data["choices"])
         assert has_python, "Python should be recommended based on constraint"
 
-    async def test_generate_diagram_e2e(self, client: AsyncClient, headers: Dict):
+    async def test_generate_diagram_e2e(self, client: AsyncClient, headers: dict):
         """Testa geração de diagrama via API."""
         request_data = {
             "description": "User → API Gateway → Microservices → Database",
-            "diagram_type": "c4_context"
+            "diagram_type": "c4_context",
         }
 
         response = await client.post(
-            "/api/v1/architecture/diagrams/generate",
-            json=request_data,
-            headers=headers
+            "/api/v1/architecture/diagrams/generate", json=request_data, headers=headers
         )
 
         # Verificar response
@@ -160,23 +143,19 @@ class TestFluxoGFase1Integration:
             assert data.get("svg_url") or data.get("mermaid_code")
 
     async def test_create_architecture_with_extended_fields_e2e(
-        self, client: AsyncClient, headers: Dict
+        self, client: AsyncClient, headers: dict
     ):
         """Testa criação de arquitetura completa com campos Fluxo G."""
         request_data = {
             "intent": "Sistema de gestão de tarefas multi-tenant",
             "context": {
                 "users": "Equipes de 5-50 pessoas",
-                "constraints": ["Multi-tenant", "Real-time notifications"]
+                "constraints": ["Multi-tenant", "Real-time notifications"],
             },
-            "cognitive_plan_id": "cp-test-123"
+            "cognitive_plan_id": "cp-test-123",
         }
 
-        response = await client.post(
-            "/api/v1/architecture",
-            json=request_data,
-            headers=headers
-        )
+        response = await client.post("/api/v1/architecture", json=request_data, headers=headers)
 
         # Verificar response
         assert response.status_code == 201
@@ -209,21 +188,12 @@ class TestFluxoGFase1Integration:
         if data.get("diagrams"):
             assert isinstance(data["diagrams"], list)
 
-    async def test_architecture_persistence_e2e(
-        self, client: AsyncClient, headers: Dict
-    ):
+    async def test_architecture_persistence_e2e(self, client: AsyncClient, headers: dict):
         """Testa persistência de arquitetura no MongoDB."""
         # Criar arquitetura
-        request_data = {
-            "intent": "Teste de persistência",
-            "context": {"test": True}
-        }
+        request_data = {"intent": "Teste de persistência", "context": {"test": True}}
 
-        response = await client.post(
-            "/api/v1/architecture",
-            json=request_data,
-            headers=headers
-        )
+        response = await client.post("/api/v1/architecture", json=request_data, headers=headers)
 
         assert response.status_code == 201
         plan_id = response.json()["plan_id"]
@@ -236,20 +206,15 @@ class TestFluxoGFase1Integration:
         assert data["plan_id"] == plan_id
         assert data["architecture_type"] in ["microservices", "monolith", "serverless", "hybrid"]
 
-    async def test_rate_limiting_e2e(self, client: AsyncClient, headers: Dict):
+    async def test_rate_limiting_e2e(self, client: AsyncClient, headers: dict):
         """Testa que rate limiting está funcionando."""
-        request_data = {
-            "requirements": "Sistema simples",
-            "domain_hints": ["Test"]
-        }
+        request_data = {"requirements": "Sistema simples", "domain_hints": ["Test"]}
 
         # Fazer 11 requests (limite é 10/minute)
         responses = []
         for i in range(11):
             response = await client.post(
-                "/api/v1/architecture/bounded-contexts/identify",
-                json=request_data,
-                headers=headers
+                "/api/v1/architecture/bounded-contexts/identify", json=request_data, headers=headers
             )
             responses.append(response.status_code)
 
@@ -266,7 +231,7 @@ class TestFluxoGFase1Integration:
         if success_count >= 10:
             assert rate_limited, "11th request should be rate limited"
 
-    async def test_full_fluxo_g_workflow_e2e(self, client: AsyncClient, headers: Dict):
+    async def test_full_fluxo_g_workflow_e2e(self, client: AsyncClient, headers: dict):
         """Testa workflow completo do Fluxo G Fase 1.
 
         Fluxo:
@@ -279,13 +244,11 @@ class TestFluxoGFase1Integration:
         # 1. Identificar bounded contexts
         contexts_request = {
             "requirements": "Sistema bancário com contas, transações e empréstimos",
-            "domain_hints": ["Identity", "Transactions", "Loans"]
+            "domain_hints": ["Identity", "Transactions", "Loans"],
         }
 
         contexts_response = await client.post(
-            "/api/v1/architecture/bounded-contexts/identify",
-            json=contexts_request,
-            headers=headers
+            "/api/v1/architecture/bounded-contexts/identify", json=contexts_request, headers=headers
         )
 
         assert contexts_response.status_code == 200
@@ -295,13 +258,11 @@ class TestFluxoGFase1Integration:
         # 2. Recomendar tech stack
         stack_request = {
             "requirements": "API bancária com alta segurança",
-            "constraints": [{"type": "compliance", "value": "PCI-DSS"}]
+            "constraints": [{"type": "compliance", "value": "PCI-DSS"}],
         }
 
         stack_response = await client.post(
-            "/api/v1/architecture/tech-stack/recommend",
-            json=stack_request,
-            headers=headers
+            "/api/v1/architecture/tech-stack/recommend", json=stack_request, headers=headers
         )
 
         assert stack_response.status_code == 200
@@ -311,13 +272,11 @@ class TestFluxoGFase1Integration:
         # 3. Gerar diagrama
         diagram_request = {
             "description": "Banking System with Identity, Transactions, Loans",
-            "diagram_type": "c4_context"
+            "diagram_type": "c4_context",
         }
 
         diagram_response = await client.post(
-            "/api/v1/architecture/diagrams/generate",
-            json=diagram_request,
-            headers=headers
+            "/api/v1/architecture/diagrams/generate", json=diagram_request, headers=headers
         )
 
         assert diagram_response.status_code == 200
@@ -329,14 +288,12 @@ class TestFluxoGFase1Integration:
             "context": {
                 "requirements": ["Alta disponibilidade", "PCI-DSS compliance"],
                 "bounded_contexts": contexts_data["contexts"],
-                "tech_stack": stack_data["choices"]
-            }
+                "tech_stack": stack_data["choices"],
+            },
         }
 
         arch_response = await client.post(
-            "/api/v1/architecture",
-            json=arch_request,
-            headers=headers
+            "/api/v1/architecture", json=arch_request, headers=headers
         )
 
         assert arch_response.status_code == 201
@@ -358,10 +315,7 @@ class TestFluxoGWithRealLLM:
     @pytest.fixture
     async def client(self):
         """Fixture para cliente HTTP."""
-        async with AsyncClient(
-            base_url="http://architect-agent:8011",
-            timeout=60.0
-        ) as ac:
+        async with AsyncClient(base_url="http://architect-agent:8011", timeout=60.0) as ac:
             yield ac
 
     async def test_bounded_contexts_with_real_llm(self, client: AsyncClient):
@@ -374,12 +328,11 @@ class TestFluxoGWithRealLLM:
             - Sistema de subscrição e pagamentos
             - Recomendação de conteúdo baseada em histórico
             """,
-            "domain_hints": ["Content", "User", "Payments"]
+            "domain_hints": ["Content", "User", "Payments"],
         }
 
         response = await client.post(
-            "/api/v1/architecture/bounded-contexts/identify",
-            json=request_data
+            "/api/v1/architecture/bounded-contexts/identify", json=request_data
         )
 
         assert response.status_code == 200

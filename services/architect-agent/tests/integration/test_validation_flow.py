@@ -219,8 +219,8 @@ class TestValidationIntegration:
     @pytest.mark.skip(reason="Requires Scout Agents service")
     async def test_scout_agents_integration(self):
         """Testa integração com Scout Agents."""
-        from src.validators.scout_client import ScoutClient
         from src.config.settings import get_settings
+        from src.validators.scout_client import ScoutClient
 
         settings = get_settings()
         client = ScoutClient(base_url=settings.scout_agents.url)

@@ -1,6 +1,6 @@
 """Repositório base para operações MongoDB."""
 
-from typing import Any, Dict, Generic, List, Optional, TypeVar
+from typing import Any, Generic, TypeVar
 
 import structlog
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -56,7 +56,7 @@ class BaseRepository(Generic[T]):
         result = await self.collection.insert_one(doc)
         return str(result.inserted_id)
 
-    async def get_by_id(self, doc_id: str) -> Optional[T]:
+    async def get_by_id(self, doc_id: str) -> T | None:
         """Busca documento por ID.
 
         Args:
@@ -71,8 +71,8 @@ class BaseRepository(Generic[T]):
         return None
 
     async def list_all(
-        self, filter_dict: Dict[str, Any] | None = None, limit: int = 100
-    ) -> List[T]:
+        self, filter_dict: dict[str, Any] | None = None, limit: int = 100
+    ) -> list[T]:
         """Lista documentos com filtro opcional.
 
         Args:
@@ -87,7 +87,7 @@ class BaseRepository(Generic[T]):
         docs = await cursor.to_list(length=limit)
         return [self.model_class(**doc) for doc in docs]
 
-    async def update(self, doc_id: str, updates: Dict[str, Any]) -> bool:
+    async def update(self, doc_id: str, updates: dict[str, Any]) -> bool:
         """Atualiza documento.
 
         Args:
@@ -112,7 +112,7 @@ class BaseRepository(Generic[T]):
         result = await self.collection.delete_one({"_id": doc_id})
         return result.deleted_count > 0
 
-    async def count(self, filter_dict: Dict[str, Any] | None = None) -> int:
+    async def count(self, filter_dict: dict[str, Any] | None = None) -> int:
         """Conta documentos com filtro.
 
         Args:
@@ -127,4 +127,3 @@ class BaseRepository(Generic[T]):
     async def close(self):
         """Fecha conexão com MongoDB (no-op para singleton)."""
         # Cliente é singleton, não fecha aqui
-        pass

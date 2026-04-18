@@ -7,7 +7,7 @@ de atividades independentes.
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -28,13 +28,13 @@ class ParallelTask:
 
     task_id: str
     name: str
-    activity: Dict[str, Any]
-    dependencies: Set[str] = field(default_factory=set)  # Task IDs que devem completar antes
+    activity: dict[str, Any]
+    dependencies: set[str] = field(default_factory=set)  # Task IDs que devem completar antes
     timeout_seconds: int = 300
-    retry_policy: Optional[Dict[str, Any]] = None
+    retry_policy: dict[str, Any] | None = None
     description: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Converte para dicionário serializável."""
         return {
             "task_id": self.task_id,
@@ -56,7 +56,7 @@ class JoinConfig:
     timeout_seconds: int = 600  # Timeout global para join
     merge_strategy: str = "concat"  # concat, merge, custom
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Converte para dicionário."""
         return {
             "strategy": self.strategy.value,
@@ -83,13 +83,13 @@ class ParallelWorkflow(BaseModel):
     workflow_id: str = Field(..., description="ID único do workflow")
     name: str = Field(..., description="Nome do workflow")
     description: str = Field(default="", description="Descrição do propósito")
-    tasks: List[ParallelTask] = Field(..., description="Lista de tarefas paralelas")
+    tasks: list[ParallelTask] = Field(..., description="Lista de tarefas paralelas")
     join_config: JoinConfig = Field(
         default_factory=JoinConfig, description="Configuração de join/fan-in"
     )
-    input_context: Dict[str, Any] = Field(default_factory=dict, description="Contexto de entrada")
+    input_context: dict[str, Any] = Field(default_factory=dict, description="Contexto de entrada")
 
-    def get_execution_order(self) -> List[List[str]]:
+    def get_execution_order(self) -> list[list[str]]:
         """Calcula ordem de execução considerando dependências.
 
         Returns:
@@ -97,8 +97,8 @@ class ParallelWorkflow(BaseModel):
             que podem ser executados em paralelo.
         """
         {t.task_id: t for t in self.tasks}
-        completed: Set[str] = set()
-        batches: List[List[str]] = []
+        completed: set[str] = set()
+        batches: list[list[str]] = []
 
         while len(completed) < len(self.tasks):
             # Encontrar tarefas prontas (dependências satisfeitas)
@@ -119,7 +119,7 @@ class ParallelWorkflow(BaseModel):
 
         return batches
 
-    def get_tasks_for_batch(self, batch_num: int) -> List[ParallelTask]:
+    def get_tasks_for_batch(self, batch_num: int) -> list[ParallelTask]:
         """Retorna tarefas para um batch específico."""
         batches = self.get_execution_order()
         if batch_num < 0 or batch_num >= len(batches):
@@ -129,7 +129,7 @@ class ParallelWorkflow(BaseModel):
         task_map = {t.task_id: t for t in self.tasks}
         return [task_map[tid] for tid in task_ids]
 
-    def can_join(self, completed_tasks: Set[str]) -> bool:
+    def can_join(self, completed_tasks: set[str]) -> bool:
         """Verifica se condições de join são atendidas.
 
         Args:
@@ -153,7 +153,7 @@ class ParallelWorkflow(BaseModel):
             case _:
                 return False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Converte para dicionário serializável."""
         return {
             "workflow_id": self.workflow_id,
@@ -166,7 +166,7 @@ class ParallelWorkflow(BaseModel):
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ParallelWorkflow":
+    def from_dict(cls, data: dict[str, Any]) -> "ParallelWorkflow":
         """Cria ParallelWorkflow a partir de dicionário."""
         tasks = []
         for t_data in data.get("tasks", []):

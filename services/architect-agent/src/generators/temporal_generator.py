@@ -6,7 +6,7 @@ Gera código Python para Temporal a partir de definições de workflow
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 from src.workflows.compensation_workflow import (
     CompensationStep,
@@ -22,11 +22,11 @@ class GeneratedCode:
 
     workflow_type: str
     code: str
-    imports: Set[str]
-    dependencies: Set[str]
+    imports: set[str]
+    dependencies: set[str]
     filename: str
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Converte para dicionário."""
         return {
             "workflow_type": self.workflow_type,
@@ -378,7 +378,7 @@ class {self._to_pascal_case(wf.name)}Workflow:
             self._saga_state["error"] = str(e)
 
             raise ApplicationError(
-                f"Workflow falhou: {{e}}",
+                f"Workflow falhou: {e}",
                 type="WorkflowError",
                 details={{"compensated": self._compensation_triggered}}
             )
@@ -403,7 +403,7 @@ class {self._to_pascal_case(wf.name)}Workflow:
                 await self._execute_compensation(step, context)
                 workflow.logger.info(f"Compensação executada: {step_id}")
             except Exception as e:
-                workflow.logger.error(f"Erro na compensação de {step_id}: {{e}}")
+                workflow.logger.error(f"Erro na compensação de {step_id}: {e}")
                 # Continuar compensação mesmo com erro
 
     async def _execute_step(
@@ -485,7 +485,7 @@ class {self._to_pascal_case(wf.name)}Workflow:
             filename=f"{wf.name}_workflow.py",
         )
 
-    def _format_imports(self, imports: Set[str]) -> str:
+    def _format_imports(self, imports: set[str]) -> str:
         """Formata bloco de imports."""
         return "\n".join(sorted(imports))
 
@@ -527,16 +527,15 @@ class {self._to_pascal_case(wf.name)}Workflow:
         """Formata valor para código Python."""
         if isinstance(value, str):
             return f'"{value}"'
-        elif isinstance(value, bool):
+        if isinstance(value, bool):
             return "True" if value else "False"
-        elif isinstance(value, (list, dict)):
+        if isinstance(value, (list, dict)):
             import json
 
             return json.dumps(value)
-        else:
-            return str(value)
+        return str(value)
 
-    def _format_activity_args(self, activity: Dict[str, Any]) -> str:
+    def _format_activity_args(self, activity: dict[str, Any]) -> str:
         """Formata argumentos de atividade."""
         import json
 
@@ -563,10 +562,10 @@ class {self._to_pascal_case(wf.name)}Workflow:
 
     def generate_all(
         self,
-        conditional_workflows: Optional[List[ConditionalWorkflow]] = None,
-        parallel_workflows: Optional[List[ParallelWorkflow]] = None,
-        compensation_workflows: Optional[List[CompensationWorkflow]] = None,
-    ) -> List[GeneratedCode]:
+        conditional_workflows: list[ConditionalWorkflow] | None = None,
+        parallel_workflows: list[ParallelWorkflow] | None = None,
+        compensation_workflows: list[CompensationWorkflow] | None = None,
+    ) -> list[GeneratedCode]:
         """Gera código para múltiplos workflows.
 
         Args:

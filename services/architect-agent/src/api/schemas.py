@@ -1,7 +1,6 @@
 """Schemas Pydantic para API REST."""
 
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -12,7 +11,7 @@ class ArchitectureRequest(BaseModel):
 
     intent: str = Field(..., description="Intent do usuário", min_length=1)
     context: dict = Field(default_factory=dict, description="Contexto adicional")
-    cognitive_plan_id: Optional[str] = Field(None, description="ID do plano cognitivo")
+    cognitive_plan_id: str | None = Field(None, description="ID do plano cognitivo")
 
 
 class ValidationRequest(BaseModel):
@@ -36,15 +35,15 @@ class ComponentResponse(BaseModel):
 
     name: str
     stack: str
-    replicas: Optional[int] = None
-    ha: Optional[bool] = None
+    replicas: int | None = None
+    ha: bool | None = None
 
 
 class ArchitectureResponse(BaseModel):
     """Schema de resposta para plano de arquitetura."""
 
     plan_id: str
-    cognitive_plan_id: Optional[str]
+    cognitive_plan_id: str | None
     architecture_type: str
     components: list[ComponentResponse]
     patterns: list[str]
@@ -59,7 +58,7 @@ class ViolationResponse(BaseModel):
     severity: str
     location: str
     description: str
-    suggestion: Optional[str] = None
+    suggestion: str | None = None
 
 
 class SuggestionResponse(BaseModel):

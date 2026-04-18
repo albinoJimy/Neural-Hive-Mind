@@ -1,10 +1,9 @@
 """Mermaid diagram renderer using mermaid-cli."""
 
 import asyncio
+import subprocess
 import tempfile
 from pathlib import Path
-from typing import Optional
-import subprocess
 
 from structlog import get_logger
 
@@ -24,11 +23,7 @@ class MermaidRenderer:
         self._mmdc_command = mmdc_command
         self._logger = logger
 
-    async def render_to_svg(
-        self,
-        mermaid_code: str,
-        output_dir: Optional[str] = None
-    ) -> str:
+    async def render_to_svg(self, mermaid_code: str, output_dir: str | None = None) -> str:
         """
         Renderiza código Mermaid para SVG.
 
@@ -64,14 +59,17 @@ class MermaidRenderer:
             lambda: subprocess.run(
                 [
                     self._mmdc_command,
-                    "-i", str(input_path),
-                    "-o", str(output_path),
-                    "-b", "transparent"  # Fundo transparente
+                    "-i",
+                    str(input_path),
+                    "-o",
+                    str(output_path),
+                    "-b",
+                    "transparent",  # Fundo transparente
                 ],
                 capture_output=True,
                 text=True,
-                check=True
-            )
+                check=True,
+            ),
         )
 
         # Validar que o arquivo foi criado
@@ -79,18 +77,11 @@ class MermaidRenderer:
         if not output_path.exists():
             raise RuntimeError(f"Mermaid rendering failed: {output_path} not created")
 
-        self._logger.info(
-            "mermaid_rendered",
-            output_path=str(output_path)
-        )
+        self._logger.info("mermaid_rendered", output_path=str(output_path))
 
         return str(output_path)
 
-    async def render_to_png(
-        self,
-        mermaid_code: str,
-        output_dir: Optional[str] = None
-    ) -> str:
+    async def render_to_png(self, mermaid_code: str, output_dir: str | None = None) -> str:
         """
         Renderiza código Mermaid para PNG.
 
@@ -119,14 +110,17 @@ class MermaidRenderer:
             lambda: subprocess.run(
                 [
                     self._mmdc_command,
-                    "-i", str(input_path),
-                    "-o", str(output_path),
-                    "-b", "transparent"
+                    "-i",
+                    str(input_path),
+                    "-o",
+                    str(output_path),
+                    "-b",
+                    "transparent",
                 ],
                 capture_output=True,
                 text=True,
-                check=True
-            )
+                check=True,
+            ),
         )
 
         return str(output_path)

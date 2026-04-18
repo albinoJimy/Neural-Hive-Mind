@@ -2,14 +2,14 @@
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
 # Importar modelos relacionados para forward references
 from src.models.bounded_context import BoundedContext
-from src.models.tech_stack import TechChoice
 from src.models.diagrams import Diagram
+from src.models.tech_stack import TechChoice
 
 
 class ArchitectureType(str, Enum):
@@ -33,7 +33,7 @@ class Component(BaseModel):
     stack: str = Field(..., description="Stack tecnológica (ex: python/fastapi)")
     replicas: int = Field(default=1, ge=1, description="Número de réplicas")
     ha: bool = Field(default=False, description="High availability")
-    resources: Dict[str, Any] = Field(default_factory=dict, description="CPU/memory limits")
+    resources: dict[str, Any] = Field(default_factory=dict, description="CPU/memory limits")
 
 
 class Pattern(str, Enum):
@@ -77,24 +77,20 @@ class ArchitecturePlan(BaseModel):
     )
 
     plan_id: str = Field(..., description="ID único do plano")
-    cognitive_plan_id: Optional[str] = Field(None, description="ID do CognitivePlan de origem")
+    cognitive_plan_id: str | None = Field(None, description="ID do CognitivePlan de origem")
     architecture_type: ArchitectureType = Field(..., description="Tipo de arquitetura proposta")
-    components: List[Component] = Field(..., description="Lista de componentes da arquitetura")
-    patterns: List[Pattern] = Field(..., description="Padrões arquiteturais aplicados")
+    components: list[Component] = Field(..., description="Lista de componentes da arquitetura")
+    patterns: list[Pattern] = Field(..., description="Padrões arquiteturais aplicados")
     rationale: str = Field(..., description="Justificativa das decisões")
-    requirements: Dict[str, Any] = Field(
+    requirements: dict[str, Any] = Field(
         default_factory=dict, description="Requisitos não-funcionais"
     )
     created_at: datetime = Field(default_factory=datetime.utcnow, description="Data de criação")
-    updated_at: Optional[datetime] = Field(None, description="Data da última atualização")
+    updated_at: datetime | None = Field(None, description="Data da última atualização")
 
     # Campos estendidos do Fluxo G (opcionais para compatibilidade)
-    bounded_contexts: Optional[List[BoundedContext]] = Field(
+    bounded_contexts: list[BoundedContext] | None = Field(
         None, description="Bounded contexts identificados (DDD)"
     )
-    tech_stack: Optional[List[TechChoice]] = Field(
-        None, description="Stack tecnológico recomendado"
-    )
-    diagrams: Optional[List[Diagram]] = Field(
-        None, description="Diagramas de arquitetura gerados"
-    )
+    tech_stack: list[TechChoice] | None = Field(None, description="Stack tecnológico recomendado")
+    diagrams: list[Diagram] | None = Field(None, description="Diagramas de arquitetura gerados")

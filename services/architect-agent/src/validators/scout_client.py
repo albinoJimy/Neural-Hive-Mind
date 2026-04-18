@@ -1,6 +1,6 @@
 """Cliente HTTP para Scout Agents."""
 
-from typing import Any, Dict
+from typing import Any
 
 import httpx
 
@@ -15,7 +15,7 @@ class ScoutAgentsClient:
         self.base_url = settings.scout_agents.url
         self.timeout = settings.scout_agents.timeout_seconds
 
-    async def get_patterns(self, repo_url: str, branch: str = "main") -> list[Dict[str, Any]]:
+    async def get_patterns(self, repo_url: str, branch: str = "main") -> list[dict[str, Any]]:
         """Obtém padrões de código detectados."""
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             response = await client.get(
@@ -24,7 +24,7 @@ class ScoutAgentsClient:
             response.raise_for_status()
             return response.json().get("patterns", [])
 
-    async def get_insights(self, repo_url: str, branch: str = "main") -> Dict[str, Any]:
+    async def get_insights(self, repo_url: str, branch: str = "main") -> dict[str, Any]:
         """Obtém insights de análise do código."""
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             response = await client.get(
@@ -33,7 +33,7 @@ class ScoutAgentsClient:
             response.raise_for_status()
             return response.json()
 
-    async def check_duplication(self, repo_url: str, branch: str = "main") -> Dict[str, Any]:
+    async def check_duplication(self, repo_url: str, branch: str = "main") -> dict[str, Any]:
         """Verifica duplicação de código."""
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             response = await client.get(

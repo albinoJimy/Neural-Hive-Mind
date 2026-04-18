@@ -1,7 +1,6 @@
 """Tech Stack recommendation models."""
 
 from pydantic import BaseModel, Field
-from typing import List, Optional
 
 
 class TechChoice(BaseModel):
@@ -9,9 +8,9 @@ class TechChoice(BaseModel):
 
     category: str = Field(..., description="ex: backend, database, frontend")
     name: str = Field(..., description="ex: FastAPI, PostgreSQL, React")
-    version: Optional[str] = Field(None, description="Versão recomendada")
+    version: str | None = Field(None, description="Versão recomendada")
     rationale: str = Field(..., description="Por que esta tecnologia")
-    alternatives: List[str] = Field(default_factory=list)
+    alternatives: list[str] = Field(default_factory=list)
 
 
 class Constraint(BaseModel):
@@ -19,15 +18,15 @@ class Constraint(BaseModel):
 
     type: str = Field(..., description="ex: language, framework, hosting")
     value: str = Field(..., description="Valor da restrição")
-    reason: Optional[str] = Field(None, description="Razão da restrição")
+    reason: str | None = Field(None, description="Razão da restrição")
 
 
 class TechStackRecommendation(BaseModel):
     """Recomendação completa de stack tecnológico."""
 
-    choices: List[TechChoice]
-    constraints_satisfied: List[str]
-    constraints_violated: List[str] = Field(default_factory=list)
+    choices: list[TechChoice]
+    constraints_satisfied: list[str]
+    constraints_violated: list[str] = Field(default_factory=list)
     confidence_score: float = Field(..., ge=0.0, le=1.0)
-    estimated_cost: Optional[str] = Field(None, description="Estimativa de custo mensal")
-    estimated_complexity: Optional[str] = Field(None, description="baixa, media, alta")
+    estimated_cost: str | None = Field(None, description="Estimativa de custo mensal")
+    estimated_complexity: str | None = Field(None, description="baixa, media, alta")

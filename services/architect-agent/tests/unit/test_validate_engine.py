@@ -1,10 +1,10 @@
 """Testes unitários para ValidateEngine."""
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
-from src.validators.validate_engine import ValidateEngine
+import pytest
 from src.models.validation import ViolationType
+from src.validators.validate_engine import ValidateEngine
 
 
 @pytest.fixture
