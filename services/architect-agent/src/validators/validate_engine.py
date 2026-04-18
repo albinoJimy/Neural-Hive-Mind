@@ -1,7 +1,7 @@
 """Motor principal de validação de arquitetura."""
 
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import structlog
@@ -85,7 +85,7 @@ class ValidateEngine(BaseValidator):
                 "class_count": len([p for p in patterns if p.get("type") == "class"]),
                 "interface_count": len([p for p in patterns if p.get("type") == "interface"]),
             },
-            created_at=datetime.now(UTC),
+            created_at=datetime.now(timezone.utc),
         )
 
     async def _get_patterns_safe(self, repo_url: str, branch: str) -> list:

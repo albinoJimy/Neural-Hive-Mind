@@ -1,6 +1,6 @@
 """Repositório para histórico de evolução."""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from pymongo.errors import DuplicateKeyError
 
@@ -29,7 +29,7 @@ class EvolutionRepository(BaseRepository[EvolutionHistory]):
         """Cria nova entrada de histórico."""
         doc = history.model_dump(by_alias=True, exclude_none=True)
         doc["_id"] = history.history_id
-        doc["created_at"] = datetime.now(UTC)
+        doc["created_at"] = datetime.now(timezone.utc)
 
         try:
             await self.collection.insert_one(doc)

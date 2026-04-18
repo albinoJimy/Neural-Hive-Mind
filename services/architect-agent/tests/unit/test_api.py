@@ -1,6 +1,6 @@
 """Testes unitários para API REST."""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -67,7 +67,7 @@ def test_create_architecture():
     plan_mock.components = [Component(name="api", stack="python/fastapi", replicas=1, ha=False)]
     plan_mock.patterns = [Pattern.REPOSITORY]
     plan_mock.rationale = "Test architecture"
-    plan_mock.created_at = datetime.now(UTC)
+    plan_mock.created_at = datetime.now(timezone.utc)
 
     mock_planner = Mock()
     mock_planner.plan = AsyncMock(return_value=plan_mock)
@@ -121,7 +121,7 @@ def test_validate_repository():
     report_mock.trend = Trend.STABLE
     report_mock.violations = []
     report_mock.suggestions = []
-    report_mock.created_at = datetime.now(UTC)
+    report_mock.created_at = datetime.now(timezone.utc)
 
     mock_engine = Mock()
     mock_engine.validate = AsyncMock(return_value=report_mock)

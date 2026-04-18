@@ -1,6 +1,6 @@
 """Testes unitários para repositórios."""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
@@ -274,7 +274,7 @@ async def test_validation_repo_get_by_report_id(mock_settings):
             "violations": [],
             "suggestions": [],
             "metrics": {},
-            "created_at": datetime.now(UTC),
+            "created_at": datetime.now(timezone.utc),
         }
     )
     mock_db.__getitem__ = Mock(return_value=mock_collection)
@@ -322,7 +322,7 @@ async def test_validation_repo_get_by_repo_url(mock_settings):
                 "violations": [],
                 "suggestions": [],
                 "metrics": {},
-                "created_at": datetime.now(UTC),
+                "created_at": datetime.now(timezone.utc),
             }
         ]
     )
@@ -353,7 +353,7 @@ async def test_validation_repo_get_latest_by_repo(mock_settings):
             "violations": [],
             "suggestions": [],
             "metrics": {},
-            "created_at": datetime.now(UTC),
+            "created_at": datetime.now(timezone.utc),
         }
     )
     mock_db.__getitem__ = Mock(return_value=mock_collection)
@@ -493,7 +493,7 @@ async def test_evolution_repo_get_by_plan_id(mock_settings):
                 "version": 1,
                 "changes": ["Initial"],
                 "drifts": [],
-                "created_at": datetime.now(UTC),
+                "created_at": datetime.now(timezone.utc),
                 "created_by": "architect-agent",
             }
         ]

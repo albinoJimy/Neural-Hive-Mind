@@ -1,6 +1,6 @@
 """Repositório para relatórios de validação."""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from pymongo.errors import DuplicateKeyError
 
@@ -29,7 +29,7 @@ class ValidationRepository(BaseRepository[ValidationReport]):
         """Cria novo relatório de validação."""
         doc = report.model_dump(by_alias=True, exclude_none=True)
         doc["_id"] = report.report_id
-        doc["created_at"] = datetime.now(UTC)
+        doc["created_at"] = datetime.now(timezone.utc)
 
         try:
             await self.collection.insert_one(doc)

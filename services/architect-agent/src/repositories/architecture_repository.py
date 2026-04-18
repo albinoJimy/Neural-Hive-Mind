@@ -1,6 +1,6 @@
 """Repositório para planos arquiteturais."""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from pymongo.errors import DuplicateKeyError
 from structlog import get_logger
@@ -93,7 +93,7 @@ class ArchitectureRepository(BaseRepository[ArchitecturePlan]):
 
         doc = plan.model_dump(by_alias=True, exclude_none=True)
         doc["_id"] = plan.plan_id
-        doc["created_at"] = datetime.now(UTC)
+        doc["created_at"] = datetime.now(timezone.utc)
 
         try:
             await self.collection.insert_one(doc)
@@ -133,7 +133,7 @@ class ArchitectureRepository(BaseRepository[ArchitecturePlan]):
             {
                 "$set": {
                     "rationale": rationale,
-                    "updated_at": datetime.now(UTC),
+                    "updated_at": datetime.now(timezone.utc),
                 }
             },
         )

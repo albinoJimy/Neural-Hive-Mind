@@ -1,7 +1,7 @@
 """Rastreador de evolução de arquitetura."""
 
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import structlog
@@ -58,7 +58,7 @@ class EvolutionTracker:
             version=version,
             changes=changes,
             drifts=drifts,
-            created_at=datetime.now(UTC),
+            created_at=datetime.now(timezone.utc),
             created_by=created_by,
         )
 

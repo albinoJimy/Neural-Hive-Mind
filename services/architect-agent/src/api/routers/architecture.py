@@ -1,13 +1,10 @@
 """Router para endpoints de arquitetura."""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 import structlog
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
 
 from src.api.schemas import (
     ArchitectureRequest,
@@ -18,15 +15,9 @@ from src.models.architecture import ArchitectureType
 from src.planners.design_planner import DesignPlanner
 from src.repositories.architecture_repository import ArchitectureRepository
 
-# Rate limiting setup
-# LLM endpoints: 10 requests/min (custo controlado)
-# Read endpoints: 60 requests/min (uso normal)
-limiter = Limiter(key_func=get_remote_address)
 logger = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/architecture", tags=["architecture"])
-router.state.limiter = limiter
-router.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
 # Novos schemas para os endpoints extendidos
@@ -95,7 +86,6 @@ def get_repository() -> ArchitectureRepository:
 
 
 @router.post("", response_model=ArchitectureResponse, status_code=status.HTTP_201_CREATED)
-@limiter.limit("10/minute")  # Limitar devido a custo LLM
 async def create_architecture(
     request_obj: ArchitectureRequest, request: Request
 ) -> ArchitectureResponse:
@@ -141,7 +131,7 @@ async def create_architecture(
             ],
             patterns=[p.value for p in plan.patterns],
             rationale=plan.rationale,
-            created_at=plan.created_at or datetime.now(UTC),
+            created_at=plan.created_at or datetime.now(timezone.utc),
         )
 
     except ValueError as e:
@@ -174,7 +164,7 @@ async def get_architecture(plan_id: str) -> ArchitectureResponse:
         ],
         patterns=[p.value for p in plan.patterns],
         rationale=plan.rationale,
-        created_at=plan.created_at or datetime.now(UTC),
+        created_at=plan.created_at or datetime.now(timezone.utc),
     )
 
 
@@ -207,7 +197,7 @@ async def list_architectures(
             ],
             patterns=[p.value for p in p.patterns],
             rationale=p.rationale,
-            created_at=p.created_at or datetime.now(UTC),
+            created_at=p.created_at or datetime.now(timezone.utc),
         )
         for p in plans
     ]
@@ -217,7 +207,6 @@ async def list_architectures(
 
 
 @router.post("/bounded-contexts/identify")
-@limiter.limit("10/minute")  # Limitar devido a custo LLM
 async def identify_bounded_contexts(request_obj: ContextIdentificationRequest, request: Request):
     """Identifica bounded contexts a partir de requisitos.
 
@@ -268,7 +257,6 @@ async def identify_bounded_contexts(request_obj: ContextIdentificationRequest, r
 
 
 @router.post("/tech-stack/recommend")
-@limiter.limit("10/minute")  # Limitar devido a custo LLM
 async def recommend_tech_stack(request_obj: TechStackRecommendationRequest, request: Request):
     """Recomenda stack tecnológico baseado em requisitos.
 
@@ -314,7 +302,6 @@ async def recommend_tech_stack(request_obj: TechStackRecommendationRequest, requ
 
 
 @router.post("/diagrams/generate")
-@limiter.limit("20/minute")  # Mais liberal porque não usa LLM diretamente
 async def generate_diagram(request_obj: DiagramGenerationRequest, request: Request):
     """Gera diagrama C4 a partir de descrição.
 
@@ -368,7 +355,6 @@ async def generate_diagram(request_obj: DiagramGenerationRequest, request: Reque
 
 
 @router.get("/{architecture_id}/bounded-contexts", response_model=BoundedContextsResponse)
-@limiter.limit("60/minute")  # Read endpoint, limit mais liberal
 async def get_architecture_bounded_contexts(
     architecture_id: str, request: Request
 ) -> BoundedContextsResponse:

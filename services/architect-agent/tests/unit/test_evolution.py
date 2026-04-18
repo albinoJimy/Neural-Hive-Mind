@@ -1,6 +1,6 @@
 """Testes unitários para Evolution Tracker."""
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -284,7 +284,7 @@ async def test_record_evolution_creates_history(sample_plan):
         version=1,
         changes=["Added new component"],
         drifts=[],
-        created_at=datetime.now(UTC),
+        created_at=datetime.now(timezone.utc),
         created_by="test-user",
     )
 
@@ -321,7 +321,7 @@ async def test_get_history_returns_list():
                 "version": 1,
                 "changes": ["Initial version"],
                 "drifts": [],
-                "created_at": datetime.now(UTC).isoformat(),
+                "created_at": datetime.now(timezone.utc).isoformat(),
                 "created_by": "architect-agent",
             }
         ]

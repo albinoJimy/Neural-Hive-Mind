@@ -5,9 +5,16 @@ extend = "../../pyproject.toml"
 # Configurações específicas para architect-agent
 target-version = "py312"
 
+# Ignorar diretórios duplicados
+exclude = [
+    ".git",
+    "__pycache__",
+    "services/architect-agent",
+]
+
 [tool.ruff.lint.per-file-ignores]
 # Ignorar avisos específicos para testes
-"tests/**/*.py" = [
+"tests/unit/**/*.py" = [
     "ARG",     # unused arguments allowed in tests
     "PLR2004", # magic values allowed in tests
     "PLC0415", # imports inside functions allowed in tests
@@ -20,11 +27,24 @@ target-version = "py312"
     "PTH123",  # os.join allowed
     "TRY002",  # generic exception allowed
     "N802",    # uppercase function name allowed
-    "UP018",   # Unnecessary `__all__` property
+    "PT001",   # pytest.fixture() without parenthesis
+    "PT023",   # pytest.mark without parenthesis
+    "PT004",   # fixture without return
+]
+"tests/integration/**/*.py" = [
+    "ARG", "PLR2004", "PLC0415", "F841", "SIM105", "PT012", "RET504",
+    "B007", "SIM117", "PTH123", "TRY002", "N802", "PT001", "PT023", "PT004",
+]
+"tests/e2e/**/*.py" = [
+    "ARG", "PLR2004", "PLC0415", "F841", "SIM105", "PT012", "RET504",
+    "B007", "SIM117", "PTH123", "TRY002", "N802", "PT001", "PT023", "PT004",
+]
+"tests/conftest.py" = [
+    "ARG", "PLR2004", "PLC0415", "F841", "SIM105", "PT012", "RET504",
+    "B007", "SIM117", "PTH123", "TRY002", "N802", "PT001", "PT023", "PT004",
 ]
 "src/**/*.py" = [
     "PLW0603", # global statement allowed for singletons
-    "UP042",   # str, Enum inheritance pattern
     "PLR0912", # too many branches allowed
     "W505",    # doc line too long
     "ARG001",  # unused request parameter
@@ -39,7 +59,8 @@ target-version = "py312"
     "PLW2901", # loop variable overwritten
     "B015",    # pointless comparison
     "PLR0911", # too many return statements
-    "RUF022",  # __all__ not sorted
+    "TRY200",  # raise from pattern
+    "UP038",   # isinstance with tuple
 ]
 # Ignorar falsos positivos em geradores de código
 "src/generators/temporal_generator.py" = [
@@ -52,7 +73,6 @@ target-version = "py312"
     "SIM105",  # try-except-pass for validation
 ]
 "src/repositories/base.py" = [
-    "UP046",   # Generic subclass pattern
 ]
 "src/workflows/parallel_workflow.py" = [
     "F601",    # repeated key in dict (temporal workflow)
