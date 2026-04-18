@@ -15,15 +15,7 @@ import grpc
 import structlog
 from src.config.settings import get_settings
 
-# Import proto do service-registry
-import sys
-from pathlib import Path
-
-# Adicionar caminho para o service-registry
-sr_path = Path(__file__).parent.parent.parent.parent.parent.parent / "service-registry" / "src"
-if str(sr_path) not in sys.path:
-    sys.path.insert(0, str(sr_path))
-
+# Import proto do service-registry (arquivos locais)
 from proto import service_registry_pb2, service_registry_pb2_grpc
 
 

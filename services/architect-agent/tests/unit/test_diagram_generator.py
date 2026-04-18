@@ -1,16 +1,34 @@
 """Unit tests for ArchitectureDiagramGenerator."""
 
 import pytest
+from unittest.mock import AsyncMock, Mock, patch
 from src.generators.architecture_diagram_generator import ArchitectureDiagramGenerator
 from src.models.bounded_context import BoundedContext
 from src.models.diagrams import DiagramType
 
 
+@pytest.fixture
+def mock_llm_client():
+    """Mock do cliente LLM."""
+    client = Mock()
+    response = Mock()
+    choice = Mock()
+    message = Mock()
+    message.content = "sequenceDiagram\n    User->>System: Request\n    System-->>User: Response"
+    choice.message = message
+    response.choices = [choice]
+    client.chat.completions.create = AsyncMock(return_value=response)
+    return client
+
+
 @pytest.mark.asyncio
-async def test_generate_context_diagram():
+async def test_generate_context_diagram(mock_llm_client):
     """Testa geração de diagrama C4 Context."""
 
-    generator = ArchitectureDiagramGenerator(output_dir="/tmp/test_diagrams")
+    generator = ArchitectureDiagramGenerator(
+        llm_client=mock_llm_client,
+        output_dir="/tmp/test_diagrams"
+    )
 
     result = await generator.generate_context_diagram(
         project_name="TestProject",
@@ -28,10 +46,13 @@ async def test_generate_context_diagram():
 
 
 @pytest.mark.asyncio
-async def test_generate_container_diagram():
+async def test_generate_container_diagram(mock_llm_client):
     """Testa geração de diagrama C4 Container."""
 
-    generator = ArchitectureDiagramGenerator(output_dir="/tmp/test_diagrams")
+    generator = ArchitectureDiagramGenerator(
+        llm_client=mock_llm_client,
+        output_dir="/tmp/test_diagrams"
+    )
 
     bounded_contexts = [
         BoundedContext(
@@ -67,10 +88,13 @@ async def test_generate_container_diagram():
 
 
 @pytest.mark.asyncio
-async def test_generate_component_diagram():
+async def test_generate_component_diagram(mock_llm_client):
     """Testa geração de diagrama C4 Component."""
 
-    generator = ArchitectureDiagramGenerator(output_dir="/tmp/test_diagrams")
+    generator = ArchitectureDiagramGenerator(
+        llm_client=mock_llm_client,
+        output_dir="/tmp/test_diagrams"
+    )
 
     result = await generator.generate_component_diagram(
         component_name="OrderService",
@@ -85,10 +109,13 @@ async def test_generate_component_diagram():
 
 
 @pytest.mark.asyncio
-async def test_generate_all_diagrams():
+async def test_generate_all_diagrams(mock_llm_client):
     """Testa geração de todos os diagramas."""
 
-    generator = ArchitectureDiagramGenerator(output_dir="/tmp/test_diagrams")
+    generator = ArchitectureDiagramGenerator(
+        llm_client=mock_llm_client,
+        output_dir="/tmp/test_diagrams"
+    )
 
     bounded_contexts = [
         BoundedContext(
@@ -118,10 +145,13 @@ async def test_generate_all_diagrams():
 
 
 @pytest.mark.asyncio
-async def test_generate_sequence_diagram():
+async def test_generate_sequence_diagram(mock_llm_client):
     """Testa geração de diagrama de sequência."""
 
-    generator = ArchitectureDiagramGenerator(output_dir="/tmp/test_diagrams")
+    generator = ArchitectureDiagramGenerator(
+        llm_client=mock_llm_client,
+        output_dir="/tmp/test_diagrams"
+    )
 
     steps = [
         "User->>Gateway: Send request",
@@ -150,10 +180,13 @@ async def test_generate_sequence_diagram():
 
 
 @pytest.mark.asyncio
-async def test_generate_sequence_diagram_without_artifacts():
+async def test_generate_sequence_diagram_without_artifacts(mock_llm_client):
     """Testa geração de diagrama de sequência sem artefatos."""
 
-    generator = ArchitectureDiagramGenerator(output_dir="/tmp/test_diagrams")
+    generator = ArchitectureDiagramGenerator(
+        llm_client=mock_llm_client,
+        output_dir="/tmp/test_diagrams"
+    )
 
     steps = [
         "Client->>Server: Connect",
@@ -173,10 +206,35 @@ async def test_generate_sequence_diagram_without_artifacts():
 
 
 @pytest.mark.asyncio
-async def test_generate_from_description_sequence():
-    """Testa geração de diagrama a partir de descrição (sequência)."""
+async def test_generate_sequence_with_mermaid_code(mock_llm_client):
+    """Testa geração de sequência com mermaid_code já fornecido."""
 
-    generator = ArchitectureDiagramGenerator(output_dir="/tmp/test_diagrams")
+    generator = ArchitectureDiagramGenerator(
+        llm_client=mock_llm_client,
+        output_dir="/tmp/test_diagrams"
+    )
+
+    mermaid_code = "sequenceDiagram\n    A->>B: Test"
+
+    result = await generator.generate_sequence(
+        title="Test",
+        steps=None,
+        mermaid_code=mermaid_code,
+        render=False
+    )
+
+    assert result.type == DiagramType.SEQUENCE
+    assert result.mermaid_code == mermaid_code
+
+
+@pytest.mark.asyncio
+async def test_generate_from_description_uses_llm(mock_llm_client):
+    """Testa que generate_from_description usa LLM."""
+
+    generator = ArchitectureDiagramGenerator(
+        llm_client=mock_llm_client,
+        output_dir="/tmp/test_diagrams"
+    )
 
     description = "User sends request to system, then system processes and returns response"
 
@@ -185,56 +243,45 @@ async def test_generate_from_description_sequence():
         render=False
     )
 
+    # Verificar que o LLM foi chamado
+    mock_llm_client.chat.completions.create.assert_called_once()
+
+    # Verificar argumentos da chamada
+    call_args = mock_llm_client.chat.completions.create.call_args
+    assert call_args[1]["model"] == "gpt-4"
+    assert "sequenceDiagram" in call_args[1]["messages"][1]["content"]
+
+    # Verificar resultado
     assert result.type == DiagramType.SEQUENCE
     assert "sequenceDiagram" in result.mermaid_code
 
 
 @pytest.mark.asyncio
-async def test_generate_from_description_context():
-    """Testa geração de diagrama a partir de descrição (contexto)."""
+async def test_generate_from_description_cleans_markdown(mock_llm_client):
+    """Testa que generate_from_description limpa markdown do response."""
 
-    generator = ArchitectureDiagramGenerator(output_dir="/tmp/test_diagrams")
+    # Mock com markdown code blocks
+    response = Mock()
+    choice = Mock()
+    message = Mock()
+    message.content = "```mermaid\nsequenceDiagram\n    A->>B: Test\n```"
+    choice.message = message
+    response.choices = [choice]
+    mock_llm_client.chat.completions.create = AsyncMock(return_value=response)
 
-    description = "System with user authentication and external payment integration"
+    generator = ArchitectureDiagramGenerator(
+        llm_client=mock_llm_client,
+        output_dir="/tmp/test_diagrams"
+    )
 
     result = await generator.generate_from_description(
-        description=description,
+        description="Test",
         render=False
     )
 
-    assert result.type == DiagramType.C4_CONTEXT
-    assert "C4Context" in result.mermaid_code
-
-
-@pytest.mark.asyncio
-async def test_parse_sequence_from_description():
-    """Testa parsing de sequência de descrição textual."""
-
-    generator = ArchitectureDiagramGenerator(output_dir="/tmp/test_diagrams")
-
-    description = "User logs in. Then system validates credentials. Then returns token."
-
-    steps = generator._parse_sequence_from_description(description)
-
-    assert len(steps) > 0
-    assert any("User" in step for step in steps)
-
-
-@pytest.mark.asyncio
-async def test_generate_from_description_fallback():
-    """Testa fallback quando não há palavras-chave reconhecidas."""
-
-    generator = ArchitectureDiagramGenerator(output_dir="/tmp/test_diagrams")
-
-    description = "Generic component architecture"
-
-    result = await generator.generate_from_description(
-        description=description,
-        render=False
-    )
-
-    assert result.diagram_id == "generated-diagram"
-    assert "graph TD" in result.mermaid_code
+    # Verificar que markdown foi limpo
+    assert not result.mermaid_code.startswith("```")
+    assert "sequenceDiagram" in result.mermaid_code
 
 
 @pytest.mark.asyncio

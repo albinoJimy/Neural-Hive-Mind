@@ -1,7 +1,8 @@
 """
-Clientes para integração com MongoDB, Kafka, Redis e Service Registry.
+Clientes para integração com MongoDB, Kafka, Redis, Service Registry e Agentic Delegation.
 """
 
+from src.clients.agentic_delegation_client import AgenticDelegationClient
 from src.clients.execution_ticket_client import ExecutionTicketClient
 from src.clients.kafka_producer import KafkaProducerClient
 from src.clients.mongodb_client import MongoDBClient
@@ -19,6 +20,7 @@ __all__ = [
     "ServiceRegistryClient",
     "SlackClient",
     "PagerDutyClient",
+    "AgenticDelegationClient",
     "close_redis_client",
     "get_redis_client",
 ]

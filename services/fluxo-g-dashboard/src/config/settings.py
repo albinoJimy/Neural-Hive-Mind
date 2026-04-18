@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     api_title: str = "Fluxo G Dashboard"
     api_version: str = "0.1.0"
     host: str = "0.0.0.0"
-    port: int = 8018
+    port: int = 8021
 
     # Temporal
     temporal_host: str = Field(

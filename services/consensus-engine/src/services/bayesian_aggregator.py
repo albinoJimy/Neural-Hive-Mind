@@ -40,18 +40,21 @@ class BayesianAggregator:
         total_weight = sum(specialist_weights)
         normalized_weights = [w / total_weight for w in specialist_weights]
 
+        # Converter para numpy arrays para evitar problemas de shape
+        scores_array = np.array(scores)
+        weights_array = np.array(normalized_weights)
+
         # Calcular média ponderada (posterior mean)
         # Incorporar prior (assumindo prior uniforme Beta(1,1) → mean=0.5)
         prior_mean = 0.5
 
         # Weighted average com prior
-        posterior_mean = self.prior_weight * prior_mean + (1 - self.prior_weight) * np.average(
-            scores, weights=normalized_weights
-        )
+        weighted_avg = np.average(scores_array, weights=weights_array)
+        posterior_mean = self.prior_weight * prior_mean + (1 - self.prior_weight) * weighted_avg
 
         # Calcular variância (incerteza)
         variance = np.average(
-            [(score - posterior_mean) ** 2 for score in scores], weights=normalized_weights
+            (scores_array - posterior_mean) ** 2, weights=weights_array
         )
 
         logger.debug(
@@ -63,7 +66,7 @@ class BayesianAggregator:
             variance=variance,
         )
 
-        return posterior_mean, variance
+        return float(posterior_mean), float(variance)
 
     def aggregate_risk(
         self, opinions: List[Dict[str, Any]], weights: Dict[str, float]
@@ -84,17 +87,20 @@ class BayesianAggregator:
         total_weight = sum(specialist_weights)
         normalized_weights = [w / total_weight for w in specialist_weights]
 
+        # Converter para numpy arrays
+        scores_array = np.array(scores)
+        weights_array = np.array(normalized_weights)
+
         # Prior para risco (assumindo prior conservador → mean=0.5)
         prior_mean = 0.5
 
         # Weighted average com prior
-        posterior_mean = self.prior_weight * prior_mean + (1 - self.prior_weight) * np.average(
-            scores, weights=normalized_weights
-        )
+        weighted_avg = np.average(scores_array, weights=weights_array)
+        posterior_mean = self.prior_weight * prior_mean + (1 - self.prior_weight) * weighted_avg
 
         # Variância
         variance = np.average(
-            [(score - posterior_mean) ** 2 for score in scores], weights=normalized_weights
+            (scores_array - posterior_mean) ** 2, weights=weights_array
         )
 
         logger.debug(

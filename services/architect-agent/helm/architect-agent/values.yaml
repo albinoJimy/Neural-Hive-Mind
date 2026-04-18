@@ -31,7 +31,7 @@ securityContext:
 
 service:
   type: ClusterIP
-  port: 8008
+  port: 8011
   annotations: {}
 
 ingress:
@@ -71,7 +71,7 @@ affinity: {}
 config:
   environment: production
   logLevel: INFO
-  httpPort: 8008
+  httpPort: 8011
 
   # MongoDB configuration
   mongodb:

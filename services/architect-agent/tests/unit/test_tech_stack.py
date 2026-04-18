@@ -1,30 +1,55 @@
 """Unit tests for TechStackRecommender."""
 
 import pytest
+from unittest.mock import AsyncMock, Mock
 from src.recommenders.tech_stack import TechStackRecommender
 
 
+@pytest.fixture
+def mock_llm_client():
+    """Mock do cliente LLM."""
+    client = Mock()
+    response = Mock()
+    choice = Mock()
+    message = Mock()
+    message.content = '''{
+      "choices": [
+        {"category": "backend", "name": "FastAPI", "version": "0.104", "rationale": "Async nativo"},
+        {"category": "database", "name": "PostgreSQL", "version": "15", "rationale": "ACID compliant"}
+      ],
+      "constraints_satisfied": ["language: Python"],
+      "constraints_violated": [],
+      "confidence_score": 0.9,
+      "estimated_complexity": "media",
+      "estimated_cost": "$$"
+    }'''
+    choice.message = message
+    response.choices = [choice]
+    client.chat.completions.create = AsyncMock(return_value=response)
+    return client
+
+
 @pytest.mark.asyncio
-async def test_recommend_tech_stack_for_api():
+async def test_recommend_tech_stack_for_api(mock_llm_client):
     """Testa recomendação de stack para API REST."""
 
-    recommender = TechStackRecommender()
+    recommender = TechStackRecommender(llm_client=mock_llm_client)
 
     requirements = "API REST para gestão de tarefas com alta concorrência"
     constraints = [{"type": "language", "value": "Python"}]
 
     result = await recommender.recommend(requirements, constraints)
 
-    assert len(result.choices) > 0
+    assert len(result.choices) == 2
     assert any(c.category == "backend" for c in result.choices)
     assert result.constraints_satisfied == ["language: Python"]
 
 
 @pytest.mark.asyncio
-async def test_recommend_with_postgresql_preference():
+async def test_recommend_with_postgresql_preference(mock_llm_client):
     """Testa recomendação com preferência de PostgreSQL."""
 
-    recommender = TechStackRecommender()
+    recommender = TechStackRecommender(llm_client=mock_llm_client)
 
     requirements = "Sistema transacional com dados relacionais"
     constraints = [{"type": "database", "value": "PostgreSQL"}]
@@ -37,10 +62,10 @@ async def test_recommend_with_postgresql_preference():
 
 
 @pytest.mark.asyncio
-async def test_recommend_returns_confidence_score():
+async def test_recommend_returns_confidence_score(mock_llm_client):
     """Testa que recomendação retorna score de confiança."""
 
-    recommender = TechStackRecommender()
+    recommender = TechStackRecommender(llm_client=mock_llm_client)
 
     requirements = "Sistema simples de blog"
     constraints = []

@@ -1,0 +1,324 @@
+# Kafka Topics para Fluxo G Pipeline
+#
+# Este arquivo define todos os tópicos Kafka necessários para o Fluxo G,
+# incluindo tópicos principais e Dead Letter Topics (DLTs) para retry.
+#
+# Aplicar: kubectl apply -f infrastructure/kubernetes/kafka-topics/fluxo-g-topics.yaml
+#
+# Pré-requisitos:
+# - Kafka Strimzi operator instalado
+# - Cluster Kafka: neural-hive-mind-kafka
+
+---
+# Tópico 1: Intent Received
+# Recebe intents do usuário para processamento pelo Fluxo G
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: fluxo-g-intent-received
+  namespace: neural-hive-mind
+  labels:
+    strimzi.io/cluster: neural-hive-mind-kafka
+    app: fluxo-g
+    component: pipeline
+spec:
+  partitions: 3
+  replicas: 2
+  config:
+    retention.ms: 86400000  # 24 horas
+    cleanup.policy: delete
+    compression.type: lz4
+    min.insync.replicas: 1
+
+---
+# Tópico 2: Requirements Generated
+# Eventos quando requisitos são gerados (G1)
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: fluxo-g-requirements-generated
+  namespace: neural-hive-mind
+  labels:
+    strimzi.io/cluster: neural-hive-mind-kafka
+    app: fluxo-g
+    component: requirements-engineering
+spec:
+  partitions: 3
+  replicas: 2
+  config:
+    retention.ms: 604800000  # 7 dias
+    cleanup.policy: delete
+    compression.type: lz4
+    min.insync.replicas: 1
+
+---
+# Tópico 3: Architecture Generated
+# Eventos quando arquitetura é gerada
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: fluxo-g-architecture-generated
+  namespace: neural-hive-mind
+  labels:
+    strimzi.io/cluster: neural-hive-mind-kafka
+    app: fluxo-g
+    component: architect-agent
+spec:
+  partitions: 3
+  replicas: 2
+  config:
+    retention.ms: 604800000  # 7 dias
+    cleanup.policy: delete
+    compression.type: lz4
+    min.insync.replicas: 1
+
+---
+# Tópico 4: RAG Queries
+# Queries para o Knowledge Graph RAG (G5)
+# Mais partições devido ao alto volume de queries
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: fluxo-g-rag-queries
+  namespace: neural-hive-mind
+  labels:
+    strimzi.io/cluster: neural-hive-mind-kafka
+    app: fluxo-g
+    component: knowledge-graph-rag
+spec:
+  partitions: 6  # Mais partições para alta taxa de queries
+  replicas: 2
+  config:
+    retention.ms: 3600000  # 1 hora (queries são efêmeras)
+    cleanup.policy: delete
+    compression.type: zstd  # Melhor compressão para texto
+    min.insync.replicas: 1
+
+---
+# Tópico 5: RAG Results
+# Resultados das queries RAG
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: fluxo-g-rag-results
+  namespace: neural-hive-mind
+  labels:
+    strimzi.io/cluster: neural-hive-mind-kafka
+    app: fluxo-g
+    component: knowledge-graph-rag
+spec:
+  partitions: 6
+  replicas: 2
+  config:
+    retention.ms: 3600000  # 1 hora
+    cleanup.policy: delete
+    compression.type: zstd
+    min.insync.replicas: 1
+
+---
+# Tópico 6: Documentation Generated
+# Eventos quando documentação é gerada (G2)
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: fluxo-g-documentation-generated
+  namespace: neural-hive-mind
+  labels:
+    strimzi.io/cluster: neural-hive-mind-kafka
+    app: fluxo-g
+    component: documentation-generation
+spec:
+  partitions: 3
+  replicas: 2
+  config:
+    retention.ms: 604800000  # 7 dias
+    cleanup.policy: delete
+    compression.type: lz4
+    min.insync.replicas: 1
+
+---
+# Tópico 7: Approval Requested
+# Solicitações de aprovação (G4)
+# Retenção mais longa para auditoria
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: fluxo-g-approval-requested
+  namespace: neural-hive-mind
+  labels:
+    strimzi.io/cluster: neural-hive-mind-kafka
+    app: fluxo-g
+    component: approval-gateway
+spec:
+  partitions: 3
+  replicas: 2
+  config:
+    retention.ms: 2592000000  # 30 dias (aprovações precisam de histórico)
+    cleanup.policy: delete
+    compression.type: lz4
+    min.insync.replicas: 2  # Mais seguro para aprovações
+
+---
+# Tópico 8: Approval Completed
+# Decisões de aprovação final
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: fluxo-g-approval-completed
+  namespace: neural-hive-mind
+  labels:
+    strimzi.io/cluster: neural-hive-mind-kafka
+    app: fluxo-g
+    component: approval-gateway
+spec:
+  partitions: 3
+  replicas: 2
+  config:
+    retention.ms: 2592000000  # 30 dias
+    cleanup.policy: delete
+    compression.type: lz4
+    min.insync.replicas: 2
+
+---
+# Tópico 9: Code Generated
+# Eventos quando código é gerado (pós-G5)
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: fluxo-g-code-generated
+  namespace: neural-hive-mind
+  labels:
+    strimzi.io/cluster: neural-hive-mind-kafka
+    app: fluxo-g
+    component: code-generation
+spec:
+  partitions: 3
+  replicas: 2
+  config:
+    retention.ms: 604800000  # 7 dias
+    cleanup.policy: delete
+    compression.type: lz4
+    min.insync.replicas: 1
+
+---
+# Tópico 10: Pipeline Completed
+# Eventos finais de pipeline completado com sucesso
+# Compact key retention para manter último estado
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: fluxo-g-pipeline-completed
+  namespace: neural-hive-mind
+  labels:
+    strimzi.io/cluster: neural-hive-mind-kafka
+    app: fluxo-g
+    component: orchestrator
+spec:
+  partitions: 3
+  replicas: 2
+  config:
+    retention.ms: 2592000000  # 30 dias
+    cleanup.policy: compact  # Manter último valor por key
+    compression.type: lz4
+    min.insync.replicas: 1
+
+---
+# Tópico 11: Pipeline Failed
+# Eventos de pipeline falhado
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: fluxo-g-pipeline-failed
+  namespace: neural-hive-mind
+  labels:
+    strimzi.io/cluster: neural-hive-mind-kafka
+    app: fluxo-g
+    component: orchestrator
+spec:
+  partitions: 3
+  replicas: 2
+  config:
+    retention.ms: 2592000000  # 30 dias (importante para debugging)
+    cleanup.policy: delete
+    compression.type: lz4
+    min.insync.replicas: 1
+
+---
+# Dead Letter Topic 1: Requirements DLT
+# Para falhas no processamento de requisitos
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: fluxo-g-requirements-dlt
+  namespace: neural-hive-mind
+  labels:
+    strimzi.io/cluster: neural-hive-mind-kafka
+    app: fluxo-g
+    component: dlt
+spec:
+  partitions: 3
+  replicas: 2
+  config:
+    retention.ms: 604800000  # 7 dias (tempo para investigar)
+    cleanup.policy: delete
+    min.insync.replicas: 1
+
+---
+# Dead Letter Topic 2: Architecture DLT
+# Para falhas na geração de arquitetura
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: fluxo-g-architecture-dlt
+  namespace: neural-hive-mind
+  labels:
+    strimzi.io/cluster: neural-hive-mind-kafka
+    app: fluxo-g
+    component: dlt
+spec:
+  partitions: 3
+  replicas: 2
+  config:
+    retention.ms: 604800000  # 7 dias
+    cleanup.policy: delete
+    min.insync.replicas: 1
+
+---
+# Dead Letter Topic 3: Documentation DLT
+# Para falhas na geração de documentação
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: fluxo-g-documentation-dlt
+  namespace: neural-hive-mind
+  labels:
+    strimzi.io/cluster: neural-hive-mind-kafka
+    app: fluxo-g
+    component: dlt
+spec:
+  partitions: 3
+  replicas: 2
+  config:
+    retention.ms: 604800000  # 7 dias
+    cleanup.policy: delete
+    min.insync.replicas: 1
+
+---
+# Dead Letter Topic 4: Approval DLT
+# Para falhas no processamento de aprovações
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: fluxo-g-approval-dlt
+  namespace: neural-hive-mind
+  labels:
+    strimzi.io/cluster: neural-hive-mind-kafka
+    app: fluxo-g
+    component: dlt
+spec:
+  partitions: 3
+  replicas: 2
+  config:
+    retention.ms: 2592000000  # 30 dias (aprovações são críticas)
+    cleanup.policy: delete
+    min.insync.replicas: 2

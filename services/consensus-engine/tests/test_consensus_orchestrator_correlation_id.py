@@ -7,6 +7,7 @@ decisão consolidada, com geração de UUID fallback quando ausente ou vazio.
 
 import pytest
 import uuid
+import logging
 
 from src.services.consensus_orchestrator import ConsensusOrchestrator
 
@@ -52,6 +53,7 @@ class TestConsensusOrchestratorCorrelationId:
         caplog,
     ):
         """Verifica que correlation_id válido é propagado corretamente."""
+        caplog.set_level(logging.INFO)
         orchestrator = ConsensusOrchestrator(
             config=mock_consensus_orchestrator_config, pheromone_client=mock_pheromone_client
         )
@@ -75,6 +77,7 @@ class TestConsensusOrchestratorCorrelationId:
         caplog,
     ):
         """Verifica que UUID fallback é gerado quando correlation_id é None."""
+        caplog.set_level(logging.INFO)
         orchestrator = ConsensusOrchestrator(
             config=mock_consensus_orchestrator_config, pheromone_client=mock_pheromone_client
         )
@@ -86,7 +89,8 @@ class TestConsensusOrchestratorCorrelationId:
 
         assert decision.correlation_id is not None
         assert len(decision.correlation_id) > 0
-        assert "correlation_id ausente no cognitive_plan - gerado fallback UUID" in caplog.text
+        assert "correlation_id ausente no cognitive_plan" in caplog.text
+        assert "UUID gerado para manter rastreabilidade" in caplog.text
 
     async def test_process_consensus_generates_fallback_when_empty_string(
         self,
@@ -97,6 +101,7 @@ class TestConsensusOrchestratorCorrelationId:
         caplog,
     ):
         """Verifica que UUID fallback é gerado quando correlation_id é string vazia."""
+        caplog.set_level(logging.INFO)
         orchestrator = ConsensusOrchestrator(
             config=mock_consensus_orchestrator_config, pheromone_client=mock_pheromone_client
         )
@@ -109,7 +114,8 @@ class TestConsensusOrchestratorCorrelationId:
         assert decision.correlation_id is not None
         assert decision.correlation_id != ""
         assert len(decision.correlation_id) > 0
-        assert "correlation_id ausente no cognitive_plan - gerado fallback UUID" in caplog.text
+        assert "correlation_id ausente no cognitive_plan" in caplog.text
+        assert "UUID gerado para manter rastreabilidade" in caplog.text
 
     async def test_process_consensus_generates_fallback_when_whitespace(
         self,
@@ -120,6 +126,7 @@ class TestConsensusOrchestratorCorrelationId:
         caplog,
     ):
         """Verifica que UUID fallback é gerado quando correlation_id é apenas espaços."""
+        caplog.set_level(logging.INFO)
         orchestrator = ConsensusOrchestrator(
             config=mock_consensus_orchestrator_config, pheromone_client=mock_pheromone_client
         )
@@ -131,7 +138,8 @@ class TestConsensusOrchestratorCorrelationId:
 
         assert decision.correlation_id is not None
         assert decision.correlation_id.strip() != ""
-        assert "correlation_id ausente no cognitive_plan - gerado fallback UUID" in caplog.text
+        assert "correlation_id ausente no cognitive_plan" in caplog.text
+        assert "UUID gerado para manter rastreabilidade" in caplog.text
 
     async def test_correlation_id_is_valid_uuid_format(
         self,

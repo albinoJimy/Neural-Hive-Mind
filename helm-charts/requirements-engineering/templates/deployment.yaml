@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "requirements-engineering.fullname" . }}
+  labels:
+    app: requirements-engineering
+    {{- include "requirements-engineering.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "requirements-engineering.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app: requirements-engineering
+        {{- include "requirements-engineering.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "requirements-engineering.fullname" . }}
+      containers:
+      - name: {{ .Chart.Name }}
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 10 }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.config.httpPort }}
+          protocol: TCP
+        env:
+        - name: REQ_ENG_ENVIRONMENT
+          value: {{ .Values.config.environment }}
+        - name: REQ_ENG_LOG_LEVEL
+          value: {{ .Values.config.logLevel }}
+        - name: REQ_ENG_HTTP_PORT
+          value: "{{ .Values.config.httpPort }}"
+        - name: REQ_ENG_MONGODB_URL
+          value: {{ .Values.config.mongodb.url }}
+        - name: REQ_ENG_MONGODB_DATABASE
+          value: {{ .Values.config.mongodb.database }}
+        - name: REQ_ENG_REDIS_URL
+          value: {{ .Values.config.redis.url }}
+        - name: REQ_ENG_KAFKA_BOOTSTRAP_SERVERS
+          value: {{ .Values.config.kafka.bootstrapServers }}
+        {{- if .Values.config.kafka.enabled }}
+        - name: REQ_ENG_KAFKA_ENABLED
+          value: "true"
+        {{- end }}
+        - name: REQ_ENG_OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "requirements-engineering.fullname" . }}-secrets
+              key: openai-api-key
+              optional: true
+        {{- with .Values.extraEnv }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+        {{- with .Values.volumeMounts }}
+        volumeMounts:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      {{- with .Values.volumes }}
+      volumes:
+        {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

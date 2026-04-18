@@ -15,6 +15,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copiar código fonte
 COPY services/approval-gateway/src/ ./src/
 
+# Copiar arquivos proto compilados do service-registry
+COPY --chown=appuser:appuser services/service-registry/src/proto/ ./src/proto/
+
 # Criar usuário não-root
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser

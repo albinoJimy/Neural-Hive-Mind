@@ -6,11 +6,17 @@ Define os modelos Pydantic para Planos Cognitivos (artefato central do Fluxo B).
 
 import uuid
 from datetime import datetime
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic.functional_serializers import field_serializer
+
+
+class StrEnum(str, Enum):
+    """Compatibilidade StrEnum para Python 3.10"""
+    def _generate_next_value_(name, start, count, last_values):
+        return name
 
 
 class RiskBand(StrEnum):

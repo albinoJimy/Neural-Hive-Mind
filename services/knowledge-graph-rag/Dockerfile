@@ -10,10 +10,18 @@ RUN apt-get update && apt-get install -y \
 
 # Copiar requirements primeiro para cache
 COPY services/knowledge-graph-rag/requirements.txt .
+
+# Instalar PyTorch CPU-only primeiro (muito mais rápido)
+RUN pip install --no-cache-dir torch==2.1.0 --index-url https://download.pytorch.org/whl/cpu
+
+# Depois instalar restante dependências
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar código fonte
 COPY services/knowledge-graph-rag/src/ ./src/
+
+# Copiar arquivos proto compilados do service-registry
+COPY --chown=appuser:appuser services/service-registry/src/proto/ ./src/proto/
 
 # Criar usuário não-root
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app

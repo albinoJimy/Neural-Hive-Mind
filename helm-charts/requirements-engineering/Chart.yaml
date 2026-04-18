@@ -1,0 +1,6 @@
+apiVersion: v2
+name: requirements-engineering
+description: Helm chart for Neural Hive-Mind Requirements Engineering Service
+type: application
+version: 1.0.0
+appVersion: "1.0.0"

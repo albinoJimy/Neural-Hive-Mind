@@ -10,7 +10,13 @@ Este cliente implementa uma interface unificada que delega para os clientes espe
 """
 
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import Enum
+
+
+class StrEnum(str, Enum):
+    """Compatibilidade StrEnum para Python 3.10"""
+    def _generate_next_value_(name, start, count, last_values):
+        return name
 from typing import Any
 
 import structlog

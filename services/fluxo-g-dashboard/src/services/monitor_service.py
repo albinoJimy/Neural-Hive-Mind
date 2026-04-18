@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional
 import httpx
 import structlog
 
-from models.dashboard import (
+from src.models.dashboard import (
     WorkflowStatus,
     StageProgress,
     StageStatus,
@@ -14,7 +14,7 @@ from models.dashboard import (
     ApprovalItem,
     FluxoGStage,
 )
-from config.settings import get_settings
+from src.config.settings import get_settings
 
 logger = structlog.get_logger(__name__)
 

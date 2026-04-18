@@ -19,7 +19,7 @@ class ServiceConfig(BaseModel):
     )
     is_public_api: bool = Field(default=True, description="API pública requer CORS")
     log_level: str = Field(default="INFO", description="Log level")
-    http_port: int = Field(default=8008, description="HTTP server port")
+    http_port: int = Field(default=8011, description="HTTP server port")
 
     @field_validator("environment")
     @classmethod

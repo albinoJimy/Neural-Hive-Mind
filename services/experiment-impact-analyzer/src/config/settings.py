@@ -24,7 +24,7 @@ class Settings(BaseSettings):
 
     # API Server
     api_host: str = Field(default="0.0.0.0", description="API host")
-    api_port: int = Field(default=8012, description="API port")
+    api_port: int = Field(default=8020, description="API port")
     api_prefix: str = Field(default="/api/v1", description="API prefix")
     cors_origins: list[str] = Field(
         default=["*"], description="CORS allowed origins"

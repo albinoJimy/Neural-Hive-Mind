@@ -14,7 +14,7 @@ from src.models.tests import (
     TestGenerationResult,
     TestCoverage,
 )
-from src.config.settings import get_settings
+from src.config.settings import get_settings, Settings
 
 logger = structlog.get_logger(__name__)
 

@@ -88,7 +88,7 @@ async def lifespan(app: FastAPI):
                     "service_registered_successfully",
                     service="documentation-generation",
                     agent_id=agent_id,
-                    port=8014,
+                    port=8012,
                 )
                 await _registry_client.start_heartbeat(interval_seconds=30)
                 app.state.registry_client = _registry_client

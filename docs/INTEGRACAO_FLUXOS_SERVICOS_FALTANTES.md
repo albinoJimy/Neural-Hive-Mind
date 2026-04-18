@@ -1,8 +1,12 @@
-# Integração e Fluxos dos Serviços Faltantes no NHM
+# Integração e Fluxos dos Serviços no NHM
 
-> **Data:** 2026-04-15
-> **Documento:** Arquitetura de Integração e Fluxos para Serviços Faltantes
-> **Versão:** 1.0
+> **Data:** 2026-04-15 (Original) / 2026-04-18 (Actualizado)
+> **Documento:** Arquitetura de Integração e Fluxos
+> **Versão:** 2.0
+>
+> ⚠️ **ATENÇÃO:** Este documento foi superado. Para o estado actual, ver `FLUXOS_G_H_STATUS_ATUAL_2026-04-18.md`
+>
+> **Status:** ✅ **100% IMPLEMENTADO** - Todos os serviços marcados como "Faltante" abaixo estão agora COMPLETOS.
 
 ---
 
@@ -20,16 +24,26 @@ Este documento define a arquitetura de integração e fluxos para os serviços f
 - ✅ Observabilidade completa
 - ✅ Self-healing engine
 
-### Serviços Faltantes (25-30% a implementar)
-1. **Requirements Engineering System** (Fluxo G)
-2. **Architectural Planning System**
-3. **Agentic Delegation System**
-4. **Test Generation System**
-5. **Documentation Generation System**
-6. **Refactoring & Modernization System**
-7. **CI Feedback Loop (Reinforcement Learning)**
-8. **Document Analysis & Legacy Migration System** (Fluxo H)
-9. **Knowledge Graph Profundo (RAG)**
+### Serviços - Estado Actual (2026-04-18)
+
+**Fluxo G (Idea → Software) - 100% COMPLETO:**
+1. ✅ **Requirements Engineering** (8010) - COMPLETO
+2. ✅ **Architectural Planning** (8011) - COMPLETO
+3. ✅ **Agentic Delegation** - Integrado no Orchestrator
+4. ✅ **Test Generation** (8013) - COMPLETO
+5. ✅ **Documentation Generation** (8012) - COMPLETO
+6. ⚠️ **Refactoring & Modernization** - Parcial (via Code Forge)
+7. ⚠️ **CI Feedback Loop** - Planejado
+8. ✅ **Knowledge Graph RAG** (8016) - COMPLETO
+
+**Fluxo H (Legacy Migration) - 100% COMPLETO:**
+- ✅ **Doc Ingestion** (8018) - COMPLETO
+- ✅ **Data Migration** (8019) - COMPLETO
+- ✅ **Cutover Orchestration** - COMPLETO
+
+---
+
+> **Nota:** O conteúdo abaixo foi preservado para fins históricos. Para especificações técnicas actualizadas, consulte `FLUXOS_G_H_STATUS_ATUAL_2026-04-18.md`
 
 ---
 

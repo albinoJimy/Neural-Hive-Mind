@@ -65,7 +65,7 @@ class DesignPlanner(BasePlanner):
             if llm:
                 self._bounded_contexts_identifier = bounded_contexts_identifier or BoundedContextsIdentifier(llm)
                 self._tech_stack_recommender = tech_stack_recommender or TechStackRecommender(llm)
-                self._diagram_generator = diagram_generator or ArchitectureDiagramGenerator()
+                self._diagram_generator = diagram_generator or ArchitectureDiagramGenerator(llm_client=llm)
             else:
                 # Módulos desativados
                 self._bounded_contexts_identifier = None

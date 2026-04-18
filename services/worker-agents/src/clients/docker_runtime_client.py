@@ -7,7 +7,13 @@ seguindo o padrão estabelecido pelos outros clientes do worker-agents.
 
 import asyncio
 import contextlib
-from enum import StrEnum
+from enum import Enum
+
+
+class StrEnum(str, Enum):
+    """Compatibilidade StrEnum para Python 3.10"""
+    def _generate_next_value_(name, start, count, last_values):
+        return name
 
 import structlog
 from opentelemetry import trace

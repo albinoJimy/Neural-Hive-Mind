@@ -12,7 +12,7 @@ spec:
     app: architect-agent
   ports:
   - name: http
-    port: 8008
+    port: 8011
     targetPort: http
     protocol: TCP
   - name: metrics
@@ -36,7 +36,7 @@ spec:
     app: architect-agent
   ports:
   - name: http
-    port: 8008
+    port: 8011
     targetPort: http
     protocol: TCP
   sessionAffinity: None
@@ -64,7 +64,7 @@ spec:
           service:
             name: architect-agent
             port:
-              number: 8008
+              number: 8011
   tls:
   - hosts:
     - architect.staging.neural-hive.com

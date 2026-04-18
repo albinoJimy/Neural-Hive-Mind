@@ -8,21 +8,28 @@ from openai import AsyncOpenAI
 @pytest.fixture
 def mock_openai_client():
     """Mock do cliente OpenAI."""
-    client = AsyncMock(spec=AsyncOpenAI)
+    from unittest.mock import Mock
+
+    client = Mock(spec=AsyncOpenAI)
 
     # Mock embeddings
-    client.embeddings.create = AsyncMock(
-        return_value=MagicMock(
-            data=[MagicMock(embedding=[0.1] * 1536)]
+    embeddings_mock = Mock()
+    embeddings_mock.create = AsyncMock(
+        return_value=Mock(
+            data=[Mock(embedding=[0.1] * 1536)]
         )
     )
+    client.embeddings = embeddings_mock
 
     # Mock chat completions
-    client.chat.completions.create = AsyncMock(
-        return_value=MagicMock(
-            choices=[MagicMock(message=MagicMock(content="Resposta de teste"))]
+    chat_mock = Mock()
+    chat_mock.completions = Mock()
+    chat_mock.completions.create = AsyncMock(
+        return_value=Mock(
+            choices=[Mock(message=Mock(content="Resposta de teste"))]
         )
     )
+    client.chat = chat_mock
 
     return client
 

@@ -79,7 +79,7 @@ services:
       context: ../../services/documentation-generation
       dockerfile: Dockerfile
     ports:
-      - "8014:8014"
+      - "8012:8012"
     environment:
       - DOC_GEN_OPENAI_API_KEY=${OPENAI_API_KEY:-sk-test}
     depends_on:
@@ -131,7 +131,7 @@ services:
       context: ../../services/fluxo-g-dashboard
       dockerfile: Dockerfile
     ports:
-      - "8018:8018"
+      - "8021:8021"
     environment:
       - FLUXO_G_DASHBOARD_ORCHESTRATOR_URL=http://orchestrator-dynamic:8003
     depends_on:

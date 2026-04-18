@@ -152,53 +152,6 @@ class TestApprovalGateway:
 
         assert decision.status == ApprovalStatus.PENDING
 
-    def test_extract_confidence(self, mock_openai_client):
-        """Testa extração de confiança da resposta."""
-        gateway = ApprovalGateway(llm_client=mock_openai_client)
-
-        response = "AVALIACAO: 75\nRACIOCINIO: Análise detalhada..."
-        confidence = gateway._extract_confidence(response)
-
-        assert confidence == 0.75
-
-    def test_extract_confidence_malformed(self, mock_openai_client):
-        """Testa extração com resposta malformada."""
-        gateway = ApprovalGateway(llm_client=mock_openai_client)
-
-        # Sem número
-        confidence = gateway._extract_confidence("Resposta sem número")
-        assert confidence == 0.5  # Valor padrão
-
-    def test_extract_reasoning(self, mock_openai_client):
-        """Testa extração de raciocínio."""
-        gateway = ApprovalGateway(llm_client=mock_openai_client)
-
-        response = "AVALIACAO: 80\nRACIOCINIO: Solicitação bem elaborada com objetivos claros."
-        reasoning = gateway._extract_reasoning(response)
-
-        assert "Solicitação bem elaborada" in reasoning
-
-    def test_build_evaluation_prompt(self, mock_openai_client):
-        """Testa construção de prompt de avaliação."""
-        gateway = ApprovalGateway(llm_client=mock_openai_client)
-
-        request = ApprovalRequest(
-            id="REQ-001",
-            type=ApprovalType.REQUIREMENT,
-            title="Login",
-            description="Funcionalidade de login",
-            requested_by="user@example.com",
-            context={"priority": "high"}
-        )
-
-        prompt = gateway._build_evaluation_prompt(request)
-
-        assert "requirement" in prompt
-        assert "Login" in prompt
-        assert "high" in prompt
-        assert "AVALIACAO:" in prompt
-        assert "RACIOCINIO:" in prompt
-
     async def test_evaluate_with_llm_error(self, mock_openai_client, mock_repository):
         """Testa fallback quando LLM falha."""
         mock_openai_client.chat.completions.create = AsyncMock(
@@ -272,3 +225,54 @@ class TestApprovalGateway:
         expired = await gateway.expire_pending_requests(24)
 
         assert expired == 0
+
+
+class TestApprovalGatewaySync:
+    """Testes síncronos para ApprovalGateway."""
+
+    def test_extract_confidence(self, mock_openai_client):
+        """Testa extração de confiança da resposta."""
+        gateway = ApprovalGateway(llm_client=mock_openai_client)
+
+        response = "AVALIACAO: 75\nRACIOCINIO: Análise detalhada..."
+        confidence = gateway._extract_confidence(response)
+
+        assert confidence == 0.75
+
+    def test_extract_confidence_malformed(self, mock_openai_client):
+        """Testa extração com resposta malformada."""
+        gateway = ApprovalGateway(llm_client=mock_openai_client)
+
+        # Sem número
+        confidence = gateway._extract_confidence("Resposta sem número")
+        assert confidence == 0.5  # Valor padrão
+
+    def test_extract_reasoning(self, mock_openai_client):
+        """Testa extração de raciocínio."""
+        gateway = ApprovalGateway(llm_client=mock_openai_client)
+
+        response = "AVALIACAO: 80\nRACIOCINIO: Solicitação bem elaborada com objetivos claros."
+        reasoning = gateway._extract_reasoning(response)
+
+        assert "Solicitação bem elaborada" in reasoning
+
+    def test_build_evaluation_prompt(self, mock_openai_client):
+        """Testa construção de prompt de avaliação."""
+        gateway = ApprovalGateway(llm_client=mock_openai_client)
+
+        request = ApprovalRequest(
+            id="REQ-001",
+            type=ApprovalType.REQUIREMENT,
+            title="Login",
+            description="Funcionalidade de login",
+            requested_by="user@example.com",
+            context={"priority": "high"}
+        )
+
+        prompt = gateway._build_evaluation_prompt(request)
+
+        assert "requirement" in prompt
+        assert "Login" in prompt
+        assert "high" in prompt
+        assert "AVALIACAO:" in prompt
+        assert "RACIOCINIO:" in prompt

@@ -112,7 +112,7 @@ kubectl logs -f deployment/architect-agent -n neural-hive-staging
 
 Porta principal para tráfico HTTP interno.
 
-- **Port:** 8008
+- **Port:** 8011
 - **Type:** ClusterIP
 - **Selector:** `app=architect-agent`
 
@@ -120,7 +120,7 @@ Porta principal para tráfico HTTP interno.
 
 Para statefulsets ou need DNS direto.
 
-- **Port:** 8008
+- **Port:** 8011
 - **Type:** ClusterIP (headless)
 - **Selector:** `app=architect-agent`
 
@@ -177,7 +177,7 @@ kubectl get endpoints architect-agent -n neural-hive-staging
 
 # Testar internamente
 kubectl run -it --rm debug --image=curlimages/curl --restart=Never -n neural-hive-staging \
-  -- curl -X POST http://architect-agent:8008/api/v1/architecture \
+  -- curl -X POST http://architect-agent:8011/api/v1/architecture \
   -H "Content-Type: application/json" \
   -d '{"intent": "Test", "context": {}}'
 ```

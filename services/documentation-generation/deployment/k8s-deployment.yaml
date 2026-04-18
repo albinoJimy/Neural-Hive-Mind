@@ -21,7 +21,7 @@ spec:
       - name: documentation-generation
         image: nhm/documentation-generation:v0.1.0
         ports:
-        - containerPort: 8014
+        - containerPort: 8012
           name: http
         env:
         - name: DOC_GEN_OPENAI_API_KEY
@@ -39,13 +39,13 @@ spec:
         livenessProbe:
           httpGet:
             path: /health
-            port: 8014
+            port: 8012
           initialDelaySeconds: 30
           periodSeconds: 10
         readinessProbe:
           httpGet:
             path: /health
-            port: 8014
+            port: 8012
           initialDelaySeconds: 10
           periodSeconds: 5
 ---
@@ -59,8 +59,8 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-  - port: 8014
-    targetPort: 8014
+  - port: 8012
+    targetPort: 8012
     name: http
   selector:
     app: documentation-generation

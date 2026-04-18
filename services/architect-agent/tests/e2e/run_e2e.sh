@@ -41,7 +41,7 @@ log_info "Aguardando serviços ficarem saudáveis..."
 max_wait=60
 waited=0
 while [ $waited -lt $max_wait ]; do
-    if curl -sf http://localhost:8008/health/live > /dev/null 2>&1; then
+    if curl -sf http://localhost:8011/health/live > /dev/null 2>&1; then
         log_info "Serviço saudável!"
         break
     fi

@@ -4,7 +4,7 @@ services:
   experiment-impact-analyzer:
     build: .
     ports:
-      - "8012:8012"
+      - "8020:8020"
       - "9092:9092"
     environment:
       - ENVIRONMENT=${ENVIRONMENT:-dev}

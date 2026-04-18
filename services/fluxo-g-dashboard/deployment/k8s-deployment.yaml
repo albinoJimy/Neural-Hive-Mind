@@ -21,7 +21,7 @@ spec:
       - name: fluxo-g-dashboard
         image: nhm/fluxo-g-dashboard:v0.1.0
         ports:
-        - containerPort: 8018
+        - containerPort: 8021
           name: http
         env:
         - name: FLUXO_G_DASHBOARD_TEMPORAL_HOST
@@ -31,7 +31,7 @@ spec:
         - name: FLUXO_G_DASHBOARD_REQUIREMENTS_URL
           value: "http://requirements-engineering:8010"
         - name: FLUXO_G_DASHBOARD_DOCUMENTATION_URL
-          value: "http://documentation-generation:8014"
+          value: "http://documentation-generation:8012"
         - name: FLUXO_G_DASHBOARD_KNOWLEDGE_GRAPH_URL
           value: "http://knowledge-graph-rag:8016"
         - name: FLUXO_G_DASHBOARD_APPROVAL_URL
@@ -46,13 +46,13 @@ spec:
         livenessProbe:
           httpGet:
             path: /health
-            port: 8018
+            port: 8021
           initialDelaySeconds: 10
           periodSeconds: 10
         readinessProbe:
           httpGet:
             path: /health
-            port: 8018
+            port: 8021
           initialDelaySeconds: 5
           periodSeconds: 5
 ---
@@ -66,8 +66,8 @@ metadata:
 spec:
   type: LoadBalancer
   ports:
-  - port: 8018
-    targetPort: 8018
+  - port: 8021
+    targetPort: 8021
     name: http
   selector:
     app: fluxo-g-dashboard
@@ -96,4 +96,4 @@ spec:
           service:
             name: fluxo-g-dashboard
             port:
-              number: 8018
+              number: 8021

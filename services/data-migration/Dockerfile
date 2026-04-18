@@ -18,6 +18,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application
 COPY services/data-migration/src ./src
 
+# Copy proto files from service-registry
+COPY services/service-registry/src/proto/ ./src/proto/
+
 # Expose port
 EXPOSE 8019
 

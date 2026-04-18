@@ -49,7 +49,7 @@ O serviço utiliza Pydantic Settings para configuração via variáveis de ambie
 # Configurações básicas
 SERVICE__ENVIRONMENT=production
 SERVICE__LOG_LEVEL=INFO
-SERVICE__HTTP_PORT=8008
+SERVICE__HTTP_PORT=8011
 
 # MongoDB
 MONGODB_URL=mongodb://mongodb:27017

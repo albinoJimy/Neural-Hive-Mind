@@ -24,11 +24,11 @@ RUN poetry install --no-dev --no-interaction --no-ansi
 COPY src/ ./src/
 
 # Expor porta
-EXPOSE 8014
+EXPOSE 8012
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8014/health || exit 1
+    CMD curl -f http://localhost:8012/health || exit 1
 
 # Executar
-CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8014"]
+CMD ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8012"]

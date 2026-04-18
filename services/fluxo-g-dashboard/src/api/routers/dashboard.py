@@ -4,8 +4,8 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse
 from typing import Optional
 
-from models.dashboard import DashboardMetrics, FluxoGWorkflowDetail
-from services.monitor_service import FluxoGMonitorService
+from src.models.dashboard import DashboardMetrics, FluxoGWorkflowDetail
+from src.services.monitor_service import FluxoGMonitorService
 
 router = APIRouter(prefix="/api", tags=["api"])
 

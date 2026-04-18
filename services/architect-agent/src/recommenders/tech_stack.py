@@ -4,6 +4,12 @@ from typing import List, Optional
 import json
 from openai import AsyncOpenAI
 from structlog import get_logger
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type
+)
 
 from src.models.tech_stack import (
     TechStackRecommendation,
@@ -65,6 +71,37 @@ Responda em JSON:
         self._logger = logger
         self._knowledge_base = TECH_KNOWLEDGE_BASE
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type((ConnectionError, TimeoutError)),
+        reraise=True
+    )
+    async def _call_llm(self, prompt: str) -> dict:
+        """Chama LLM com retry logic.
+
+        Args:
+            prompt: Prompt completo
+
+        Returns:
+            Dict com resposta JSON
+
+        Raises:
+            ConnectionError: Se falhar após 3 tentativas
+            TimeoutError: Se timeout após 3 tentativas
+        """
+        response = await self._llm_client.chat.completions.create(
+            model=self._model,
+            messages=[
+                {"role": "system", "content": "Você é um arquiteto de software especialista."},
+                {"role": "user", "content": prompt}
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.3
+        )
+
+        return json.loads(response.choices[0].message.content)
+
     async def recommend(
         self,
         requirements: str,
@@ -79,6 +116,10 @@ Responda em JSON:
 
         Returns:
             TechStackRecommendation com escolhas tecnológicas
+
+        Raises:
+            ConnectionError: Se LLM API falhar após retries
+            TimeoutError: Se LLM API timeout após retries
         """
         self._logger.info("recommending_tech_stack", constraints=constraints)
 
@@ -88,17 +129,8 @@ Responda em JSON:
         )
 
         try:
-            response = await self._llm_client.chat.completions.create(
-                model=self._model,
-                messages=[
-                    {"role": "system", "content": "Você é um arquiteto de software especialista."},
-                    {"role": "user", "content": prompt}
-                ],
-                response_format={"type": "json_object"},
-                temperature=0.3
-            )
-
-            result_data = json.loads(response.choices[0].message.content)
+            # Chamar LLM com retry logic
+            result_data = await self._call_llm(prompt)
 
             choices = [
                 TechChoice(
@@ -127,8 +159,13 @@ Responda em JSON:
 
             return recommendation
 
+        except (ConnectionError, TimeoutError):
+            # Re-raise retry errors com contexto
+            self._logger.error("tech_stack_llm_failed_after_retries")
+            raise
         except Exception as e:
-            self._logger.error("failed_to_recommend_tech_stack", error=str(e))
+            # Log outros errors inesperados
+            self._logger.error("failed_to_recommend_tech_stack", error=str(e), error_type=type(e).__name__)
             raise
 
     def _format_constraints(self, constraints: List[dict]) -> str:

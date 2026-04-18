@@ -1,0 +1,6 @@
+apiVersion: v2
+name: fluxo-g-dashboard
+description: Helm chart for Neural Hive-Mind fluxo-g-dashboard Service
+type: application
+version: 1.0.0
+appVersion: "1.0.0"

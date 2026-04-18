@@ -6,9 +6,30 @@ estabelecido em libraries/python/neural_hive_specialists/tests/conftest.py.
 """
 
 import sys
+import logging
 from pathlib import Path
 from enum import Enum
 from unittest.mock import MagicMock
+
+# Configurar structlog para usar standard logging (compatível com caplog)
+import structlog
+structlog.configure(
+    processors=[
+        structlog.stdlib.filter_by_level,
+        structlog.stdlib.add_logger_name,
+        structlog.stdlib.add_log_level,
+        structlog.stdlib.PositionalArgumentsFormatter(),
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
+        structlog.processors.UnicodeDecoder(),
+        structlog.stdlib.render_to_log_kwargs,
+    ],
+    context_class=dict,
+    logger_factory=structlog.stdlib.LoggerFactory(),
+    wrapper_class=structlog.stdlib.BoundLogger,
+    cache_logger_on_first_use=True,
+)
 
 
 # ALWAYS set up UnifiedDomain mock BEFORE any imports
@@ -39,15 +60,31 @@ class DomainMapper:
 
 mock_domain.DomainMapper = DomainMapper
 
-# Mock de observability (tracer) para evitar AttributeError
-mock_observability = MagicMock()
-mock_tracer = MagicMock()
-mock_span = MagicMock()
-mock_span.__enter__ = MagicMock(return_value=mock_span)
-mock_span.__exit__ = MagicMock(return_value=False)
-mock_tracer.start_as_current_span = MagicMock(return_value=mock_span)
-mock_observability.get_tracer = MagicMock(return_value=mock_tracer)
-sys.modules["neural_hive_observability"] = mock_observability
+# Mock de observability - permitir import real mas mockar apenas tracer
+# Isso permite que neural_hive_observability.context seja importado corretamente
+try:
+    # Tentar importar módulo real primeiro
+    from neural_hive_observability import get_tracer
+    # Mockar apenas as funções de tracing que causam problemas
+    mock_tracer = MagicMock()
+    mock_span = MagicMock()
+    mock_span.__enter__ = MagicMock(return_value=mock_span)
+    mock_span.__exit__ = MagicMock(return_value=False)
+    mock_tracer.start_as_current_span = MagicMock(return_value=mock_span)
+
+    # Patch get_tracer para retornar mock tracer
+    import neural_hive_observability
+    neural_hive_observability.get_tracer = MagicMock(return_value=mock_tracer)
+except ImportError:
+    # Se módulo real não disponível, mock completo
+    mock_observability = MagicMock()
+    mock_tracer = MagicMock()
+    mock_span = MagicMock()
+    mock_span.__enter__ = MagicMock(return_value=mock_span)
+    mock_span.__exit__ = MagicMock(return_value=False)
+    mock_tracer.start_as_current_span = MagicMock(return_value=mock_span)
+    mock_observability.get_tracer = MagicMock(return_value=mock_tracer)
+    sys.modules["neural_hive_observability"] = mock_observability
 
 # Add src to path for all tests
 src_path = Path(__file__).parent.resolve() / "src"
@@ -391,6 +428,7 @@ def mock_consensus_orchestrator_config():
     config.critical_risk_threshold = 0.8
     config.enable_pheromones = False
     config.enable_bayesian_averaging = True
+    config.bayesian_prior_weight = 0.1  # Prior weight para BayesianAggregator
     config.enable_hierarchical_consensus = False  # Desabilitar para testes simples
     config.specialist_seniority = {
         "business": "senior",
@@ -481,6 +519,9 @@ def mock_config_with_resilience():
     config.specialist_behavior_timeout_ms = None
     config.specialist_evolution_timeout_ms = None
     config.specialist_architecture_timeout_ms = None
+    # Bayesian aggregation settings
+    config.bayesian_prior_weight = 0.1
+    config.enable_bayesian_averaging = True
 
     def get_specialist_timeout_ms(specialist_type: str) -> int:
         """Retorna timeout específico ou fallback para global."""

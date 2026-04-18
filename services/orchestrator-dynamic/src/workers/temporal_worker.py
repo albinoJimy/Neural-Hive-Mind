@@ -371,6 +371,28 @@ class TemporalWorkerManager:
         )
         from src.workflows.data_migration_workflow import DataMigrationWorkflow
         from src.workflows.orchestration_workflow import OrchestrationWorkflow
+        from src.workflows.fluxo_g_workflow import FluxoGWorkflow
+        from src.activities.fluxo_g_integration import (
+            generate_requirements,
+            generate_documentation,
+            update_knowledge_graph,
+            request_approval,
+            query_knowledge_graph,
+            set_fluxo_g_dependencies,
+        )
+
+        # Injetar dependências do Fluxo G (HTTP client)
+        import httpx
+        fluxo_g_http_client = None
+        try:
+            fluxo_g_http_client = httpx.AsyncClient(
+                timeout=httpx.Timeout(60.0, connect=10.0),
+                limits=httpx.Limits(max_keepalive_connections=20, max_connections=100)
+            )
+            set_fluxo_g_dependencies(http_client=fluxo_g_http_client)
+            logger.info("HTTP client injetado para Fluxo G activities")
+        except Exception as e:
+            logger.warning("Falha ao criar HTTP client para Fluxo G", error=str(e))
 
         # Injetar PolicyValidator e MongoDB nas activities de validação (fail-open)
         if self.policy_validator:
@@ -434,7 +456,7 @@ class TemporalWorkerManager:
         self.worker = Worker(
             self.temporal_client,
             task_queue=self.config.temporal_task_queue,
-            workflows=[OrchestrationWorkflow, DataMigrationWorkflow],
+            workflows=[OrchestrationWorkflow, DataMigrationWorkflow, FluxoGWorkflow],
             activities=[
                 # Orchestration activities
                 validate_cognitive_plan,
@@ -448,6 +470,12 @@ class TemporalWorkerManager:
                 publish_telemetry,
                 buffer_telemetry,
                 check_workflow_sla_proactive,
+                # Fluxo G activities
+                generate_requirements,
+                generate_documentation,
+                update_knowledge_graph,
+                request_approval,
+                query_knowledge_graph,
                 # Data Migration activities
                 analyze_legacy_schema,
                 generate_schema_mapping,
@@ -475,6 +503,12 @@ class TemporalWorkerManager:
             "Data Migration workflow e atividades registradas no Worker",
             workflow="DataMigrationWorkflow",
             activities_count=9,
+        )
+
+        logger.info(
+            "Fluxo G workflow e atividades registradas no Worker",
+            workflow="FluxoGWorkflow",
+            activities_count=5,
         )
 
     async def start(self):
@@ -531,6 +565,17 @@ class TemporalWorkerManager:
                 await self.ml_predictor.close()
             except Exception as e:
                 logger.warning("Erro ao fechar ML Predictor", error=str(e))
+
+        # Fechar HTTP client do Fluxo G se existir
+        try:
+            from src.activities.fluxo_g_integration import _http_client as fluxo_g_http_client
+            if fluxo_g_http_client:
+                logger.info("Fechando HTTP client do Fluxo G")
+                await fluxo_g_http_client.aclose()
+        except ImportError:
+            pass
+        except Exception as e:
+            logger.warning("Erro ao fechar HTTP client do Fluxo G", error=str(e))
 
         # Temporal SDK gerencia shutdown automaticamente
 

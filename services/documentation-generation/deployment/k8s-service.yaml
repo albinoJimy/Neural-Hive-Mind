@@ -11,6 +11,6 @@ spec:
     app: documentation-generation
   ports:
   - name: http
-    port: 8014
-    targetPort: 8014
+    port: 8012
+    targetPort: 8012
     protocol: TCP

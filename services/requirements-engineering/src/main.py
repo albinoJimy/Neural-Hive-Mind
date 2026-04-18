@@ -8,7 +8,9 @@ from contextlib import asynccontextmanager
 import structlog
 from fastapi import FastAPI, status
 from fastapi.responses import JSONResponse
+from src.api.routers.api_design import router as api_design_router
 from src.api.routers.requirements import router as requirements_router
+from src.api.routers.ui_ux_design import router as ui_ux_design_router
 from src.clients.engineering_service_registry_client import (
     EngineeringServiceRegistryClient,
 )
@@ -71,6 +73,8 @@ async def lifespan(app: FastAPI):
                     "user_stories",
                     "acceptance_criteria",
                     "data_model_design",
+                    "api_design",
+                    "ui_ux_design",
                 ],
                 metadata={
                     "kafka_consumer": "cognitive_plan_consumer",
@@ -141,6 +145,8 @@ def get_engineering_service() -> RequirementsEngineer:
 
 # Incluir routers
 app.include_router(requirements_router, prefix=settings.api_prefix)
+app.include_router(api_design_router, prefix=settings.api_prefix)
+app.include_router(ui_ux_design_router, prefix=settings.api_prefix)
 
 
 # Middleware

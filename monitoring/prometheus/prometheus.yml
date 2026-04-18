@@ -29,7 +29,7 @@ scrape_configs:
 
   - job_name: 'documentation-generation'
     static_configs:
-      - targets: ['host.docker.internal:8014']
+      - targets: ['host.docker.internal:8012']
     metrics_path: '/metrics'
     scrape_interval: 30s
 

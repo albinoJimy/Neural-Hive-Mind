@@ -8,8 +8,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import structlog
 
-from config.settings import get_settings
-from api.routers.dashboard import router as api_router
+from src.config.settings import get_settings
+from src.api.routers.dashboard import router as api_router
 
 settings = get_settings()
 

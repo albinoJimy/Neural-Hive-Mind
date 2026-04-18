@@ -1,5 +1,15 @@
 """Módulo de modelos de dados."""
 
+from .agentic_delegation import (
+    AgentCapabilities,
+    AgentType,
+    DelegatedTask,
+    DelegationMetrics,
+    DelegationRequest,
+    DelegationResponse,
+    TaskPriority,
+    TaskStatus,
+)
 from .execution_ticket import (
     SLA,
     Consistency,
@@ -41,4 +51,13 @@ __all__ = [
     "CutoverPhase",
     "CutoverStatus",
     "RollbackReason",
+    # Agentic delegation models
+    "AgentCapabilities",
+    "AgentType",
+    "DelegatedTask",
+    "DelegationMetrics",
+    "DelegationRequest",
+    "DelegationResponse",
+    "TaskPriority",
+    "TaskStatus",
 ]

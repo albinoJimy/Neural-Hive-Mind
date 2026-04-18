@@ -2,7 +2,7 @@
 
 import pytest
 from datetime import datetime
-from src.models.knowledge import (
+from knowledge_graph_rag.models.knowledge import (
     NodeType,
     RelationType,
     KnowledgeNode,

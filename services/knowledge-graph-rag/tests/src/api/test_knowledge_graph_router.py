@@ -1,30 +1,9 @@
 """Tests para router Knowledge Graph."""
 
 import pytest
-from fastapi import testclient
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from src.main import app
-from src.models.knowledge import NodeType, RelationType
-
-
-@pytest.fixture
-def client():
-    """Cliente de teste."""
-    from fastapi.testclient import TestClient
-    return TestClient(app)
-
-
-@pytest.fixture
-def mock_rag_service():
-    """Mock do serviço RAG."""
-    service = MagicMock()
-    service.create_node = AsyncMock()
-    service.create_relation = AsyncMock()
-    service.search = AsyncMock()
-    service.query_with_rag = AsyncMock()
-
-    return service
+from knowledge_graph_rag.models.knowledge import NodeType, RelationType
 
 
 @pytest.mark.asyncio
@@ -58,7 +37,7 @@ class TestKnowledgeGraphRouter:
     @pytest.mark.asyncio
     async def test_create_node(self, client, mock_rag_service):
         """Testa criação de nó via API."""
-        from src.models.knowledge import KnowledgeNode
+        from knowledge_graph_rag.models.knowledge import KnowledgeNode
 
         mock_node = KnowledgeNode(
             id="REQ:123abc",
@@ -102,7 +81,7 @@ class TestKnowledgeGraphRouter:
     @pytest.mark.asyncio
     async def test_create_relation(self, client, mock_rag_service):
         """Testa criação de relação via API."""
-        from src.models.knowledge import KnowledgeRelation
+        from knowledge_graph_rag.models.knowledge import KnowledgeRelation
 
         mock_relation = KnowledgeRelation(
             id="REL:123abc",
@@ -132,7 +111,7 @@ class TestKnowledgeGraphRouter:
     @pytest.mark.asyncio
     async def test_search_graph(self, client, mock_rag_service):
         """Testa busca no grafo."""
-        from src.models.knowledge import GraphSearchResult, KnowledgeNode
+        from knowledge_graph_rag.models.knowledge import GraphSearchResult, KnowledgeNode
 
         mock_node = KnowledgeNode(
             id="DOC:001",

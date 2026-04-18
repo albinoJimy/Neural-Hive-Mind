@@ -562,6 +562,16 @@ class OrchestratorSettings(BaseSettings):
     )
 
     # Local ML Load Prediction (Fallback Heurístico)
+
+    # Agentic Delegation (Facade para delegar tarefas a agentes especializados)
+    enable_agentic_delegation: bool = Field(
+        default=True,
+        description="Habilitar Agentic Delegation para delegar tarefas a agentes especializados",
+    )
+    agents_host: str = Field(
+        default="localhost",
+        description="Host padrão para agentes especializados (pode ser override por env)",
+    )
     ml_local_load_prediction_enabled: bool = Field(
         default=True,
         description="Habilitar preditor local de carga (fallback heurístico quando optimizer-agents indisponível)",

@@ -87,7 +87,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
 ### Via API REST
 
 ```bash
-curl -X POST "http://localhost:8008/api/v1/architecture/diagrams/generate" \
+curl -X POST "http://localhost:8011/api/v1/architecture/diagrams/generate" \
   -H "Content-Type: application/json" \
   -d '{
     "description": "User -> API -> Database",

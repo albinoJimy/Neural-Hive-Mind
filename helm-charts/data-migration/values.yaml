@@ -1,0 +1,121 @@
+# Valores padrão para data-migration
+replicaCount: 2
+
+image:
+  repository: ghcr.io/albinojimy/neural-hive-mind/data-migration
+  pullPolicy: IfNotPresent
+  tag: "1.0.0"
+
+imagePullSecrets:
+  - name: ghcr-credentials
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+
+service:
+  type: ClusterIP
+  port: 8019
+  annotations: {}
+
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+  hosts:
+    - host: data-migration.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+config:
+  environment: production
+  logLevel: INFO
+  httpPort: 8019
+  apiPrefix: "/api/v1"
+
+  # MongoDB configuration
+  mongodb:
+    url: "mongodb://mongodb:27017"
+    database: "requirements_engineering"
+
+  # Redis configuration
+  redis:
+    url: "redis://redis:6379/0"
+
+  # Kafka configuration
+  kafka:
+    enabled: true
+    bootstrapServers: "kafka:9092"
+    consumerGroup: "data-migration-consumers"
+    inputTopic: "plans.cognitive"
+    outputTopic: "requirements.generated"
+    dlqTopic: "data-migration.dlq"
+
+  # LLM configuration
+  llm:
+    provider: "openai"
+    model: "gpt-4-turbo-preview"
+    temperature: 0.7
+    maxTokens: 4000
+
+  # Neural Hive-Mind Integration
+  neuralHive:
+    gatewayUrl: "http://gateway-intencoes:8000"
+    orchestratorUrl: "http://orchestrator-dynamic:8003"
+    architectUrl: "http://architect-agent:8011"
+
+observability:
+  enabled: true
+  prometheus:
+    port: 9090
+    path: /metrics
+
+extraEnv: []
+secrets:
+  openaiApiKey: ""
+  anthropicApiKey: ""
+
+volumeMounts:
+  - name: tmp
+    mountPath: /tmp
+
+volumes:
+  - name: tmp
+    emptyDir: {}

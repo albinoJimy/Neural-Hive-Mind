@@ -1,7 +1,8 @@
 # Resumo Final - Epic 1: Fluxo G (Idea → Software)
 
-**Data:** 2026-04-16
+**Data:** 2026-04-16 (Original) / 2026-04-18 (Actualizado)
 **Status:** ✅ COMPLETO
+**Nota:** Portas foram normalizadas nesta actualização (8011, 8012, 8021)
 
 ## Visão Geral
 
@@ -11,13 +12,14 @@ Implementação completa do Fluxo G (Idea → Software) para Neural Hive-Mind, c
 
 | Serviço | Porta | Status | Descrição |
 |---------|-------|--------|-----------|
-| architect-agent* | 8008 | ✅ Extendido | C4 diagrams, tech stack recommender |
+| architect-agent* | 8011 | ✅ Extendido | C4 diagrams, tech stack recommender |
 | requirements-engineering | 8010 | ✅ NOVO | Geração de requisitos, user stories, acceptance criteria |
-| documentation-generation | 8014 | ✅ NOVO | README, diagramas, docs técnicas |
+| documentation-generation | 8012 | ✅ NOVO | README, diagramas, docs técnicas |
+| test-generation | 8013 | ✅ NOVO | Geração de testes unitários, integração, E2E |
 | knowledge-graph-rag | 8016 | ✅ NOVO | Grafo de conhecimento com Neo4j/Qdrant + RAG |
 | approval-gateway | 8017 | ✅ NOVO | Gateway de aprovações com avaliação LLM |
 | orchestrator-dynamic* | 8003 | ✅ Integrado | Workflow Fluxo G integrado |
-| fluxo-g-dashboard | 8018 | ✅ NOVO | Dashboard web de monitoramento |
+| fluxo-g-dashboard | 8021 | ✅ NOVO | Dashboard web de monitoramento |
 | code-forge* | 8005 | ✅ Extendido | Integração com novos serviços |
 
 \* Serviços existentes que foram estendidos

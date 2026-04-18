@@ -76,7 +76,7 @@ services:
       dockerfile: Dockerfile
     container_name: architect-agent-e2e
     ports:
-      - "8008:8008"
+      - "8011:8011"
       - "9098:9098"
     environment:
       PYTHONUNBUFFERED: "1"
@@ -102,7 +102,7 @@ services:
     volumes:
       - ./tests/e2e:/app/tests/e2e:ro
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8008/health/live"]
+      test: ["CMD", "curl", "-f", "http://localhost:8011/health/live"]
       interval: 10s
       timeout: 5s
       retries: 5

@@ -38,6 +38,7 @@ from uuid import uuid4
 from pydantic import BaseModel, Field, ValidationError
 
 from src.api.model_audit import create_model_audit_router
+from src.clients.agentic_delegation_client import AgenticDelegationClient
 from src.clients.execution_ticket_client import ExecutionTicketClient
 from src.clients.kafka_producer import KafkaProducerClient
 from src.clients.mongodb_client import MongoDBClient
@@ -164,6 +165,7 @@ class AppState:
         self.ml_training_jobs: dict[str, Any] = {}  # Dict para rastrear jobs de treinamento
         self.vault_renewal_task: asyncio.Task | None = None
         self.optimizer_client: OptimizerGrpcClient | None = None
+        self.agentic_delegation_client: AgenticDelegationClient | None = None
         # Modelos preditivos centralizados
         self.scheduling_predictor: Any | None = None
         self.load_predictor: Any | None = None
@@ -763,6 +765,15 @@ async def lifespan(app: FastAPI):
             logger.info("Optimizer Agents client inicializado")
         else:
             logger.info("Optimizer integration desabilitada")
+
+        # Inicializar Agentic Delegation Client (se habilitado)
+        if config.enable_agentic_delegation:
+            logger.info("Inicializando Agentic Delegation client")
+            app_state.agentic_delegation_client = AgenticDelegationClient(config)
+            await app_state.agentic_delegation_client.initialize()
+            logger.info("Agentic Delegation client inicializado")
+        else:
+            logger.info("Agentic Delegation desabilitada")
 
         # Inicializar Temporal Worker com dependências (se Temporal disponível)
         if app_state.temporal_client:

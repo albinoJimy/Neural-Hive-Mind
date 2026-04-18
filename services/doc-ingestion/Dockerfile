@@ -8,7 +8,6 @@ RUN apt-get update && apt-get install -y \
     libxml2-dev \
     libxslt-dev \
     poppler-utils \
-    libreoffice-writer \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements
@@ -19,6 +18,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application
 COPY services/doc-ingestion/src ./src
+
+# Copy proto files from service-registry
+COPY services/service-registry/src/proto/ ./src/proto/
 
 # Expose port
 EXPOSE 8018

@@ -36,6 +36,19 @@ class MockConfigWithResilience:
     consumer_enable_dlq = False
     kafka_dlq_topic = "plans.ready.dlq"
     consumer_max_retries_before_dlq = 2
+    # Consensus orchestrator settings
+    min_confidence_score = 0.7
+    max_divergence_threshold = 0.3
+    critical_risk_threshold = 0.8
+    high_risk_threshold = 0.7
+    enable_pheromones = False
+    enable_hierarchical_consensus = False
+    specialist_seniority = {}
+    domain_specialist_weights = {}
+    require_unanimous_for_critical = True
+    # Bayesian aggregation settings
+    bayesian_prior_weight = 0.1
+    enable_bayesian_averaging = True
 
 
 @pytest.fixture

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: documentation-generation
+description: Helm chart for Neural Hive-Mind documentation-generation Service
+type: application
+version: 1.0.0
+appVersion: "1.0.0"

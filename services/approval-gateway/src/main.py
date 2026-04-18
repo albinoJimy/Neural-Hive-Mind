@@ -15,15 +15,7 @@ from src.config.settings import get_settings
 from src.api.routers.approvals import router as approvals_router
 from src.api.routers.auth import router as auth_router
 
-# Import proto para AgentType
-import sys
-from pathlib import Path
-
-# Adicionar caminho para o service-registry
-sr_path = Path(__file__).parent.parent.parent.parent.parent / "service-registry" / "src"
-if str(sr_path) not in sys.path:
-    sys.path.insert(0, str(sr_path))
-
+# Import proto para AgentType (arquivos locais)
 from proto import service_registry_pb2
 
 settings = get_settings()

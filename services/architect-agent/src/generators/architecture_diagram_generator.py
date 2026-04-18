@@ -1,7 +1,9 @@
 """Architecture diagram generator orchestrator."""
 
+import json
 from pathlib import Path
 from typing import List, Optional
+from openai import AsyncOpenAI
 
 from src.generators.c4_diagram import C4DiagramGenerator
 from src.generators.mermaid_renderer import MermaidRenderer
@@ -18,8 +20,21 @@ logger = get_logger(__name__)
 class ArchitectureDiagramGenerator:
     """Orquestra geração de diagramas de arquitetura."""
 
+    SEQUENCE_PROMPT = """
+Gere um diagrama de sequência Mermaid para o seguinte fluxo:
+
+{flow_description}
+
+O diagrama deve mostrar a interação entre componentes.
+Use formato: sequenceDiagram
+
+Responda apenas com o código Mermaid, sem markdown.
+"""
+
     def __init__(
         self,
+        llm_client: Optional[AsyncOpenAI] = None,
+        mermaid_renderer: Optional[MermaidRenderer] = None,
         output_dir: Optional[str] = None,
         mmdc_command: str = "mmdc"
     ):
@@ -27,12 +42,15 @@ class ArchitectureDiagramGenerator:
         Inicializa o gerador.
 
         Args:
+            llm_client: Cliente OpenAI para geração de diagramas via LLM
+            mermaid_renderer: Renderer Mermaid (opcional, cria padrão se não fornecido)
             output_dir: Diretório base para diagramas gerados
             mmdc_command: Comando mermaid-cli
         """
+        self._llm_client = llm_client or AsyncOpenAI()
+        self._renderer = mermaid_renderer or MermaidRenderer(mmdc_command)
         self._output_dir = Path(output_dir) if output_dir else Path("diagrams")
         self._c4_generator = C4DiagramGenerator()
-        self._renderer = MermaidRenderer(mmdc_command)
         self._logger = logger
 
     async def generate_context_diagram(
@@ -229,9 +247,10 @@ class ArchitectureDiagramGenerator:
     async def generate_sequence(
         self,
         title: str,
-        steps: List[str],
+        steps: Optional[List[str]] = None,
         artifacts: Optional[List[str]] = None,
-        render: bool = True
+        render: bool = True,
+        mermaid_code: Optional[str] = None
     ) -> Diagram:
         """
         Gera diagrama de sequência.
@@ -241,29 +260,34 @@ class ArchitectureDiagramGenerator:
             steps: Lista de passos da sequência (formato: "Actor->System: message")
             artifacts: Artefatos envolvidos (opcional)
             render: Se True, renderiza para SVG
+            mermaid_code: Código Mermaid já gerado (opcional, prioridade sobre steps)
 
         Returns:
             Diagram com código Mermaid e caminho SVG
         """
         self._logger.info("generating_sequence_diagram", title=title)
 
-        # Construir código Mermaid para sequência
-        mermaid_lines = ["sequenceDiagram"]
-        for step in steps:
-            mermaid_lines.append(f"    {step}")
+        # Se mermaid_code fornecido, usar diretamente
+        if mermaid_code:
+            final_mermaid_code = mermaid_code
+        else:
+            # Construir código Mermaid para sequência
+            mermaid_lines = ["sequenceDiagram"]
+            for step in steps or []:
+                mermaid_lines.append(f"    {step}")
 
-        # Adicionar notas para artefatos se fornecidos
-        if artifacts:
-            for artifact in artifacts:
-                mermaid_lines.append(f"    Note over {artifact}: {artifact}")
+            # Adicionar notas para artefatos se fornecidos
+            if artifacts:
+                for artifact in artifacts:
+                    mermaid_lines.append(f"    Note over {artifact}: {artifact}")
 
-        mermaid_code = "\n".join(mermaid_lines)
+            final_mermaid_code = "\n".join(mermaid_lines)
 
         svg_url = None
         if render:
             output_path = self._output_dir / "sequence"
             svg_url = await self._renderer.render_to_svg(
-                mermaid_code,
+                final_mermaid_code,
                 str(output_path)
             )
 
@@ -271,7 +295,7 @@ class ArchitectureDiagramGenerator:
             diagram_id=f"{title.lower().replace(' ', '-')}-sequence",
             type=DiagramType.SEQUENCE,
             title=title,
-            mermaid_code=mermaid_code,
+            mermaid_code=final_mermaid_code,
             svg_url=svg_url
         )
 
@@ -281,10 +305,7 @@ class ArchitectureDiagramGenerator:
         render: bool = True
     ) -> Diagram:
         """
-        Gera diagrama a partir de descrição em linguagem natural.
-
-        Este método usa heurísticas para determinar o tipo de diagrama
-        mais apropriado baseado em palavras-chave na descrição.
+        Gera diagrama a partir de descrição em linguagem natural usando LLM.
 
         Args:
             description: Descrição do sistema/fluxo em linguagem natural
@@ -293,64 +314,28 @@ class ArchitectureDiagramGenerator:
         Returns:
             Diagram gerado baseado na descrição
         """
-        self._logger.info("generating_from_description", desc_preview=description[:100])
+        self._logger.info("generating_diagram_from_description")
 
-        description_lower = description.lower()
+        response = await self._llm_client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "Você é um especialista em diagramas UML e Mermaid."},
+                {"role": "user", "content": self.SEQUENCE_PROMPT.format(flow_description=description)}
+            ],
+            temperature=0.3
+        )
 
-        # Converter para lista de palavras para matching exato (evita substrings)
-        words = description_lower.split()
+        mermaid_code = response.choices[0].message.content.strip()
 
-        # Heurísticas para determinar tipo de diagrama
-        # Prioridade: contexto (descrição de sistema) > sequência (fluxo)
-        context_keywords = {"context", "system", "architecture", "component"}
-        sequence_keywords = {"sequence", "flow", "step", "then", "after", "next"}
+        # Limpar markdown se presente
+        if mermaid_code.startswith("```"):
+            mermaid_code = mermaid_code.split("\n", 1)[-1].rstrip("\n`")
 
-        # Verificar se há palavras-chave de contexto (prioridade alta)
-        has_context = any(word in words or f"{word}s" in words for word in context_keywords)
-
-        # Verificar se há palavras-chave de sequência (mas apenas se não for contexto)
-        has_sequence = any(word in words or f"{word}s" in words for word in sequence_keywords)
-
-        # Detectar padrões de fluxo sequencial (frases como "then X happens")
-        has_explicit_sequence = any(pattern in description_lower for pattern in [
-            ", then ", ", after ", " next ", " followed by ", " subsequently "
-        ])
-
-        if has_context and not has_explicit_sequence:
-            # Diagrama de contexto C4
-            title = "Generated Context Diagram"
-            project_name = "System"
-            actors = ["User"]
-            external_systems = []
-            mermaid_code = self._c4_generator.generate_context(
-                project_name=project_name,
-                system_description=description,
-                actors=actors,
-                external_systems=external_systems
-            )
-            return Diagram(
-                diagram_id=f"{project_name}-context",
-                type=DiagramType.C4_CONTEXT,
-                title=title,
-                mermaid_code=mermaid_code,
-                svg_url=None
-            )
-        elif has_sequence or has_explicit_sequence:
-            # Diagrama de sequência
-            title = "Generated Sequence Diagram"
-            steps = self._parse_sequence_from_description(description)
-            return await self.generate_sequence(title, steps, render=render)
-        else:
-            # Fallback: diagrama de contexto simples
-            title = "Generated Diagram"
-            mermaid_code = f"graph TD\n    A[{description[:50]}...]\n    B[Component B]\n    A --> B"
-            return Diagram(
-                diagram_id="generated-diagram",
-                type=DiagramType.C4_CONTEXT,
-                title=title,
-                mermaid_code=mermaid_code,
-                svg_url=None
-            )
+        return await self.generate_sequence(
+            title="Generated Diagram",
+            steps=[],  # Steps já estão no mermaid_code
+            render=render
+        )
 
     def _parse_sequence_from_description(self, description: str) -> List[str]:
         """

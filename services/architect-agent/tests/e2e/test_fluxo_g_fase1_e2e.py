@@ -27,7 +27,7 @@ class TestFluxoGFase1Integration:
     async def client(self):
         """Fixture para cliente HTTP."""
         async with AsyncClient(
-            base_url="http://architect-agent:8008",
+            base_url="http://architect-agent:8011",
             timeout=30.0
         ) as ac:
             yield ac
@@ -359,7 +359,7 @@ class TestFluxoGWithRealLLM:
     async def client(self):
         """Fixture para cliente HTTP."""
         async with AsyncClient(
-            base_url="http://architect-agent:8008",
+            base_url="http://architect-agent:8011",
             timeout=60.0
         ) as ac:
             yield ac
