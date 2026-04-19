@@ -8,6 +8,13 @@ from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroDeserializer
 from confluent_kafka.serialization import MessageField, SerializationContext
 
+# W3C Trace Context support
+try:
+    from neural_hive_observability.context import extract_context_from_headers, set_baggage
+    OBSERVABILITY_AVAILABLE = True
+except ImportError:
+    OBSERVABILITY_AVAILABLE = False
+
 logger = structlog.get_logger()
 
 
@@ -117,6 +124,14 @@ class KafkaTicketConsumer:
                     break
 
                 try:
+                    # Extract W3C trace context from Kafka headers (traceparent)
+                    if OBSERVABILITY_AVAILABLE and message.headers():
+                        headers_dict = {
+                            k: v.decode("utf-8") if isinstance(v, bytes) else v
+                            for k, v in message.headers()
+                        }
+                        extract_context_from_headers(headers_dict)
+
                     context = SerializationContext(message.topic(), MessageField.VALUE)
 
                     # Auto-detect format: Avro (magic byte 0x00) vs JSON (starts with '{')
@@ -161,6 +176,19 @@ class KafkaTicketConsumer:
 
                     # Atualizar ticket com task_type normalizado para processamento downstream
                     ticket["task_type"] = task_type
+
+                    # Set baggage for correlation (W3C Trace Context)
+                    if OBSERVABILITY_AVAILABLE:
+                        ticket_id = ticket.get("ticket_id")
+                        plan_id = ticket.get("plan_id")
+                        intent_id = ticket.get("intent_id")
+
+                        if ticket_id:
+                            set_baggage("neural.hive.ticket.id", ticket_id)
+                        if plan_id:
+                            set_baggage("neural.hive.plan.id", plan_id)
+                        if intent_id:
+                            set_baggage("neural.hive.intent.id", intent_id)
 
                     # Verificar status
                     status = ticket.get("status")
