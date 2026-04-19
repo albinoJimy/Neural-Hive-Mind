@@ -78,6 +78,14 @@ from .kafka_instrumentation import (
     InstrumentedAIOKafkaConsumer,
     InstrumentedAIOKafkaProducer,
 )
+from .middleware import (
+    TraceContextMiddleware,
+    parse_traceparent,
+    extract_traceparent_from_request,
+    extract_tracestate_from_request,
+    validate_trace_context,
+    get_trace_id_from_request,
+)
 
 # Versão da biblioteca
 __version__ = "1.3.1"
@@ -268,4 +276,11 @@ __all__ = [
     "InstrumentedKafkaProducer",
     "InstrumentedAIOKafkaConsumer",
     "InstrumentedAIOKafkaProducer",
+    # W3C Trace Context middleware
+    "TraceContextMiddleware",
+    "parse_traceparent",
+    "extract_traceparent_from_request",
+    "extract_tracestate_from_request",
+    "validate_trace_context",
+    "get_trace_id_from_request",
 ]
