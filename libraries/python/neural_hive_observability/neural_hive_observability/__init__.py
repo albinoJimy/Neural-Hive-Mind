@@ -86,6 +86,14 @@ from .middleware import (
     validate_trace_context,
     get_trace_id_from_request,
 )
+from .dlq import (
+    DLQMessage,
+    TokenBucketRateLimiter,
+    SlidingWindowRateLimiter,
+    DLQProducer,
+    DLQHandler,
+    create_dlq_handler,
+)
 
 # Versão da biblioteca
 __version__ = "1.3.1"
@@ -283,4 +291,11 @@ __all__ = [
     "extract_tracestate_from_request",
     "validate_trace_context",
     "get_trace_id_from_request",
+    # Dead Letter Queue
+    "DLQMessage",
+    "TokenBucketRateLimiter",
+    "SlidingWindowRateLimiter",
+    "DLQProducer",
+    "DLQHandler",
+    "create_dlq_handler",
 ]
