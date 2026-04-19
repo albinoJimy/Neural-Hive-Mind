@@ -9,5 +9,15 @@ __version__ = "0.1.0"
 __author__ = "Neural Hive Mind Team"
 
 from .cors import CORSConfig
+from .security_headers import (
+    SecurityHeadersConfig,
+    SecurityHeadersMiddleware,
+    add_security_headers,
+)
 
-__all__ = ["CORSConfig"]
+__all__ = [
+    "CORSConfig",
+    "SecurityHeadersConfig",
+    "SecurityHeadersMiddleware",
+    "add_security_headers",
+]
