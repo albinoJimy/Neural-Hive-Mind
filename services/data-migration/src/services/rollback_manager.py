@@ -15,6 +15,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 
 import structlog
+import tempfile
 
 from src.config.settings import get_settings
 from src.db.postgresql import get_postgresql_client
@@ -248,7 +249,7 @@ class RollbackManager:
         table_mappings: List[TableMapping],
     ) -> tuple[str, Dict[str, int]]:
         """
-        Cria snapshot armazenando dados no S3.
+        Cria snapshot armazenando dados no S3 com streaming (evita OOM).
 
         Args:
             snapshot_id: ID do snapshot
@@ -261,82 +262,123 @@ class RollbackManager:
         postgres = await self._get_postgres()
         s3_client = await self._get_s3_client()
 
-        snapshot_data = {
-            "snapshot_id": snapshot_id,
-            "migration_job_id": migration_job_id,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "tables": [],
-        }
-
         row_counts: Dict[str, int] = {}
 
-        for table_mapping in table_mappings:
-            table_name = table_mapping.source_table
-            schema = table_mapping.source_schema
-
-            logger.debug("snapshotting_table", table=table_name, schema=schema)
-
-            # Obter count total
-            total_count = await postgres.get_table_count(table_name, schema=schema)
-            row_counts[table_name] = total_count
-
-            # Extrair dados em batches
-            all_data = []
-            offset = 0
-            batch_size = 1000
-
-            while offset < total_count:
-                batch = await postgres.fetch_batch(
-                    table_name=table_name,
-                    offset=offset,
-                    batch_size=batch_size,
-                    schema=schema,
-                )
-                all_data.extend(batch)
-                offset += batch_size
-
-            # Converter valores datetime para string
-            for row in all_data:
-                for key, value in row.items():
-                    if isinstance(value, datetime):
-                        row[key] = value.isoformat()
-
-            snapshot_data["tables"].append(
-                {
-                    "table_name": table_name,
-                    "schema": schema,
-                    "row_count": total_count,
-                    "data": all_data,
-                }
-            )
-
-        # Comprimir e enviar para S3
-        json_data = json.dumps(snapshot_data, default=str)
-        compressed_data = gzip.compress(json_data.encode())
-
-        key = f"snapshots/{snapshot_id}.json.gz"
+        # Usar arquivo temporário com streaming para evitar OOM
+        with tempfile.NamedTemporaryFile(mode="wb", suffix=".json.gz", delete=False) as tmp_file:
+            tmp_path = tmp_file.name
 
         try:
-            # Tenta MinIO primeiro
-            from io import BytesIO
+            with gzip.open(tmp_path, "wt", encoding="utf-8") as gz_file:
+                # Escrever header do JSON
+                gz_file.write('{"snapshot_id":"')
+                gz_file.write(snapshot_id)
+                gz_file.write('","migration_job_id":"')
+                gz_file.write(migration_job_id)
+                gz_file.write('","created_at":"')
+                gz_file.write(datetime.now(timezone.utc).isoformat())
+                gz_file.write('","tables":[')
 
-            s3_client.put_object(
-                bucket_name=self._bucket,
-                key=key,
-                data=BytesIO(compressed_data),
-                length=len(compressed_data),
-                content_type="application/gzip",
-            )
-        except (AttributeError, TypeError):
-            # Fallback para boto3
-            s3_client.put_object(
-                Bucket=self._bucket,
-                Key=key,
-                Body=compressed_data,
-                ContentEncoding="gzip",
-            )
+                first_table = True
 
-        return f"s3://{self._bucket}/{key}", row_counts
+                for table_mapping in table_mappings:
+                    table_name = table_mapping.source_table
+                    schema = table_mapping.source_schema
+
+                    logger.debug("snapshotting_table", table=table_name, schema=schema)
+
+                    # Obter count total
+                    total_count = await postgres.get_table_count(table_name, schema=schema)
+                    row_counts[table_name] = total_count
+
+                    # Escrever início da tabela
+                    if not first_table:
+                        gz_file.write(",")
+                    first_table = False
+
+                    gz_file.write('{"table_name":"')
+                    gz_file.write(table_name)
+                    gz_file.write('","schema":"')
+                    gz_file.write(schema)
+                    gz_file.write('","row_count":')
+                    gz_file.write(str(total_count))
+                    gz_file.write(',"data":[')
+
+                    # Extrair dados em batches com streaming
+                    offset = 0
+                    batch_size = 1000
+                    first_row = True
+
+                    while offset < total_count:
+                        batch = await postgres.fetch_batch(
+                            table_name=table_name,
+                            offset=offset,
+                            batch_size=batch_size,
+                            schema=schema,
+                        )
+
+                        if not batch:
+                            break
+
+                        # Converter e escrever batch imediatamente
+                        for row in batch:
+                            if not first_row:
+                                gz_file.write(",")
+                            first_row = False
+
+                            # Converter datetime para string
+                            processed_row = {
+                                k: v.isoformat() if isinstance(v, datetime) else v
+                                for k, v in row.items()
+                            }
+                            gz_file.write(json.dumps(processed_row))
+
+                        offset += len(batch)
+                        # Libera memória do batch
+                        del batch
+
+                    # Fechar array de dados da tabela
+                    gz_file.write("]}")
+
+                # Fechar JSON
+                gz_file.write("]}")
+
+            # Ler arquivo comprimido e enviar para S3
+            with open(tmp_path, "rb") as f:
+                compressed_data = f.read()
+
+            key = f"snapshots/{snapshot_id}.json.gz"
+
+            try:
+                # Tenta MinIO primeiro
+                from io import BytesIO
+
+                s3_client.put_object(
+                    bucket_name=self._bucket,
+                    key=key,
+                    data=BytesIO(compressed_data),
+                    length=len(compressed_data),
+                    content_type="application/gzip",
+                )
+            except (AttributeError, TypeError):
+                # Fallback para boto3
+                s3_client.put_object(
+                    Bucket=self._bucket,
+                    Key=key,
+                    Body=compressed_data,
+                    ContentEncoding="gzip",
+                )
+
+            return f"s3://{self._bucket}/{key}", row_counts
+
+        finally:
+            # Sempre limpar arquivo temporário
+            import os
+
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
 
     async def _create_shadow_snapshot(
         self,
@@ -444,7 +486,7 @@ class RollbackManager:
         snapshot: RollbackSnapshot,
         start_time: datetime,
     ) -> RollbackStatistics:
-        """Restaura dados de snapshot S3."""
+        """Restaura dados de snapshot S3 com streaming (evita OOM)."""
         postgres = await self._get_postgres()
         s3_client = await self._get_s3_client()
 
@@ -476,31 +518,127 @@ class RollbackManager:
             else:
                 compressed_data = body
 
-        # Descomprimir e parsear
-        json_data = gzip.decompress(compressed_data).decode()
-        snapshot_data = json.loads(json_data)
+        # Usar arquivo temporário para processamento streaming
+        tmp_path = None
+        try:
+            # Salvar dados comprimidos em arquivo temporário
+            with tempfile.NamedTemporaryFile(mode="wb", suffix=".json.gz", delete=False) as tmp_file:
+                tmp_path = tmp_file.name
+                tmp_file.write(compressed_data)
 
-        for table_data in snapshot_data["tables"]:
-            table_name = table_data["table_name"]
-            schema = table_data.get("schema", "public")
-            rows = table_data["data"]
+            # Liberar memória dos dados comprimidos
+            del compressed_data
 
-            try:
-                await asyncio.wait_for(
-                    self._restore_table_data(postgres, table_name, schema, rows),
-                    timeout=self._timeout / len(snapshot_data["tables"]),
-                )
-                stats.tables_processed += 1
-                stats.rows_restored += len(rows)
-            except asyncio.TimeoutError:
-                stats.tables_failed += 1
-                stats.errors.append(f"Timeout restaurando {table_name}")
-            except Exception as e:
-                stats.tables_failed += 1
-                stats.errors.append(f"Erro em {table_name}: {str(e)}")
+            # Processar cada tabela separadamente com streaming
+            tables_count = 0
+            with gzip.open(tmp_path, "rt", encoding="utf-8") as gz_file:
+                # Ler arquivo JSON em streaming
+                tables_data = self._extract_tables_from_json(gz_file)
+
+                for table_name, schema, rows in tables_data:
+                    tables_count += 1
+                    try:
+                        await asyncio.wait_for(
+                            self._restore_table_data(postgres, table_name, schema, rows),
+                            timeout=self._timeout / max(tables_count, 1),
+                        )
+                        stats.tables_processed += 1
+                        stats.rows_restored += len(rows)
+                    except asyncio.TimeoutError:
+                        stats.tables_failed += 1
+                        stats.errors.append(f"Timeout restaurando {table_name}")
+                    except Exception as e:
+                        stats.tables_failed += 1
+                        stats.errors.append(f"Erro em {table_name}: {str(e)}")
+
+        finally:
+            # Sempre limpar arquivo temporário
+            if tmp_path:
+                import os
+
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
 
         stats.duration_seconds = (datetime.now(timezone.utc) - start_time).total_seconds()
         return stats
+
+    def _extract_tables_from_json(self, gz_file):
+        """
+        Extrai tabelas de arquivo JSON streaming.
+
+        Yield tuplas (table_name, schema, rows_list) para cada tabela.
+        Processa linha por linha para evitar carregar tudo na memória.
+        """
+        import json
+
+        # Encontrar início das tables
+        char = gz_file.read(1)
+        while char and char != "[":
+            char = gz_file.read(1)
+
+        if not char:
+            return
+
+        # Processar cada tabela
+        depth = 1
+        buffer = ""
+        in_string = False
+        escape = False
+
+        while True:
+            char = gz_file.read(1)
+            if not char:
+                break
+
+            if escape:
+                buffer += char
+                escape = False
+                continue
+
+            if char == "\\":
+                buffer += char
+                escape = True
+                continue
+
+            if char == '"' and not escape:
+                in_string = not in_string
+                buffer += char
+                continue
+
+            if not in_string:
+                if char == "{":
+                    depth += 1
+                elif char == "}":
+                    depth -= 1
+
+            buffer += char
+
+            # Quando fechamos um objeto de tabela, processamos
+            if depth == 1 and char == "]":
+                # Fim do array de tabelas
+                break
+            elif depth == 1 and char == ",":
+                # Próxima tabela
+                table_data = json.loads(buffer[:-1])  # Remove vírgula
+                rows = table_data.get("data", [])
+                yield (
+                    table_data.get("table_name", ""),
+                    table_data.get("schema", "public"),
+                    rows,
+                )
+                buffer = ""
+
+        # Processar última tabela
+        if buffer.strip():
+            table_data = json.loads(buffer.strip("] "))
+            rows = table_data.get("data", [])
+            yield (
+                table_data.get("table_name", ""),
+                table_data.get("schema", "public"),
+                rows,
+            )
 
     async def _rollback_from_shadow(
         self,
