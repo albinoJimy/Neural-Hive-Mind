@@ -555,7 +555,7 @@ class IntelligentScheduler:
 
     async def _enrich_ticket_with_predictions(self, ticket: dict) -> dict:
         """
-        Enriquece ticket com predições ML (duração, recursos, anomalia).
+        Enriquece ticket com predições ML (duração, recursos, anomalia, carga).
         Enriquece ticket com predições ML antes da alocação (usado para priority boosting e feedback loop).
 
         Args:
@@ -565,6 +565,60 @@ class IntelligentScheduler:
             Ticket com campo 'predictions' adicionado
         """
         predictions = {}
+
+        # NOVO: Previsão de carga do sistema (INFRA-011)
+        if self.load_predictor:
+            try:
+                load_forecast = await self.load_predictor.predict_load(
+                    horizon_minutes=60,
+                    include_confidence=True
+                )
+
+                # Extrair carga atual prevista (primeiro ponto do forecast)
+                forecast_values = load_forecast.get("forecast", [])
+                predicted_load_pct = forecast_values[0] if forecast_values else 0.5
+
+                predictions["system_load"] = {
+                    "predicted_load_pct": predicted_load_pct,
+                    "forecast_horizon_minutes": 60,
+                    "forecast_available": len(forecast_values) > 0,
+                }
+
+                self.logger.debug(
+                    "ticket_enriched_with_load_prediction",
+                    ticket_id=ticket.get("ticket_id"),
+                    predicted_load_pct=predicted_load_pct,
+                )
+
+            except Exception as e:
+                self.logger.warning(
+                    "load_prediction_failed", ticket_id=ticket.get("ticket_id"), error=str(e)
+                )
+
+        # NOVO: Detecção de bottlenecks (INFRA-011)
+        if self.load_predictor:
+            try:
+                bottlenecks = await self.load_predictor.predict_bottlenecks(
+                    horizon_minutes=60
+                )
+
+                predictions["bottlenecks"] = {
+                    "count": len(bottlenecks),
+                    "items": bottlenecks[:5],  # Limitar aos 5 primeiros
+                }
+
+                if bottlenecks:
+                    self.logger.info(
+                        "bottlenecks_predicted_for_ticket",
+                        ticket_id=ticket.get("ticket_id"),
+                        bottleneck_count=len(bottlenecks),
+                        max_severity=max(b.get("severity", "LOW") for b in bottlenecks),
+                    )
+
+            except Exception as e:
+                self.logger.warning(
+                    "bottleneck_prediction_failed", ticket_id=ticket.get("ticket_id"), error=str(e)
+                )
 
         # Predições de duração e recursos
         if self.scheduling_predictor:

@@ -13,17 +13,13 @@ import sys
 
 # Python 3.10 compatibility: StrEnum was added in Python 3.11
 if sys.version_info >= (3, 11):
-    from enum import Enum
-
-
-class StrEnum(str, Enum):
-    """Compatibilidade StrEnum para Python 3.10"""
-    def _generate_next_value_(name, start, count, last_values):
-        return name as _StrEnum
+    from enum import StrEnum as _StrEnum
 else:
     class _StrEnum(str, Enum):
         """Polyfill for StrEnum on Python 3.10"""
-        pass
+        @staticmethod
+        def _generate_next_value_(name, start, count, last_values):
+            return name
 from typing import Any
 
 import structlog

@@ -247,6 +247,44 @@ class OrchestratorMetrics:
             buckets=[0.1, 0.5, 1, 2, 5, 10, 30, 60, 120],
         )
 
+        # Métricas de LoadPredictor (INFRA-011)
+        self.load_forecast_predictions_total = Counter(
+            "orchestration_load_forecast_predictions_total",
+            "Total de previsões de carga geradas",
+            ["horizon_minutes", "status"],  # status: success, error
+        )
+
+        self.load_forecast_duration_seconds = Histogram(
+            "orchestration_load_forecast_duration_seconds",
+            "Duração das previsões de carga",
+            ["horizon_minutes"],
+            buckets=[0.01, 0.05, 0.1, 0.5, 1, 2, 5],
+        )
+
+        self.load_forecast_mape = Gauge(
+            "orchestration_load_forecast_mape",
+            "Mean Absolute Percentage Error das previsões de carga",
+            ["horizon_minutes"],
+        )
+
+        self.predicted_load_pct = Gauge(
+            "orchestration_predicted_load_pct",
+            "Carga prevista atual do sistema (0-1)",
+            ["horizon_minutes"],
+        )
+
+        self.bottleneck_predictions_total = Counter(
+            "orchestration_bottleneck_predictions_total",
+            "Total de predições de bottleneck",
+            ["bottleneck_type", "severity"],  # severity: LOW, MEDIUM, HIGH
+        )
+
+        self.active_bottlenecks = Gauge(
+            "orchestration_active_bottlenecks",
+            "Número de bottlenecks ativos previstos",
+            ["severity"],
+        )
+
         # Métricas de Kafka
         self.kafka_messages_consumed_total = Counter(
             "orchestration_kafka_messages_consumed_total",
@@ -1869,14 +1907,33 @@ class OrchestratorMetrics:
             latency: Latência em segundos
             mape: Mean Absolute Percentage Error
         """
-        self.ml_predictions_total.labels(model_type="load", status=status).inc()
+        self.load_forecast_predictions_total.labels(
+            horizon_minutes=str(horizon_minutes), status=status
+        ).inc()
         if latency > 0:
-            self.ml_prediction_duration_seconds.labels(model_type="load").observe(latency)
+            self.load_forecast_duration_seconds.labels(
+                horizon_minutes=str(horizon_minutes)
+            ).observe(latency)
+        if mape is not None:
+            self.load_forecast_mape.labels(horizon_minutes=str(horizon_minutes)).set(mape)
 
     async def record_bottleneck_prediction(
-        self, bottleneck_type: str, severity: str, timestamp: str
+        self, bottleneck_type: str, severity: str, timestamp: str, predicted_load: float = 0.0
     ):
-        """Registra predição de bottleneck (stub para compatibilidade)."""
+        """
+        Registra predição de bottleneck (INFRA-011).
+
+        Args:
+            bottleneck_type: Tipo de bottleneck (worker_saturation, memory_pressure, etc)
+            severity: Severidade (LOW, MEDIUM, HIGH)
+            timestamp: Timestamp da predição
+            predicted_load: Carga prevista que causou o bottleneck
+        """
+        self.bottleneck_predictions_total.labels(
+            bottleneck_type=bottleneck_type, severity=severity
+        ).inc()
+        # Atualizar gauge de bottlenecks ativos
+        self.active_bottlenecks.labels(severity=severity).inc()
 
     async def record_forecast_cache_hit(self, hit: bool):
         """Registra cache hit/miss de forecast (stub para compatibilidade)."""

@@ -9,17 +9,17 @@ Valida:
 - Métricas Prometheus
 """
 
-import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
+import pytest
+from src.config.settings import OrchestratorSettings
 from src.ml.load_predictor_factory import LoadPredictorFactory
+from src.observability.metrics import OrchestratorMetrics
 from src.scheduler.intelligent_scheduler import IntelligentScheduler
 from src.scheduler.resource_allocator import ResourceAllocator
-from src.config.settings import OrchestratorSettings
-from src.observability.metrics import OrchestratorMetrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_config():
     """Configuração mockada com LoadPredictor habilitado."""
     config = Mock(spec=OrchestratorSettings)
@@ -39,7 +39,7 @@ def mock_config():
     return config
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_redis():
     """Cliente Redis mockado."""
     mock = AsyncMock()
@@ -50,7 +50,7 @@ def mock_redis():
     return mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_mongodb():
     """Cliente MongoDB mockado."""
     mock = AsyncMock()
@@ -58,7 +58,7 @@ def mock_mongodb():
     return mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_metrics():
     """Métricas mockadas."""
     metrics = Mock(spec=OrchestratorMetrics)
@@ -70,7 +70,7 @@ def mock_metrics():
     return metrics
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_registry_client():
     """Cliente do Service Registry mockado."""
     mock = AsyncMock()
@@ -105,7 +105,7 @@ def mock_registry_client():
     return mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_priority_calculator():
     """PriorityCalculator mockado."""
     mock = Mock()
@@ -113,10 +113,10 @@ def mock_priority_calculator():
     return mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def load_predictor_wrapper(mock_config, mock_redis, mock_metrics, mock_mongodb):
     """Wrapper do LoadPredictor para testes."""
-    with patch("src.ml.load_predictor_factory.ML_AVAILABLE", True):
+    with patch("src.scheduler.intelligent_scheduler.ML_AVAILABLE", True):
         factory = LoadPredictorFactory(
             config=mock_config,
             redis_client=mock_redis,
@@ -130,19 +130,19 @@ def load_predictor_wrapper(mock_config, mock_redis, mock_metrics, mock_mongodb):
 class TestLoadPredictorIntegration:
     """Testes de integração do LoadPredictor."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_factory_creates_enabled_wrapper(
         self, mock_config, mock_redis, mock_metrics, mock_mongodb
     ):
         """Testa que factory cria wrapper habilitado quando ML disponível."""
-        with patch("src.ml.load_predictor_factory.ML_AVAILABLE", True):
+        with patch("src.scheduler.intelligent_scheduler.ML_AVAILABLE", True):
             mock_load_predictor = AsyncMock()
             mock_load_predictor.initialize = AsyncMock()
             mock_load_predictor.predict_load = AsyncMock(return_value={"forecast": [0.5]})
             mock_load_predictor.predict_bottlenecks = AsyncMock(return_value=[])
 
             with patch(
-                "src.ml.load_predictor_factory.LoadPredictor", return_value=mock_load_predictor
+                "src.scheduler.intelligent_scheduler.LoadPredictor", return_value=mock_load_predictor
             ):
                 factory = LoadPredictorFactory(
                     config=mock_config,
@@ -156,12 +156,12 @@ class TestLoadPredictorIntegration:
                 assert wrapper is not None
                 assert wrapper.enabled is True
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_factory_creates_disabled_wrapper_when_ml_unavailable(
         self, mock_config, mock_redis, mock_metrics, mock_mongodb
     ):
         """Testa que factory cria wrapper desabilitado quando ML indisponível."""
-        with patch("src.ml.load_predictor_factory.ML_AVAILABLE", False):
+        with patch("src.scheduler.intelligent_scheduler.ML_AVAILABLE", False):
             factory = LoadPredictorFactory(
                 config=mock_config,
                 redis_client=mock_redis,
@@ -174,12 +174,12 @@ class TestLoadPredictorIntegration:
             assert wrapper is not None
             assert wrapper.enabled is False
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_wrapper_returns_forecast_from_cache(
         self, mock_config, mock_redis, mock_metrics, mock_mongodb
     ):
         """Testa que wrapper retorna forecast do cache."""
-        with patch("src.ml.load_predictor_factory.ML_AVAILABLE", True):
+        with patch("src.scheduler.intelligent_scheduler.ML_AVAILABLE", True):
             cached_forecast = '{"forecast": [0.4, 0.5, 0.6], "timestamps": ["2026-04-05T10:00:00"]}'
             mock_redis.get.return_value = cached_forecast
 
@@ -201,7 +201,7 @@ class TestLoadPredictorIntegration:
 class TestIntelligentSchedulerIntegration:
     """Testes de integração com IntelligentScheduler."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scheduler_obtains_load_forecast(
         self,
         mock_config,
@@ -212,7 +212,7 @@ class TestIntelligentSchedulerIntegration:
         mock_metrics,
     ):
         """Testa que scheduler obtém load forecast do LoadPredictor."""
-        with patch("src.ml.load_predictor_factory.ML_AVAILABLE", True):
+        with patch("src.scheduler.intelligent_scheduler.ML_AVAILABLE", True):
             mock_load_predictor = AsyncMock()
             mock_load_predictor.initialize = AsyncMock()
             mock_load_predictor.predict_load = AsyncMock(
@@ -221,7 +221,7 @@ class TestIntelligentSchedulerIntegration:
             mock_load_predictor.predict_bottlenecks = AsyncMock(return_value=[])
 
             with patch(
-                "src.ml.load_predictor_factory.LoadPredictor", return_value=mock_load_predictor
+                "src.scheduler.intelligent_scheduler.LoadPredictor", return_value=mock_load_predictor
             ):
                 # Patch clients
                 with patch(
@@ -251,7 +251,7 @@ class TestIntelligentSchedulerIntegration:
                         assert forecast is not None
                         assert forecast["forecast"] == [0.5, 0.6]
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_scheduler_detects_bottlenecks(
         self,
         mock_config,
@@ -262,7 +262,7 @@ class TestIntelligentSchedulerIntegration:
         mock_metrics,
     ):
         """Testa que scheduler detecta bottlenecks via LoadPredictor."""
-        with patch("src.ml.load_predictor_factory.ML_AVAILABLE", True):
+        with patch("src.scheduler.intelligent_scheduler.ML_AVAILABLE", True):
             mock_bottlenecks = [
                 {
                     "timestamp": "2026-04-05T14:00:00",
@@ -279,7 +279,7 @@ class TestIntelligentSchedulerIntegration:
             mock_load_predictor.predict_bottlenecks = AsyncMock(return_value=mock_bottlenecks)
 
             with patch(
-                "src.ml.load_predictor_factory.LoadPredictor", return_value=mock_load_predictor
+                "src.scheduler.intelligent_scheduler.LoadPredictor", return_value=mock_load_predictor
             ):
                 with patch(
                     "src.scheduler.intelligent_scheduler.get_redis_client", return_value=mock_redis
@@ -313,12 +313,12 @@ class TestIntelligentSchedulerIntegration:
 class TestResourceAllocatorIntegration:
     """Testes de integração com ResourceAllocator."""
 
-    @pytest.mark.asyncio
+    @pytest.mark.asyncio()
     async def test_allocator_enriches_workers_with_load_forecast(
         self, mock_config, mock_redis, mock_metrics, mock_mongodb
     ):
         """Testa que ResourceAllocator enriquece workers com load forecast."""
-        with patch("src.ml.load_predictor_factory.ML_AVAILABLE", True):
+        with patch("src.scheduler.intelligent_scheduler.ML_AVAILABLE", True):
             mock_forecast = {
                 "forecast": [0.5, 0.6, 0.55],
                 "timestamps": ["2026-04-05T10:00:00", "2026-04-05T10:01:00", "2026-04-05T10:02:00"],
@@ -330,7 +330,7 @@ class TestResourceAllocatorIntegration:
             mock_load_predictor.predict_bottlenecks = AsyncMock(return_value=[])
 
             with patch(
-                "src.ml.load_predictor_factory.LoadPredictor", return_value=mock_load_predictor
+                "src.scheduler.intelligent_scheduler.LoadPredictor", return_value=mock_load_predictor
             ):
                 factory = LoadPredictorFactory(
                     config=mock_config,
@@ -381,7 +381,7 @@ class TestResourceAllocatorIntegration:
                 assert load_worker_2 > load_worker_1
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_end_to_end_load_predictor_in_scheduling(
     mock_config,
     mock_redis,
@@ -397,7 +397,7 @@ async def test_end_to_end_load_predictor_in_scheduling(
     2. Allocator enriquece workers
     3. Melhor worker é selecionado considerando load
     """
-    with patch("src.ml.load_predictor_factory.ML_AVAILABLE", True):
+    with patch("src.scheduler.intelligent_scheduler.ML_AVAILABLE", True):
         mock_forecast = {
             "forecast": [0.5, 0.6, 0.7],
             "timestamps": ["2026-04-05T10:00:00", "2026-04-05T10:01:00", "2026-04-05T10:02:00"],
@@ -408,7 +408,7 @@ async def test_end_to_end_load_predictor_in_scheduling(
         mock_load_predictor.predict_load = AsyncMock(return_value=mock_forecast)
         mock_load_predictor.predict_bottlenecks = AsyncMock(return_value=[])
 
-        with patch("src.ml.load_predictor_factory.LoadPredictor", return_value=mock_load_predictor):
+        with patch("src.scheduler.intelligent_scheduler.LoadPredictor", return_value=mock_load_predictor):
             with patch(
                 "src.scheduler.intelligent_scheduler.get_redis_client", return_value=mock_redis
             ):
@@ -462,3 +462,169 @@ async def test_end_to_end_load_predictor_in_scheduling(
                         result["allocation_metadata"]["allocation_method"]
                         == "intelligent_scheduler"
                     )
+
+
+class TestTicketEnrichmentWithLoadPredictor:
+    """Testes de enriquecimento de tickets com LoadPredictor (INFRA-011)."""
+
+    @pytest.mark.asyncio()
+    async def test_enrich_ticket_with_load_prediction(
+        self,
+        mock_config,
+        mock_registry_client,
+        mock_priority_calculator,
+        mock_metrics,
+    ):
+        """Testa que ticket é enriquecido com previsão de carga."""
+        mock_forecast = {
+            "forecast": [0.65, 0.70, 0.75],
+            "timestamps": ["2026-04-19T10:00:00", "2026-04-19T10:01:00", "2026-04-19T10:02:00"],
+        }
+
+        mock_load_predictor = AsyncMock()
+        mock_load_predictor.initialize = AsyncMock()
+        mock_load_predictor.predict_load = AsyncMock(return_value=mock_forecast)
+        mock_load_predictor.predict_bottlenecks = AsyncMock(return_value=[])
+
+        resource_allocator = ResourceAllocator(
+            registry_client=mock_registry_client,
+            config=mock_config,
+            metrics=mock_metrics,
+        )
+
+        scheduler = IntelligentScheduler(
+            config=mock_config,
+            metrics=mock_metrics,
+            priority_calculator=mock_priority_calculator,
+            resource_allocator=resource_allocator,
+            load_predictor=mock_load_predictor,
+        )
+
+        ticket = {
+            "ticket_id": "test-ticket-1",
+            "plan_id": "plan-123",
+            "intent_id": "intent-456",
+            "risk_band": "medium",
+            "priority": "MEDIUM",
+            "required_capabilities": ["query"],
+            "namespace": "neural-hive",
+            "security_level": "INTERNAL",
+            "estimated_duration_ms": 5000,
+        }
+
+        # Enriquecer ticket
+        enriched = await scheduler._enrich_ticket_with_predictions(ticket)
+
+        # Verificar enriquecimento com load forecast
+        assert "predictions" in enriched
+        assert "system_load" in enriched["predictions"]
+        assert enriched["predictions"]["system_load"]["predicted_load_pct"] == 0.65
+        assert enriched["predictions"]["system_load"]["forecast_horizon_minutes"] == 60
+        assert enriched["predictions"]["system_load"]["forecast_available"] is True
+
+    @pytest.mark.asyncio()
+    async def test_enrich_ticket_with_bottlenecks(
+        self,
+        mock_config,
+        mock_registry_client,
+        mock_priority_calculator,
+        mock_metrics,
+    ):
+        """Testa que ticket é enriquecido com predição de bottlenecks."""
+        mock_bottlenecks = [
+            {
+                "timestamp": "2026-04-19T14:00:00",
+                "predicted_load": 0.85,
+                "severity": "HIGH",
+                "type": "worker_saturation",
+                "minutes_ahead": 120,
+            },
+            {
+                "timestamp": "2026-04-19T14:30:00",
+                "predicted_load": 0.82,
+                "severity": "MEDIUM",
+                "type": "worker_saturation",
+                "minutes_ahead": 150,
+            },
+        ]
+
+        mock_load_predictor = AsyncMock()
+        mock_load_predictor.initialize = AsyncMock()
+        mock_load_predictor.predict_load = AsyncMock(return_value={"forecast": [0.5]})
+        mock_load_predictor.predict_bottlenecks = AsyncMock(return_value=mock_bottlenecks)
+
+        resource_allocator = ResourceAllocator(
+            registry_client=mock_registry_client,
+            config=mock_config,
+            metrics=mock_metrics,
+        )
+
+        scheduler = IntelligentScheduler(
+            config=mock_config,
+            metrics=mock_metrics,
+            priority_calculator=mock_priority_calculator,
+            resource_allocator=resource_allocator,
+            load_predictor=mock_load_predictor,
+        )
+
+        ticket = {
+            "ticket_id": "test-ticket-2",
+            "plan_id": "plan-123",
+            "intent_id": "intent-456",
+        }
+
+        # Enriquecer ticket
+        enriched = await scheduler._enrich_ticket_with_predictions(ticket)
+
+        # Verificar enriquecimento com bottlenecks
+        assert "predictions" in enriched
+        assert "bottlenecks" in enriched["predictions"]
+        assert enriched["predictions"]["bottlenecks"]["count"] == 2
+        assert len(enriched["predictions"]["bottlenecks"]["items"]) == 2
+        assert enriched["predictions"]["bottlenecks"]["items"][0]["severity"] == "HIGH"
+        assert enriched["predictions"]["bottlenecks"]["items"][1]["severity"] == "MEDIUM"
+
+    @pytest.mark.asyncio()
+    async def test_enrich_ticket_handles_load_predictor_errors(
+        self,
+        mock_config,
+        mock_registry_client,
+        mock_priority_calculator,
+        mock_metrics,
+    ):
+        """Testa que erros do LoadPredictor são tratados gracefulmente."""
+        mock_load_predictor = AsyncMock()
+        mock_load_predictor.initialize = AsyncMock()
+        mock_load_predictor.predict_load = AsyncMock(side_effect=Exception("ML service unavailable"))
+        mock_load_predictor.predict_bottlenecks = AsyncMock(side_effect=Exception("Timeout"))
+
+        resource_allocator = ResourceAllocator(
+            registry_client=mock_registry_client,
+            config=mock_config,
+            metrics=mock_metrics,
+        )
+
+        scheduler = IntelligentScheduler(
+            config=mock_config,
+            metrics=mock_metrics,
+            priority_calculator=mock_priority_calculator,
+            resource_allocator=resource_allocator,
+            load_predictor=mock_load_predictor,
+        )
+
+        ticket = {
+            "ticket_id": "test-ticket-3",
+            "plan_id": "plan-123",
+            "intent_id": "intent-456",
+        }
+
+        # Enriquecer ticket - não deve lançar exceção
+        enriched = await scheduler._enrich_ticket_with_predictions(ticket)
+
+        # Ticket ainda é retornado, sem predições de load
+        assert "ticket_id" in enriched
+        # predictions pode estar vazio ou conter apenas outras predições
+        if "predictions" in enriched:
+            # system_load e bottlenecks não devem estar presentes devido ao erro
+            assert "system_load" not in enriched.get("predictions", {})
+            assert "bottlenecks" not in enriched.get("predictions", {})
