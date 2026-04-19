@@ -346,6 +346,19 @@ app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts_p
 # SEC-001: Adicionar middleware de security headers (centralizado)
 app.add_middleware(SecurityHeadersMiddleware)
 
+# W3C Trace Context middleware para propagação de contexto distribuído
+if OBSERVABILITY_AVAILABLE:
+    try:
+        from neural_hive_observability import TraceContextMiddleware, get_metrics
+
+        metrics = get_metrics() if OBSERVABILITY_AVAILABLE else None
+        app.add_middleware(TraceContextMiddleware, metrics=metrics)
+        logger.info("W3C Trace Context middleware adicionado ao gateway")
+    except ImportError:
+        logger.warning("TraceContextMiddleware não disponível - W3C tracing desabilitado")
+else:
+    logger.warning("Observabilidade não disponível - W3C Trace Context middleware não adicionado")
+
 # Middleware de autenticação OAuth2
 auth_middleware = create_auth_middleware(
     exclude_paths=["/health", "/ready", "/metrics", "/docs", "/openapi.json"]

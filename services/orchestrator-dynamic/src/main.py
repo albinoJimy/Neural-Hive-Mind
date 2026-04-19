@@ -20,7 +20,8 @@ from prometheus_client import make_asgi_app
 # SEC-001: Security Headers
 from neural_hive_security import SecurityHeadersMiddleware
 
-from neural_hive_observability import get_logger, init_observability
+from neural_hive_observability import get_logger, init_observability, get_metrics, instrument_kafka_consumer
+from neural_hive_observability.middleware import TraceContextMiddleware
 from src.config import get_settings
 from src.consumers.decision_consumer import DecisionConsumer
 
@@ -740,6 +741,7 @@ async def lifespan(app: FastAPI):
             sasl_password_override=kafka_password,
         )
         await app_state.kafka_consumer.initialize()
+        app_state.kafka_consumer = instrument_kafka_consumer(app_state.kafka_consumer)
 
         # GAP-02: Inicializar Execution Result Consumer (se disponível)
         if EXECUTION_RESULT_CONSUMER_AVAILABLE and getattr(
@@ -753,6 +755,7 @@ async def lifespan(app: FastAPI):
                 metrics=orchestrator_metrics,
             )
             await app_state.execution_result_consumer.initialize()
+            app_state.execution_result_consumer = instrument_kafka_consumer(app_state.execution_result_consumer)
             logger.info("Execution Result Consumer inicializado")
         else:
             logger.info("Execution Result Consumer desabilitado ou não disponível")
@@ -1098,6 +1101,19 @@ app.add_middleware(
 
 # SEC-001: Security Headers Middleware
 app.add_middleware(SecurityHeadersMiddleware)
+
+# W3C Trace Context middleware para propagação de contexto distribuído
+try:
+    from neural_hive_observability.middleware import TraceContextMiddleware
+    metrics = get_metrics()
+    if metrics:
+        app.add_middleware(TraceContextMiddleware, metrics=metrics)
+        logger.info("W3C Trace Context middleware adicionado ao orchestrator-dynamic")
+    else:
+        logger.warning("Métricas não disponíveis - W3C Trace Context middleware adicionado sem métricas")
+        app.add_middleware(TraceContextMiddleware)
+except ImportError:
+    logger.warning("Observabilidade não disponível - W3C Trace Context middleware não adicionado")
 
 # =============================================================================
 # OPA Authorization Middleware (INFRA-005)

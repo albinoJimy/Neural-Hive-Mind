@@ -24,10 +24,12 @@ from neural_hive_observability import (
     init_observability,
     instrument_kafka_consumer,
     instrument_kafka_producer,
+    get_metrics,
 )
 from neural_hive_observability.config import ObservabilityConfig
 from neural_hive_observability.health import HealthChecker, HealthStatus
 from neural_hive_observability.health_checks.otel import OTELPipelineHealthCheck
+from neural_hive_observability.middleware import TraceContextMiddleware
 
 logger = structlog.get_logger()
 
@@ -43,6 +45,19 @@ app = FastAPI(
 
 # SEC-001: Adicionar middleware de security headers
 app.add_middleware(SecurityHeadersMiddleware)
+
+# W3C Trace Context middleware para propagação de contexto distribuído
+try:
+    from neural_hive_observability.middleware import TraceContextMiddleware
+    metrics = get_metrics()
+    if metrics:
+        app.add_middleware(TraceContextMiddleware, metrics=metrics)
+        logger.info("W3C Trace Context middleware adicionado ao consensus-engine")
+    else:
+        logger.warning("Métricas não disponíveis - W3C Trace Context middleware adicionado sem métricas")
+        app.add_middleware(TraceContextMiddleware)
+except ImportError:
+    logger.warning("Observabilidade não disponível - W3C Trace Context middleware não adicionado")
 
 
 # Estado global
