@@ -21,3 +21,4 @@ types-aiofiles>=23.2.0
 faker>=22.0.0
 testcontainers>=4.7.0  # Para testes de integração E2E com containers reais
 httpx>=0.25.0  # Para chamadas HTTP assíncronas em testes
+hypothesis>=6.100.0  # Property-based testing framework

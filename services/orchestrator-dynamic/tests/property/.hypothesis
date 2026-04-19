@@ -1,0 +1,17 @@
+# Hypothesis configuration para property-based tests
+#
+# Este arquivo configura o comportamento do Hypothesis para
+# testes property-based no projeto Neural-Hive-Mind.
+
+[pytest]
+# Hypothesis settings para CI/CD
+# Aumentar max_examples para melhor cobertura em ambiente de CI
+hypothesis_max_examples = 200
+hypothesis_derandomize = true  # Execuções determinísticas em CI
+hypothesis_print_blob = false  # Não imprimir exemplos completos (logs muito grandes)
+hypothesis_verbosity = normal  # Nível de verbosidade padrão
+
+# Configurações específicas para desenvolvedores (local)
+# Para usar: pytest --hypothesis-seed=42 --hypothesis-max-examples=1000
+# hypothesis_max_examples = 1000  # Mais exemplos para hunting de bugs
+# hypothesis_verbosity = verbose   # Saída detalhada para debug
