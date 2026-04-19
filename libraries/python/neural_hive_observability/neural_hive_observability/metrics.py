@@ -61,6 +61,7 @@ class NeuralHiveMetrics:
         self._init_plan_metrics()
         self._init_infrastructure_metrics()
         self._init_tracing_export_metrics()
+        self._init_trace_context_metrics()
         self._init_slo_metrics()
 
     def _init_service_metrics(self):
@@ -237,6 +238,56 @@ class NeuralHiveMetrics:
         self.span_export_queue_size = Gauge(
             "neural_hive_span_export_queue_size",
             "Tamanho atual da fila de spans pendentes para export",
+            self._common_labels,
+            registry=self.registry,
+        )
+
+    def _init_trace_context_metrics(self):
+        """Inicializa métricas de propagação de contexto de tracing (W3C Trace Context)."""
+        # Contador total de extrações de contexto
+        self.trace_context_extraction_total = Counter(
+            "neural_hive_trace_context_extraction_total",
+            "Total de extrações de contexto de tracing",
+            self._common_labels,
+            registry=self.registry,
+        )
+
+        # Contador de extrações bem-sucedidas
+        self.trace_context_extraction_success_total = Counter(
+            "neural_hive_trace_context_extraction_success_total",
+            "Total de extrações de contexto bem-sucedidas",
+            self._common_labels + ["source"],  # source: http, kafka, grpc
+            registry=self.registry,
+        )
+
+        # Contador de extrações falhadas
+        self.trace_context_extraction_failure_total = Counter(
+            "neural_hive_trace_context_extraction_failure_total",
+            "Total de extrações de contexto falhadas",
+            self._common_labels + ["reason"],  # reason: invalid_format, missing_header, extract_error
+            registry=self.registry,
+        )
+
+        # Contador de traceparent ausente
+        self.trace_parent_missing_total = Counter(
+            "neural_hive_trace_parent_missing_total",
+            "Total de requests sem header traceparent",
+            self._common_labels + ["source"],
+            registry=self.registry,
+        )
+
+        # Contador de injeção de contexto
+        self.trace_context_injection_total = Counter(
+            "neural_hive_trace_context_injection_total",
+            "Total de injeções de contexto de tracing",
+            self._common_labels + ["destination"],  # destination: http, kafka, grpc
+            registry=self.registry,
+        )
+
+        # Gauge para trace IDs ativos
+        self.active_trace_ids = Gauge(
+            "neural_hive_active_trace_ids",
+            "Número de trace IDs ativos no serviço",
             self._common_labels,
             registry=self.registry,
         )
