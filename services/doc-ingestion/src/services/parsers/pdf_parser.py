@@ -1,5 +1,6 @@
 """Parser para documentos PDF usando pdfplumber e PyPDF2."""
 
+import asyncio
 import io
 from typing import Any
 
@@ -33,6 +34,21 @@ class PDFParser:
             logger.warning("pdf_invalid_bytes", size=len(file_content))
             return ""
 
+        # Executa operação síncrona em thread pool para não bloquear o event loop
+        extracted_text = await asyncio.to_thread(self._extract_text_sync, file_content)
+
+        return extracted_text
+
+    def _extract_text_sync(self, file_content: bytes) -> str:
+        """
+        Extrai texto de forma síncrona (executada em thread pool).
+
+        Args:
+            file_content: Conteúdo binário do arquivo PDF.
+
+        Returns:
+            Texto extraído de todas as páginas concatenado.
+        """
         extracted_text = ""
 
         # Tenta pdfplumber primeiro (melhor extração de texto)
@@ -66,11 +82,11 @@ class PDFParser:
             )
 
         # Fallback para PyPDF2
-        return await self._extract_text_pypdf2(file_content)
+        return self._extract_text_pypdf2_sync(file_content)
 
-    async def _extract_text_pypdf2(self, file_content: bytes) -> str:
+    def _extract_text_pypdf2_sync(self, file_content: bytes) -> str:
         """
-        Extrai texto usando PyPDF2 como fallback.
+        Extrai texto usando PyPDF2 de forma síncrona.
 
         Args:
             file_content: Conteúdo binário do arquivo PDF.
@@ -101,6 +117,18 @@ class PDFParser:
             logger.error("pypdf2_extraction_failed", error=str(e))
             return ""
 
+    async def _extract_text_pypdf2(self, file_content: bytes) -> str:
+        """
+        Wrapper async para _extract_text_pypdf2_sync.
+
+        Args:
+            file_content: Conteúdo binário do arquivo PDF.
+
+        Returns:
+            Texto extraído ou string vazia.
+        """
+        return await asyncio.to_thread(self._extract_text_pypdf2_sync, file_content)
+
     async def extract_metadata(self, file_content: bytes) -> dict[str, Any]:
         """
         Extrai metadados do PDF.
@@ -114,6 +142,19 @@ class PDFParser:
         if not self._validate_pdf_bytes(file_content):
             return {}
 
+        # Executa operação síncrona em thread pool
+        return await asyncio.to_thread(self._extract_metadata_sync, file_content)
+
+    def _extract_metadata_sync(self, file_content: bytes) -> dict[str, Any]:
+        """
+        Extrai metadados de forma síncrona (executada em thread pool).
+
+        Args:
+            file_content: Conteúdo binário do arquivo PDF.
+
+        Returns:
+            Dicionário com metadados.
+        """
         metadata: dict[str, Any] = {}
 
         try:
@@ -148,6 +189,18 @@ class PDFParser:
             return {}
 
         return metadata
+
+    async def parse(self, file_content: bytes) -> str:
+        """
+        Parse principal do PDF - extrai texto.
+
+        Args:
+            file_content: Conteúdo binário do arquivo PDF.
+
+        Returns:
+            Texto extraído do PDF.
+        """
+        return await self.extract_text(file_content)
 
     def validate(self, file_content: bytes) -> bool:
         """

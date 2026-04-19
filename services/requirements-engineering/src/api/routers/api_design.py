@@ -3,7 +3,7 @@
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from src.main import get_engineering_service
-from src.models.api_design import APIDesign, APIEndpoint, HTTPMethod
+from src.models.api_design import APIEndpoint, HTTPMethod
 from src.services.api_designer import APIDesigner
 
 router = APIRouter(prefix="/api-design", tags=["api-design"])

@@ -11,7 +11,7 @@ from src.models.requirements import Requirement, RequirementPriority, Requiremen
 from src.services.data_model_designer import DataModelDesigner
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_llm_client():
     """Fixture para mock LLM client."""
     mock_client = AsyncMock()
@@ -60,7 +60,7 @@ def mock_llm_client():
     return mock_client
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_requirements_set():
     """RequirementsSet de exemplo."""
     req1 = Requirement(
@@ -93,7 +93,7 @@ def sample_requirements_set():
     return req_set
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_design_from_requirements(mock_llm_client, sample_requirements_set):
     """Testa design de modelos de dados a partir de requisitos."""
     designer = DataModelDesigner(llm_client=mock_llm_client)
@@ -112,7 +112,7 @@ async def test_design_from_requirements(mock_llm_client, sample_requirements_set
     assert schema.relationships[0].to_entity == "User"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_create_data_model_adds_default_fields():
     """Testa que campos padrão (id, timestamps) são adicionados."""
 
@@ -137,7 +137,7 @@ async def test_create_data_model_adds_default_fields():
     assert "id" in model.primary_key
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_create_data_model_parses_field_types():
     """Testa que tipos de campo são parseados corretamente."""
 
@@ -233,7 +233,7 @@ def test_extract_json_returns_none_when_no_json():
     assert json_str is None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_design_from_requirements_handles_empty_fields():
     """Testa que modelos sem campos são processados corretamente."""
     mock_client = AsyncMock()
@@ -277,7 +277,7 @@ async def test_design_from_requirements_handles_empty_fields():
     assert schema.models[0].name == "EmptyModel"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_design_from_requirements_creates_entity_relationships():
     """Testa que relacionamentos entre entidades são criados."""
     mock_client = AsyncMock()
@@ -328,7 +328,7 @@ async def test_design_from_requirements_creates_entity_relationships():
     assert rel.cardinality == "N:1"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_design_from_requirements_limits_requirements_for_context():
     """Testa que apenas os primeiros 10 requisitos são usados para contexto LLM."""
     from src.models.requirements import Requirement, RequirementsSet

@@ -4,10 +4,7 @@ Testes unitários para modelos de migração.
 Cobre MigrationJob, SchemaMapping e MigrationStatus.
 """
 
-import uuid
 from datetime import datetime, timedelta, timezone
-
-import pytest
 
 from src.models.migration import (
     FieldMapping,

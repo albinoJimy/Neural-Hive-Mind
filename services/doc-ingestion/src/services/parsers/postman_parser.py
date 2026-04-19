@@ -1,5 +1,6 @@
 """Parser para coleções Postman (JSON)."""
 
+import asyncio
 import json
 from typing import Any
 
@@ -36,6 +37,19 @@ class PostmanParser:
             logger.warning("postman_invalid_bytes", size=len(file_content))
             return []
 
+        # Executa operação síncrona em thread pool
+        return await asyncio.to_thread(self._extract_apis_sync, file_content)
+
+    def _extract_apis_sync(self, file_content: bytes) -> list[dict[str, Any]]:
+        """
+        Extrai APIs de forma síncrona (executada em thread pool).
+
+        Args:
+            file_content: Conteúdo binário do arquivo JSON da coleção.
+
+        Returns:
+            Lista de dicionários com informações das APIs.
+        """
         try:
             data = json.loads(file_content.decode("utf-8"))
             apis = []
@@ -80,6 +94,19 @@ class PostmanParser:
         if not self._validate_json_bytes(file_content):
             return {}
 
+        # Executa operação síncrona em thread pool
+        return await asyncio.to_thread(self._extract_metadata_sync, file_content)
+
+    def _extract_metadata_sync(self, file_content: bytes) -> dict[str, Any]:
+        """
+        Extrai metadados de forma síncrona (executada em thread pool).
+
+        Args:
+            file_content: Conteúdo binário do arquivo JSON.
+
+        Returns:
+            Dicionário com metadados.
+        """
         metadata: dict[str, Any] = {}
 
         try:
@@ -101,8 +128,8 @@ class PostmanParser:
                 if "version" in info:
                     metadata["version"] = info["version"]
 
-            # Contar APIs
-            apis = await self.extract_apis(file_content)
+            # Contar APIs - chama versão sync diretamente
+            apis = self._extract_apis_sync(file_content)
             metadata["api_count"] = len(apis)
 
             # Contar pastas
@@ -115,6 +142,18 @@ class PostmanParser:
             return {}
 
         return metadata
+
+    async def parse(self, file_content: bytes) -> list[dict[str, Any]]:
+        """
+        Parse principal da coleção Postman - extrai APIs.
+
+        Args:
+            file_content: Conteúdo binário do arquivo JSON da coleção.
+
+        Returns:
+            Lista de dicionários com informações das APIs extraídas.
+        """
+        return await self.extract_apis(file_content)
 
     def validate(self, file_content: bytes) -> bool:
         """

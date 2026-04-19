@@ -1,5 +1,6 @@
 """Parser para documentos Visio (VSDX) usando lxml e ZIP."""
 
+import asyncio
 import io
 import zipfile
 from typing import Any
@@ -41,6 +42,21 @@ class VisioParser:
             logger.warning("vsdx_invalid_bytes", size=len(file_content))
             return ""
 
+        # Executa operação síncrona em thread pool
+        return await asyncio.to_thread(
+            self._extract_text_sync, file_content
+        )
+
+    def _extract_text_sync(self, file_content: bytes) -> str:
+        """
+        Extrai texto de forma síncrona (executada em thread pool).
+
+        Args:
+            file_content: Conteúdo binário do arquivo VSDX.
+
+        Returns:
+            Texto extraído concatenado de todos os elementos.
+        """
         try:
             extracted_texts = []
 
@@ -84,6 +100,21 @@ class VisioParser:
         if not self._validate_vsdx_bytes(file_content):
             return []
 
+        # Executa operação síncrona em thread pool
+        return await asyncio.to_thread(
+            self._extract_shapes_sync, file_content
+        )
+
+    def _extract_shapes_sync(self, file_content: bytes) -> list[dict[str, Any]]:
+        """
+        Extrai shapes de forma síncrona (executada em thread pool).
+
+        Args:
+            file_content: Conteúdo binário do arquivo VSDX.
+
+        Returns:
+            Lista de dicionários com informações dos shapes.
+        """
         shapes: list[dict[str, Any]] = []
 
         try:
@@ -118,6 +149,21 @@ class VisioParser:
         if not self._validate_vsdx_bytes(file_content):
             return {}
 
+        # Executa operação síncrona em thread pool
+        return await asyncio.to_thread(
+            self._extract_metadata_sync, file_content
+        )
+
+    def _extract_metadata_sync(self, file_content: bytes) -> dict[str, Any]:
+        """
+        Extrai metadados de forma síncrona (executada em thread pool).
+
+        Args:
+            file_content: Conteúdo binário do arquivo VSDX.
+
+        Returns:
+            Dicionário com metadados.
+        """
         metadata: dict[str, Any] = {}
 
         try:
@@ -129,7 +175,7 @@ class VisioParser:
                 metadata["page_count"] = len(page_files)
 
                 # Contar shapes
-                shapes = await self.extract_shapes(file_content)
+                shapes = self._extract_shapes_sync(file_content)
                 metadata["shape_count"] = len(shapes)
 
                 # Extrair metadados do arquivo principal
@@ -156,6 +202,18 @@ class VisioParser:
             return {}
 
         return metadata
+
+    async def parse(self, file_content: bytes) -> str:
+        """
+        Parse principal do VSDX - extrai texto.
+
+        Args:
+            file_content: Conteúdo binário do arquivo VSDX.
+
+        Returns:
+            Texto extraído do documento.
+        """
+        return await self.extract_text(file_content)
 
     def validate(self, file_content: bytes) -> bool:
         """

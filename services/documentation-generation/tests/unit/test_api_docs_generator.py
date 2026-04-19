@@ -1,21 +1,20 @@
 """Testes para APIDocsGenerator."""
 
 import json
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock
 
 import pytest
-
 from src.generators.api_docs_generator import APIDocsGenerator
 from src.models import DocFormat, DocType
 
 
-@pytest.fixture
+@pytest.fixture()
 def generator():
     mock_client = AsyncMock()
     return APIDocsGenerator(llm_client=mock_client)
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_endpoints():
     """Endpoints de exemplo para testes."""
     return [
@@ -206,7 +205,7 @@ def test_generate_swagger_ui_html(generator):
     assert "SwaggerUIBundle" in html
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_markdown_with_mock_llm(sample_endpoints):
     """Testa geração de Markdown com LLM mockado."""
     from unittest.mock import AsyncMock, Mock

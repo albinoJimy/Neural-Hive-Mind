@@ -70,13 +70,9 @@ class ArchitectureDocsGenerator:
 
         components_text = self._format_components(components)
         non_functional_text = (
-            "\n".join([f"- {req}" for req in non_functional])
-            if non_functional
-            else "A definir"
+            "\n".join([f"- {req}" for req in non_functional]) if non_functional else "A definir"
         )
-        patterns_text = (
-            "\n".join([f"- {p}" for p in patterns]) if patterns else "A definir"
-        )
+        patterns_text = "\n".join([f"- {p}" for p in patterns]) if patterns else "A definir"
 
         prompt = ARCHITECTURE_DOC_PROMPT.format(
             system_name=system_name,
@@ -274,9 +270,7 @@ A documentação deve incluir:
             interfaces = comp.get("interfaces", [])
             interfaces_str = ", ".join(interfaces) if interfaces else "N/A"
 
-            formatted.append(
-                f"**{name}**: {resp}\n  - Interfaces: {interfaces_str}"
-            )
+            formatted.append(f"**{name}**: {resp}\n  - Interfaces: {interfaces_str}")
 
         return "\n\n".join(formatted)
 

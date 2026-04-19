@@ -9,21 +9,17 @@ Este teste valida a interface e a comunicação entre serviços.
 """
 
 import uuid
-from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch, Mock
-from typing import Any, Dict
+from datetime import datetime, timedelta, timezone
 
 import pytest
-from pydantic import ValidationError
 
 from src.models.migration import (
+    FieldMapping,
     MigrationJob,
     MigrationStatus,
     SchemaMapping,
     TableMapping,
-    FieldMapping,
 )
-
 
 # =============================================================================
 # Fixtures
@@ -376,7 +372,7 @@ class TestDataMigrationWorkflowScenarios:
     async def test_full_migration_success_scenario(self):
         """Testa cenário de migração completa com sucesso."""
         # Configuração de input
-        workflow_input = {
+        {
             "migration_config": {
                 "job_id": str(uuid.uuid4()),
                 "schema_mapping_id": str(uuid.uuid4()),

@@ -11,7 +11,7 @@ from src.models import (
 )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_document():
     """Documento de exemplo."""
     return Document(
@@ -23,7 +23,7 @@ def sample_document():
     )
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_diagram():
     """Diagrama de exemplo."""
     return Diagram(

@@ -6,7 +6,6 @@ from src.main import get_engineering_service
 from src.models.ui_ux_design import (
     ComponentType,
     Screen,
-    UIDesign,
     UIComponent,
     UserFlow,
 )

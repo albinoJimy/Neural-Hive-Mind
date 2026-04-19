@@ -66,7 +66,9 @@ class APIResponse(BaseModel):
 
     status_code: int = Field(..., description="Código HTTP")
     description: str = Field(..., description="Descrição da resposta")
-    response_type: ResponseType = Field(default=ResponseType.SUCCESS, description="Tipo de resposta")
+    response_type: ResponseType = Field(
+        default=ResponseType.SUCCESS, description="Tipo de resposta"
+    )
     schema: dict[str, Any] | None = Field(default=None, description="Schema JSON da resposta")
     example: dict[str, Any] | None = Field(default=None, description="Exemplo de resposta")
 
@@ -124,11 +126,15 @@ class APIDesign(BaseModel):
     version: str = Field(default="1.0.0", description="Versão da API")
     description: str | None = Field(default=None, description="Descrição da API")
     cognitive_plan_id: str | None = Field(default=None, description="ID do plano cognitivo")
-    requirements_set_id: str | None = Field(default=None, description="ID do conjunto de requisitos")
+    requirements_set_id: str | None = Field(
+        default=None, description="ID do conjunto de requisitos"
+    )
 
     servers: list[APIServer] = Field(default_factory=list, description="Servidores")
     endpoints: list[APIEndpoint] = Field(default_factory=list, description="Endpoints")
-    security_schemes: list[APISecurity] = Field(default_factory=list, description="Esquemas de segurança")
+    security_schemes: list[APISecurity] = Field(
+        default_factory=list, description="Esquemas de segurança"
+    )
     tags: list[dict[str, str]] = Field(default_factory=list, description="Tags globais")
 
     created_at: datetime = Field(

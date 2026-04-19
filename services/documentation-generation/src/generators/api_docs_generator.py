@@ -92,11 +92,7 @@ class APIDocsGenerator:
             if request_body:
                 operation["requestBody"] = {
                     "required": request_body.get("required", True),
-                    "content": {
-                        "application/json": {
-                            "schema": request_body.get("schema", {})
-                        }
-                    },
+                    "content": {"application/json": {"schema": request_body.get("schema", {})}},
                 }
 
             # Responses
@@ -109,9 +105,7 @@ class APIDocsGenerator:
                     }
                     if "schema" in response:
                         operation["responses"][status_code]["content"] = {
-                            "application/json": {
-                                "schema": response["schema"]
-                            }
+                            "application/json": {"schema": response["schema"]}
                         }
 
             spec["paths"][path][method] = operation
@@ -296,7 +290,9 @@ Use formatação Markdown clara com tabelas e blocos de código.
 
             if request_body:
                 content += "**Request Body:**\n\n"
-                content += "```json\n" + json.dumps(request_body.get("schema", {}), indent=2) + "\n```\n\n"
+                content += (
+                    "```json\n" + json.dumps(request_body.get("schema", {}), indent=2) + "\n```\n\n"
+                )
 
             if responses:
                 content += "**Responses:**\n\n"
@@ -306,7 +302,9 @@ Use formatação Markdown clara com tabelas e blocos de código.
 
             content += "---\n\n"
 
-        content += f"\n*Generated on {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC*\n"
+        content += (
+            f"\n*Generated on {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC*\n"
+        )
 
         return content
 

@@ -1,9 +1,6 @@
 """Testes unitários para Settings."""
 
-import os
 
-import pytest
-from pydantic import ValidationError
 
 from src.config.settings import Settings, get_settings
 

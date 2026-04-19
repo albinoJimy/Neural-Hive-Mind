@@ -47,6 +47,7 @@ class MermaidRenderer:
                 [self._cli_path, "--version"],
                 capture_output=True,
                 timeout=5,
+                check=False,
             )
             available = result.returncode == 0
             self._logger.info(
@@ -141,9 +142,7 @@ class MermaidRenderer:
         try:
             if self._available:
                 # Usar mermaid-cli
-                result = await self._render_with_cli(
-                    clean_code, output_format, output_path
-                )
+                result = await self._render_with_cli(clean_code, output_format, output_path)
             else:
                 # Fallback: manter como código Mermaid
                 self._logger.warning(
@@ -176,9 +175,7 @@ class MermaidRenderer:
             Document com o resultado
         """
         # Criar arquivo temporário com o código
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".mmd", delete=False
-        ) as input_file:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".mmd", delete=False) as input_file:
             input_file.write(mermaid_code)
             input_path = input_file.name
 
@@ -206,7 +203,7 @@ class MermaidRenderer:
 
             # Para SVG, extrair como texto
             if output_format == MermaidOutputFormat.SVG:
-                with open(output_path, "r", encoding="utf-8") as f:
+                with open(output_path, encoding="utf-8") as f:
                     svg_content = f.read()
 
                 doc_type = DocType.DIAGRAM
@@ -244,9 +241,7 @@ class MermaidRenderer:
             except Exception:
                 pass
 
-    def _create_fallback_document(
-        self, mermaid_code: str, output_path: str
-    ) -> Document:
+    def _create_fallback_document(self, mermaid_code: str, output_path: str) -> Document:
         """
         Cria documento de fallback quando mmdc não está disponível.
 
@@ -370,8 +365,7 @@ class MermaidRenderer:
 
         if not any(first_line.startswith(start) for start in valid_starts):
             warnings.append(
-                f"Unknown diagram type: {first_line}. "
-                f"Valid types: {', '.join(valid_starts)}"
+                f"Unknown diagram type: {first_line}. " f"Valid types: {', '.join(valid_starts)}"
             )
 
         # Verificar balanceamento de chaves
@@ -379,9 +373,7 @@ class MermaidRenderer:
         close_braces = clean_code.count("}")
 
         if open_braces != close_braces:
-            errors.append(
-                f"Unbalanced braces: {open_braces} open, {close_braces} close"
-            )
+            errors.append(f"Unbalanced braces: {open_braces} open, {close_braces} close")
 
         # Verificar linhas vazias excessivas
         empty_lines = len([line for line in clean_code.split("\n") if not line.strip()])

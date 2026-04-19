@@ -1,5 +1,6 @@
 """Parser para documentos Word (DOCX) usando python-docx."""
 
+import asyncio
 import io
 from typing import Any
 
@@ -30,6 +31,19 @@ class WordParser:
             logger.warning("docx_invalid_bytes", size=len(file_content))
             return ""
 
+        # Executa operação síncrona em thread pool
+        return await asyncio.to_thread(self._extract_text_sync, file_content)
+
+    def _extract_text_sync(self, file_content: bytes) -> str:
+        """
+        Extrai texto de forma síncrona (executada em thread pool).
+
+        Args:
+            file_content: Conteúdo binário do arquivo DOCX.
+
+        Returns:
+            Texto extraído de parágrafos e tabelas.
+        """
         try:
             doc = Document(io.BytesIO(file_content))
             extracted_parts = []
@@ -77,6 +91,19 @@ class WordParser:
         if not self._validate_docx_bytes(file_content):
             return {}
 
+        # Executa operação síncrona em thread pool
+        return await asyncio.to_thread(self._extract_metadata_sync, file_content)
+
+    def _extract_metadata_sync(self, file_content: bytes) -> dict[str, Any]:
+        """
+        Extrai metadados de forma síncrona (executada em thread pool).
+
+        Args:
+            file_content: Conteúdo binário do arquivo DOCX.
+
+        Returns:
+            Dicionário com metadados.
+        """
         metadata: dict[str, Any] = {}
 
         try:
@@ -130,6 +157,18 @@ class WordParser:
             return {}
 
         return metadata
+
+    async def parse(self, file_content: bytes) -> str:
+        """
+        Parse principal do DOCX - extrai texto.
+
+        Args:
+            file_content: Conteúdo binário do arquivo DOCX.
+
+        Returns:
+            Texto extraído do documento.
+        """
+        return await self.extract_text(file_content)
 
     def validate(self, file_content: bytes) -> bool:
         """

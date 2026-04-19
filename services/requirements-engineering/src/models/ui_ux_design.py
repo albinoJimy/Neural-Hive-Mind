@@ -141,7 +141,9 @@ class UIComponent(BaseModel):
     description: str | None = Field(default=None, description="Descrição")
     props: list[ComponentProp] = Field(default_factory=list, description="Propriedades")
     states: list[UIState] = Field(default_factory=lambda: [UIState.DEFAULT], description="Estados")
-    variants: list[str] = Field(default_factory=list, description="Variantes (ex: primary, secondary)")
+    variants: list[str] = Field(
+        default_factory=list, description="Variantes (ex: primary, secondary)"
+    )
     accessibility_label: str | None = Field(default=None, description="Label de acessibilidade")
 
 
@@ -178,7 +180,9 @@ class UIDesign(BaseModel):
     name: str = Field(..., description="Nome do design")
     description: str | None = Field(default=None, description="Descrição")
     cognitive_plan_id: str | None = Field(default=None, description="ID do plano cognitivo")
-    requirements_set_id: str | None = Field(default=None, description="ID do conjunto de requisitos")
+    requirements_set_id: str | None = Field(
+        default=None, description="ID do conjunto de requisitos"
+    )
 
     colors: ColorPalette = Field(..., description="Paleta de cores")
     typography: Typography = Field(default_factory=Typography, description="Tipografia")

@@ -1,6 +1,6 @@
 """Testes unitários para VisioParser."""
 
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -84,12 +84,12 @@ class TestVisioParserExtractText:
             mock_zip = MagicMock()
             mock_zip.namelist.return_value = ["visio/pages/page1.xml"]
             # XML com namespace correto do Visio
-            xml_content = '''<?xml version="1.0"?>
+            xml_content = """<?xml version="1.0"?>
             <root xmlns:v="http://schemas.microsoft.com/office/visio/2012/main">
                 <v:Text>
                     <v:cp>Shape text</v:cp>
                 </v:Text>
-            </root>'''
+            </root>"""
             mock_zip.read.return_value = xml_content.encode()
             mock_zipfile.return_value.__enter__.return_value = mock_zip
 
@@ -163,13 +163,13 @@ class TestVisioParserExtractShapes:
             mock_zip = MagicMock()
             mock_zip.namelist.return_value = ["visio/pages/page1.xml"]
             # XML com shape e namespace correto
-            xml_with_shape = '''<?xml version="1.0"?>
+            xml_with_shape = """<?xml version="1.0"?>
             <root xmlns:v="http://schemas.microsoft.com/office/visio/2012/main">
                 <v:Shape ID="1">
                     <v:Cell N="Name"><v:Value V="TestShape" /></v:Cell>
                     <v:Text><v:cp>Shape text</v:cp></v:Text>
                 </v:Shape>
-            </root>'''
+            </root>"""
             mock_zip.read.return_value = xml_with_shape.encode()
             mock_zipfile.return_value.__enter__.return_value = mock_zip
 
@@ -211,8 +211,8 @@ class TestVisioParserExtractMetadata:
             mock_zip.read.return_value = b"<xml></xml>"
             mock_zipfile.return_value.__enter__.return_value = mock_zip
 
-            # Mock extract_shapes
-            with patch.object(visio_parser, "extract_shapes", return_value=[{"id": "1"}]):
+            # Mock _extract_shapes_sync (chamado internamente por _extract_metadata_sync)
+            with patch.object(visio_parser, "_extract_shapes_sync", return_value=[{"id": "1"}]):
                 result = await visio_parser.extract_metadata(sample_vsdx_bytes)
 
                 assert result["page_count"] == 1
@@ -227,13 +227,13 @@ class TestVisioParserExtractMetadata:
 
             def read_func(name):
                 if "app.xml" in name:
-                    return b'<Properties><Application>Visio</Application><Scale>1.0</Scale></Properties>'
+                    return b"<Properties><Application>Visio</Application><Scale>1.0</Scale></Properties>"
                 return b"<xml></xml>"
 
             mock_zip.read.side_effect = read_func
             mock_zipfile.return_value.__enter__.return_value = mock_zip
 
-            with patch.object(visio_parser, "extract_shapes", return_value=[]):
+            with patch.object(visio_parser, "_extract_shapes_sync", return_value=[]):
                 result = await visio_parser.extract_metadata(sample_vsdx_bytes)
 
                 assert result["application"] == "Visio"
@@ -254,7 +254,7 @@ class TestVisioParserExtractMetadata:
             mock_zip.read.side_effect = read_func
             mock_zipfile.return_value.__enter__.return_value = mock_zip
 
-            with patch.object(visio_parser, "extract_shapes", return_value=[]):
+            with patch.object(visio_parser, "_extract_shapes_sync", return_value=[]):
                 result = await visio_parser.extract_metadata(sample_vsdx_bytes)
 
                 assert result["title"] == "Test Doc"

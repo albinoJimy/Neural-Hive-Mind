@@ -16,8 +16,8 @@ from src.clients.engineering_service_registry_client import (
 )
 from src.config.settings import get_settings
 from src.consumers.cognitive_plan_consumer import CognitivePlanConsumer
-from src.proto import service_registry_pb2
 from src.producers.requirements_producer import RequirementsProducer
+from src.proto import service_registry_pb2
 from src.services.requirements_engineer import RequirementsEngineer
 
 logger = structlog.get_logger(__name__)

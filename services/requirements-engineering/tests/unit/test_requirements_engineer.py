@@ -11,7 +11,7 @@ from src.models.requirements import (
 from src.services.requirements_engineer import RequirementsEngineer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_llm_response():
     """Fixture para mock LLM response."""
     mock = Mock()
@@ -42,7 +42,7 @@ def mock_llm_response():
     return mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def engineer(mock_llm_response):
     """Fixture para RequirementsEngineer."""
     mock_client = AsyncMock()
@@ -50,7 +50,7 @@ def engineer(mock_llm_response):
     return RequirementsEngineer(llm_client=mock_client)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_requirements_from_cognitive_plan(engineer):
     """Testa geração de requisitos a partir de CognitivePlan."""
     # Arrange
@@ -69,7 +69,7 @@ async def test_generate_requirements_from_cognitive_plan(engineer):
     assert isinstance(requirements_set.requirements[0], Requirement)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_requirements_includes_functional_and_non_functional(engineer):
     """Testa que gera ambos tipos de requisitos."""
     # Arrange
@@ -94,7 +94,7 @@ async def test_generate_requirements_includes_functional_and_non_functional(engi
     assert len(non_functional) > 0, "Deve gerar requisitos não-funcionais"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_prioritize_requirements_correctly(engineer):
     """Testa priorização correta de requisitos."""
     # Arrange
@@ -120,7 +120,7 @@ async def test_prioritize_requirements_correctly(engineer):
     assert prioritized[0].priority == RequirementPriority.HIGH
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_identify_dependencies(engineer):
     """Testa identificação de dependências entre requisitos."""
     # Arrange

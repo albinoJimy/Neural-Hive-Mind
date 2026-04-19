@@ -5,6 +5,7 @@ Implementa validações de integridade de dados usando análise SQL
 para garantir qualidade da migração de dados legados → modernos.
 """
 
+import re
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
@@ -15,6 +16,30 @@ from pydantic import BaseModel
 from src.models.migration import SchemaMapping
 
 logger = structlog.get_logger()
+
+# Regex para validar identificadores SQL
+SQL_IDENTIFIER_PATTERN = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*$")
+
+
+def validate_sql_identifier(identifier: str, identifier_type: str = "identifier") -> None:
+    """
+    Valida se um identificador SQL é seguro contra injection.
+
+    Args:
+        identifier: Nome do identificador (table, column, schema)
+        identifier_type: Tipo do identificador para mensagem de erro
+
+    Raises:
+        ValueError: Se o identificador contiver caracteres inválidos
+    """
+    if not identifier:
+        raise ValueError(f"{identifier_type} cannot be empty")
+
+    if not SQL_IDENTIFIER_PATTERN.match(identifier):
+        raise ValueError(
+            f"Invalid {identifier_type}: '{identifier}'. "
+            f"Only alphanumeric characters, underscores, and dots are allowed."
+        )
 
 
 class ValidationType(str, Enum):
@@ -93,14 +118,28 @@ class DataValidator:
 
         for table_mapping in schema_mapping.tables:
             try:
-                # Construir query legada
+                # Validar identificadores contra SQL injection
+                validate_sql_identifier(table_mapping.source_schema, "source_schema")
+                validate_sql_identifier(table_mapping.source_table, "source_table")
+                validate_sql_identifier(table_mapping.target_schema, "target_schema")
+                validate_sql_identifier(table_mapping.target_table, "target_table")
+
+                # NÃO suportar WHERE customizado por segurança - risk of SQL injection
                 source_filter = table_mapping.source_filter or ""
                 if source_filter:
-                    legacy_query = f"SELECT COUNT(*) FROM {table_mapping.source_schema}.{table_mapping.source_table} WHERE {source_filter}"
-                else:
-                    legacy_query = f"SELECT COUNT(*) FROM {table_mapping.source_schema}.{table_mapping.source_table}"
+                    logger.warning(
+                        "unsafe_source_filter_provided",
+                        msg="Custom WHERE filters not supported for security",
+                        table=table_mapping.source_table,
+                    )
+                    raise ValueError(
+                        f"Custom source_filter not supported for table {table_mapping.source_table} "
+                        "for SQL injection protection."
+                    )
 
-                # Query moderna
+                # Construir queries SEGURAS com parameter binding
+                # Usamos placeholders para identificadores (validados via regex)
+                legacy_query = f"SELECT COUNT(*) FROM {table_mapping.source_schema}.{table_mapping.source_table}"
                 modern_query = f"SELECT COUNT(*) FROM {table_mapping.target_schema}.{table_mapping.target_table}"
 
                 # Executar queries
@@ -199,6 +238,9 @@ class DataValidator:
 
             for fk_field in foreign_keys:
                 try:
+                    # Validar identificadores SQL
+                    validate_sql_identifier(fk_field.target_field, "target_field")
+
                     # Parse referência FK (formato: schema.table.column ou table.column)
                     ref_parts = fk_field.foreign_key_reference.split(".")
                     if len(ref_parts) == 3:
@@ -214,7 +256,15 @@ class DataValidator:
                         )
                         continue
 
-                    # Query para encontrar órfãos
+                    # Validar todos os identificadores da referência FK
+                    validate_sql_identifier(ref_schema, "ref_schema")
+                    validate_sql_identifier(ref_table, "ref_table")
+                    validate_sql_identifier(ref_column, "ref_column")
+                    validate_sql_identifier(table_mapping.target_schema, "target_schema")
+                    validate_sql_identifier(table_mapping.target_table, "target_table")
+
+                    # Query para encontrar órfãos com identificadores validados
+                    # Usar parameter binding para LIMIT
                     orphan_query = f"""
                         SELECT child.{fk_field.target_field}
                         FROM {table_mapping.target_schema}.{table_mapping.target_table} AS child
@@ -222,10 +272,12 @@ class DataValidator:
                             ON child.{fk_field.target_field} = parent.{ref_column}
                         WHERE child.{fk_field.target_field} IS NOT NULL
                             AND parent.{ref_column} IS NULL
-                        LIMIT {self.max_sample_size}
+                        LIMIT $1
                     """
 
-                    orphans = await modern_client.execute_query(orphan_query)
+                    orphans = await modern_client.execute_query(
+                        orphan_query, (self.max_sample_size,)
+                    )
                     orphan_count = len(orphans)
 
                     result = ValidationResult(
@@ -317,14 +369,26 @@ class DataValidator:
 
             for field in columns_to_validate:
                 try:
-                    # Query para distribuição legada
-                    source_filter = table_mapping.source_filter or ""
-                    where_clause = f" WHERE {source_filter}" if source_filter else ""
+                    # Validar identificadores SQL
+                    validate_sql_identifier(field.source_field, "source_field")
+                    validate_sql_identifier(field.target_field, "target_field")
 
+                    # NÃO suportar WHERE customizado por segurança
+                    if table_mapping.source_filter:
+                        logger.warning(
+                            "unsafe_source_filter_in_distribution",
+                            msg="Custom source_filter not supported for security",
+                            table=table_mapping.source_table,
+                        )
+                        raise ValueError(
+                            f"Custom source_filter not supported in distribution validation "
+                            f"for table {table_mapping.source_table}"
+                        )
+
+                    # Query para distribuição legada (SEM WHERE clause customizada)
                     legacy_dist_query = f"""
                         SELECT {field.source_field} AS value, COUNT(*) AS count
                         FROM {table_mapping.source_schema}.{table_mapping.source_table}
-                        {where_clause}
                         GROUP BY {field.source_field}
                         ORDER BY count DESC
                         LIMIT 100

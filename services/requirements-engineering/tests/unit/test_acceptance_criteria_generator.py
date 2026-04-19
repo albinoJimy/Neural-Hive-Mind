@@ -8,7 +8,7 @@ from src.models.user_story import StorySize, UserStory
 from src.services.acceptance_criteria_generator import AcceptanceCriteriaGenerator
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_llm_client():
     """Fixture para mock LLM client."""
     mock_client = AsyncMock()
@@ -45,7 +45,7 @@ def mock_llm_client():
     return mock_client
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_user_story():
     """User Story de exemplo."""
     return UserStory(
@@ -58,7 +58,7 @@ def sample_user_story():
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_acceptance_criteria_for_user_story(mock_llm_client, sample_user_story):
     """Testa geração de critérios de aceitação para uma user story."""
     generator = AcceptanceCriteriaGenerator(llm_client=mock_llm_client)
@@ -75,7 +75,7 @@ async def test_generate_acceptance_criteria_for_user_story(mock_llm_client, samp
     assert criteria[1].criterion_type == CriterionType.PERFORMANCE
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_acceptance_criteria_for_multiple_stories(mock_llm_client):
     """Testa geração de critérios para múltiplas user stories."""
     generator = AcceptanceCriteriaGenerator(llm_client=mock_llm_client)
@@ -107,7 +107,7 @@ async def test_generate_acceptance_criteria_for_multiple_stories(mock_llm_client
     assert result["US-001"].parent_type == "user_story"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_acceptance_criteria_maps_types_correctly(mock_llm_client):
     """Testa que tipos de critério são mapeados corretamente."""
     mock_client = AsyncMock()
@@ -151,7 +151,7 @@ async def test_generate_acceptance_criteria_maps_types_correctly(mock_llm_client
     assert criteria[4].criterion_type == CriterionType.COMPLIANCE
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_acceptance_criteria_default_type():
     """Testa que critérios sem tipo definido usam FUNCTIONAL como padrão."""
     mock_client = AsyncMock()
@@ -219,7 +219,10 @@ Text after
 
     json_str = generator._extract_json(markdown_text)
 
-    assert json_str == '[\n  {"id": "AC-001", "given": "context", "when": "action", "then": "result"}\n]'
+    assert (
+        json_str
+        == '[\n  {"id": "AC-001", "given": "context", "when": "action", "then": "result"}\n]'
+    )
 
 
 def test_extract_json_from_plain_array():
@@ -246,7 +249,7 @@ def test_extract_json_returns_none_when_no_json():
     assert json_str is None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_acceptance_criteria_handles_invalid_criterion_data(mock_llm_client):
     """Testa que critérios inválidos são ignorados."""
     mock_client = AsyncMock()
@@ -284,7 +287,7 @@ async def test_generate_acceptance_criteria_handles_invalid_criterion_data(mock_
     assert criteria[0].id == "AC-001"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_acceptance_criteria_uses_user_story_format():
     """Testa que o formato da user story é usado no prompt."""
     mock_client = AsyncMock()

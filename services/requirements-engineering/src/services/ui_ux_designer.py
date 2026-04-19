@@ -8,8 +8,8 @@ from typing import Any
 import structlog
 from openai import AsyncOpenAI
 from src.config.settings import get_settings
+from src.models.requirements import RequirementsSet
 from src.models.ui_ux_design import (
-    Breakpoint,
     ColorPalette,
     ComponentProp,
     ComponentType,
@@ -21,7 +21,6 @@ from src.models.ui_ux_design import (
     UIState,
     UserFlow,
 )
-from src.models.requirements import RequirementsSet
 
 logger = structlog.get_logger(__name__)
 
@@ -131,10 +130,7 @@ class UIUXDesigner:
 
         # Preparar texto dos requisitos
         requirements_text = "\n".join(
-            [
-                f"- {r.title}: {r.description[:200]}..."
-                for r in requirements_set.requirements[:10]
-            ]
+            [f"- {r.title}: {r.description[:200]}..." for r in requirements_set.requirements[:10]]
         )
 
         prompt = UI_UX_DESIGN_PROMPT.format(requirements_text=requirements_text)

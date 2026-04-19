@@ -126,7 +126,6 @@ class TestValidateRowCounts:
                             is_primary_key=True,
                         )
                     ],
-                    source_filter="deleted_at IS NULL",
                 ),
             ],
         )
@@ -214,8 +213,8 @@ class TestValidateRowCounts:
         assert "faltando" in results[0].details["message"].lower()
 
     @pytest.mark.asyncio
-    async def test_validate_row_counts_with_filter(self):
-        """Verifica que filtro do SchemaMapping é aplicado."""
+    async def test_validate_row_counts_with_filter_rejected(self):
+        """Verifica que filtro customizado é rejeitado por segurança."""
         schema_mapping = SchemaMapping(
             legacy_connection_id="postgres-legacy",
             nhm_target="feature-store",
@@ -225,7 +224,7 @@ class TestValidateRowCounts:
                     source_table="orders",
                     target_table="nhm_orders",
                     fields=[],
-                    source_filter="status != 'cancelled'",
+                    source_filter="status != 'cancelled'",  # Deve ser rejeitado
                 ),
             ],
         )
@@ -233,22 +232,18 @@ class TestValidateRowCounts:
         legacy_client = AsyncMock()
         modern_client = AsyncMock()
 
-        legacy_client.execute_query = AsyncMock(return_value=800)
-        modern_client.execute_query = AsyncMock(return_value=800)
-
         validator = DataValidator()
-        results = await validator.validate_row_counts(
-            schema_mapping=schema_mapping,
-            legacy_client=legacy_client,
-            modern_client=modern_client,
-        )
 
-        # Verificar que a query legada incluiu o filtro
-        assert legacy_client.execute_query.call_count == 1
-        query_arg = legacy_client.execute_query.call_args[0][0]
-        assert "status != 'cancelled'" in query_arg
+        # Deve lançar DataValidationError devido ao filtro customizado
+        with pytest.raises(DataValidationError) as exc_info:
+            await validator.validate_row_counts(
+                schema_mapping=schema_mapping,
+                legacy_client=legacy_client,
+                modern_client=modern_client,
+            )
 
-        assert results[0].passed is True
+        # Verificar que a mensagem de erro menciona SQL injection protection
+        assert "SQL injection protection" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_validate_row_counts_with_tolerance(self):

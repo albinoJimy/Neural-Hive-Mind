@@ -13,7 +13,7 @@ from src.services.diagram_generator import DiagramGenerator
 from src.services.readme_generator import ReadmeGenerator
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_llm_response():
     """Fixture para mock LLM response."""
     mock = Mock()
@@ -44,7 +44,7 @@ test_project.run()
     return mock
 
 
-@pytest.fixture
+@pytest.fixture()
 def readme_generator(mock_llm_response):
     """Fixture para ReadmeGenerator."""
     mock_client = AsyncMock()
@@ -52,7 +52,7 @@ def readme_generator(mock_llm_response):
     return ReadmeGenerator(llm_client=mock_client)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_readme(readme_generator):
     """Testa geração de README."""
     request = ReadmeRequest(
@@ -71,7 +71,7 @@ async def test_generate_readme(readme_generator):
     assert document.file_path == "README.md"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_diagram_generator():
     """Testa geração de diagramas Mermaid."""
     mock_response = Mock()
@@ -99,7 +99,7 @@ async def test_diagram_generator():
     assert "sequenceDiagram" in document.content
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_code_doc_generator():
     """Testa geração de documentação de código."""
     mock_response = Mock()

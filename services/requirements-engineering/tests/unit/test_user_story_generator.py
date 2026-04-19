@@ -8,7 +8,7 @@ from src.models.user_story import StorySize, UserStorySet
 from src.services.user_story_generator import UserStoryGenerator
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_llm_client():
     """Fixture para mock LLM client."""
     mock_client = AsyncMock()
@@ -43,7 +43,7 @@ def mock_llm_client():
     return mock_client
 
 
-@pytest.fixture
+@pytest.fixture()
 def sample_requirement():
     """Requisito de exemplo."""
     return Requirement(
@@ -56,7 +56,7 @@ def sample_requirement():
     )
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_user_stories_from_requirement(mock_llm_client, sample_requirement):
     """Testa geração de user stories a partir de um requisito."""
     generator = UserStoryGenerator(llm_client=mock_llm_client)
@@ -74,7 +74,7 @@ async def test_generate_user_stories_from_requirement(mock_llm_client, sample_re
     assert stories[1].size == StorySize.SMALL
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_user_stories_from_requirements(mock_llm_client, sample_requirement):
     """Testa geração de user stories para múltiplos requisitos."""
     generator = UserStoryGenerator(llm_client=mock_llm_client)
@@ -94,7 +94,7 @@ async def test_generate_user_stories_from_requirements(mock_llm_client, sample_r
     assert len(story_set.stories) == 4  # 2 de cada requisito
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_user_stories_parses_size_correctly(mock_llm_client):
     """Testa que tamanhos são parseados corretamente."""
     mock_client = AsyncMock()
@@ -131,7 +131,7 @@ async def test_generate_user_stories_parses_size_correctly(mock_llm_client):
     assert stories[1].size == StorySize.EXTRA_LARGE
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_user_stories_handles_invalid_story_data(mock_llm_client):
     """Testa que stories inválidas são ignoradas."""
     mock_client = AsyncMock()
@@ -230,7 +230,7 @@ def test_extract_json_returns_none_when_no_json():
     assert json_str is None
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_user_stories_default_size_to_medium():
     """Testa que user stories sem tamanho definido usam MEDIUM como padrão."""
     mock_client = AsyncMock()
@@ -266,7 +266,7 @@ async def test_generate_user_stories_default_size_to_medium():
     assert stories[0].size == StorySize.MEDIUM
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_generate_user_stories_set_calculates_total_points():
     """Testa que UserStorySet calcula total de story points."""
     mock_client = AsyncMock()

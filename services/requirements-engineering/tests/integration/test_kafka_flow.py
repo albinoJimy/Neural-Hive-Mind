@@ -9,7 +9,7 @@ from src.producers.requirements_producer import RequirementsProducer
 from src.services.requirements_engineer import RequirementsEngineer
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Fixture com configurações de teste."""
 
@@ -25,7 +25,7 @@ def mock_settings():
     return MockSettings()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_llm_client():
     """Fixture para mock LLM client."""
     mock_client = AsyncMock()
@@ -41,7 +41,7 @@ def mock_llm_client():
     return mock_client
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_cognitive_plan_consumer_processes_message(mock_settings, mock_llm_client):
     """Testa que o consumer processa mensagens do Kafka."""
     # Arrange
@@ -77,7 +77,7 @@ async def test_cognitive_plan_consumer_processes_message(mock_settings, mock_llm
     mock_producer.publish_requirements_generated.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_requirements_publisher_sends_to_kafka():
     """Testa que o producer envia eventos para o Kafka."""
     # Arrange
@@ -99,7 +99,7 @@ async def test_requirements_publisher_sends_to_kafka():
     producer._producer.send_and_wait.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_consumer_handles_invalid_json(mock_settings, mock_llm_client):
     """Testa que o consumer lida com JSON inválido."""
     # Arrange
@@ -120,7 +120,7 @@ async def test_consumer_handles_invalid_json(mock_settings, mock_llm_client):
     await consumer._process_message(mock_message)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_end_to_end_flow(mock_settings, mock_llm_client):
     """Teste E2E: mensagem entra, requisitos são gerados, evento publicado."""
     # Arrange

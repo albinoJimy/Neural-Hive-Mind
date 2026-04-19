@@ -1,14 +1,13 @@
 """Testes de integração com service registry."""
 
 import pytest
-
 from src.clients.engineering_service_registry_client import (
     EngineeringServiceRegistryClient,
 )
 from src.proto import service_registry_pb2
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_documentation_generation_registration():
     """Testa registro do documentation-generation no service registry."""
     client = EngineeringServiceRegistryClient(
@@ -38,7 +37,7 @@ async def test_documentation_generation_registration():
     await client.close()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_documentation_generation_heartbeat():
     """Testa envio de heartbeat do documentation-generation."""
     client = EngineeringServiceRegistryClient(

@@ -5,6 +5,7 @@ Implementa conexão assíncrona com PostgreSQL usando asyncpg
 para extrair dados do banco legado.
 """
 
+import re
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -13,6 +14,31 @@ import structlog
 from src.config.settings import get_settings
 
 logger = structlog.get_logger()
+
+# Regex para validar identificadores SQL (table names, column names)
+# Segue o padrão PostgreSQL: [a-zA-Z_][a-zA-Z0-9_]*
+SQL_IDENTIFIER_PATTERN = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)*$")
+
+
+def validate_sql_identifier(identifier: str, identifier_type: str = "identifier") -> None:
+    """
+    Valida se um identificador SQL é seguro contra injection.
+
+    Args:
+        identifier: Nome do identificador (table, column, schema)
+        identifier_type: Tipo do identificador para mensagem de erro
+
+    Raises:
+        ValueError: Se o identificador contiver caracteres inválidos
+    """
+    if not identifier:
+        raise ValueError(f"{identifier_type} cannot be empty")
+
+    if not SQL_IDENTIFIER_PATTERN.match(identifier):
+        raise ValueError(
+            f"Invalid {identifier_type}: '{identifier}'. "
+            f"Only alphanumeric characters, underscores, and dots are allowed."
+        )
 
 
 class PostgreSQLClient:
@@ -247,17 +273,32 @@ class PostgreSQLClient:
         Args:
             table_name: Nome da tabela
             schema: Schema da tabela
-            where: Cláusula WHERE adicional (sem WHERE)
+            where: Cláusula WHERE adicional (sem WHERE) - NÃO SUPORTADO por segurança
 
         Returns:
             Número de linhas
-        """
-        if where:
-            query = f"SELECT COUNT(*) FROM {schema}.{table_name} WHERE {where}"
-        else:
-            query = f"SELECT COUNT(*) FROM {schema}.{table_name}"
 
-        result = await self.execute_query(query, fetch="val")
+        Raises:
+            ValueError: Se identificadores forem inválidos
+        """
+        # Validar identificadores contra SQL injection
+        validate_sql_identifier(schema, "schema")
+        validate_sql_identifier(table_name, "table_name")
+
+        # NÃO suportar WHERE customizado por segurança - risk of SQL injection
+        if where:
+            logger.warning(
+                "unsafe_where_clause_provided",
+                msg="WHERE clause not supported for security reasons",
+            )
+            raise ValueError(
+                "Custom WHERE clauses are not supported in get_table_count "
+                "for SQL injection protection. Use fetch_batch with proper filtering instead."
+            )
+
+        # Usar query preparada com parâmetros
+        query = "SELECT COUNT(*) FROM $1.$2"
+        result = await self.execute_query(query, (schema, table_name), fetch="val")
         return result if isinstance(result, int) else 0
 
     async def fetch_batch(
@@ -279,28 +320,50 @@ class PostgreSQLClient:
             batch_size: Tamanho do lote
             columns: Colunas específicas (None = todas)
             schema: Schema da tabela
-            where: Cláusula WHERE (sem WHERE)
+            where: Cláusula WHERE (sem WHERE) - NÃO SUPORTADO por segurança
             order_by: Coluna para ordenação
 
         Returns:
             Lista de dicionários com os dados
+
+        Raises:
+            ValueError: Se identificadores forem inválidos ou cláusulas inseguras
         """
+        # Validar identificadores contra SQL injection
+        validate_sql_identifier(schema, "schema")
+        validate_sql_identifier(table_name, "table_name")
+
+        # NÃO suportar WHERE customizado por segurança
+        if where:
+            raise ValueError(
+                "Custom WHERE clauses are not supported in fetch_batch "
+                "for SQL injection protection."
+            )
+
+        # Validar column names se fornecidas
+        if columns:
+            for col in columns:
+                validate_sql_identifier(col, "column")
+
+        # Usar identifiers validados na query
         col_clause = ", ".join(columns) if columns else "*"
 
+        # Construir query com parameter binding para valores
+        # Note: Identificadores (table, schema, columns) são validados via regex
+        # Valores (limit, offset) usam parameter binding
         query = f"SELECT {col_clause} FROM {schema}.{table_name}"
 
-        if where:
-            query += f" WHERE {where}"
-
         if order_by:
+            validate_sql_identifier(order_by, "order_by")
             query += f" ORDER BY {order_by}"
         else:
             # Adiciona ORDER BY por id se existir para paginação determinística
             query += " ORDER BY 1"  # Primeira coluna
 
-        query += f" LIMIT {batch_size} OFFSET {offset}"
+        # Usar parameter binding para LIMIT e OFFSET
+        query += " LIMIT $1 OFFSET $2"
 
-        return await self.execute_query(query)
+        return await self.execute_query(query, (batch_size, offset))
 
     async def get_primary_keys(
         self,

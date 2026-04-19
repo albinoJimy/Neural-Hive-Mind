@@ -13,7 +13,7 @@ from src.services.diagram_generator import DiagramGenerator
 from src.services.readme_generator import ReadmeGenerator
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_settings():
     """Fixture com configurações de teste."""
 
@@ -29,7 +29,7 @@ def mock_settings():
     return MockSettings()
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_llm_client():
     """Fixture para mock LLM client."""
     mock_client = AsyncMock()
@@ -70,10 +70,8 @@ See API documentation at /docs
     return mock_client
 
 
-@pytest.mark.asyncio
-async def test_architecture_plan_consumer_processes_message(
-    mock_settings, mock_llm_client
-):
+@pytest.mark.asyncio()
+async def test_architecture_plan_consumer_processes_message(mock_settings, mock_llm_client):
     """Testa que o consumer processa mensagens do Kafka."""
     # Arrange
     readme_generator = ReadmeGenerator(llm_client=mock_llm_client)
@@ -119,7 +117,7 @@ async def test_architecture_plan_consumer_processes_message(
     mock_producer.publish_documentation_generated.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_documentation_publisher_sends_to_kafka():
     """Testa que o producer envia eventos para o Kafka."""
     # Arrange
@@ -142,7 +140,7 @@ async def test_documentation_publisher_sends_to_kafka():
     producer._producer.send_and_wait.assert_called_once()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_consumer_handles_invalid_json(mock_settings, mock_llm_client):
     """Testa que o consumer lida com JSON inválido."""
     # Arrange
@@ -164,7 +162,7 @@ async def test_consumer_handles_invalid_json(mock_settings, mock_llm_client):
     await consumer._process_message(mock_message)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_consumer_handles_missing_plan_id(mock_settings, mock_llm_client):
     """Testa que o consumer lida com plan_id ausente."""
     # Arrange
@@ -194,7 +192,7 @@ async def test_consumer_handles_missing_plan_id(mock_settings, mock_llm_client):
     mock_producer.publish_documentation_generated.assert_not_called()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_end_to_end_documentation_flow(mock_settings, mock_llm_client):
     """Teste E2E: mensagem entra, documentação é gerada, evento publicado."""
     # Arrange
@@ -235,7 +233,7 @@ async def test_end_to_end_documentation_flow(mock_settings, mock_llm_client):
     assert call_args[1]["doc_type"] == "readme"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_markdown_generator_api_doc():
     """Testa geração de documentação de API em Markdown."""
     generator = MarkdownGenerator()
@@ -249,8 +247,18 @@ async def test_markdown_generator_api_doc():
                 "path": "/users",
                 "description": "List all users",
                 "params": [
-                    {"name": "limit", "type": "integer", "required": False, "description": "Max results"},
-                    {"name": "offset", "type": "integer", "required": False, "description": "Pagination offset"},
+                    {
+                        "name": "limit",
+                        "type": "integer",
+                        "required": False,
+                        "description": "Max results",
+                    },
+                    {
+                        "name": "offset",
+                        "type": "integer",
+                        "required": False,
+                        "description": "Pagination offset",
+                    },
                 ],
                 "responses": {"200": "List of users", "400": "Bad request"},
             },
@@ -259,8 +267,18 @@ async def test_markdown_generator_api_doc():
                 "path": "/users",
                 "description": "Create a new user",
                 "params": [
-                    {"name": "name", "type": "string", "required": True, "description": "User name"},
-                    {"name": "email", "type": "string", "required": True, "description": "User email"},
+                    {
+                        "name": "name",
+                        "type": "string",
+                        "required": True,
+                        "description": "User name",
+                    },
+                    {
+                        "name": "email",
+                        "type": "string",
+                        "required": True,
+                        "description": "User email",
+                    },
                 ],
                 "responses": {"201": "User created", "400": "Validation error"},
             },
@@ -276,7 +294,7 @@ async def test_markdown_generator_api_doc():
     assert "name" in document.content
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_markdown_generator_user_guide():
     """Testa geração de guia de usuário em Markdown."""
     generator = MarkdownGenerator()
@@ -314,7 +332,7 @@ async def test_markdown_generator_user_guide():
     assert "project create --name MyProject" in document.content
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_architecture_docs_generator(mock_llm_client):
     """Testa geração de documentação de arquitetura."""
     mock_llm_client.chat.completions.create = AsyncMock(
@@ -381,7 +399,7 @@ graph TD
     assert "microservices" in document.content.lower()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_diagram_generator_sequence(mock_llm_client):
     """Testa geração de diagrama de sequência."""
     mock_llm_client.chat.completions.create = AsyncMock(
@@ -417,7 +435,7 @@ async def test_diagram_generator_sequence(mock_llm_client):
     assert "API" in document.content
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_markdown_generator_format_table():
     """Testa formatação de tabela em Markdown."""
     generator = MarkdownGenerator()
@@ -437,7 +455,7 @@ async def test_markdown_generator_format_table():
     assert "---" in table  # separator line
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio()
 async def test_markdown_generator_changelog():
     """Testa geração de CHANGELOG."""
     generator = MarkdownGenerator()

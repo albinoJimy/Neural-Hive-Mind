@@ -9,8 +9,8 @@ import structlog
 from openai import AsyncOpenAI
 from src.config.settings import get_settings
 from src.models.api_design import (
-    APIEndpoint,
     APIDesign,
+    APIEndpoint,
     APIParameter,
     APIResponse,
     APISecurity,
@@ -157,10 +157,7 @@ class APIDesigner:
 
         # Preparar texto dos requisitos
         requirements_text = "\n".join(
-            [
-                f"- {r.title}: {r.description[:200]}..."
-                for r in requirements_set.requirements[:10]
-            ]
+            [f"- {r.title}: {r.description[:200]}..." for r in requirements_set.requirements[:10]]
         )
 
         prompt = API_DESIGN_PROMPT.format(requirements_text=requirements_text)

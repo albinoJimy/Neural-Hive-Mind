@@ -2,8 +2,8 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 import grpc
+import pytest
 
 
 @pytest.mark.asyncio
@@ -241,6 +241,7 @@ class TestDocIngestionServiceRegistryClient:
     async def test_stop_heartbeat(self):
         """Testa parada do loop de heartbeat."""
         import asyncio
+
         from src.clients.service_registry_client import DocIngestionServiceRegistryClient
 
         client = DocIngestionServiceRegistryClient()

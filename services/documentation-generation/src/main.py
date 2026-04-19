@@ -14,8 +14,8 @@ from src.clients.engineering_service_registry_client import (
 )
 from src.config.settings import get_settings
 from src.consumers.architecture_plan_consumer import ArchitecturePlanConsumer
-from src.proto import service_registry_pb2
 from src.producers.docs_producer import DocumentationProducer
+from src.proto import service_registry_pb2
 from src.services.code_doc_generator import CodeDocGenerator
 from src.services.readme_generator import ReadmeGenerator
 
