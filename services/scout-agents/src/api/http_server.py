@@ -36,23 +36,40 @@ def init_app(engine: ExplorationEngine, agent_id: str):
     _agent_id = agent_id
 
 
+@app.get("/health")
+async def health():
+    """Liveness probe - checks if process is alive"""
+    return {
+        "status": "healthy",
+        "service": "scout-agents",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 @app.get("/health/live")
 async def liveness():
-    """Liveness probe - checks if process is alive"""
-    return {"status": "alive", "timestamp": datetime.now(timezone.utc).isoformat()}
+    """Liveness probe alias - checks if process is alive"""
+    return await health()
 
 
-@app.get("/health/ready")
+@app.get("/ready")
 async def readiness():
     """Readiness probe - checks if service is ready to accept traffic"""
     if not _engine or not _engine._is_running:
         raise HTTPException(status_code=503, detail="Engine not running")
 
     return {
+        "ready": True,
         "status": "ready",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "agent_id": _agent_id,
     }
+
+
+@app.get("/health/ready")
+async def health_readiness():
+    """Readiness probe alias - checks if service is ready to accept traffic"""
+    return await readiness()
 
 
 @app.get("/health/startup")
