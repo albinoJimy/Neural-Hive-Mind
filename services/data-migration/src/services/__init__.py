@@ -40,6 +40,13 @@ from src.services.migration_orchestrator_client import (
     submit_migration_job,
     update_ticket_progress,
 )
+from src.services.reconnection_manager import (
+    ReconnectionConfig,
+    ReconnectionManager,
+    ReconnectionStats,
+    consume_with_reconnection,
+    get_reconnection_manager,
+)
 from src.services.rollback_manager import (
     RollbackManager,
     get_rollback_manager,
@@ -64,6 +71,12 @@ __all__ = [
     "DataValidator",
     "DataValidationError",
     "get_data_validator",
+    # Reconnection Manager (BUG-H-001)
+    "ReconnectionConfig",
+    "ReconnectionManager",
+    "ReconnectionStats",
+    "consume_with_reconnection",
+    "get_reconnection_manager",
     # Rollback Manager
     "RollbackManager",
     "get_rollback_manager",

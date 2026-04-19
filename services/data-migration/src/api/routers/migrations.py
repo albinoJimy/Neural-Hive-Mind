@@ -907,3 +907,28 @@ async def _execute_migration_task(
             status="failed",
             error_message=str(e),
         )
+
+
+@router.get("/migrations/{job_id}/cdc/reconnection-stats")
+async def get_cdc_reconnection_stats(job_id: str) -> Dict[str, Any]:
+    """
+    Obtém estatísticas de reconexão do CDC (BUG-H-001).
+
+    Args:
+        job_id: ID do job de migração
+
+    Returns:
+        Dicionário com estatísticas de reconexão Kafka
+    """
+    from src.services import get_cdc_pipeline
+
+    try:
+        cdc_pipeline = get_cdc_pipeline(job_id)
+        return cdc_pipeline.get_reconnection_stats()
+    except Exception as e:
+        logger.error("cdc_reconnection_stats_error", job_id=job_id, error=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao obter stats de reconexão: {e}",
+        ) from e
+

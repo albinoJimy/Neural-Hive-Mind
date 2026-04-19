@@ -52,6 +52,20 @@ class Settings(BaseSettings):
     kafka_consumer_group: str = "data-migration-consumers"
     kafka_output_topic: str = "migration.progress"
 
+    # Kafka Reconnection (BUG-H-001)
+    kafka_reconnect_max_attempts: int = Field(
+        default=50, validation_alias="KAFKA_RECONNECT_MAX_ATTEMPTS"
+    )
+    kafka_reconnect_initial_delay_ms: int = Field(
+        default=1000, validation_alias="KAFKA_RECONNECT_INITIAL_DELAY_MS"
+    )
+    kafka_reconnect_max_delay_ms: int = Field(
+        default=300000, validation_alias="KAFKA_RECONNECT_MAX_DELAY_MS"
+    )
+    kafka_reconnect_backoff_multiplier: float = Field(
+        default=2.0, validation_alias="KAFKA_RECONNECT_BACKOFF_MULTIPLIER"
+    )
+
     # S3/MinIO (Data dumps)
     s3_endpoint: str = Field(default="http://localhost:9000", validation_alias="S3_ENDPOINT")
     s3_access_key: str = Field(default="", validation_alias="S3_ACCESS_KEY")

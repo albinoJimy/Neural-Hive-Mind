@@ -14,6 +14,7 @@ import structlog
 
 from src.config.settings import get_settings
 from src.models.migration import SchemaMapping, TableMapping
+from src.services.reconnection_manager import ReconnectionManager
 
 __all__ = [
     "CDCPipeline",
@@ -119,11 +120,15 @@ class CDCPipeline:
         self.consumer_group = consumer_group or settings.kafka_consumer_group
         self.topic_prefix = topic_prefix
 
+        # BUG-H-001: Reconnection Manager
+        self._reconnection_manager = ReconnectionManager()
+
         # Estado interno
         self._connector_id: Optional[str] = None
         self._consumer: Optional[Any] = None
         self._running: bool = False
         self._task: Optional[asyncio.Task] = None
+        self._reconnection_stats = self._reconnection_manager.stats
 
     async def create_connector(
         self,
@@ -653,6 +658,99 @@ class CDCPipeline:
             "transforms.unwrap.drop.tombstones": "true",
             "transforms.unwrap.add.fields": "op,ts_ms",
         }
+
+    async def consume_cdc_events_with_reconnection(
+        self,
+        schema_mapping: SchemaMapping,
+        target_client: Any,
+        batch_size: int = 100,
+    ) -> AsyncIterator[Dict[str, Any]]:
+        """
+        Consome eventos CDC com reconexão automática (BUG-H-001).
+
+        Diferente de consume_cdc_events, este método usa o ReconnectionManager
+        para reconectar automaticamente em caso de falha de conexão Kafka.
+
+        Args:
+            schema_mapping: Mapeamento de schema e tabelas
+            target_client: Cliente do banco de dados alvo
+            batch_size: Tamanho do batch para yield
+
+        Yields:
+            Dicionários com estatísticas do processamento
+
+        Raises:
+            CDCPipelineError: Se CDC não estiver rodando
+            ConnectionError: Após esgotar tentativas de reconexão
+        """
+        if not self._running or not self._consumer:
+            raise CDCPipelineError("CDC não está rodando. Chame start_cdc() primeiro.")
+
+        batch = []
+        stats = {
+            "processed": 0,
+            "inserts": 0,
+            "updates": 0,
+            "deletes": 0,
+            "errors": 0,
+        }
+
+        async def message_handler(msg) -> None:
+            """Handler para processar mensagem individual."""
+            nonlocal batch, stats
+
+            event = msg.value
+
+            # Processar evento
+            await self._process_cdc_event(
+                event=event,
+                schema_mapping=schema_mapping,
+                target_client=target_client,
+            )
+
+            # Atualizar estatísticas
+            op = event.get("op", "")
+            if op == "c" or op == "r":
+                stats["inserts"] += 1
+            elif op == "u":
+                stats["updates"] += 1
+            elif op == "d":
+                stats["deletes"] += 1
+
+            stats["processed"] += 1
+            batch.append(event)
+
+        # Usar ReconnectionManager para consumir com reconexão
+        async for _ in self._reconnection_manager.consume_with_reconnection(
+            consumer=self._consumer,
+            handler=message_handler,
+            topic=f"{self.topic_prefix}.*",
+        ):
+            # Yield batch quando completo
+            if len(batch) >= batch_size:
+                yield stats.copy()
+                batch.clear()
+                stats = {
+                    "processed": 0,
+                    "inserts": 0,
+                    "updates": 0,
+                    "deletes": 0,
+                    "errors": 0,
+                }
+
+        # Yield final batch
+        if batch:
+            yield stats
+
+    def get_reconnection_stats(self) -> Dict[str, Any]:
+        """
+        Retorna estatísticas de reconexão (BUG-H-001).
+
+        Returns:
+            Dicionário com stats de reconexão
+        """
+        return self._reconnection_stats.to_dict()
+
 
     async def stop_cdc(self) -> None:
         """
