@@ -9,6 +9,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 # SEC-001: Security Headers
 from neural_hive_security import SecurityHeadersMiddleware
+from neural_hive_observability import get_metrics
+from neural_hive_observability.middleware import TraceContextMiddleware
 
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import BaseModel, Field
@@ -170,6 +172,19 @@ def create_http_server(config, app_state):
 
     # SEC-001: Adicionar middleware de security headers
     app.add_middleware(SecurityHeadersMiddleware)
+
+    # W3C Trace Context middleware para propagação de contexto distribuído
+    try:
+        from neural_hive_observability.middleware import TraceContextMiddleware
+        metrics = get_metrics()
+        if metrics:
+            app.add_middleware(TraceContextMiddleware, metrics=metrics)
+            logger.info("W3C Trace Context middleware adicionado ao worker-agents")
+        else:
+            logger.warning("Métricas não disponíveis - W3C Trace Context middleware adicionado sem métricas")
+            app.add_middleware(TraceContextMiddleware)
+    except ImportError:
+        logger.warning("Observabilidade não disponível - W3C Trace Context middleware não adicionado")
 
     # SPIFFE JWT validator instance
     jwt_validator = SPIFFEJWTValidator(config, app_state)
