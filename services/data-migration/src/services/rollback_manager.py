@@ -89,6 +89,8 @@ class RollbackManager:
     Oferece duas estratégias de rollback:
     - S3: Dump de tabelas para S3 antes da migração
     - Shadow: Cria tabelas "_shadow" e restaura via rename
+
+    Thread-safe: Usa locks para operações concorrentes.
     """
 
     def __init__(
@@ -107,6 +109,7 @@ class RollbackManager:
         self._timeout = timeout_seconds or settings.rollback_timeout_seconds
         self._bucket = settings.s3_bucket
         self._snapshots: Dict[str, RollbackSnapshot] = {}
+        self._snapshots_lock = asyncio.Lock()  # BUG-H-003: proteção concorrência
         self._postgres = postgres_client
         self._s3: Optional[Any] = None
 
@@ -214,7 +217,9 @@ class RollbackManager:
                 row_counts=row_counts,
             )
 
-            self._snapshots[snapshot_id] = snapshot
+            # BUG-H-003: Lock para proteger acesso concorrente
+            async with self._snapshots_lock:
+                self._snapshots[snapshot_id] = snapshot
 
             logger.info(
                 "snapshot_created",
@@ -264,8 +269,12 @@ class RollbackManager:
 
         row_counts: Dict[str, int] = {}
 
-        # Usar arquivo temporário com streaming para evitar OOM
-        with tempfile.NamedTemporaryFile(mode="wb", suffix=".json.gz", delete=False) as tmp_file:
+        # BUG-H-003: Incluir snapshot_id no nome para evitar conflitos em snapshots concorrentes
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            suffix=f"_{snapshot_id}.json.gz",
+            delete=False
+        ) as tmp_file:
             tmp_path = tmp_file.name
 
         try:
@@ -439,10 +448,12 @@ class RollbackManager:
             ValueError: Se snapshot não existe
             TimeoutError: Se operação exceder timeout
         """
-        if snapshot_id not in self._snapshots:
-            raise ValueError(f"Snapshot não encontrado: {snapshot_id}")
+        # BUG-H-003: Lock para leitura atômica do snapshot
+        async with self._snapshots_lock:
+            if snapshot_id not in self._snapshots:
+                raise ValueError(f"Snapshot não encontrado: {snapshot_id}")
+            snapshot = self._snapshots[snapshot_id]
 
-        snapshot = self._snapshots[snapshot_id]
         start_time = datetime.now(timezone.utc)
 
         logger.info(
@@ -461,7 +472,9 @@ class RollbackManager:
             else:
                 raise ValueError(f"Tipo de storage não suportado: {snapshot.storage_type}")
 
-            snapshot.status = RollbackStatus.COMPLETED
+            # BUG-H-003: Lock para proteção de status
+            async with self._snapshots_lock:
+                snapshot.status = RollbackStatus.COMPLETED
 
             logger.info(
                 "rollback_completed",
@@ -472,10 +485,14 @@ class RollbackManager:
             )
 
         except asyncio.TimeoutError:
-            snapshot.status = RollbackStatus.FAILED
+            # BUG-H-003: Lock para proteção de status
+            async with self._snapshots_lock:
+                snapshot.status = RollbackStatus.FAILED
             raise TimeoutError(f"Rollback excedeu timeout de {self._timeout} segundos")
         except Exception as e:
-            snapshot.status = RollbackStatus.FAILED
+            # BUG-H-003: Lock para proteção de status
+            async with self._snapshots_lock:
+                snapshot.status = RollbackStatus.FAILED
             logger.error("rollback_failed", snapshot_id=snapshot_id, error=str(e))
             raise
 
@@ -733,11 +750,12 @@ class RollbackManager:
         Returns:
             True se limpeza foi bem-sucedida
         """
-        if snapshot_id not in self._snapshots:
-            logger.warning("snapshot_not_found_for_cleanup", snapshot_id=snapshot_id)
-            return False
-
-        snapshot = self._snapshots[snapshot_id]
+        # BUG-H-003: Lock para leitura atômica do snapshot
+        async with self._snapshots_lock:
+            if snapshot_id not in self._snapshots:
+                logger.warning("snapshot_not_found_for_cleanup", snapshot_id=snapshot_id)
+                return False
+            snapshot = self._snapshots[snapshot_id]
 
         logger.info(
             "cleaning_snapshot", snapshot_id=snapshot_id, storage_type=snapshot.storage_type
@@ -749,8 +767,12 @@ class RollbackManager:
             elif snapshot.storage_type == "shadow":
                 await self._cleanup_shadow_snapshot(snapshot)
 
-            snapshot.status = RollbackStatus.CLEANED
-            del self._snapshots[snapshot_id]
+            # BUG-H-003: Lock para proteção de status e deleção
+            async with self._snapshots_lock:
+                snapshot.status = RollbackStatus.CLEANED
+                # Recarregar do dict para garantir que ainda existe (double-check)
+                if snapshot_id in self._snapshots:
+                    del self._snapshots[snapshot_id]
 
             logger.info("snapshot_cleaned", snapshot_id=snapshot_id)
             return True
@@ -804,7 +826,12 @@ class RollbackManager:
         cutoff_time = datetime.now(timezone.utc) - timedelta(days=older_than_days)
         cleaned_count = 0
 
-        to_remove = [sid for sid, snap in self._snapshots.items() if snap.created_at < cutoff_time]
+        # BUG-H-003: Lock para leitura atômica da lista
+        async with self._snapshots_lock:
+            to_remove = [
+                sid for sid, snap in self._snapshots.items()
+                if snap.created_at < cutoff_time
+            ]
 
         for snapshot_id in to_remove:
             if await self.cleanup_snapshot(snapshot_id):
@@ -823,17 +850,21 @@ class RollbackManager:
         Returns:
             Dicionário com informações do snapshot
         """
-        if snapshot_id not in self._snapshots:
-            return {
-                "exists": False,
-                "snapshot_id": snapshot_id,
-            }
+        # BUG-H-003: Lock para leitura atômica
+        async with self._snapshots_lock:
+            if snapshot_id not in self._snapshots:
+                return {
+                    "exists": False,
+                    "snapshot_id": snapshot_id,
+                }
 
-        snapshot = self._snapshots[snapshot_id]
-        return {
-            "exists": True,
-            **snapshot.to_dict(),
-        }
+            snapshot = self._snapshots[snapshot_id]
+            # Copiar dados fora do lock
+            result = {
+                "exists": True,
+                **snapshot.to_dict(),
+            }
+        return result
 
     async def list_snapshots(
         self,
@@ -848,7 +879,9 @@ class RollbackManager:
         Returns:
             Lista de snapshots
         """
-        snapshots = list(self._snapshots.values())
+        # BUG-H-003: Lock para leitura atômica
+        async with self._snapshots_lock:
+            snapshots = list(self._snapshots.values())
 
         if migration_job_id:
             snapshots = [s for s in snapshots if s.migration_job_id == migration_job_id]
