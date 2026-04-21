@@ -500,28 +500,37 @@ class SpecialistsGrpcClient:
         }
 
     async def health_check_all(self) -> Dict[str, Dict[str, Any]]:
-        """Verificar saúde de todos os especialistas"""
+        """Verificar saúde de todos os especialistas usando HTTP health check"""
+        import httpx
+
         health_results = {}
+        specialist_endpoints = {
+            "business": "http://specialist-business.neural-hive.svc.cluster.local:8000",
+            "technical": "http://specialist-technical.neural-hive.svc.cluster.local:8000",
+            "architecture": "http://specialist-architecture.neural-hive.svc.cluster.local:8000",
+            "behavior": "http://specialist-behavior.neural-hive.svc.cluster.local:8000",
+            "evolution": "http://specialist-evolution.neural-hive.svc.cluster.local:8000",
+        }
 
-        for specialist_type, stub in self.stubs.items():
-            try:
-                request = specialist_pb2.HealthCheckRequest(
-                    service_name=f"specialist-{specialist_type}"
-                )
-
-                # Obter metadata com JWT-SVID
-                grpc_metadata = await self._get_grpc_metadata(specialist_type)
-
-                response = await asyncio.wait_for(
-                    stub.HealthCheck(request, metadata=grpc_metadata), timeout=5.0
-                )
-
-                health_results[specialist_type] = {
-                    "status": response.status,
-                    "details": dict(response.details),
-                }
-            except Exception as e:
-                health_results[specialist_type] = {"status": "NOT_SERVING", "error": str(e)}
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            for specialist_type, endpoint in specialist_endpoints.items():
+                try:
+                    resp = await client.get(f"{endpoint}/ready")
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        health_results[specialist_type] = {
+                            "status": "SERVING" if data.get("ready", False) else "NOT_SERVING",
+                            "details": data.get("details", {}),
+                        }
+                    else:
+                        health_results[specialist_type] = {
+                            "status": "NOT_SERVING",
+                            "error": f"HTTP {resp.status_code}",
+                        }
+                except asyncio.TimeoutError:
+                    health_results[specialist_type] = {"status": "NOT_SERVING", "error": "timeout"}
+                except Exception as e:
+                    health_results[specialist_type] = {"status": "NOT_SERVING", "error": str(e)}
 
         return health_results
 
