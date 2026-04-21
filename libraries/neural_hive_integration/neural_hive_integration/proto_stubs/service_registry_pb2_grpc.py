@@ -5,7 +5,7 @@ import warnings
 
 from . import service_registry_pb2 as service__registry__pb2
 
-GRPC_GENERATED_VERSION = '1.71.2'
+GRPC_GENERATED_VERSION = '1.68.1'
 GRPC_VERSION = grpc.__version__
 _version_not_supported = False
 
