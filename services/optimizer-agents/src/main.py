@@ -42,7 +42,7 @@ except ImportError:
     ML_CENTRALIZED = False
 
 from src.api import api_router
-from src.api import ab_testing, experiments, optimizations
+from src.clients.hypothesis_library_client import HypothesisLibraryClient
 from src.config.settings import get_settings
 from src.consumers import ExperimentsConsumer, InsightsConsumer, TelemetryConsumer
 from src.grpc_service import GrpcServer, OptimizerServicer
@@ -51,7 +51,6 @@ from src.grpc_service.orchestrator_optimization_servicer import OrchestratorOpti
 from src.ml import SchedulingOptimizer, TrainingPipeline
 from src.observability.metrics import setup_metrics
 from src.producers import ExperimentProducer, OptimizationProducer
-from src.clients.hypothesis_library_client import HypothesisLibraryClient
 from src.services.experiment_manager import ExperimentManager
 from src.services.hypothesis_converter import HypothesisConverter
 from src.services.optimization_engine import OptimizationEngine
@@ -266,21 +265,27 @@ async def startup():
         logger.warning("service_registry_client_initialization_failed", error=str(e))
         service_registry_client = None
 
-    # Inicializar clientes de integração
+    # Inicializar clientes de integração (opcionais - não bloqueiam startup)
+    mlflow_client = None
+    argo_client = None
+
+    # MLflow (opcional)
     try:
-        # MLflow
         mlflow_client = MLflowClient(settings=settings)
         mlflow_client.connect()
         logger.info("mlflow_client_initialized")
+    except Exception as e:
+        logger.warning("mlflow_client_initialization_failed", error=str(e))
+        mlflow_client = None
 
-        # Argo Workflows
+    # Argo Workflows (opcional)
+    try:
         argo_client = ArgoWorkflowsClient(settings=settings)
         await argo_client.connect()
         logger.info("argo_client_initialized")
-
     except Exception as e:
-        logger.error("integration_clients_initialization_failed", error=str(e))
-        raise
+        logger.warning("argo_client_initialization_failed", error=str(e))
+        argo_client = None
 
     # Registrar no Service Registry
     if service_registry_client:
@@ -311,19 +316,17 @@ async def startup():
         is_healthy = await hypothesis_library_client.health_check()
         if is_healthy:
             logger.info(
-                "hypothesis_library_client_initialized",
-                url=settings.hypothesis_library_url
+                "hypothesis_library_client_initialized", url=settings.hypothesis_library_url
             )
         else:
             logger.warning(
                 "hypothesis_library_unhealthy_continuing_without",
-                url=settings.hypothesis_library_url
+                url=settings.hypothesis_library_url,
             )
             hypothesis_library_client = None
     except Exception as e:
         logger.warning(
-            "hypothesis_library_client_initialization_failed_continuing_without",
-            error=str(e)
+            "hypothesis_library_client_initialization_failed_continuing_without", error=str(e)
         )
         hypothesis_library_client = None
 
@@ -348,7 +351,7 @@ async def startup():
         )
         logger.info(
             "experiment_manager_initialized",
-            hypothesis_integration_enabled=(hypothesis_converter is not None)
+            hypothesis_integration_enabled=(hypothesis_converter is not None),
         )
 
         # Weight Recalibrator
