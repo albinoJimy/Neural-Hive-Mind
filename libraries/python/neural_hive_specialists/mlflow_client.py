@@ -584,12 +584,43 @@ class MLflowClient:
         """Retorna se MLflow está habilitado e disponível."""
         return self._enabled
 
-    def is_connected(self) -> bool:
-        """Verifica conectividade com MLflow."""
+    def is_connected(self, timeout: float = 2.0) -> bool:
+        """
+        Verifica conectividade com MLflow.
+
+        Args:
+            timeout: Timeout em segundos para evitar bloqueio indefinido
+
+        Returns:
+            True se conectado, False caso contrário
+        """
+        import threading
+        import queue
+
+        def _check():
+            try:
+                self.client.search_experiments(max_results=1)
+                return True
+            except Exception:
+                return False
+
         try:
-            # Tentar listar experiments
-            self.client.search_experiments(max_results=1)
-            return True
+            # Executar check em thread com timeout para evitar bloqueio
+            result_queue: queue.Queue[bool] = queue.Queue()
+
+            def _worker():
+                result_queue.put(_check())
+
+            thread = threading.Thread(target=_worker, daemon=True)
+            thread.start()
+            thread.join(timeout=timeout)
+
+            if thread.is_alive():
+                # Thread ainda rodando - timeout
+                logger.warning("MLflow connectivity check timeout", timeout=timeout)
+                return False
+
+            return result_queue.get(block=False)
         except Exception as e:
             logger.warning("MLflow not connected", error=str(e))
             return False

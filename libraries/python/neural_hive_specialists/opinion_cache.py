@@ -245,19 +245,49 @@ class OpinionCache:
             logger.warning("Failed to invalidate cache", cache_key=cache_key, error=str(e))
             return False
 
-    def is_connected(self) -> bool:
+    def is_connected(self, timeout: float = 1.0) -> bool:
         """
         Verifica se cache está conectado e operacional.
+
+        Args:
+            timeout: Timeout em segundos para evitar bloqueio
 
         Returns:
             True se conectado, False caso contrário
         """
+        import threading
+        import queue
+
         if not self._connected or not self.redis_client:
             return False
 
+        def _ping():
+            try:
+                self.redis_client.ping()
+                return True
+            except Exception:
+                return False
+
         try:
-            self.redis_client.ping()
-            return True
+            # Executar ping em thread com timeout para evitar bloqueio
+            result_queue: queue.Queue[bool] = queue.Queue()
+
+            def _worker():
+                result_queue.put(_ping())
+
+            thread = threading.Thread(target=_worker, daemon=True)
+            thread.start()
+            thread.join(timeout=timeout)
+
+            if thread.is_alive():
+                # Thread ainda rodando - timeout
+                self._connected = False
+                return False
+
+            result = result_queue.get(block=False)
+            if not result:
+                self._connected = False
+            return result
         except Exception:
             self._connected = False
             return False

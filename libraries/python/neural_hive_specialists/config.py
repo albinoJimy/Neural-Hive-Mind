@@ -193,6 +193,11 @@ class SpecialistConfig(BaseSettings):
     grpc_port: int = Field(default=50051, env="GRPC_PORT")
     grpc_max_workers: int = Field(default=10, env="GRPC_MAX_WORKERS")
     grpc_max_message_length: int = Field(default=4 * 1024 * 1024, description="4MB")
+    health_check_cache_ttl_seconds: float = Field(
+        default=15.0,
+        env="HEALTH_CHECK_CACHE_TTL_SECONDS",
+        description="TTL do cache de health check para evitar chamadas bloqueantes frequentes",
+    )
 
     # JWT Authentication
     jwt_secret_key: Optional[str] = Field(None, env="JWT_SECRET_KEY")

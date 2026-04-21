@@ -103,6 +103,11 @@ class BaseSpecialist(ABC):
         # Inicializar métricas primeiro
         self.metrics = SpecialistMetrics(config, self.specialist_type)
 
+        # Cache de health status para evitar chamadas bloqueantes frequentes
+        self._health_cache: Dict[str, Any] | None = None
+        self._health_cache_time: float = 0.0
+        self._health_cache_ttl: float = getattr(config, "health_check_cache_ttl_seconds", 15.0)
+
         # Inicializar componentes com referência de métricas
         try:
             self.mlflow_client = MLflowClient(config, metrics=self.metrics)
@@ -2490,8 +2495,31 @@ class BaseSpecialist(ABC):
             ],
         }
 
-    def health_check(self) -> Dict[str, Any]:
-        """Verifica saúde do especialista."""
+    def health_check(self, force_refresh: bool = False) -> Dict[str, Any]:
+        """
+        Verifica saúde do especialista.
+
+        Args:
+            force_refresh: Se True, ignora o cache e força nova verificação
+
+        Returns:
+            Dict com status e detalhes de saúde
+        """
+        import time
+
+        # Verificar cache primeiro (para evitar chamadas bloqueantes)
+        current_time = time.time()
+        if not force_refresh and self._health_cache is not None:
+            cache_age = current_time - self._health_cache_time
+            if cache_age < self._health_cache_ttl:
+                logger.debug(
+                    "Health check: usando cache",
+                    specialist_type=self.specialist_type,
+                    cache_age=f"{cache_age:.1f}s",
+                    ttl=f"{self._health_cache_ttl:.1f}s",
+                )
+                return self._health_cache
+
         details = {}
         degraded_reasons = []
 
@@ -2628,7 +2656,12 @@ class BaseSpecialist(ABC):
             details=details,
         )
 
-        return {"status": status, "details": details}
+        # Armazenar em cache
+        result = {"status": status, "details": details}
+        self._health_cache = result
+        self._health_cache_time = time.time()
+
+        return result
 
     def get_capabilities(self) -> Dict[str, Any]:
         """Retorna capacidades do especialista."""
