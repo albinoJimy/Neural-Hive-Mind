@@ -66,6 +66,7 @@ class Settings(BaseSettings):
     )
 
     # Redis
+    redis_cluster_enabled: bool = Field(default=True, description="Habilitar modo Redis Cluster")
     redis_cluster_nodes: str = Field(default="redis-cluster.redis.svc.cluster.local:6379")
     redis_password: str | None = Field(
         default=None, description="Redis password (OBRIGATÓRIO em produção)"

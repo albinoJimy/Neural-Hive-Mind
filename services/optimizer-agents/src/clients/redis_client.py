@@ -1,5 +1,5 @@
 import structlog
-from redis.asyncio import Redis
+from redis.asyncio import Redis, RedisCluster
 
 from src.config.settings import get_settings
 
@@ -11,29 +11,56 @@ class RedisClient:
 
     def __init__(self, settings=None):
         self.settings = settings or get_settings()
-        self.client: Redis | None = None
+        self.client: Redis | RedisCluster | None = None
 
     async def connect(self):
         """Estabelecer conexão Redis."""
         try:
-            # Parse first node (single Redis or first cluster node)
-            nodes = self.settings.redis_cluster_nodes.split(",")
-            first_node = nodes[0].strip()
-            host, port = first_node.split(":")
+            if self.settings.redis_cluster_enabled:
+                # Modo cluster: parse multiple nodes
+                nodes = self.settings.redis_cluster_nodes.split(",")
+                cluster_nodes = []
+                for node in nodes:
+                    node = node.strip()
+                    if node:
+                        host, port = node.split(":")
+                        cluster_nodes.append({"host": host, "port": int(port)})
 
-            # Use single Redis client (works for both single and sentinel setups)
-            self.client = Redis(
-                host=host,
-                port=int(port),
-                decode_responses=True,
-                password=self.settings.redis_password if self.settings.redis_password else None,
-                ssl=self.settings.redis_ssl_enabled,
-            )
+                self.client = RedisCluster(
+                    cluster_nodes,
+                    password=self.settings.redis_password if self.settings.redis_password else None,
+                    ssl=self.settings.redis_ssl_enabled,
+                    decode_responses=True,
+                    skip_full_coverage_check=True,
+                    max_connections=50,
+                )
 
-            # Test connection
-            await self.client.ping()
+                # Test connection
+                await self.client.ping()
 
-            logger.info("redis_connected", host=host, port=port)
+                logger.info(
+                    "redis_cluster_connected",
+                    nodes_count=len(cluster_nodes),
+                    nodes=[f"{n['host']}:{n['port']}" for n in cluster_nodes],
+                )
+            else:
+                # Modo standalone: usa primeiro nó
+                nodes = self.settings.redis_cluster_nodes.split(",")
+                first_node = nodes[0].strip()
+                host, port = first_node.split(":")
+
+                self.client = Redis(
+                    host=host,
+                    port=int(port),
+                    decode_responses=True,
+                    password=self.settings.redis_password if self.settings.redis_password else None,
+                    ssl=self.settings.redis_ssl_enabled,
+                )
+
+                # Test connection
+                await self.client.ping()
+
+                logger.info("redis_connected", host=host, port=port)
         except Exception as e:
             logger.error("redis_connection_failed", error=str(e))
             raise
