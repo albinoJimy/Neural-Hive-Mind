@@ -16,6 +16,10 @@ COPY services/fluxo-g-dashboard/src/ ./src/
 
 # Criar usuário não-root
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+
+# Set PYTHONPATH
+ENV PYTHONPATH=/app
+
 USER appuser
 
 # Expor porta

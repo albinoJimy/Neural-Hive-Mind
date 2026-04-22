@@ -16,6 +16,7 @@ from src.clients.engineering_service_registry_client import (
 )
 from src.config.settings import get_settings
 from src.consumers.cognitive_plan_consumer import CognitivePlanConsumer
+from src.dependencies import set_requirements_engineer
 from src.producers.requirements_producer import RequirementsProducer
 from src.proto import service_registry_pb2
 from src.services.requirements_engineer import RequirementsEngineer
@@ -25,7 +26,6 @@ logger = structlog.get_logger(__name__)
 settings = get_settings()
 
 # Global instances
-_requirements_engineer: RequirementsEngineer | None = None
 _kafka_consumer: CognitivePlanConsumer | None = None
 _kafka_producer: RequirementsProducer | None = None
 _consumer_task: asyncio.Task | None = None
@@ -37,13 +37,14 @@ shutdown_event = asyncio.Event()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager para iniciar/parar componentes."""
-    global _requirements_engineer, _kafka_consumer, _kafka_producer, _consumer_task, _registry_client
+    global _kafka_consumer, _kafka_producer, _consumer_task, _registry_client
 
     # Startup
     logger.info("starting_requirements_engineering_service")
 
     # Inicializar RequirementsEngineer
-    _requirements_engineer = RequirementsEngineer()
+    requirements_engineer = RequirementsEngineer()
+    set_requirements_engineer(requirements_engineer)
 
     # Inicializar Kafka Producer
     _kafka_producer = RequirementsProducer()
@@ -134,13 +135,6 @@ app = FastAPI(
     description="Requirements Engineering API for Neural Hive-Mind",
     lifespan=lifespan,
 )
-
-
-def get_engineering_service() -> RequirementsEngineer:
-    """Retorna instância singleton do RequirementsEngineer."""
-    if _requirements_engineer is None:
-        raise RuntimeError("Service not initialized")
-    return _requirements_engineer
 
 
 # Incluir routers

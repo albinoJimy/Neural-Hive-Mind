@@ -1,24 +1,11 @@
 # Knowledge Graph RAG Service Dependencies
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-pydantic==2.5.0
-pydantic-settings==2.1.0
-motor==3.3.2
-neo4j==5.14.0
-qdrant-client==1.7.0
-structlog==23.2.0
+# Usando requirements-base consolidado
+-r ../../requirements-base.txt
+
+# Dependências específicas do serviço
 openai==1.7.2
 anthropic==0.18.0
 numpy==1.26.0
 sentence-transformers==2.2.2
-redis==5.0.1
+qdrant-client==1.7.0
 hiredis==2.3.2
-
-# Observabilidade
-opentelemetry-api==1.21.0
-opentelemetry-sdk==1.21.0
-
-# gRPC
-grpcio>=1.60.0
-grpcio-tools>=1.60.0
-protobuf>=4.25.0

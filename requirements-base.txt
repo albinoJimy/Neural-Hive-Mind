@@ -50,9 +50,9 @@ sqlalchemy==2.0.36
 psycopg2-binary==2.9.9
 
 # gRPC
-grpcio==1.68.1
-grpcio-health-checking==1.68.1
-grpcio-tools==1.68.1
+grpcio==1.71.2
+grpcio-health-checking==1.71.2
+grpcio-tools==1.71.2
 protobuf==5.29.2
 
 # Security

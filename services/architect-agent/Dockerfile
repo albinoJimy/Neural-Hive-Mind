@@ -39,8 +39,9 @@ COPY --from=builder --chown=architect:architect /root/.local /home/architect/.lo
 # Copy Mermaid CLI from builder
 COPY --from=builder --chown=architect:architect /usr/local/bin /usr/local/bin
 
-# Copy neural_hive_security library
-COPY --chown=architect:architect libraries/python/neural_hive_security/ /app/libs/neural_hive_security/
+# Copy and install neural_hive_security library as package
+COPY --chown=architect:architect libraries/python/neural_hive_security/ /tmp/neural_hive_security/
+RUN pip install --no-cache-dir /tmp/neural_hive_security/ && rm -rf /tmp/neural_hive_security
 
 # Copy source code
 COPY --chown=architect:architect services/architect-agent/src/ ./src/
@@ -48,7 +49,7 @@ COPY --chown=architect:architect services/architect-agent/src/ ./src/
 # Set environment
 ENV PATH=/home/architect/.local/bin:/usr/local/bin:$PATH
 ENV PYTHONUNBUFFERED=1
-ENV PYTHONPATH=/app:/app/libs
+ENV PYTHONPATH=/app
 
 # Switch to non-root user
 USER architect

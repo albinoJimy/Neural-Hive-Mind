@@ -1,19 +1,8 @@
 # Fluxo G Dashboard Dependencies
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
+# Usando requirements-base consolidado
+-r ../../requirements-base.txt
+
+# Dependências específicas do serviço
 jinja2==3.1.2
-python-multipart==0.0.6
-aiofiles==23.2.1
 websockets==12.0
-pydantic==2.5.0
-pydantic-settings==2.1.0
-httpx==0.25.2
-structlog==23.2.0
-
-# Temporal client
 temporalio==1.6.0
-
-# Observabilidade
-opentelemetry-api==1.21.0
-opentelemetry-sdk==1.21.0
-prometheus-client==0.19.0

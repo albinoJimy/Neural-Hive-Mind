@@ -2,7 +2,7 @@
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from src.main import get_engineering_service
+from src.dependencies import get_engineering_service
 from src.models.api_design import APIEndpoint, HTTPMethod
 from src.services.api_designer import APIDesigner
 
