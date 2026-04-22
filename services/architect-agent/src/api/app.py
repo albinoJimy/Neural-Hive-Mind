@@ -22,7 +22,7 @@ def create_app() -> FastAPI:
         redoc_url="/redoc",
     )
 
-    # CORS - usa configuração segura por ambiente via neural_hive_security
+    # CORS - usa configuração segura por ambiente (implementação local)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.CORS_ORIGINS,

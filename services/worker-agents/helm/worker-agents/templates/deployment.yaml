@@ -3,6 +3,9 @@ kind: Deployment
 metadata:
   name: {{ .Chart.Name }}
   labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/component: {{ .Chart.Name }}
+    app.kubernetes.io/part-of: neural-hive-mind
     app: {{ .Chart.Name }}
 spec:
   replicas: {{ .Values.replicaCount }}
@@ -18,6 +21,9 @@ spec:
     metadata:
       labels:
         app: {{ .Chart.Name }}
+        app.kubernetes.io/name: {{ .Chart.Name }}
+        app.kubernetes.io/component: {{ .Chart.Name }}
+        app.kubernetes.io/part-of: neural-hive-mind
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "{{ .Values.service.ports.metrics }}"

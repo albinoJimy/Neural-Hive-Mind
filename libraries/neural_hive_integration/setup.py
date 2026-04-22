@@ -19,7 +19,7 @@ setup(
     python_requires=">=3.10",
     install_requires=[
         "httpx>=0.25.2",
-        "grpcio>=1.68.1",  # Aligned with proto stubs GRPC_GENERATED_VERSION
+        "grpcio>=1.71.2",  # Aligned with requirements-base.txt
         "protobuf>=5.27.0",  # Required for proto_stubs
         "structlog>=23.1.0",
         "opentelemetry-api>=1.21.0",

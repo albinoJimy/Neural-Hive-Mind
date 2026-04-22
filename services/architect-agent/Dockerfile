@@ -1,4 +1,4 @@
-# Architect Agent Dockerfile
+# Architect Agent Dockerfile - Multi-stage build
 FROM python:3.12-slim as builder
 
 WORKDIR /app
@@ -15,8 +15,13 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     npm install -g @mermaid-js/mermaid-cli && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-COPY services/architect-agent/requirements.txt requirements-base.txt ./
-RUN pip install --no-cache-dir --user -r requirements.txt
+# Copy requirements files
+COPY requirements-base.txt ./requirements-base.txt
+COPY services/architect-agent/requirements.txt ./requirements-service.txt
+
+# Replace relative path and install dependencies
+RUN cat requirements-service.txt | sed 's|-r ../../requirements-base.txt|-r requirements-base.txt|' > requirements.txt && \
+    pip install --no-cache-dir --user -r requirements.txt
 
 FROM python:3.12-slim
 
@@ -38,10 +43,6 @@ COPY --from=builder --chown=architect:architect /root/.local /home/architect/.lo
 
 # Copy Mermaid CLI from builder
 COPY --from=builder --chown=architect:architect /usr/local/bin /usr/local/bin
-
-# Copy and install neural_hive_security library as package
-COPY --chown=architect:architect libraries/python/neural_hive_security/ /tmp/neural_hive_security/
-RUN pip install --no-cache-dir /tmp/neural_hive_security/ && rm -rf /tmp/neural_hive_security
 
 # Copy source code
 COPY --chown=architect:architect services/architect-agent/src/ ./src/

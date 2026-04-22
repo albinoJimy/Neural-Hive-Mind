@@ -3,6 +3,9 @@ kind: Deployment
 metadata:
   name: {{ include "scout-agents.fullname" . }}
   labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/component: {{ .Chart.Name }}
+    app.kubernetes.io/part-of: neural-hive-mind
     {{- include "scout-agents.labels" . | nindent 4 }}
 spec:
   {{- if not .Values.autoscaling.enabled }}
